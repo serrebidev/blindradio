@@ -9,6 +9,12 @@ thiserror = "*"
 reqwest = { version = "*", default-features = false, features = ["rustls", "stream"] }
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
 serde_json = "*"
+bytes = "*"
+crossbeam-channel = "*"
+rubato = "*"
+symphonia = { version = "*", default-features = false, features = ["aac", "flac", "isomp4", "mp3", "ogg", "vorbis"] }
+symphonia-adapter-fdk-aac = "*"
+symphonia-adapter-libopus = "*"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }

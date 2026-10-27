@@ -1,0 +1,267 @@
+use std::io::Read;
+
+use bytes::{Buf, Bytes};
+use crossbeam_channel::{Receiver, Sender};
+use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
+use symphonia::core::codecs::registry::CodecRegistry;
+use symphonia::core::common::Tier;
+use symphonia::core::errors::Error;
+use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::{FormatOptions, FormatReader, TrackType};
+use symphonia::core::io::{MediaSourceStream, ReadOnlySource};
+use symphonia::core::meta::MetadataOptions;
+
+use crate::{CoreError, Result};
+
+/// Blocking `Read` over chunks sent from the async network side.
+pub struct ByteReader {
+	rx: Receiver<Bytes>,
+	chunk: Bytes,
+}
+
+pub fn byte_pipe() -> (Sender<Bytes>, ByteReader) {
+	let (tx, rx) = crossbeam_channel::bounded(64);
+	(
+		tx,
+		ByteReader {
+			rx,
+			chunk: Bytes::new(),
+		},
+	)
+}
+
+impl Read for ByteReader {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		while self.chunk.is_empty() {
+			match self.rx.recv() {
+				Ok(chunk) => self.chunk = chunk,
+				Err(_) => return Ok(0),
+			}
+		}
+		let n = buf.len().min(self.chunk.len());
+		self.chunk.copy_to_slice(&mut buf[..n]);
+		Ok(n)
+	}
+}
+
+fn codecs() -> CodecRegistry {
+	let mut codecs = CodecRegistry::new();
+	symphonia::default::register_enabled_codecs(&mut codecs);
+	// FDK handles HE-AAC (SBR/PS), which symphonia's native AAC decoder does not.
+	codecs.register_audio_decoder_at_tier::<symphonia_adapter_fdk_aac::AacDecoder>(Tier::Preferred);
+	codecs.register_audio_decoder::<symphonia_adapter_libopus::OpusDecoder>();
+	codecs
+}
+
+fn decode_err(e: Error) -> CoreError {
+	CoreError::Decode(e.to_string())
+}
+
+pub struct Decoder {
+	format: Box<dyn FormatReader>,
+	codecs: CodecRegistry,
+	decoder: Box<dyn AudioDecoder>,
+	track_id: u32,
+	rate: u32,
+	scratch: Vec<f32>,
+	first: Vec<f32>,
+}
+
+impl Decoder {
+	pub fn new(reader: Box<dyn Read + Send + Sync>, ext_hint: Option<&str>) -> Result<Decoder> {
+		let mss = MediaSourceStream::new(Box::new(ReadOnlySource::new(reader)), Default::default());
+		let mut hint = Hint::new();
+		if let Some(ext) = ext_hint {
+			hint.with_extension(ext);
+		}
+		let format = symphonia::default::get_probe()
+			.probe(
+				&hint,
+				mss,
+				FormatOptions::default(),
+				MetadataOptions::default(),
+			)
+			.map_err(decode_err)?;
+		let codecs = codecs();
+		let (decoder, track_id, rate) = open_track(format.as_ref(), &codecs)?;
+		let mut dec = Decoder {
+			format,
+			codecs,
+			decoder,
+			track_id,
+			rate,
+			scratch: Vec::new(),
+			first: Vec::new(),
+		};
+		// Decode one packet now so sample_rate() is right before the caller sizes its resampler.
+		let mut first = Vec::new();
+		dec.next_stereo(&mut first)?;
+		dec.first = first;
+		Ok(dec)
+	}
+
+	/// Rate of the audio last produced, read from each decoded buffer, so HE-AAC's SBR rate wins over the container's.
+	pub fn sample_rate(&self) -> u32 {
+		self.rate
+	}
+
+	pub fn next_stereo(&mut self, out: &mut Vec<f32>) -> Result<bool> {
+		if !self.first.is_empty() {
+			out.append(&mut self.first);
+			return Ok(true);
+		}
+		loop {
+			let packet = match self.format.next_packet() {
+				Ok(Some(p)) => p,
+				Ok(None) => return Ok(false),
+				Err(Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+					return Ok(false);
+				}
+				// Chained Ogg (a new logical stream per song on Icecast) needs a fresh decoder.
+				Err(Error::ResetRequired) => {
+					(self.decoder, self.track_id, _) =
+						open_track(self.format.as_ref(), &self.codecs)?;
+					continue;
+				}
+				Err(e) => return Err(decode_err(e)),
+			};
+			if packet.track_id != self.track_id {
+				continue;
+			}
+			let buf = match self.decoder.decode(&packet) {
+				Ok(buf) => buf,
+				Err(Error::DecodeError(_) | Error::IoError(_)) => continue,
+				Err(e) => return Err(decode_err(e)),
+			};
+			if buf.frames() == 0 {
+				continue;
+			}
+			self.rate = buf.spec().rate();
+			let channels = buf.spec().channels().count();
+			buf.copy_to_vec_interleaved(&mut self.scratch);
+			match channels {
+				1 => out.extend(self.scratch.iter().flat_map(|&s| [s, s])),
+				2 => out.extend_from_slice(&self.scratch),
+				// Planes are in symphonia's canonical order, front left and right first.
+				n => out.extend(self.scratch.chunks_exact(n).flat_map(|f| [f[0], f[1]])),
+			}
+			return Ok(true);
+		}
+	}
+}
+
+fn open_track(
+	format: &dyn FormatReader,
+	codecs: &CodecRegistry,
+) -> Result<(Box<dyn AudioDecoder>, u32, u32)> {
+	let track = format
+		.default_track(TrackType::Audio)
+		.ok_or_else(|| CoreError::Decode("no audio track".into()))?;
+	let params = track
+		.codec_params
+		.as_ref()
+		.and_then(|p| p.audio())
+		.ok_or_else(|| CoreError::Decode("no audio codec parameters".into()))?;
+	let decoder = codecs
+		.make_audio_decoder(params, &AudioDecoderOptions::default())
+		.map_err(decode_err)?;
+	Ok((decoder, track.id, params.sample_rate.unwrap_or(0)))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn fixture(name: &str) -> std::fs::File {
+		let path = format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));
+		std::fs::File::open(path).unwrap()
+	}
+
+	fn decode_all(reader: Box<dyn Read + Send + Sync>, ext: &str) -> (u32, Vec<f32>) {
+		let mut dec = Decoder::new(reader, Some(ext)).unwrap();
+		let mut out = Vec::new();
+		while dec.next_stereo(&mut out).unwrap() {}
+		(dec.sample_rate(), out)
+	}
+
+	fn peak(samples: impl Iterator<Item = f32>) -> f32 {
+		samples.fold(0.0, |m, s| m.max(s.abs()))
+	}
+
+	#[test]
+	fn decodes_each_fixture() {
+		// Opus always decodes at 48 kHz whatever the encoder's input rate was.
+		for (name, rate) in [
+			("tone.mp3", 44100),
+			("tone.aac", 44100),
+			("tone.opus", 48000),
+			("tone.ogg", 44100),
+			("tone.flac", 44100),
+		] {
+			let ext = name.rsplit('.').next().unwrap();
+			let (got_rate, out) = decode_all(Box::new(fixture(name)), ext);
+			assert_eq!(got_rate, rate, "{name}");
+			let frames = (out.len() / 2) as f64;
+			let want = 5.0 * rate as f64;
+			assert!(
+				(frames - want).abs() <= want * 0.02,
+				"{name}: {frames} frames"
+			);
+			assert!(peak(out.into_iter()) > 0.05, "{name}: silent");
+		}
+	}
+
+	#[test]
+	fn decode_mono_to_stereo() {
+		let (rate, out) = decode_all(Box::new(fixture("mono22k.mp3")), "mp3");
+		assert_eq!(rate, 22050);
+		assert!(!out.is_empty());
+		assert!(out.as_chunks::<2>().0.iter().all(|[l, r]| l == r));
+	}
+
+	#[test]
+	fn decode_surround_takes_front_pair() {
+		// The fixture has the tone on front left/right only; the other four channels are silent.
+		let (rate, out) = decode_all(Box::new(fixture("surround.flac")), "flac");
+		assert_eq!(rate, 48000);
+		assert_eq!(out.len() / 2, 2 * 48000);
+		assert!(peak(out.iter().step_by(2).copied()) > 0.05);
+		assert!(peak(out.iter().skip(1).step_by(2).copied()) > 0.05);
+	}
+
+	#[test]
+	fn corrupt_bytes_are_skipped() {
+		let mut data = Vec::new();
+		fixture("tone.mp3").read_to_end(&mut data).unwrap();
+		let mid = data.len() / 2;
+		data[mid..mid + 2000].fill(0xAB);
+		let (_, out) = decode_all(Box::new(std::io::Cursor::new(data)), "mp3");
+		assert!(out.len() / 2 > 4 * 44100);
+	}
+
+	#[test]
+	fn decodes_through_byte_pipe() {
+		let (tx, reader) = byte_pipe();
+		std::thread::spawn(move || {
+			let mut data = Vec::new();
+			fixture("tone.aac").read_to_end(&mut data).unwrap();
+			for chunk in data.chunks(1500) {
+				tx.send(Bytes::copy_from_slice(chunk)).unwrap();
+			}
+		});
+		let (rate, out) = decode_all(Box::new(reader), "aac");
+		assert_eq!(rate, 44100);
+		assert!(out.len() / 2 > 4 * 44100);
+	}
+
+	#[test]
+	fn byte_reader_eof_on_sender_drop() {
+		let (tx, mut reader) = byte_pipe();
+		tx.send(Bytes::from_static(b"ab")).unwrap();
+		tx.send(Bytes::from_static(b"c")).unwrap();
+		drop(tx);
+		let mut got = Vec::new();
+		reader.read_to_end(&mut got).unwrap();
+		assert_eq!(got, b"abc");
+	}
+}
