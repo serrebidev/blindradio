@@ -8,7 +8,10 @@ const LOW_HZ: f64 = 120.0;
 const MID_HZ: f64 = 1000.0;
 const MID_Q: f64 = 0.9;
 const HIGH_HZ: f64 = 6000.0;
-const MAX_DB: i8 = 12;
+/// Band gain limit in dB, either way.
+pub const MAX_DB: i8 = 12;
+/// On/off crossfade, as long as the mixer's warm-swap crossfade.
+const FADE_MS: f64 = 25.0;
 
 impl EqPreset {
 	/// Band gains in dB (bass, mid, treble); `None` for Custom.
@@ -119,14 +122,21 @@ impl Biquad {
 pub struct Eq {
 	rate: f64,
 	active: bool,
+	/// Share of filtered signal in the output; eases toward `active` over `FADE_MS`, so
+	/// switching the EQ on or off never clicks. 0 is bit-exact bypass.
+	wet: f64,
+	wet_step: f64,
 	bands: [Biquad; 3],
 }
 
 impl Eq {
 	pub fn new(rate: u32) -> Eq {
+		let rate = rate as f64;
 		Eq {
-			rate: rate as f64,
+			rate,
 			active: false,
+			wet: 0.0,
+			wet_step: 1.0 / (rate * FADE_MS / 1000.0).max(1.0),
 			bands: [Biquad::default(); 3],
 		}
 	}
@@ -135,6 +145,12 @@ impl Eq {
 		let db = |v: i8| v.clamp(-MAX_DB, MAX_DB);
 		let gains = [db(s.bass), db(s.mid), db(s.treble)];
 		self.active = s.enabled && gains.iter().any(|&g| g != 0);
+		if self.active && self.wet == 0.0 {
+			// State left from long ago would ring in as a burst.
+			for b in &mut self.bands {
+				b.z = [[0.0; 2]; 2];
+			}
+		}
 		let spec = [
 			(Kind::LowShelf, LOW_HZ),
 			(Kind::Peak, MID_HZ),
@@ -147,16 +163,20 @@ impl Eq {
 
 	/// Interleaved stereo, in place.
 	pub fn process(&mut self, stereo: &mut [f32]) {
-		if !self.active {
+		if !self.active && self.wet == 0.0 {
 			return;
 		}
+		let target = if self.active { 1.0 } else { 0.0 };
 		for frame in stereo.as_chunks_mut::<2>().0 {
+			self.wet += (target - self.wet).clamp(-self.wet_step, self.wet_step);
 			for (ch, v) in frame.iter_mut().enumerate() {
-				let mut x = *v as f64;
+				let dry = *v as f64;
+				let mut x = dry;
 				for b in &mut self.bands {
 					x = b.run(ch, x);
 				}
-				*v = x as f32;
+				// Linear: wet and dry are the same signal, so equal-power would bulge.
+				*v = (dry + (x - dry) * self.wet) as f32;
 			}
 		}
 	}
@@ -207,6 +227,49 @@ mod tests {
 		let mut out = input.clone();
 		eq.process(&mut out);
 		assert_eq!(out, input);
+	}
+
+	/// Steepest sample-to-sample step on the left channel.
+	fn max_step(v: &[f32]) -> f32 {
+		let left: Vec<f32> = v.iter().step_by(2).copied().collect();
+		left.windows(2)
+			.map(|w| (w[1] - w[0]).abs())
+			.fold(0.0, f32::max)
+	}
+
+	#[test]
+	fn toggling_mid_sine_does_not_click() {
+		let hz = 200.0;
+		let on = settings(12, 0, 0);
+		let off = EqSettings {
+			enabled: false,
+			..on.clone()
+		};
+		let flat = settings(0, 0, 0);
+		// The bound is the sine's own steepest step, boosted or not.
+		let mut reference = Eq::new(RATE);
+		reference.set(&on);
+		let mut wet = sine(hz, RATE as usize);
+		reference.process(&mut wet);
+		let bound = max_step(&wet[wet.len() / 2..]).max(max_step(&sine(hz, 1000))) * 1.1;
+		// Half a second in, a quarter cycle past a zero crossing: the sine's peak.
+		let cut = 2 * (RATE as usize / 2 + 60);
+		for (first, second) in [(&on, &off), (&on, &flat), (&off, &on), (&flat, &on)] {
+			let input = sine(hz, RATE as usize);
+			let mut out = input.clone();
+			let mut eq = Eq::new(RATE);
+			eq.set(first);
+			eq.process(&mut out[..cut]);
+			eq.set(second);
+			eq.process(&mut out[cut..]);
+			let step = max_step(&out);
+			assert!(step < bound, "{step} >= {bound}");
+			if !eq.active {
+				// Once the 25 ms fade is over, bypass is bit-exact again.
+				let done = cut + 2 * 1200;
+				assert_eq!(out[done..], input[done..]);
+			}
+		}
 	}
 
 	#[test]
