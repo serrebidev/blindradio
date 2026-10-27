@@ -174,6 +174,26 @@ fn resolve_cache_round_trip() {
 	);
 }
 
+#[test]
+fn resolve_cache_skips_session_urls() {
+	let dir = tempfile::tempdir().unwrap();
+	let mut c = ResolveCache::load(&dir.path().join("resolve.json"));
+	c.put("http://a/s?source=web", "http://b/s?source=web");
+	assert!(
+		c.get("http://a/s?source=web").is_some(),
+		"same query is kept"
+	);
+	c.put(
+		"http://a/s?source=web",
+		"http://c/s?session-id=42&source=web",
+	);
+	assert_eq!(
+		c.get("http://a/s?source=web"),
+		None,
+		"a per-session URL replaces and is not kept"
+	);
+}
+
 #[tokio::test]
 async fn test_server_icy_framing() {
 	let s = serve(vec![Route::Stream {

@@ -1,5 +1,6 @@
 // Plan 1 test shell: a station list that dial-tunes. The real UI arrives in plan 4.
-#![windows_subsystem = "windows"]
+// Debug builds keep a console, so the stderr log below is visible.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -60,6 +61,19 @@ impl App {
 				// Speech arrives in plan 5.
 				TunerEvent::Failed { name, reason, .. } => eprintln!("Failed: {name} ({reason})"),
 				TunerEvent::Announce(song) => eprintln!("{song}"),
+				// Spec: measure and log warm and cold latency in debug builds.
+				TunerEvent::Latency {
+					station_id,
+					ms,
+					warm,
+				} if cfg!(debug_assertions) => {
+					let name = self
+						.stations
+						.iter()
+						.find(|s| s.id == station_id)
+						.map_or("?", |s| s.name.as_str());
+					eprintln!("{name} warm={warm} {ms} ms");
+				}
 				_ => {}
 			}
 		}

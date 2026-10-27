@@ -59,13 +59,16 @@ pub async fn run_hls(
 				continue;
 			}
 			next = seq + 1;
-			let Some(audio) = fetch_segment(&client, &base, &segment.uri, limit).await else {
+			let Some((audio, id3)) = fetch_segment(&client, &base, &segment.uri, limit).await
+			else {
 				continue;
 			};
 			progress = Instant::now();
-			let title = segment.title.as_deref().map(str::trim).unwrap_or("");
+			// An ID3 TIT2 in the segment is the stream's own title; #EXTINF is the fallback.
+			let extinf = segment.title.as_deref().map(str::trim).unwrap_or("");
+			let title = id3.unwrap_or_else(|| extinf.to_owned());
 			if !title.is_empty() {
-				on_title(Some(title.to_owned()));
+				on_title(Some(title));
 			}
 			if !send(&tx, audio).await {
 				return Ok(());
@@ -151,18 +154,18 @@ fn parse(body: &[u8]) -> Result<Playlist> {
 	m3u8_rs::parse_playlist_res(body).map_err(|_| not_a_stream())
 }
 
-/// Tries a segment twice; `None` skips it.
+/// Tries a segment twice; `None` skips it. Returns its audio and any ID3 title it carries.
 async fn fetch_segment(
 	client: &reqwest::Client,
 	base: &Url,
 	uri: &str,
 	limit: Duration,
-) -> Option<Bytes> {
+) -> Option<(Bytes, Option<String>)> {
 	let url = base.join(uri).ok()?;
 	for _ in 0..2 {
 		if let Ok((_, body)) = get(client, &url, limit).await {
-			let audio = segment_audio(body);
-			return (!audio.is_empty()).then_some(audio);
+			let (audio, title) = segment_audio(body);
+			return (!audio.is_empty()).then_some((audio, title));
 		}
 	}
 	None
@@ -184,9 +187,11 @@ async fn get(client: &reqwest::Client, url: &Url, limit: Duration) -> Result<(Ur
 }
 
 /// TS is demuxed; raw ADTS or MP3 only loses a leading ID3 tag (packed audio carries one).
-fn segment_audio(body: Bytes) -> Bytes {
+/// The title comes from ID3 TIT2: TS timed metadata, or the packed-audio tag.
+fn segment_audio(body: Bytes) -> (Bytes, Option<String>) {
 	if body.first() == Some(&0x47) && body.get(188).is_none_or(|&b| b == 0x47) {
-		return ts_audio(&body).into();
+		let (audio, id3) = ts_audio(&body);
+		return (audio.into(), id3_title(&id3));
 	}
 	let skip = match &body[..] {
 		[b'I', b'D', b'3', _, _, flags, size @ ..] if size.len() >= 4 => {
@@ -198,16 +203,77 @@ fn segment_audio(body: Bytes) -> Bytes {
 		}
 		_ => 0,
 	};
-	body.slice(skip.min(body.len())..)
+	let skip = skip.min(body.len());
+	(body.slice(skip..), id3_title(&body[..skip]))
+}
+
+/// Text of the first TIT2 frame in an ID3v2.3 or v2.4 tag.
+fn id3_title(tag: &[u8]) -> Option<String> {
+	let [b'I', b'D', b'3', version, _, _, size @ ..] = tag else {
+		return None;
+	};
+	let synchsafe = |b: &[u8]| b.iter().fold(0, |n, &b| n << 7 | usize::from(b & 0x7F));
+	let end = (10 + synchsafe(size.get(..4)?)).min(tag.len());
+	let mut frames = tag.get(10..end)?;
+	while let Some(id) = frames.get(..10) {
+		let len = if *version >= 4 {
+			synchsafe(&id[4..8])
+		} else {
+			id[4..8].iter().fold(0, |n, &b| n << 8 | usize::from(b))
+		};
+		let body = frames.get(10..10 + len)?;
+		if &id[..4] == b"TIT2" {
+			return text_frame(body);
+		}
+		if id[0] == 0 {
+			return None;
+		}
+		frames = &frames[10 + len..];
+	}
+	None
+}
+
+/// An ID3 text frame body: encoding byte, then Latin-1, UTF-16 (BOM or BE) or UTF-8.
+fn text_frame(body: &[u8]) -> Option<String> {
+	let (&encoding, text) = body.split_first()?;
+	let utf16 = |text: &[u8], be: bool| {
+		let units: Vec<u16> = text
+			.as_chunks::<2>()
+			.0
+			.iter()
+			.map(|&b| {
+				if be {
+					u16::from_be_bytes(b)
+				} else {
+					u16::from_le_bytes(b)
+				}
+			})
+			.collect();
+		String::from_utf16_lossy(&units)
+	};
+	let s = match encoding {
+		0 => text.iter().map(|&b| char::from(b)).collect(),
+		1 => match text {
+			[0xFF, 0xFE, rest @ ..] => utf16(rest, false),
+			[0xFE, 0xFF, rest @ ..] => utf16(rest, true),
+			_ => utf16(text, true),
+		},
+		2 => utf16(text, true),
+		_ => String::from_utf8_lossy(text).into_owned(),
+	};
+	let s = s
+		.trim_matches(|c: char| c == '\0' || c.is_whitespace())
+		.to_owned();
+	(!s.is_empty()).then_some(s)
 }
 
 /// The first audio stream of the first program: ADTS AAC (stream type 0x0F) or MPEG audio (0x03,
 /// 0x04), concatenated without PES headers.
-// ponytail: PAT and PMT are assumed to fit one packet each (they do in practice), and ID3 timed
-// metadata (TIT2) is ignored; parse the 0x15 stream when a wanted network sends titles there.
-fn ts_audio(ts: &[u8]) -> Vec<u8> {
-	let (mut pmt_pid, mut audio_pid) = (None, None);
-	let mut out = Vec::new();
+/// Also returns the ID3 timed metadata stream (type 0x15), which carries titles.
+// ponytail: PAT and PMT are assumed to fit one packet each (they do in practice).
+fn ts_audio(ts: &[u8]) -> (Vec<u8>, Vec<u8>) {
+	let (mut pmt_pid, mut audio_pid, mut id3_pid) = (None, None, None);
+	let (mut out, mut id3) = (Vec::new(), Vec::new());
 	for packet in ts.as_chunks::<188>().0 {
 		let Some((pid, start, payload)) = ts_payload(packet) else {
 			continue;
@@ -215,7 +281,18 @@ fn ts_audio(ts: &[u8]) -> Vec<u8> {
 		if pid == 0 && start {
 			pmt_pid = psi_section(payload).and_then(pat_pmt_pid);
 		} else if Some(pid) == pmt_pid && start {
-			audio_pid = psi_section(payload).and_then(pmt_audio_pid);
+			(audio_pid, id3_pid) = psi_section(payload).map_or((None, None), pmt_pids);
+		} else if Some(pid) == id3_pid {
+			let data = if start {
+				pes_data(payload)
+			} else {
+				Some(payload)
+			};
+			// Each PES starts a new tag; keep the latest.
+			if start {
+				id3.clear();
+			}
+			id3.extend_from_slice(data.unwrap_or_default());
 		} else if Some(pid) == audio_pid {
 			let data = if start {
 				pes_data(payload)
@@ -225,7 +302,7 @@ fn ts_audio(ts: &[u8]) -> Vec<u8> {
 			out.extend_from_slice(data.unwrap_or_default());
 		}
 	}
-	out
+	(out, id3)
 }
 
 /// PID, payload-unit-start flag and payload of a TS packet.
@@ -258,16 +335,25 @@ fn pat_pmt_pid(pat: &[u8]) -> Option<u16> {
 		.map(|e| u16::from_be_bytes([e[2] & 0x1F, e[3]]))
 }
 
-fn pmt_audio_pid(pmt: &[u8]) -> Option<u16> {
-	let info = usize::from(*pmt.get(10)? & 0x0F) << 8 | usize::from(*pmt.get(11)?);
-	let mut streams = pmt.get(12 + info..)?;
+/// The audio PID and the ID3 timed metadata PID, if the PMT lists them.
+fn pmt_pids(pmt: &[u8]) -> (Option<u16>, Option<u16>) {
+	let (mut audio, mut id3) = (None, None);
+	let info = pmt
+		.get(10..12)
+		.map_or(0, |b| usize::from(b[0] & 0x0F) << 8 | usize::from(b[1]));
+	let mut streams = pmt.get(12 + info..).unwrap_or_default();
 	while let [kind, pid_hi, pid_lo, len_hi, len_lo, rest @ ..] = streams {
-		if matches!(kind, 0x0F | 0x03 | 0x04) {
-			return Some(u16::from_be_bytes([pid_hi & 0x1F, *pid_lo]));
+		let pid = u16::from_be_bytes([pid_hi & 0x1F, *pid_lo]);
+		match kind {
+			0x0F | 0x03 | 0x04 if audio.is_none() => audio = Some(pid),
+			0x15 if id3.is_none() => id3 = Some(pid),
+			_ => {}
 		}
-		streams = rest.get(usize::from(len_hi & 0x0F) << 8 | usize::from(*len_lo)..)?;
+		streams = rest
+			.get(usize::from(len_hi & 0x0F) << 8 | usize::from(*len_lo)..)
+			.unwrap_or_default();
 	}
-	None
+	(audio, id3)
 }
 
 /// Elementary stream data of a PES packet starting in this payload.
@@ -313,5 +399,88 @@ mod tests {
 	fn hint_tells_adts_from_mpeg_audio() {
 		assert_eq!(hint(&[0xFF, 0xF1, 0x50]), "aac");
 		assert_eq!(hint(&[0xFF, 0xFB, 0x90]), "mp3");
+	}
+
+	fn id3(version: u8, frames: &[(&[u8; 4], &[u8])]) -> Vec<u8> {
+		let synchsafe = |n: usize| {
+			[
+				(n >> 21) as u8 & 0x7F,
+				(n >> 14) as u8 & 0x7F,
+				(n >> 7) as u8 & 0x7F,
+				n as u8 & 0x7F,
+			]
+		};
+		let mut body = Vec::new();
+		for (id, data) in frames {
+			body.extend_from_slice(*id);
+			if version >= 4 {
+				body.extend_from_slice(&synchsafe(data.len()));
+			} else {
+				body.extend_from_slice(&(data.len() as u32).to_be_bytes());
+			}
+			body.extend_from_slice(&[0, 0]);
+			body.extend_from_slice(data);
+		}
+		let mut tag = vec![b'I', b'D', b'3', version, 0, 0];
+		tag.extend_from_slice(&synchsafe(body.len()));
+		tag.extend(body);
+		tag
+	}
+
+	#[test]
+	fn id3_title_reads_tit2_in_each_encoding() {
+		let utf8 = id3(4, &[(b"TIT2", b"\x03Song - One\0")]);
+		assert_eq!(id3_title(&utf8).as_deref(), Some("Song - One"));
+		let latin1 = id3(3, &[(b"TPE1", b"\x00X"), (b"TIT2", b"\x00Caf\xe9")]);
+		assert_eq!(id3_title(&latin1).as_deref(), Some("Caf\u{e9}"));
+		let utf16 = id3(3, &[(b"TIT2", b"\x01\xff\xfeA\x00B\x00")]);
+		assert_eq!(id3_title(&utf16).as_deref(), Some("AB"));
+		assert_eq!(id3_title(&id3(4, &[(b"TALB", b"\x03x")])), None);
+		assert_eq!(id3_title(b"not a tag"), None);
+	}
+
+	#[test]
+	fn packed_audio_keeps_its_id3_title() {
+		let mut seg = id3(4, &[(b"TIT2", b"\x03Packed")]);
+		seg.extend_from_slice(&[0xFF, 0xF1, 0x50]);
+		let (audio, title) = segment_audio(Bytes::from(seg));
+		assert_eq!(&audio[..], &[0xFF, 0xF1, 0x50]);
+		assert_eq!(title.as_deref(), Some("Packed"));
+	}
+
+	fn ts_packet(pid: u16, start: bool, payload: &[u8]) -> Vec<u8> {
+		let mut p = vec![
+			0x47,
+			(u8::from(start) << 6) | (pid >> 8) as u8,
+			pid as u8,
+			0x10,
+		];
+		p.extend_from_slice(payload);
+		p.resize(188, 0xFF);
+		p
+	}
+
+	#[test]
+	fn ts_timed_id3_gives_the_title() {
+		// PAT: program 1 on PMT PID 0x100. PMT: ADTS on 0x101, ID3 timed metadata (0x15) on 0x102.
+		let pat = [
+			0, 0x00, 0xB0, 13, 0, 1, 0xC1, 0, 0, 0, 1, 0xE1, 0x00, 0, 0, 0, 0,
+		];
+		let pmt = [
+			0, 0x02, 0xB0, 23, 0, 1, 0xC1, 0, 0, 0xE1, 0x01, 0xF0, 0, 0x0F, 0xE1, 0x01, 0xF0, 0,
+			0x15, 0xE1, 0x02, 0xF0, 0, 0, 0, 0, 0,
+		];
+		let pes = |data: &[u8]| [&[0, 0, 1, 0xBD, 0, 0, 0x80, 0x80, 0][..], data].concat();
+		let tag = id3(4, &[(b"TIT2", b"\x03TS Title")]);
+		let ts = [
+			ts_packet(0, true, &pat),
+			ts_packet(0x100, true, &pmt),
+			ts_packet(0x102, true, &pes(&tag)),
+			ts_packet(0x101, true, &pes(&[0xFF, 0xF1, 0x50])),
+		]
+		.concat();
+		let (audio, title) = segment_audio(Bytes::from(ts));
+		assert!(audio.starts_with(&[0xFF, 0xF1, 0x50]));
+		assert_eq!(title.as_deref(), Some("TS Title"));
 	}
 }

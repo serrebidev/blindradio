@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 
 use crate::net;
 use crate::output::{MixerCmd, Output};
-use crate::ring::PcmRing;
+use crate::ring::{CUSHION_MS, PcmRing};
 use crate::station::Station;
 use crate::stream::{EngineCtx, StreamEvent};
 
@@ -17,8 +17,9 @@ const REPEAT: Duration = Duration::from_millis(100);
 const SETTLE: Duration = Duration::from_millis(1500);
 /// Warm neighbours close after this long without a focus.
 const WARM_IDLE: Duration = Duration::from_secs(25);
-/// A warm swap plays this far behind the ring's newest sample.
-const SWAP_MS: u32 = 250;
+/// A warm swap plays this far behind the ring's newest sample: the mixer's start cushion, so a
+/// ready neighbour swaps at once and one still filling waits like a cold start.
+const SWAP_MS: u32 = CUSHION_MS;
 /// DNS is warmed for the stations this close to the focused one.
 const DNS_SPAN: usize = 5;
 /// A host is warmed again after this, since the OS resolver cache expires.
@@ -344,7 +345,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				}
 				None => {
 					// Silence first: the old station must never keep playing under a new focus.
-					self.silence();
+					// The old station fades into hiss until this one comes in: no dead air, never the old station.
+					self.sink.send(MixerCmd::Tune);
+					self.pending = None;
 					cold = Some(now);
 				}
 			}

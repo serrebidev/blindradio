@@ -153,6 +153,7 @@ enum RecCmd {
 	},
 	Volume(f32),
 	Mute(bool),
+	Tune,
 }
 
 impl std::fmt::Debug for RecCmd {
@@ -165,6 +166,7 @@ impl std::fmt::Debug for RecCmd {
 				.finish(),
 			RecCmd::Volume(v) => f.debug_tuple("Volume").field(v).finish(),
 			RecCmd::Mute(m) => f.debug_tuple("Mute").field(m).finish(),
+			RecCmd::Tune => f.write_str("Tune"),
 		}
 	}
 }
@@ -180,6 +182,7 @@ impl Sink for RecSink {
 			MixerCmd::SetActive { ring, token } => RecCmd::SetActive { ring, token },
 			MixerCmd::Volume(v) => RecCmd::Volume(v),
 			MixerCmd::Mute(m) => RecCmd::Mute(m),
+			MixerCmd::Tune => RecCmd::Tune,
 		};
 		self.cmds.lock().push(rec);
 	}
@@ -269,12 +272,16 @@ fn moving_to_warm_neighbour_swaps_without_new_connect_for_it() {
 	let mut f = fixture();
 	let list = stations(11);
 	f.tuner.focus(&list, 4, f.t0);
-	f.fake.ring(5).push(&vec![0.5; RATE as usize * 2]);
+	f.fake.ring(5).push(&vec![0.5; RATE as usize * 4]);
 	f.tuner.focus(&list, 5, f.t0 + ms(1000));
 	assert_eq!(f.fake.start_count(5), 1, "no new connect for warm 5");
 	assert!(f.fake.started(6), "new neighbour 6 warms");
 	assert_eq!(f.fake.active(), 3, "4, 5, 6 stay open; 3 dropped");
-	assert_eq!(f.fake.ring(5).len_ms(), 250, "warm swap trims to 250 ms");
+	assert_eq!(
+		f.fake.ring(5).len_ms(),
+		1000,
+		"warm swap trims to the 1 s cushion"
+	);
 	let (ring, _) = f.sink.last_active();
 	assert!(
 		Arc::ptr_eq(&ring, &f.fake.ring(5)),
@@ -291,7 +298,7 @@ fn moving_to_warm_neighbour_swaps_without_new_connect_for_it() {
 }
 
 #[test]
-fn cold_focus_silences_old_station_first() {
+fn cold_focus_leaves_old_station_for_hiss_first() {
 	let mut f = fixture();
 	let list = stations(11);
 	f.tuner.focus(&list, 0, f.t0);
@@ -299,7 +306,7 @@ fn cold_focus_silences_old_station_first() {
 	f.tuner.focus(&list, 9, f.t0 + ms(1000));
 	let cmds = f.sink.cmds();
 	match &cmds[before] {
-		RecCmd::SetActive { ring: None, .. } => {}
+		RecCmd::Tune => {}
 		other => panic!("first command after a cold focus: {other:?}"),
 	}
 }

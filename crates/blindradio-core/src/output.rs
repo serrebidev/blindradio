@@ -11,16 +11,19 @@ use parking_lot::Mutex;
 
 use crate::Result;
 use crate::error::CoreError;
-use crate::ring::PcmRing;
+use crate::ring::{CUSHION_MS, PcmRing};
 
 /// Warm-swap crossfade length.
 const CROSSFADE_MS: u64 = 25;
 /// Ease-out at an underrun, so running dry does not click.
 const TAIL_MS: u64 = 5;
-/// Audio a ring that ran dry must hold before it plays again.
-const RESUME_MS: u32 = 100;
 /// Target stream buffer when the device range allows it.
 const BUFFER_MS: u32 = 10;
+/// Peak of the hiss between stations, before volume: soft, like a dial between stations.
+// ponytail: fixed level and tone; make it a setting if listeners want it louder, quieter or off.
+const HISS_LEVEL: f32 = 0.08;
+/// One-pole lowpass on the hiss: dulls white noise toward a radio's softer static.
+const HISS_TONE: f32 = 0.3;
 
 pub enum MixerCmd {
 	SetActive {
@@ -29,22 +32,25 @@ pub enum MixerCmd {
 	},
 	Volume(f32),
 	Mute(bool),
+	/// Leave the active station for the space between stations: it fades out into soft hiss,
+	/// which lasts until a `SetActive` ring has audio, so tuning never has dead air.
+	/// `SetActive { ring: None }` (stop) is silence.
+	Tune,
 }
 
 /// Where the playing ring stands.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Flow {
-	/// Not sounded yet: plays from the first sample, for the lowest start latency.
-	Waiting,
+	/// Newly active or ran dry: waits for `cushion_ms` of audio, so playback never starts on
+	/// a few hundred ms only to stop again, and one clean gap replaces a stutter.
+	Buffering,
 	Playing,
-	/// Ran dry while playing: waits for `RESUME_MS` of audio, so one clean gap replaces a stutter.
-	Starved,
 }
 
 pub struct MixerCore {
 	fade_frames: usize,
 	tail_frames: usize,
-	resume_ms: u32,
+	cushion_ms: u32,
 	active: Option<Arc<PcmRing>>,
 	flow: Flow,
 	/// Frames the active ring has sounded since it (re)started; drives its fade-in.
@@ -54,6 +60,13 @@ pub struct MixerCore {
 	pending: Option<u64>,
 	volume: f32,
 	muted: bool,
+	/// Between stations or waiting on the active one: hiss fills the gap.
+	hiss: bool,
+	hiss_level: f32,
+	hiss_gain: f32,
+	hiss_step: f32,
+	noise: u32,
+	noise_lp: f32,
 	a: Vec<f32>,
 	b: Vec<f32>,
 }
@@ -63,14 +76,20 @@ impl MixerCore {
 		MixerCore {
 			fade_frames: (rate as u64 * CROSSFADE_MS / 1000) as usize,
 			tail_frames: (rate as u64 * TAIL_MS / 1000) as usize,
-			resume_ms: RESUME_MS,
+			cushion_ms: CUSHION_MS,
 			active: None,
-			flow: Flow::Waiting,
+			flow: Flow::Buffering,
 			sounded: 0,
 			fading: Vec::new(),
 			pending: None,
 			volume: 1.0,
 			muted: false,
+			hiss: false,
+			hiss_level: HISS_LEVEL,
+			hiss_gain: 0.0,
+			hiss_step: 1.0 / (rate as u64 * CROSSFADE_MS / 1000).max(1) as f32,
+			noise: 0x9E37_79B9,
+			noise_lp: 0.0,
 			a: Vec::new(),
 			b: Vec::new(),
 		}
@@ -78,7 +97,16 @@ impl MixerCore {
 
 	pub fn handle(&mut self, cmd: MixerCmd) {
 		match cmd {
+			MixerCmd::Tune => {
+				self.handle(MixerCmd::SetActive {
+					ring: None,
+					token: 0,
+				});
+				self.hiss = true;
+			}
 			MixerCmd::SetActive { ring, token } => {
+				// Waiting on a station hisses; stop is silent.
+				self.hiss = ring.is_some();
 				let is = |a: &Arc<PcmRing>| ring.as_ref().is_some_and(|r| Arc::ptr_eq(a, r));
 				// The same ring again keeps playing; draining it as both old and new would double its speed.
 				if !self.active.as_ref().is_some_and(is) {
@@ -87,7 +115,7 @@ impl MixerCore {
 					}
 					self.fading.retain(|(f, _)| !is(f));
 					self.active = ring;
-					self.flow = Flow::Waiting;
+					self.flow = Flow::Buffering;
 					self.sounded = 0;
 				}
 				self.pending = Some(token);
@@ -108,15 +136,14 @@ impl MixerCore {
 		self.a.resize(out.len(), 0.0);
 		let mut got = 0;
 		if let Some(ring) = &self.active {
-			if self.flow == Flow::Starved && ring.len_ms() >= self.resume_ms {
+			let level = ring.len_ms();
+			if self.flow == Flow::Buffering && level > 0 && level >= self.cushion_ms {
 				self.flow = Flow::Playing;
 				self.sounded = 0;
 			}
-			if self.flow != Flow::Starved {
+			if self.flow == Flow::Playing {
 				got = ring.pop_into(&mut self.a) / 2;
-				if got == frames {
-					self.flow = Flow::Playing;
-				} else if got > 0 || self.flow == Flow::Playing {
+				if got < frames {
 					// Ran dry mid-buffer: ease out the last samples instead of cutting them.
 					let tail = self.tail_frames.min(got).max(1) as f32;
 					for (k, f) in (got.saturating_sub(self.tail_frames)..got).enumerate() {
@@ -124,7 +151,7 @@ impl MixerCore {
 						self.a[2 * f] *= g;
 						self.a[2 * f + 1] *= g;
 					}
-					self.flow = Flow::Starved;
+					self.flow = Flow::Buffering;
 				}
 			}
 		}
@@ -152,6 +179,23 @@ impl MixerCore {
 		}
 		let done = self.fade_frames;
 		self.fading.retain(|(_, pos)| *pos < done);
+
+		// Hiss covers every frame the active station does not, easing in and out over a crossfade.
+		for f in 0..frames {
+			let want = if self.hiss && f >= got { 1.0 } else { 0.0 };
+			self.hiss_gain += (want - self.hiss_gain).clamp(-self.hiss_step, self.hiss_step);
+			if self.hiss_gain > 0.0 {
+				// xorshift32 white noise, lowpassed.
+				self.noise ^= self.noise << 13;
+				self.noise ^= self.noise >> 17;
+				self.noise ^= self.noise << 5;
+				let white = self.noise as f32 / u32::MAX as f32 * 2.0 - 1.0;
+				self.noise_lp += (white - self.noise_lp) * HISS_TONE;
+				let s = self.noise_lp * self.hiss_level * self.hiss_gain;
+				self.a[2 * f] += s;
+				self.a[2 * f + 1] += s;
+			}
+		}
 
 		let vol = if self.muted { 0.0 } else { self.volume };
 		for (o, &s) in out.iter_mut().zip(&self.a) {
@@ -285,6 +329,14 @@ mod tests {
 		ring
 	}
 
+	/// Cushion 0, so tests with tiny rings play at once; the cushion has its own tests.
+	fn mixer() -> MixerCore {
+		let mut m = MixerCore::new(RATE);
+		m.cushion_ms = 0;
+		m.hiss_level = 0.0;
+		m
+	}
+
 	fn render_frames(mixer: &mut MixerCore, frames: usize) -> Vec<f32> {
 		let mut out = vec![0.0; frames * 2];
 		mixer.render(&mut out);
@@ -293,7 +345,7 @@ mod tests {
 
 	#[test]
 	fn render_reads_active_ring() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(0.25, 40)),
 			token: 7,
@@ -305,7 +357,7 @@ mod tests {
 
 	#[test]
 	fn start_from_silence_fades_in() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(1.0, 40)),
 			token: 1,
@@ -317,7 +369,7 @@ mod tests {
 
 	#[test]
 	fn fast_steps_keep_every_fade() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(1.0, 100)),
 			token: 1,
@@ -339,16 +391,17 @@ mod tests {
 	}
 
 	#[test]
-	fn ran_dry_waits_for_resume_buffer() {
-		let mut mixer = MixerCore::new(RATE);
+	fn ran_dry_waits_for_cushion() {
+		let mut mixer = mixer();
+		mixer.cushion_ms = 100;
 		let ring = Arc::new(PcmRing::new(RATE, 3.0));
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(ring.clone()),
 			token: 1,
 		});
-		ring.push(&vec![1.0; 40 * 2]);
-		render_frames(&mut mixer, 50);
-		// Ran dry; a trickle below RESUME_MS stays queued instead of stuttering out.
+		ring.push(&vec![1.0; 150 * 2]);
+		render_frames(&mut mixer, 200);
+		// Ran dry; a trickle below the cushion stays queued instead of stuttering out.
 		ring.push(&[1.0; 20 * 2]);
 		assert_eq!(render_frames(&mut mixer, 10), [0.0; 20]);
 		assert_eq!(ring.len_ms(), 20);
@@ -359,8 +412,75 @@ mod tests {
 	}
 
 	#[test]
-	fn crossfade_spans_25_ms() {
+	fn tune_fills_the_gap_with_hiss() {
 		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(0.5, 2000)),
+			token: 1,
+		});
+		render_frames(&mut mixer, 100);
+		mixer.handle(MixerCmd::Tune);
+		// After the crossfade only hiss is left: never silence, never loud.
+		let out = render_frames(&mut mixer, 200);
+		let tail = &out[100..];
+		assert!(
+			tail.iter().any(|s| s.abs() > 0.001),
+			"hiss between stations"
+		);
+		assert!(tail.iter().all(|s| s.abs() <= HISS_LEVEL), "soft");
+		// The next station arrives: hiss eases out under it.
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(-0.5, 2000)),
+			token: 2,
+		});
+		render_frames(&mut mixer, 30);
+		assert_eq!(
+			render_frames(&mut mixer, 4),
+			[-0.5; 8],
+			"only the station once it plays"
+		);
+	}
+
+	#[test]
+	fn stop_is_silent() {
+		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::Tune);
+		render_frames(&mut mixer, 100);
+		mixer.handle(MixerCmd::SetActive {
+			ring: None,
+			token: 0,
+		});
+		let out = render_frames(&mut mixer, 100);
+		assert!(
+			out[60..].iter().all(|&s| s == 0.0),
+			"hiss fades to silence on stop"
+		);
+	}
+
+	#[test]
+	fn start_waits_for_cushion() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 3.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		// Half a second (500 frames at 1 kHz) is not enough to start on.
+		ring.push(&vec![1.0; 500 * 2]);
+		let mut out = vec![0.0; 20];
+		assert_eq!(mixer.render(&mut out), None);
+		assert_eq!(ring.len_ms(), 500, "nothing taken while buffering");
+		ring.push(&vec![1.0; 500 * 2]);
+		assert_eq!(
+			mixer.render(&mut out),
+			Some(9),
+			"starts once CUSHION_MS is buffered"
+		);
+	}
+
+	#[test]
+	fn crossfade_spans_25_ms() {
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(1.0, 100)),
 			token: 1,
@@ -383,7 +503,7 @@ mod tests {
 
 	#[test]
 	fn render_reports_token_on_first_real_sample() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		let ring = Arc::new(PcmRing::new(RATE, 3.0));
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(ring.clone()),
@@ -398,7 +518,7 @@ mod tests {
 
 	#[test]
 	fn underrun_outputs_silence() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(1.0, 2)),
 			token: 1,
@@ -411,7 +531,7 @@ mod tests {
 
 	#[test]
 	fn mute_keeps_draining_ring() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(0.5, 2)),
 			token: 1,
@@ -425,7 +545,7 @@ mod tests {
 
 	#[test]
 	fn volume_scales_output() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(const_ring(1.0, 40)),
 			token: 1,
@@ -439,7 +559,7 @@ mod tests {
 
 	#[test]
 	fn same_ring_again_is_not_drained_twice() {
-		let mut mixer = MixerCore::new(RATE);
+		let mut mixer = mixer();
 		let ring = const_ring(1.0, 100);
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(ring.clone()),

@@ -7,6 +7,11 @@ use parking_lot::Mutex;
 /// How long a push into a full ring waits before trying again.
 const PUSH_WAIT: Duration = Duration::from_millis(5);
 
+/// Audio a ring holds before it starts playing, after a cold start, a warm swap or running
+/// dry. Some servers dribble their first seconds in lumps up to a second apart (amperwave);
+/// burst servers reach it within a few ms of first audio, so it costs them almost nothing.
+pub const CUSHION_MS: u32 = 1000;
+
 /// Interleaved stereo f32 buffer; `rate` is frames per second.
 pub struct PcmRing {
 	rate: u32,

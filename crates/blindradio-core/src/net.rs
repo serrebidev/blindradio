@@ -209,7 +209,18 @@ impl ResolveCache {
 		self.map.get(url).cloned()
 	}
 
+	/// A final URL with its own query (a session id or token, as amperwave and DLF hand out) is
+	/// not kept: reusing it measured slower than redirecting again (1.4 s against 0.6 s).
 	pub fn put(&mut self, url: &str, final_url: &str) {
+		let query = |u: &str| {
+			reqwest::Url::parse(u)
+				.ok()
+				.and_then(|u| u.query().map(str::to_owned))
+		};
+		if query(final_url).is_some_and(|q| Some(q) != query(url)) {
+			self.map.remove(url);
+			return;
+		}
 		self.map.insert(url.to_owned(), final_url.to_owned());
 	}
 

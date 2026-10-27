@@ -1,18 +1,21 @@
 //! Playback health per station without a device: `cargo run -p blindradio-core --example probe --release [warm_secs]`.
-//! Drains each ring in 10 ms ticks like an audio callback and reports underruns (ticks that
-//! came up short after first audio). With `warm_secs`, each station first sits warm (open,
-//! not played) that long, then is swapped to like the tuner does (trim to 250 ms).
+//! Runs each station through the real mixer in 10 ms ticks like the audio callback, and
+//! reports when sound starts and how many ticks went silent after that (gaps). With
+//! `warm_secs`, each station first sits warm (open, not played) that long, then is swapped to
+//! like the tuner does (trimmed to the cushion).
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use blindradio_core::Engine;
+use blindradio_core::output::{MixerCmd, MixerCore};
+use blindradio_core::ring::CUSHION_MS;
 use blindradio_core::station::Station;
 use blindradio_core::stream::start;
 
 const RATE: u32 = 48_000;
 const TICK: Duration = Duration::from_millis(10);
 const RUN: Duration = Duration::from_secs(20);
-const SWAP_MS: u32 = 250;
 
 fn main() -> blindradio_core::Result<()> {
 	let warm = std::env::args()
@@ -33,38 +36,38 @@ fn main() -> blindradio_core::Result<()> {
 		.map(|station| {
 			let ctx = engine.ctx.clone();
 			std::thread::spawn(move || {
+				let began = Instant::now();
 				let stream = start(&station, &ctx, Box::new(|_| {}));
 				if let Some(warm) = warm {
 					std::thread::sleep(warm);
-					stream.ring.trim_to_ms(SWAP_MS);
+					stream.ring.trim_to_ms(CUSHION_MS);
 				}
-				let frames = (RATE as usize * TICK.as_millis() as usize) / 1000;
-				let mut buf = vec![0.0; frames * 2];
-				let (mut started, mut short_ticks, mut missing, mut min_ms) =
-					(None, 0, 0, u32::MAX);
-				let began = Instant::now();
-				let mut next = began;
-				while began.elapsed() < RUN {
+				let mut mixer = MixerCore::new(RATE);
+				let swapped = Instant::now();
+				mixer.handle(MixerCmd::SetActive {
+					ring: Some(Arc::clone(&stream.ring)),
+					token: 1,
+				});
+				let mut out = vec![0.0; (RATE as usize * TICK.as_millis() as usize) / 1000 * 2];
+				let (mut sound, mut gaps) = (None, 0);
+				let mut next = swapped;
+				while swapped.elapsed() < RUN {
 					next += TICK;
 					std::thread::sleep(next.saturating_duration_since(Instant::now()));
 					let level = stream.ring.len_ms();
-					let got = stream.ring.pop_into(&mut buf) / 2;
-					if started.is_none() && got > 0 {
-						started = Some(began.elapsed());
-					} else if started.is_some() {
-						min_ms = min_ms.min(level);
-						if got < frames {
-							short_ticks += 1;
-							missing += frames - got;
-						}
+					if mixer.render(&mut out).is_some() {
+						sound = Some(swapped.elapsed());
+					} else if sound.is_some() && level == 0 {
+						// Ran dry: a real gap, not silence in the programme.
+						gaps += 1;
 					}
 				}
+				let from = if warm.is_some() { "swap" } else { "start" };
 				format!(
-					"{}: first {:?}, short ticks {short_ticks}, missing {} ms, min level {} ms",
+					"{}: sound {:?} ms after {from} ({} ms after connect), dry ticks {gaps}",
 					station.name,
-					started.map(|d| d.as_millis()),
-					missing * 1000 / RATE as usize,
-					if min_ms == u32::MAX { 0 } else { min_ms },
+					sound.map(|d| d.as_millis()),
+					sound.map_or(0, |d| (swapped - began + d).as_millis()),
 				)
 			})
 		})
