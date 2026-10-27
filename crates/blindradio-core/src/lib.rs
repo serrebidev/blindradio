@@ -1,5 +1,6 @@
 pub mod decode;
 pub mod error;
+pub mod history;
 pub mod hls;
 pub mod import;
 pub mod library;
