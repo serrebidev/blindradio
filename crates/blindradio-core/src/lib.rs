@@ -8,5 +8,6 @@ pub mod resample;
 pub mod ring;
 pub mod station;
 pub mod stream;
+pub mod tuner;
 
 pub use error::{CoreError, Result};
