@@ -100,6 +100,18 @@ fn custom_collection_rules() {
 }
 
 #[test]
+fn custom_stations_change_only_through_add_and_delete() {
+	let mut l = Library::default();
+	let s = l.add_custom("Mine", "http://m");
+	assert!(!l.toggle_in_collection(CUSTOM, &st("a")));
+	assert!(!l.toggle_in_collection(CUSTOM, &s));
+	let a = l.create_collection("A");
+	l.toggle_in_collection(&a, &st("b"));
+	assert_eq!(l.add_all_to_collection(&a, CUSTOM), 0);
+	assert_eq!(ids(&l.collections[0].stations), [s.id.as_str()]);
+}
+
+#[test]
 fn collection_create_reuses_name_case_insensitive() {
 	let mut l = Library::default();
 	let a = l.create_collection("Jazz");

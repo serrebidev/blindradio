@@ -1,5 +1,5 @@
 use crate::playlist::{PlaylistKind, parse_m3u, parse_pls, sniff};
-use crate::{CoreError, Result};
+use crate::{CoreError, Result, store};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -195,13 +195,9 @@ pub struct ResolveCache {
 
 impl ResolveCache {
 	pub fn load(path: &Path) -> ResolveCache {
-		let map = std::fs::read(path)
-			.ok()
-			.and_then(|b| serde_json::from_slice(&b).ok())
-			.unwrap_or_default();
 		ResolveCache {
 			path: path.to_owned(),
-			map,
+			map: store::load(path),
 		}
 	}
 
@@ -229,20 +225,12 @@ impl ResolveCache {
 	}
 
 	pub fn save(&self) -> Result<()> {
-		if let Some(dir) = self.path.parent() {
-			std::fs::create_dir_all(dir)?;
-		}
-		let json = serde_json::to_vec_pretty(&self.map).map_err(std::io::Error::from)?;
-		std::fs::write(&self.path, json)?;
-		Ok(())
+		store::save(&self.path, &self.map)
 	}
 }
 
-/// Fetches `url` and parses the body as JSON, all within 8 s.
-pub async fn get_json<T: serde::de::DeserializeOwned>(
-	client: &reqwest::Client,
-	url: &str,
-) -> Result<T> {
+/// Fetches the body of `url`, all within 8 s.
+pub async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<bytes::Bytes> {
 	let response = client
 		.get(url)
 		.timeout(Duration::from_secs(8))
@@ -253,6 +241,14 @@ pub async fn get_json<T: serde::de::DeserializeOwned>(
 	if status >= 400 {
 		return Err(CoreError::Http(format!("HTTP {status}")));
 	}
-	let body = response.bytes().await.map_err(http_err)?;
+	response.bytes().await.map_err(http_err)
+}
+
+/// Fetches `url` and parses the body as JSON, all within 8 s.
+pub async fn get_json<T: serde::de::DeserializeOwned>(
+	client: &reqwest::Client,
+	url: &str,
+) -> Result<T> {
+	let body = get_bytes(client, url).await?;
 	serde_json::from_slice(&body).map_err(|_| CoreError::Http("Bad reply".into()))
 }

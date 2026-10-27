@@ -3,6 +3,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::eq::MAX_DB;
 use crate::station::Station;
 use crate::{Result, store};
 
@@ -67,6 +68,9 @@ impl Settings {
 	pub fn load(dir: &Path) -> Settings {
 		let mut s: Settings = store::load(&dir.join(store::SETTINGS_FILE));
 		s.volume = s.volume.clamp(0.0, 1.0);
+		for band in [&mut s.eq.bass, &mut s.eq.mid, &mut s.eq.treble] {
+			*band = (*band).clamp(-MAX_DB, MAX_DB);
+		}
 		s
 	}
 
@@ -117,6 +121,18 @@ mod tests {
 			}
 		);
 		assert!(!d.path().join("settings.json.bad").exists());
+	}
+
+	#[test]
+	fn eq_bands_clamped_on_load() {
+		let d = tempfile::tempdir().unwrap();
+		std::fs::write(
+			d.path().join("settings.json"),
+			r#"{"eq":{"bass":20,"mid":-30,"treble":5}}"#,
+		)
+		.unwrap();
+		let eq = Settings::load(d.path()).eq;
+		assert_eq!((eq.bass, eq.mid, eq.treble), (12, -12, 5));
 	}
 
 	#[test]

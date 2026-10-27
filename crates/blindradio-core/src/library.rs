@@ -77,7 +77,7 @@ impl Library {
 	}
 
 	/// Custom Stations is always present and first.
-	fn ensure_custom(&mut self) {
+	pub(crate) fn ensure_custom(&mut self) {
 		match self.collections.iter().position(|c| c.id == CUSTOM) {
 			Some(0) => {}
 			Some(i) => {
@@ -193,9 +193,19 @@ impl Library {
 		Ok(())
 	}
 
-	/// True when the station is now in the collection. False if removed or no such collection.
+	/// Custom Stations changes only through `add_custom` and `delete_custom`: anything else
+	/// would put a non-custom station there or drop one with no other copy.
+	fn editable_mut(&mut self, id: &str) -> Option<&mut Collection> {
+		if id == CUSTOM {
+			return None;
+		}
+		self.collection_mut(id)
+	}
+
+	/// True when the station is now in the collection. False if removed, no such collection,
+	/// or Custom Stations.
 	pub fn toggle_in_collection(&mut self, id: &str, s: &Station) -> bool {
-		let Some(c) = self.collection_mut(id) else {
+		let Some(c) = self.editable_mut(id) else {
 			return false;
 		};
 		if let Some(i) = c.stations.iter().position(|x| x.id == s.id) {
@@ -233,13 +243,13 @@ impl Library {
 		}
 	}
 
-	/// Count added; stations already in `to` stay as they are.
+	/// Count added; stations already in `to` stay as they are. Never into Custom Stations.
 	pub fn add_all_to_collection(&mut self, from: &str, to: &str) -> usize {
 		let Some(src) = self.collections.iter().find(|c| c.id == from) else {
 			return 0;
 		};
 		let src = src.stations.clone();
-		let Some(dst) = self.collection_mut(to) else {
+		let Some(dst) = self.editable_mut(to) else {
 			return 0;
 		};
 		let mut added = 0;

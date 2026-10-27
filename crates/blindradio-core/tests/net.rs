@@ -175,6 +175,26 @@ fn resolve_cache_round_trip() {
 }
 
 #[test]
+fn resolve_cache_uses_store() {
+	let dir = tempfile::tempdir().unwrap();
+	let path = dir.path().join("resolve.json");
+	std::fs::write(&path, "{not json").unwrap();
+	let mut c = ResolveCache::load(&path);
+	assert!(c.get("a").is_none());
+	assert_eq!(
+		std::fs::read_to_string(dir.path().join("resolve.json.bad")).unwrap(),
+		"{not json",
+		"corrupt file kept as .bad"
+	);
+	c.put("http://a/x", "http://b/y");
+	c.save().unwrap();
+	assert!(!dir.path().join("resolve.json.tmp").exists());
+	let json: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+	assert_eq!(json, serde_json::json!({ "http://a/x": "http://b/y" }));
+}
+
+#[test]
 fn resolve_cache_skips_session_urls() {
 	let dir = tempfile::tempdir().unwrap();
 	let mut c = ResolveCache::load(&dir.path().join("resolve.json"));
