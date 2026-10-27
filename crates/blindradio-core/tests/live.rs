@@ -118,3 +118,37 @@ fn tunein_station_plays() {
 	});
 	first_audio(&engine, &station).unwrap();
 }
+
+#[tokio::test]
+#[ignore]
+async fn live_search_jazz() {
+	use blindradio_core::sources::{Endpoints, SearchQuery, Sources};
+	use std::collections::HashSet;
+	let sources = Sources::new(blindradio_core::net::client(), Endpoints::default());
+	let found = sources
+		.search(&SearchQuery {
+			name: "jazz".into(),
+			..Default::default()
+		})
+		.await;
+	let dirs: HashSet<_> = found.iter().map(|s| s.source.label().to_owned()).collect();
+	assert!(found.len() >= 20, "{} results", found.len());
+	assert!(dirs.len() >= 3, "{dirs:?}");
+}
+
+#[tokio::test]
+#[ignore]
+async fn live_browse_each_root() {
+	use blindradio_core::sources::{Endpoints, Node, Sources};
+	let sources = Sources::new(blindradio_core::net::client(), Endpoints::default());
+	for root in Sources::roots() {
+		let Node::Folder { id, name } = root else {
+			panic!("root is not a folder")
+		};
+		let kids = sources
+			.children(&id)
+			.await
+			.unwrap_or_else(|e| panic!("{name}: {e}"));
+		assert!(!kids.is_empty(), "{name} is empty");
+	}
+}
