@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>YARSP Manual</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">YARSP Manual</h1>
+</header>
+<h1 id="yarsp-yet-another-radio-streaming-player">YARSP: Yet Another
+Radio Streaming Player</h1>
+<p>by Liam Erven</p>
+<p>YARSP is a screen-reader-first internet radio player. Many internet
+radio players exist. I wanted to make my own, with the features I’d
+actually use and a UI I liked. An agentic coder was used to produce this
+software.</p>
+<p>There is nothing to install. Unzip the YARSP folder anywhere you like
+and run <code>YARSP.exe</code>. Everything YARSP saves, including
+favorites, settings and custom stations, lives in the <code>data</code>
+folder next to the program, so moving the folder moves everything with
+it, and deleting it leaves nothing behind.</p>
+<h2 id="whats-new-in-0.8">What’s new in 0.8</h2>
+<ul>
+<li><strong>Collections</strong>, Ctrl+L: group stations however you
+like. A collection can hold your favorites, your own streams, and
+stations from any of the directories, all together. Your custom stations
+are a collection too, and the Collections window is where you manage
+them.</li>
+<li><strong>Context menus now match the selected item.</strong> In a
+list or a tree you get a context menu about the item you are selecting,
+instead of the currently playing station.</li>
+<li><strong>Ctrl+P, Ctrl+S, Ctrl+M and Ctrl+Up or Down now work in every
+window.</strong> Play, stop, mute and volume used to work only on the
+main window; they work from a list or a tree as well, on whatever is
+playing.</li>
+<li><strong>Import a playlist.</strong> <strong>Stations → Import
+Playlist</strong> reads an M3U or a PLS file and adds the stations in it
+to your custom stations. <strong>Import Playlist as Collection</strong>
+puts them in a collection named after the file instead. Anything in the
+file that is not a stream, like a music track on your own drive, is left
+out.</li>
+<li><strong>Export your stations.</strong> Favorites and the Collections
+window have an Export button. It writes a playlist file you can import
+again, so you can back your stations up or give them to someone
+else.</li>
+<li><strong>Messages show on screen as well as being spoken</strong>, so
+what an import did, and anything that goes wrong, can be read as well as
+heard.</li>
+<li><strong>Copy Stream URL no longer says it failed when it
+worked.</strong></li>
+</ul>
+<h2 id="whats-new-in-0.7">What’s new in 0.7</h2>
+<ul>
+<li><strong>Song history</strong>, Ctrl+Y: You can now get a history of
+what a station played for stations that support it. For the ones who
+don’t, YARSP will keep track while you listen.</li>
+<li><strong>A sleep timer</strong> in the Playback menu. Choose from 15
+minutes to two hours to have YARSP stop after a certain amount of time.
+Ctrl and a number sets one without the menu.</li>
+<li><strong>YARSP won’t spawn multiple instances.</strong> Starting it
+again brings the copy you already have open into focus.</li>
+</ul>
+<h2 id="whats-new-in-0.6">What’s new in 0.6</h2>
+<ul>
+<li><strong>YARSP’s windows are real dialogs now.</strong> Your screen
+reader says “dialog”, Escape closes, Enter presses the default
+button.</li>
+<li><strong>Windows open quietly.</strong> No extra speech on top of
+your screen reader’s own announcement.</li>
+<li><strong>Playing a station leaves the list open.</strong>
+<strong>Close Lists When Playing</strong> in the File menu puts the old
+behavior back.</li>
+<li><strong>One shortcut per action:</strong> Ctrl+P, Ctrl+S, Ctrl+M,
+Ctrl+D. Alt+P opens Playback, Alt+S opens Stations.</li>
+<li><strong>F is favorites</strong> on every Add or Remove button and
+menu item.</li>
+<li><strong>The context menu works in every list</strong>, not only the
+main window.</li>
+<li><strong>A dialog’s shortcut returns you to it</strong> instead of
+reopening it.</li>
+<li><strong>The equalizer speaks decibels</strong>, not
+percentages.</li>
+<li><strong>Switching stations while one is still connecting</strong>
+announces the new one.</li>
+</ul>
+<h2 id="whats-new-in-0.5">What’s new in 0.5</h2>
+<ul>
+<li><strong>The context menu on a station behaves correctly
+now.</strong> The <strong>Applications key</strong> or
+<strong>Shift+F10</strong> gives you Play, add or remove favorite, copy
+the stream address, and delete for your own stations. Enter used to
+activate the wrong thing.</li>
+<li>Menus open with the first item already selected, so your screen
+reader reads it right away.</li>
+<li><strong>Copy Stream URL</strong> checks that the copy worked instead
+of assuming it did.</li>
+<li>In any list, a letter on its own no longer presses a button — D no
+longer reorders your favorites. It jumps to the next station starting
+with that letter.</li>
+<li><strong>Home</strong> and <strong>End</strong> in Browse stay on the
+level you are on, so End reaches Load More instead of the bottom of the
+tree. <strong>Ctrl+Home</strong> and <strong>Ctrl+End</strong> go to the
+very top and bottom.</li>
+<li><strong>Announce Connection Status</strong>, a new File menu
+setting, turns off the Connecting, Buffering and Stopped announcements.
+Failures and reconnections are always announced.</li>
+<li><strong>Bringing YARSP back now puts you in the window.</strong> It
+used to appear without taking the keyboard, so your screen reader stayed
+in whatever you were using. This covers the hotkey, the tray icon, and
+Show on the tray menu.</li>
+<li>Closing the tray menu while YARSP is hidden no longer leaves an
+empty YARSP window behind, and takes you back where you were.</li>
+</ul>
+<h2 id="whats-new-in-0.4">What’s new in 0.4</h2>
+<ul>
+<li><strong>iHeartRadio</strong> is now one of the directories: its own
+section in Browse, and its stations turn up in Search alongside
+everything else.</li>
+<li>A three-band <strong>equalizer</strong> with presets, on
+<strong>Ctrl+E</strong>. <strong>Ctrl+Alt+Shift+E</strong> turns it on
+and off from anywhere, even with YARSP in the background.</li>
+<li><strong>Alt+1</strong> through <strong>Alt+0</strong> play your
+first ten favorites, from the main window, without opening
+anything.</li>
+<li>Announcing what’s playing now reads the song before the station, the
+same order the window title uses.</li>
+<li>When a station stops sending song information, YARSP now says
+nothing is playing instead of leaving the last song showing as though it
+were still on.</li>
+<li>YARSP starts with the focus on the Play button.</li>
+</ul>
+<h2 id="whats-new-in-0.3">What’s new in 0.3</h2>
+<ul>
+<li>There is now an Add to Favorites button on the main window and in
+Search, Browse, and Recently Played — so you can find favorites without
+knowing about Ctrl+D first. It changes the button’s label to Remove from
+Favorites when the station already is a favorite.</li>
+<li>Browse remembers your place. Play a station and reopen Browse, and
+you are back on the same station with the categories above it still
+open, instead of at the top with everything collapsed.</li>
+<li>Coming back to the window with Alt+Tab puts you on the control you
+were using, the way other Windows programs do.</li>
+<li><strong>Ctrl+U</strong> copies the stream address of whatever is
+playing, or of the station you have selected in a list.</li>
+<li>Pressing Enter on <strong>Load More</strong> now takes you to the
+first station of the new batch, instead of leaving you on the Load More
+item.</li>
+<li>All the accelerator keys work as expected. Alt plus the underlined
+letter now reaches every button, field, and list.</li>
+</ul>
+<h2 id="whats-new-in-0.2">What’s new in 0.2</h2>
+<ul>
+<li>Much smaller download.</li>
+<li>Stations you add by URL now have their own Custom Stations section
+in the browse tree.</li>
+<li>Genre and Country in Search are now drop-down lists you can also
+type in.</li>
+<li>After a search, you land on the first result — no extra
+tabbing.</li>
+<li>You can choose which sound card YARSP plays through — and if that
+device disappears, YARSP falls back to the default and switches back
+when it returns.</li>
+<li>New in the browse tree: browse TuneIn by location, from continent
+down to city, and the Stream Madness network.</li>
+<li>Escape closes any dialog.</li>
+<li>The window title shows the current station and song, so the taskbar
+and Alt+Tab tell you what’s playing.</li>
+<li>Streams recover from interruptions more reliably: short drops are
+ridden out without a word, and a lost stream is retried before YARSP
+gives up on it.</li>
+<li>YARSP tells you when a new version is available, and Help → Check
+for Updates checks on demand.</li>
+<li>F1 and Help → User Guide open this guide in your browser.</li>
+<li>On the volume slider, Up now raises the volume instead of lowering
+it.</li>
+<li>Song title announcements can be turned off, and YARSP can start your
+last station automatically — both in the File menu.</li>
+</ul>
+<h2 id="getting-started">Getting started</h2>
+<ol type="1">
+<li>Run <code>YARSP.exe</code>. Your screen reader should say “YARSP
+ready.”</li>
+<li>Press <strong>Ctrl+F</strong> to search for a station by name, or
+<strong>Ctrl+G</strong> to browse.</li>
+<li>Press <strong>Enter</strong> on a station to play it.</li>
+</ol>
+<h2 id="searching">Searching</h2>
+<p>Press <strong>Ctrl+F</strong>, type part of a station’s name, and
+press Enter. You can also narrow the search by genre, country, or
+language. Genre and Country are drop-down lists that you can also type
+into.</p>
+<p>You land on the first result. <strong>Enter</strong> plays it and
+<strong>Ctrl+D</strong> saves it as a favorite.</p>
+<p>The last column of every station list tells you which directory the
+station came from.</p>
+<h2 id="browsing">Browsing</h2>
+<p>Press <strong>Ctrl+G</strong>. The tree has six sections:</p>
+<ul>
+<li><strong>Radio Browser</strong>: browse by genre or by country.
+Countries with thousands of stations are divided into states or regions,
+with an “All stations” item first. Long lists end with a <strong>Load
+More</strong> item. Press Enter on it for the next batch.</li>
+<li><strong>TuneIn</strong>: browse by location, from continent to
+country to region to stations.</li>
+<li><strong>iHeartRadio</strong>: All Stations for the whole catalog, or
+Genres to narrow it down. American stations only.</li>
+<li><strong>Networks</strong>: broadcasters in one place: the BBC, NPR,
+CBC, ABC Australia, Radio France, Deutschlandfunk, SomaFM, and Stream
+Madness. These directories are hand curated, and may not always be
+completely accurate.</li>
+<li><strong>Collections</strong>: the groups you have made yourself. See
+below.</li>
+<li><strong>Custom Stations</strong>: everything you’ve added by
+URL.</li>
+</ul>
+<p>Right Arrow opens a level, Left Arrow closes it, typing a letter
+jumps by name, and Enter plays the selected station.</p>
+<p><strong>Home</strong> and <strong>End</strong> move to the first and
+last item on the level you are already on, so End in a list of stations
+lands on Load More rather than leaving the branch.
+<strong>Ctrl+Home</strong> and <strong>Ctrl+End</strong> go to the top
+and the bottom of the whole tree.</p>
+<p>Playing a station leaves the tree open, so you can try another
+one.</p>
+<p>Browse remembers where you were. The next time you open it you are
+put back on that station, with the categories above it reopened. If the
+station is no longer in the directory, you land on the nearest category
+instead. This is remembered until you close YARSP.</p>
+<h2 id="favorites-and-recently-played">Favorites and recently
+played</h2>
+<ul>
+<li>The <strong>Add to Favorites</strong> button sits next to Play on
+the main window and in the Search, Browse, and Recently Played windows.
+It acts on the station you have selected, or on the one playing if you
+have no list open, and it reads <strong>Remove from Favorites</strong>
+when that station is already saved.</li>
+<li><strong>Ctrl+D</strong> does the same from anywhere in YARSP.</li>
+<li><strong>Ctrl+B</strong> opens your favorites.
+<strong>Alt+Up</strong> and <strong>Alt+Down</strong> reorder the list,
+and <strong>Delete</strong> removes the station you are on. There are
+Remove and Move buttons as well.</li>
+<li><strong>Ctrl+H</strong> opens the stations you’ve played
+recently.</li>
+</ul>
+<p>In any list of stations, typing a letter jumps to the next station
+starting with it. The buttons below the list are reached with
+<strong>Alt</strong> and their underlined letter, such as Alt+R for
+Remove and Alt+D for Move Down, so a letter on its own never presses
+one.</p>
+<h2 id="importing-a-playlist">Importing a playlist</h2>
+<p>Press <strong>Ctrl+I</strong>, or <strong>Stations → Import
+Playlist</strong>, and choose an <strong>M3U</strong>,
+<strong>M3U8</strong> or <strong>PLS</strong> file. The stations in it
+are added to your custom stations.</p>
+<p>Press <strong>Ctrl+Shift+I</strong>, or <strong>Stations → Import
+Playlist as Collection</strong>, to put them in a collection named after
+the file instead. <code>My Stations.m3u</code> makes a collection called
+My Stations. The stations go there and not into Custom Stations. If a
+collection of that name already exists, they are added to it.</p>
+<p>Entries that are not web addresses, such as music files on your own
+drive, are skipped. Stations keep the names the file gives them; where
+the file has no name for one, it is named after its address.</p>
+<p>YARSP tells you how many stations were added, how many you already
+had, and how many entries were skipped.</p>
+<p>To put stations you have already imported into a collection, open
+<strong>Collections</strong>, press the <strong>Applications
+key</strong> on <strong>Custom Stations</strong>, and choose <strong>Add
+All to Collection</strong>.</p>
+<h2 id="exporting-your-stations">Exporting your stations</h2>
+<p>There is an <strong>Export</strong> button in
+<strong>Favorites</strong> and in the <strong>Collections</strong>
+window. It writes an M3U file containing the stations and their
+names.</p>
+<p>In the Collections window it exports the collection you are on,
+including Custom Stations. In Favorites it exports all your
+favorites.</p>
+<p>You can import the file again, so use it to back your stations up or
+to give them to someone else.</p>
+<h2 id="adding-your-own-stations">Adding your own stations</h2>
+<p>Press <strong>Ctrl+N</strong>, give the station a name, enter its
+stream address, and press Enter or choose <strong>OK</strong>.
+<strong>Cancel</strong> closes without saving.</p>
+<p>The station is kept under <strong>Custom Stations</strong>, which you
+will find both in the browse tree and at the top of the
+<strong>Collections</strong> window. Play it from either place.</p>
+<p>To delete one, press <strong>Delete</strong> on it in either place,
+or use the Applications key and choose <strong>Delete Custom
+Station</strong>.</p>
+<h2 id="the-context-menu">The context menu</h2>
+<p>On any station in any list, the <strong>Applications key</strong> or
+<strong>Shift+F10</strong> opens a menu: Play, add or remove favorite,
+copy the stream address, add to a collection, and, for your own
+stations, delete.</p>
+<p>The menu is about the item you are on. On one of your collections in
+the Collections window or in Browse, it offers Rename and Delete
+instead. On something that is not a station or a collection, such as a
+category or Load More, there is nothing to do, and YARSP says so rather
+than opening a menu about something else.</p>
+<p><strong>Ctrl+U</strong> does the copy without the menu: it takes the
+station you have selected, or the one that is playing if you have no
+list open.</p>
+<h2 id="choosing-a-sound-card">Choosing a sound card</h2>
+<p><strong>File → Audio Device</strong> is a submenu listing every
+output device on your computer, with a check mark on the one in use.
+Choose one and it takes effect immediately, even while a station is
+playing, and YARSP remembers it.</p>
+<p>If the device you chose disappears, such as a USB headset being
+unplugged, YARSP announces it and keeps playing through the default
+output. Plug the device back in and YARSP switches back to it. Your
+choice is kept either way.</p>
+<h2 id="the-equalizer">The equalizer</h2>
+<p>Press <strong>Ctrl+E</strong>, or <strong>Playback →
+Equalizer</strong>.</p>
+<p><strong>Preset</strong> is a list of ready-made curves: Flat, Bass
+Boost, Treble Boost, Loudness, Voice, and Warm. Choosing one moves the
+three sliders and reads the new settings out to you.</p>
+<p>Below it are <strong>Bass (dB)</strong>, <strong>Mid (dB)</strong>,
+and <strong>Treble (dB)</strong>, each adjustable from −12 to +12. Arrow
+keys move a band one decibel at a time, Home and End jump to the lowest
+and highest settings, and 0 is flat. Moving a slider yourself changes
+the preset to Custom.</p>
+<p><strong>Enabled</strong> turns the equalizer on and off without
+changing your settings. <strong>Ctrl+Alt+Shift+E</strong> does the same
+from anywhere in Windows without opening this window. YARSP remembers
+these settings between runs.</p>
+<h2 id="collections">Collections</h2>
+<p>A collection is a group of stations you put together yourself, such
+as Sports, News, or My Stations. A collection can hold your favorites,
+the streams you added by URL, and stations from any of the directories,
+all in the same group. Adding a station to a collection does not move it
+or change it, and one station can be in as many collections as you
+like.</p>
+<p>To put a station in one, press the <strong>Applications key</strong>
+or <strong>Shift+F10</strong> on it anywhere in YARSP and choose
+<strong>Add to Collection</strong>. The collections it is already in are
+ticked, and choosing a ticked one takes it back out. <strong>New
+Collection</strong> at the bottom makes one on the spot. To add whatever
+is playing, press <strong>Ctrl+Shift+L</strong>, or use <strong>Playback
+→ Add to Collection</strong>. Both give you the same list of
+collections, ticked the same way.</p>
+<p>Press <strong>Ctrl+L</strong>, or <strong>Stations →
+Collections</strong>, to manage them. The tree lists your collections;
+Right Arrow opens one to see its stations, Left Arrow closes it again.
+Enter on a station plays it.</p>
+<p>The buttons act on whatever you are on:</p>
+<ul>
+<li><strong>New</strong> makes an empty collection.</li>
+<li><strong>Rename</strong> and <strong>Delete</strong> work on a
+collection. <strong>F2</strong> renames, and <strong>Delete</strong>
+deletes. You are asked first. Deleting a collection also removes the
+stations in it, but any of them you have saved elsewhere, such as in
+favorites or another collection, are kept there.</li>
+<li><strong>Remove Station</strong> takes the station you are on out of
+its collection. The <strong>Delete</strong> key does the same.</li>
+<li><strong>Move Up</strong> and <strong>Move Down</strong> put the
+stations in the order you want. <strong>Alt+Up</strong> and
+<strong>Alt+Down</strong> do it from the tree without leaving it.</li>
+<li><strong>Export</strong> writes the collection you are on to a file.
+See <strong>Exporting your stations</strong>.</li>
+</ul>
+<p><strong>Custom Stations</strong> is at the top of this window,
+because it is a collection as well. It works like the others except that
+it cannot be renamed or deleted, and that removing a station from it
+deletes that station.</p>
+<p>To add every station in one collection to another, press the
+<strong>Applications key</strong> on a collection and choose <strong>Add
+All to Collection</strong>. Stations already in the collection you
+choose are left as they are.</p>
+<p>Collections also appear in Browse, where you can play from them.
+<strong>Delete</strong> works there too: on one of your own stations it
+deletes it, on a station in a collection it removes it from that
+collection, and on a station from a directory it tells you that only
+your own stations can be deleted.</p>
+<h2 id="song-history">Song history</h2>
+<p>Press <strong>Ctrl+Y</strong>, or <strong>Playback → Song
+History</strong>, while a station is playing. The newest song is at the
+top. Press Enter or the <strong>Copy</strong> button to copy the song
+you are on.</p>
+<p>Some stations publish their own list of recent songs, and that list
+goes back further than the point where you tuned in. When the station
+also sends the times, a second column tells you how long ago each song
+played.</p>
+<p>Stations that publish nothing get a list of the songs YARSP heard
+while you were listening. That list starts when you start the station
+and clears when you change stations.</p>
+<p>A station with no song information at all, like a talk station, has
+no history to show either way. The line above the list tells you which
+of the three you have.</p>
+<h2 id="the-sleep-timer">The sleep timer</h2>
+<p><strong>Playback → Sleep Timer</strong> stops the radio after 15, 30
+or 45 minutes, an hour, 90 minutes, or 2 hours. YARSP tells you how long
+it has been set for. <strong>Off</strong> cancels the timer, and
+choosing a different time replaces it.</p>
+<p><strong>Ctrl</strong> and a number sets a time without opening the
+menu, in the order the menu lists them: Ctrl+1 for 15 minutes, Ctrl+2
+for 30, Ctrl+3 for 45, Ctrl+4 for an hour, Ctrl+5 for 90 minutes, and
+Ctrl+6 for 2 hours. <strong>Ctrl+0</strong> cancels the timer.</p>
+<p>The timer runs until the time you set, whatever you do in the
+meantime. Changing stations does not reset it, and neither does stopping
+and starting the radio again. When the time is up YARSP says “Sleep
+timer: stopping” and stops the radio. If the radio is already stopped,
+the timer ends without saying anything.</p>
+<h2 id="settings">Settings</h2>
+<p>These are in the <strong>File</strong> menu, and YARSP saves what you
+set them to:</p>
+<ul>
+<li><strong>Announce Song Titles</strong>: on by default. Turn it off if
+you’d rather not hear each new track; the window title still shows it,
+and Ctrl+Alt+Shift+N still reads it out when you ask.</li>
+<li><strong>Announce Connection Status</strong>: on by default. Turn it
+off and YARSP stops saying “Connecting”, “Buffering” and “Stopped”, so
+starting a station says one thing instead of three. It still tells you
+when a station starts playing, and it still tells you about anything
+that goes wrong. Errors and dropped connections are never silenced by
+this.</li>
+<li><strong>Close Lists When Playing</strong>: off by default, so
+playing a station leaves Search, Browse, Favorites and Recently Played
+open and you can try another without finding your way back. Turn it on
+if you would rather the list closed once you have picked something.</li>
+<li><strong>Play Last Station at Startup</strong>: off by default. Turn
+it on and YARSP picks up where you left off as soon as it opens.</li>
+</ul>
+<h2 id="when-a-stream-drops">When a stream drops</h2>
+<p>Short interruptions, such as a stalled connection or a brief Wi-Fi
+problem, are ignored and playback continues without a word.</p>
+<p>If the stream is lost, YARSP says “Connection lost. Reconnecting.”
+and retries for about a minute. It says “Reconnected” if it succeeds,
+and tells you if it does not.</p>
+<h2 id="updates">Updates</h2>
+<p>YARSP checks once a day for a newer version and tells you after
+startup if there is one. It never installs anything by itself.</p>
+<p><strong>Help → Check for Updates</strong> checks straight away and
+always tells you the result. When there is a new version it shows what
+changed and offers to download it in your browser.</p>
+<h2 id="the-tray-icon">The tray icon</h2>
+<p>YARSP keeps an icon in the system tray. Press <strong>Win+B</strong>
+to reach it. Its menu has Play or Pause, Stop, your favorites, Show
+YARSP, and Exit.</p>
+<p><strong>Ctrl+Alt+Shift+Y</strong> hides the window while the radio
+keeps playing. Press it again to bring the window back.</p>
+<h2 id="now-playing">Now playing</h2>
+<p>The window title shows the station, and the current song when the
+station sends one, so the taskbar and Alt+Tab show what is playing.</p>
+<p>New songs are announced as they start.
+<strong>Ctrl+Alt+Shift+N</strong> repeats the announcement at any
+time.</p>
+<h2 id="keyboard-shortcuts">Keyboard shortcuts</h2>
+<p>These work everywhere in the program, except <strong>Ctrl+I</strong>,
+<strong>Ctrl+Shift+I</strong> and <strong>Ctrl+Shift+L</strong>, which
+work on the main window only. Each opens something, and YARSP has one
+window open at a time:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+P</td>
+<td>Play or pause</td>
+</tr>
+<tr>
+<td>Ctrl+S</td>
+<td>Stop</td>
+</tr>
+<tr>
+<td>Ctrl+M</td>
+<td>Mute or unmute</td>
+</tr>
+<tr>
+<td>Ctrl+Up / Ctrl+Down</td>
+<td>Volume up / down</td>
+</tr>
+<tr>
+<td>Ctrl+D</td>
+<td>Add or remove favorite</td>
+</tr>
+<tr>
+<td>Ctrl+F</td>
+<td>Search stations</td>
+</tr>
+<tr>
+<td>Ctrl+G</td>
+<td>Browse stations</td>
+</tr>
+<tr>
+<td>Ctrl+B</td>
+<td>Favorites</td>
+</tr>
+<tr>
+<td>Ctrl+H</td>
+<td>Recently played</td>
+</tr>
+<tr>
+<td>Ctrl+N</td>
+<td>Add a custom station</td>
+</tr>
+<tr>
+<td>Ctrl+U</td>
+<td>Copy the stream address</td>
+</tr>
+<tr>
+<td>Ctrl+Y</td>
+<td>Song history</td>
+</tr>
+<tr>
+<td>Ctrl+L</td>
+<td>Collections</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+L</td>
+<td>Add what is playing to a collection</td>
+</tr>
+<tr>
+<td>Ctrl+I</td>
+<td>Import a playlist</td>
+</tr>
+<tr>
+<td>Ctrl+Shift+I</td>
+<td>Import a playlist as a collection</td>
+</tr>
+<tr>
+<td>Ctrl+1 … Ctrl+6</td>
+<td>Set a sleep time</td>
+</tr>
+<tr>
+<td>Ctrl+0</td>
+<td>Cancel the sleep timer</td>
+</tr>
+<tr>
+<td>Ctrl+E</td>
+<td>Equalizer</td>
+</tr>
+<tr>
+<td>Applications key, or Shift+F10</td>
+<td>Context menu for the current station</td>
+</tr>
+<tr>
+<td>F1</td>
+<td>Open this guide in your browser</td>
+</tr>
+<tr>
+<td>Escape</td>
+<td>Close the current dialog</td>
+</tr>
+</tbody>
+</table>
+<p>The buttons on the main window carry no Alt keys of their own. Play,
+Stop, Mute and the favorites button are the Ctrl keys above, which work
+from anywhere in YARSP rather than only when the main window is in
+front. Tab reaches the buttons themselves.</p>
+<p>Alt still reaches the menus, the volume slider, and your
+favorites:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alt+V</td>
+<td>Move to the volume slider</td>
+</tr>
+<tr>
+<td>Alt+1 … Alt+0</td>
+<td>Play your first ten favorites</td>
+</tr>
+<tr>
+<td>Alt+F / Alt+S / Alt+P / Alt+H</td>
+<td>File, Stations, Playback, Help</td>
+</tr>
+</tbody>
+</table>
+<h2 id="global-hotkeys">Global hotkeys</h2>
+<p>These work from anywhere in Windows, even with YARSP hidden or in the
+background:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+Alt+Shift+P</td>
+<td>Play or pause</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+S</td>
+<td>Stop</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+PageUp / PageDown</td>
+<td>Volume up / down</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+Right / Left</td>
+<td>Next / previous favorite</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+N</td>
+<td>Announce what’s playing</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+Y</td>
+<td>Hide or show the window</td>
+</tr>
+<tr>
+<td>Ctrl+Alt+Shift+E</td>
+<td>Turn the equalizer on or off</td>
+</tr>
+</tbody>
+</table>
+<p>To change them: <strong>File → Global Hotkeys</strong>, arrow to an
+action, press Enter, then press the keys you want. Delete clears a
+hotkey, and there’s a Restore Defaults button.</p>
+<h2 id="contact-me">Contact me</h2>
+<p>Feedback, questions, bug reports, and stations you’d like to see
+added are all welcome: <a
+href="mailto:liam@l-works.net">liam@l-works.net</a>.</p>
+</body>
+</html>
