@@ -181,6 +181,8 @@ struct Open {
 	serial: u64,
 	ring: Arc<PcmRing>,
 	title: Option<String>,
+	/// Said `Reconnecting` and has not said `Reconnected` since.
+	reconnecting: bool,
 	_guard: Box<dyn Send>,
 }
 
@@ -242,9 +244,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.last_focus
 			.is_some_and(|t| now.duration_since(t) < REPEAT);
 		self.last_focus = Some(now);
-		let lo = index.saturating_sub(DNS_SPAN);
-		let hi = (index + DNS_SPAN + 1).min(stations.len());
-		self.factory.warm_dns(&stations[lo..hi]);
+		// Under key repeat even lookups wait: each one is a blocking thread.
+		if !repeat {
+			let lo = index.saturating_sub(DNS_SPAN);
+			let hi = (index + DNS_SPAN + 1).min(stations.len());
+			self.factory.warm_dns(&stations[lo..hi]);
+		}
 		let warm = wanted(stations.len(), index)
 			.1
 			.into_iter()
@@ -321,13 +326,19 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if !already {
 			match self.open.iter().find(|o| o.station.id == target.id) {
 				Some(o) => {
-					let (ring, title) = (o.ring.clone(), o.title.clone());
+					let (ring, title, reconnecting) =
+						(o.ring.clone(), o.title.clone(), o.reconnecting);
 					ring.trim_to_ms(SWAP_MS);
 					self.activate(target, ring, now, true);
 					self.emit(TunerEvent::Title {
 						station_id: target.id.clone(),
 						title: title.clone(),
 					});
+					if reconnecting {
+						self.emit(TunerEvent::Reconnecting {
+							station_id: target.id.clone(),
+						});
+					}
 					// Just focused, so this only holds the title for Settle.
 					self.settle.title(title, now);
 				}
@@ -379,6 +390,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			serial,
 			ring: ring.clone(),
 			title: None,
+			reconnecting: false,
 			_guard: guard,
 		});
 		ring
@@ -429,13 +441,20 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					});
 				}
 			}
-			StreamEvent::Reconnecting if playing => {
-				self.emit(TunerEvent::Reconnecting { station_id })
+			// A warm stream's outage is kept, so a swap onto it announces it before `Reconnected`.
+			StreamEvent::Reconnecting => {
+				self.open[i].reconnecting = true;
+				if playing {
+					self.emit(TunerEvent::Reconnecting { station_id });
+				}
 			}
-			StreamEvent::Reconnected if playing => {
-				self.emit(TunerEvent::Reconnected { station_id })
+			StreamEvent::Reconnected => {
+				self.open[i].reconnecting = false;
+				if playing {
+					self.emit(TunerEvent::Reconnected { station_id });
+				}
 			}
-			_ => {}
+			StreamEvent::FirstAudio => {}
 		}
 	}
 

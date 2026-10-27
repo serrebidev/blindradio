@@ -12,7 +12,7 @@ use blindradio_core::stream::{StationStream, StreamEvent, start};
 const FIRST_AUDIO: Duration = Duration::from_secs(3);
 
 fn engine() -> Engine {
-	// Never saved, so the path only has to not exist.
+	// Saved on drop; a scratch path keeps the app's real cache out of it.
 	Engine::new(
 		&std::env::temp_dir().join("blindradio-no-such-dir/cache.json"),
 		48_000,

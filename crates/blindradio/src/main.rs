@@ -14,6 +14,7 @@ use wxdragon::prelude::*;
 
 const STATIONS: &str = include_str!("../../blindradio-core/examples/stations.json");
 const POLL_MS: i32 = 50;
+const TITLE: &str = "BlindRadio";
 
 struct App {
 	tuner: Tuner<LiveFactory, Output>,
@@ -21,6 +22,8 @@ struct App {
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	frame: Frame,
+	/// Taken and stopped on close, while the frame it ticks on still exists.
+	timer: Option<Timer<Frame>>,
 	// Dropped last: the tuner's streams run on its runtime.
 	_engine: Engine,
 }
@@ -34,13 +37,19 @@ impl App {
 		self.tuner.focus(&self.stations, index, Instant::now());
 	}
 
+	fn stop(&mut self) {
+		self.tuner.stop();
+		self.frame.set_title(TITLE);
+	}
+
 	fn poll(&mut self) {
 		let rendered: Vec<_> = self.rendered.try_iter().collect();
 		self.tuner.poll(Instant::now(), &rendered);
 		for event in self.events.try_iter() {
 			match event {
+				// A title queued for a station focus already left must not overwrite the playing one.
 				TunerEvent::Title { station_id, title } => {
-					let Some(station) = self.stations.iter().find(|s| s.id == station_id) else {
+					let Some(station) = self.tuner.playing().filter(|s| s.id == station_id) else {
 						continue;
 					};
 					match title {
@@ -57,26 +66,28 @@ impl App {
 	}
 }
 
+/// Says why the app cannot start, then closes; with no window left the app exits.
+fn fail(frame: Frame, error: &dyn std::fmt::Display) {
+	MessageDialog::builder(&frame, &format!("Failed: {error}"), TITLE)
+		.build()
+		.show_modal();
+	frame.close(true);
+}
+
 fn main() {
 	let stations: Vec<Station> = serde_json::from_str(STATIONS).expect("embedded stations.json");
 	let _ = wxdragon::main(move |_| {
+		let frame = Frame::builder().with_title(TITLE).build();
 		let output = match Output::start_default() {
 			Ok(o) => o,
-			Err(e) => {
-				eprintln!("Failed: {e}");
-				return;
-			}
+			Err(e) => return fail(frame, &e),
 		};
 		let cache = std::env::temp_dir().join("blindradio/cache.json");
 		let engine = match Engine::new(&cache, output.sample_rate) {
 			Ok(e) => e,
-			Err(e) => {
-				eprintln!("Failed: {e}");
-				return;
-			}
+			Err(e) => return fail(frame, &e),
 		};
 
-		let frame = Frame::builder().with_title("BlindRadio").build();
 		let panel = Panel::builder(&frame).build();
 		// wxMSW names the list after the label created just before it.
 		let label = StaticText::builder(&panel).with_label("Stations").build();
@@ -96,6 +107,7 @@ fn main() {
 			rendered,
 			events,
 			frame,
+			timer: Some(Timer::new(&frame)),
 			_engine: engine,
 		}));
 
@@ -112,7 +124,7 @@ fn main() {
 				return;
 			};
 			match key.get_key_code() {
-				Some(c) if c == 'S' as i32 && key.control_down() => a.borrow_mut().tuner.stop(),
+				Some(c) if c == 'S' as i32 && key.control_down() => a.borrow_mut().stop(),
 				Some(WXK_ESCAPE) => frame.close(true),
 				_ => key.event.skip(true),
 			}
@@ -120,18 +132,21 @@ fn main() {
 
 		let a = app.clone();
 		frame.on_close(move |e| {
-			a.borrow_mut().tuner.stop();
+			let mut app = a.borrow_mut();
+			if let Some(timer) = app.timer.take() {
+				timer.stop();
+			}
+			app.tuner.stop();
 			if let WindowEventData::General(e) = e {
 				e.skip(true);
 			}
 		});
 
-		let timer = Timer::new(&frame);
 		let a = app.clone();
-		timer.on_tick(move |_| a.borrow_mut().poll());
-		timer.start(POLL_MS, false);
-		// The timer must outlive this closure; it lives as long as the process.
-		std::mem::forget(timer);
+		if let Some(timer) = &app.borrow().timer {
+			timer.on_tick(move |_| a.borrow_mut().poll());
+			timer.start(POLL_MS, false);
+		}
 
 		frame.show(true);
 		frame.centre();

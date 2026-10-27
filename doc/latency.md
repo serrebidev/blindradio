@@ -24,6 +24,12 @@ Measured 2026-10-27, Windows 11, home broadband (west coast North America), rele
 - ice1.somafm.com: 0.011, 0.037, 0.079, 0.106
 - stream.radioparadise.com (plain http): 0.011, 0.067, none, 0.152
 
+## Playback health (`cargo run -p blindradio-core --example probe --release`)
+Each station drained in 10 ms ticks for 20 s, all 9 at once.
+- Before (ring dropped its oldest audio when full, even while playing): SomaFM lost about 13.5 s of audio in 20 s to overflow (its connect burst is far faster than real time), so playback kept jumping forward. BBC HLS lost 28 s to overflow (every 6.4 s segment arrives at once) and then starved for 11 s. Fox News had 7 short underruns.
+- After (a ring being played makes the decoder wait for room; only warm neighbours drop their oldest audio): 0 ms overflow and 0 underruns on all 9 stations. The playing ring now sits near its full 3 s on bursty servers. First audio times are unchanged.
+- Mixer: each fading station keeps its own 25 ms fade, so fast steps never cut a fade short; audio starting from silence fades in; a ring that runs dry eases out over 5 ms and resumes only once 100 ms is buffered.
+
 ## Notes
 - FIP and DLF miss 1 s on their own because of distance and server delay: about 150 ms per round trip to Europe, and FIP's server waits about 500 ms before its first byte. After the first byte, FIP takes about 450 ms more and DLF about 700 ms more to reach first render (probe, decode, ring). That part is not profiled per stage yet. Profile it first if European stations need to start faster.
 - Fast steps (100 ms apart) land on neighbours that opened only one step earlier. They count as warm (already open), but they wait for that connection. Example: FIP at 755 ms. Most of them report no latency, because the next focus comes before first audio.

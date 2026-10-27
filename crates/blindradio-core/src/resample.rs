@@ -87,6 +87,24 @@ mod tests {
 	}
 
 	#[test]
+	fn resample_has_no_jumps_between_chunks() {
+		let input = sine(44100, 44100.0);
+		let mut r = Resampler::new(44100, 48000);
+		let mut out = Vec::new();
+		for chunk in input.chunks(1152 * 2) {
+			r.process(chunk, &mut out);
+		}
+		// A 0.5 amplitude 440 Hz sine moves at most 0.5 * TAU * 440 / 48000 (about 0.029) per sample.
+		let worst = out
+			.iter()
+			.step_by(2)
+			.zip(out.iter().step_by(2).skip(1))
+			.map(|(a, b)| (a - b).abs())
+			.fold(0.0, f32::max);
+		assert!(worst < 0.04, "largest step {worst}");
+	}
+
+	#[test]
 	fn resample_passthrough_is_identity() {
 		let input = sine(1000, 48000.0);
 		let mut r = Resampler::new(48000, 48000);

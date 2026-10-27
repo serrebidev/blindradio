@@ -3,7 +3,10 @@ use embed_manifest::{embed_manifest, new_manifest};
 
 // Shipfitter replaces this in plan 6.
 fn main() {
-	if std::env::var("TARGET").unwrap_or_default().contains("windows") {
+	if std::env::var("TARGET")
+		.unwrap_or_default()
+		.contains("windows")
+	{
 		let manifest = new_manifest("BlindRadio")
 			// Common Controls v6.
 			.supported_os(Windows7..=Windows10)

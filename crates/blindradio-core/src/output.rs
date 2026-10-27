@@ -15,6 +15,10 @@ use crate::ring::PcmRing;
 
 /// Warm-swap crossfade length.
 const CROSSFADE_MS: u64 = 25;
+/// Ease-out at an underrun, so running dry does not click.
+const TAIL_MS: u64 = 5;
+/// Audio a ring that ran dry must hold before it plays again.
+const RESUME_MS: u32 = 100;
 /// Target stream buffer when the device range allows it.
 const BUFFER_MS: u32 = 10;
 
@@ -27,10 +31,26 @@ pub enum MixerCmd {
 	Mute(bool),
 }
 
+/// Where the playing ring stands.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Flow {
+	/// Not sounded yet: plays from the first sample, for the lowest start latency.
+	Waiting,
+	Playing,
+	/// Ran dry while playing: waits for `RESUME_MS` of audio, so one clean gap replaces a stutter.
+	Starved,
+}
+
 pub struct MixerCore {
 	fade_frames: usize,
+	tail_frames: usize,
+	resume_ms: u32,
 	active: Option<Arc<PcmRing>>,
-	fading: Option<(Arc<PcmRing>, usize)>,
+	flow: Flow,
+	/// Frames the active ring has sounded since it (re)started; drives its fade-in.
+	sounded: usize,
+	/// Rings fading out, each with frames faded so far. A fast step can leave several.
+	fading: Vec<(Arc<PcmRing>, usize)>,
 	pending: Option<u64>,
 	volume: f32,
 	muted: bool,
@@ -42,8 +62,12 @@ impl MixerCore {
 	pub fn new(rate: u32) -> MixerCore {
 		MixerCore {
 			fade_frames: (rate as u64 * CROSSFADE_MS / 1000) as usize,
+			tail_frames: (rate as u64 * TAIL_MS / 1000) as usize,
+			resume_ms: RESUME_MS,
 			active: None,
-			fading: None,
+			flow: Flow::Waiting,
+			sounded: 0,
+			fading: Vec::new(),
 			pending: None,
 			volume: 1.0,
 			muted: false,
@@ -55,16 +79,16 @@ impl MixerCore {
 	pub fn handle(&mut self, cmd: MixerCmd) {
 		match cmd {
 			MixerCmd::SetActive { ring, token } => {
-				let is = |a: Option<&Arc<PcmRing>>| matches!((a, &ring), (Some(a), Some(r)) if Arc::ptr_eq(a, r));
+				let is = |a: &Arc<PcmRing>| ring.as_ref().is_some_and(|r| Arc::ptr_eq(a, r));
 				// The same ring again keeps playing; draining it as both old and new would double its speed.
-				if !is(self.active.as_ref()) {
+				if !self.active.as_ref().is_some_and(is) {
 					if let Some(old) = self.active.take() {
-						self.fading = Some((old, 0));
+						self.fading.push((old, 0));
 					}
-					if is(self.fading.as_ref().map(|(f, _)| f)) {
-						self.fading = None;
-					}
+					self.fading.retain(|(f, _)| !is(f));
 					self.active = ring;
+					self.flow = Flow::Waiting;
+					self.sounded = 0;
 				}
 				self.pending = Some(token);
 			}
@@ -78,33 +102,56 @@ impl MixerCore {
 	pub fn render(&mut self, out: &mut [f32]) -> Option<u64> {
 		out.fill(0.0);
 		let frames = out.len() / 2;
+		let len = self.fade_frames.max(1) as f32;
 
 		self.a.clear();
 		self.a.resize(out.len(), 0.0);
-		let got = match &self.active {
-			Some(ring) => ring.pop_into(&mut self.a),
-			None => 0,
-		};
+		let mut got = 0;
+		if let Some(ring) = &self.active {
+			if self.flow == Flow::Starved && ring.len_ms() >= self.resume_ms {
+				self.flow = Flow::Playing;
+				self.sounded = 0;
+			}
+			if self.flow != Flow::Starved {
+				got = ring.pop_into(&mut self.a) / 2;
+				if got == frames {
+					self.flow = Flow::Playing;
+				} else if got > 0 || self.flow == Flow::Playing {
+					// Ran dry mid-buffer: ease out the last samples instead of cutting them.
+					let tail = self.tail_frames.min(got).max(1) as f32;
+					for (k, f) in (got.saturating_sub(self.tail_frames)..got).enumerate() {
+						let g = 1.0 - (k + 1) as f32 / tail;
+						self.a[2 * f] *= g;
+						self.a[2 * f + 1] *= g;
+					}
+					self.flow = Flow::Starved;
+				}
+			}
+		}
+		// Equal-power: the active ring enters as sin, from silence or across a crossfade.
+		for f in 0..got {
+			let p = (self.sounded + f).min(self.fade_frames) as f32 / len;
+			let g = (p * FRAC_PI_2).sin();
+			self.a[2 * f] *= g;
+			self.a[2 * f + 1] *= g;
+		}
+		self.sounded += got;
 
-		let mut fade = self.fading.take();
-		if let Some((ring, pos)) = fade.as_mut() {
+		// Each fading ring leaves as cos on its own clock, so a new step never cuts an old fade short.
+		for (ring, pos) in &mut self.fading {
 			self.b.clear();
 			self.b.resize(out.len(), 0.0);
 			ring.pop_into(&mut self.b);
-			let len = self.fade_frames.max(1) as f32;
 			for f in 0..frames {
-				// Equal-power crossfade: old ring leaves as cos, new one enters as sin.
-				let p = (*pos).min(self.fade_frames) as f32 / len;
-				let (g_out, g_in) = ((p * FRAC_PI_2).cos(), (p * FRAC_PI_2).sin());
-				self.a[2 * f] = self.a[2 * f] * g_in + self.b[2 * f] * g_out;
-				self.a[2 * f + 1] = self.a[2 * f + 1] * g_in + self.b[2 * f + 1] * g_out;
-				*pos += 1;
+				let p = (*pos + f).min(self.fade_frames) as f32 / len;
+				let g = (p * FRAC_PI_2).cos();
+				self.a[2 * f] += self.b[2 * f] * g;
+				self.a[2 * f + 1] += self.b[2 * f + 1] * g;
 			}
-			if *pos >= self.fade_frames {
-				fade = None;
-			}
+			*pos += frames;
 		}
-		self.fading = fade;
+		let done = self.fade_frames;
+		self.fading.retain(|(_, pos)| *pos < done);
 
 		let vol = if self.muted { 0.0 } else { self.volume };
 		for (o, &s) in out.iter_mut().zip(&self.a) {
@@ -248,10 +295,67 @@ mod tests {
 	fn render_reads_active_ring() {
 		let mut mixer = MixerCore::new(RATE);
 		mixer.handle(MixerCmd::SetActive {
-			ring: Some(const_ring(0.25, 10)),
+			ring: Some(const_ring(0.25, 40)),
 			token: 7,
 		});
+		// The first 25 ms fade in from silence.
+		render_frames(&mut mixer, 25);
 		assert_eq!(render_frames(&mut mixer, 4), [0.25; 8]);
+	}
+
+	#[test]
+	fn start_from_silence_fades_in() {
+		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(1.0, 40)),
+			token: 1,
+		});
+		let out = render_frames(&mut mixer, 25);
+		assert_eq!(out[0], 0.0, "no jump from silence to full level");
+		assert!(out.windows(2).all(|w| w[1] >= w[0]), "rises steadily");
+	}
+
+	#[test]
+	fn fast_steps_keep_every_fade() {
+		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(1.0, 100)),
+			token: 1,
+		});
+		render_frames(&mut mixer, 30);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(0.0, 100)),
+			token: 2,
+		});
+		render_frames(&mut mixer, 10);
+		// A second step 10 ms into the first fade: the first ring keeps fading, not cut off.
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(0.0, 100)),
+			token: 3,
+		});
+		let p = 10.0 / 25.0;
+		let out = render_frames(&mut mixer, 1);
+		assert!((out[0] - (p * FRAC_PI_2).cos()).abs() < 1e-3, "{}", out[0]);
+	}
+
+	#[test]
+	fn ran_dry_waits_for_resume_buffer() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 3.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 1,
+		});
+		ring.push(&vec![1.0; 40 * 2]);
+		render_frames(&mut mixer, 50);
+		// Ran dry; a trickle below RESUME_MS stays queued instead of stuttering out.
+		ring.push(&[1.0; 20 * 2]);
+		assert_eq!(render_frames(&mut mixer, 10), [0.0; 20]);
+		assert_eq!(ring.len_ms(), 20);
+		ring.push(&vec![1.0; 100 * 2]);
+		let out = render_frames(&mut mixer, 10);
+		assert_eq!(out[0], 0.0, "resumes with a fade-in");
+		assert!(out[19] > 0.0);
 	}
 
 	#[test]
@@ -323,9 +427,10 @@ mod tests {
 	fn volume_scales_output() {
 		let mut mixer = MixerCore::new(RATE);
 		mixer.handle(MixerCmd::SetActive {
-			ring: Some(const_ring(1.0, 4)),
+			ring: Some(const_ring(1.0, 40)),
 			token: 1,
 		});
+		render_frames(&mut mixer, 25);
 		mixer.handle(MixerCmd::Volume(0.5));
 		assert_eq!(render_frames(&mut mixer, 2), [0.5; 4]);
 		mixer.handle(MixerCmd::Volume(2.0));

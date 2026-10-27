@@ -12,6 +12,7 @@ pub mod tuner;
 
 pub use error::{CoreError, Result};
 
+use std::mem::ManuallyDrop;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,8 +21,19 @@ use stream::EngineCtx;
 
 /// Owns the network runtime; `ctx` is what streams and the tuner need.
 pub struct Engine {
-	pub rt: tokio::runtime::Runtime,
+	/// Shut down in `Drop` without waiting, so a slow DNS lookup cannot hold up exit.
+	pub rt: ManuallyDrop<tokio::runtime::Runtime>,
 	pub ctx: EngineCtx,
+}
+
+impl Drop for Engine {
+	fn drop(&mut self) {
+		// Keeps the resolved final URLs for faster cold starts next run.
+		let _ = self.ctx.cache.lock().save();
+		// SAFETY: `rt` is never used again; this is the only place it is taken.
+		let rt = unsafe { ManuallyDrop::take(&mut self.rt) };
+		rt.shutdown_background();
+	}
 }
 
 impl Engine {
@@ -37,6 +49,9 @@ impl Engine {
 			out_rate,
 			retry_window: Duration::from_secs(60),
 		};
-		Ok(Engine { rt, ctx })
+		Ok(Engine {
+			rt: ManuallyDrop::new(rt),
+			ctx,
+		})
 	}
 }

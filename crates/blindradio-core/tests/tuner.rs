@@ -478,6 +478,13 @@ fn events_from_warm_stations_not_forwarded() {
 		}),
 		"{got:?}"
 	);
+	// Station 5 said Reconnecting while warm; the swap passes it on.
+	assert!(
+		got.contains(&TunerEvent::Reconnecting {
+			station_id: "s5".into()
+		}),
+		"{got:?}"
+	);
 }
 
 #[test]
