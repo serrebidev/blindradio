@@ -82,7 +82,7 @@ Mechanism (builder call; builder may improve it, targets matter more than method
 ## Audio (builder call)
 
 - Formats: MP3, AAC including HE-AAC v1 and v2 (ADTS and in MP4), Ogg Vorbis, Opus, FLAC. HLS streams too, since several networks (BBC among them) publish HLS only.
-- Decoders sit behind one trait in the core. Desktop: symphonia for most formats, plus an fdk-aac based decoder for HE-AAC (symphonia lacks SBR). Phases 2 and 3 may swap in platform decoders (AudioToolbox, MediaCodec) behind the same trait; the core's tuning engine, buffering and metadata logic stay shared. Output on desktop via cpal; mobile phases decide their own output path.
+- Decoders sit behind one trait in the core. Desktop: symphonia for most formats; all AAC through fdk-aac and Opus through libopus (see Audio and network stack). Phases 2 and 3 may swap in platform decoders (AudioToolbox, MediaCodec) behind the same trait; the core's tuning engine, buffering and metadata logic stay shared. Output on desktop via cpal; mobile phases decide their own output path.
 - Licence: MIT, like Paperback. Keep third-party licence notices (fdk-aac's included) in an About > Licenses page.
 - Stream inputs: direct HTTP(S) streams, PLS and M3U playlist URLs (resolve to the first working entry), HLS m3u8.
 - ICY metadata for song titles. HLS ID3 or EXT-X metadata where present.
@@ -144,6 +144,30 @@ Write every string as short as it can be while still clear. Examples of the tone
 - macOS: Carbon `RegisterEventHotKey` (needs no accessibility permission).
 - Linux: X11 `XGrabKey`; on Wayland use the xdg-desktop-portal GlobalShortcuts portal where available, otherwise tell the user once, tersely, that hotkeys are unavailable.
 - Ideally contribute macOS and Linux back to wx-utils.
+
+## Audio and network stack (researched 2026-10-26, builder call)
+
+Closest prior art: radiotrope (github.com/goten002/radiotrope, Rust, MIT): rodio + symphonia + fdk-aac + bundled libopus, MPEG-TS HLS, ICY, producer/consumer split of network and decode. rmpd (github.com/m0rf30/rmpd, MIT/Apache) has pure-Rust HLS: master playlist reduced to one audio variant, live reload at target duration, ADTS / MP3 / fMP4 / MPEG-TS segments, AES-128. Read both before writing the pipeline.
+
+Rejected: libmpv (libmpv2 crate), GStreamer (what Shortwave uses), libVLC. All play everything, but they are large LGPL C libraries, hard to ship to iOS, tvOS and visionOS, and hide the buffer control dial tuning needs.
+
+Chosen pipeline, per station:
+
+- Network: one shared `reqwest` client (rustls) on tokio, so DNS, TLS session resumption and happy eyeballs carry across stations. Headers `Icy-MetaData: 1`, `Accept-Encoding: identity`.
+- ICY: `icy-metadata` crate (aschey) to strip metadata blocks and read `StreamTitle`.
+- Decode: symphonia 0.6 (MP3, FLAC, Vorbis, Ogg, MP4 demux). All AAC through `symphonia-adapter-fdk-aac` (symphonia's own HE-AAC is unimplemented). Opus through `symphonia-adapter-libopus` (symphonia's own Opus is unimplemented).
+- HLS: `m3u8-rs` for playlists, an MPEG-TS demuxer crate or a small PES extractor for ADTS audio, symphonia for fMP4. Follow rmpd's approach.
+- Resample: `rubato` to the device rate, low-latency settings.
+- Output: `cpal` directly, with a small own mixer (not rodio), so a station swap is sample-accurate, EQ biquads run in the callback, and output buffer stays around 10 to 20 ms.
+
+Latency tactics:
+
+- Icecast and Shoutcast servers "burst on connect" (default 64 KB, about 4 seconds of 128 kbps audio) the moment a listener connects. So start output on the first decoded frame instead of waiting to fill a buffer; the burst refills the cushion behind it.
+- Cache each station's resolved final stream URL (after PLS/M3U and redirects) on disk, so later starts skip the extra round trips.
+- Pre-resolve DNS for stations in the visible list.
+- Warm neighbours keep decoding into a short PCM ring (2 to 3 seconds). A swap starts playback about 250 ms behind the ring's newest sample, which gives a safety cushion without sounding stale.
+- A 20 to 30 ms crossfade on every swap to avoid clicks.
+- Short connect timeout; if a station has several stream URLs, try the next quickly.
 
 ## Data and delivery (owner: both portable and installer)
 
