@@ -8,3 +8,14 @@ pub enum Node {
 	Station(Station),
 	LoadMore { id: String },
 }
+
+pub mod radio_browser;
+
+/// What the Search window sends to every directory. Empty `name` and unset filters are ignored.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SearchQuery {
+	pub name: String,
+	pub genre: Option<String>,
+	pub country: Option<String>,
+	pub language: Option<String>,
+}

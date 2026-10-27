@@ -159,6 +159,7 @@ dependencies = [
  "crossbeam-channel",
  "m3u8-rs",
  "parking_lot",
+ "percent-encoding",
  "reqwest",
  "rubato",
  "serde",

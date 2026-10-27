@@ -58,7 +58,11 @@ impl Route {
 pub struct TestServer {
 	pub base: String,
 	hits: Hits,
+	queries: Queries,
 }
+
+/// Query string of the latest request per path.
+type Queries = Arc<Mutex<HashMap<String, String>>>;
 
 /// Requests seen per path, 404s included.
 type Hits = Arc<Mutex<HashMap<String, usize>>>;
@@ -66,6 +70,11 @@ type Hits = Arc<Mutex<HashMap<String, usize>>>;
 impl TestServer {
 	pub fn url(&self, path: &str) -> String {
 		format!("{}{}", self.base, path)
+	}
+
+	/// Query string of the latest request to `path` (empty when it had none).
+	pub fn last_query(&self, path: &str) -> Option<String> {
+		self.queries.lock().unwrap().get(path).cloned()
 	}
 
 	pub fn hits(&self, path: &str) -> usize {
@@ -77,6 +86,8 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 	let (tx, rx) = std::sync::mpsc::channel();
 	let hits = Hits::default();
 	let server_hits = hits.clone();
+	let queries = Queries::default();
+	let server_queries = queries.clone();
 	std::thread::spawn(move || {
 		let rt = tokio::runtime::Builder::new_multi_thread()
 			.worker_threads(2)
@@ -95,8 +106,9 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 				let routes = routes.clone();
 				let base = base.clone();
 				let hits = server_hits.clone();
+				let queries = server_queries.clone();
 				tokio::spawn(async move {
-					let _ = handle(sock, &routes, &base, &hits).await;
+					let _ = handle(sock, &routes, &base, &hits, &queries).await;
 				});
 			}
 		});
@@ -104,6 +116,7 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 	TestServer {
 		base: rx.recv().unwrap(),
 		hits,
+		queries,
 	}
 }
 
@@ -120,6 +133,7 @@ async fn handle(
 	routes: &[Route],
 	base: &str,
 	hits: &Hits,
+	queries: &Queries,
 ) -> std::io::Result<()> {
 	let mut req = Vec::new();
 	let mut buf = [0u8; 1024];
@@ -133,6 +147,10 @@ async fn handle(
 	let line = String::from_utf8_lossy(&req);
 	let target = line.split_whitespace().nth(1).unwrap_or("/");
 	let path = target.split('?').next().unwrap_or("/");
+	queries.lock().unwrap().insert(
+		path.to_owned(),
+		target.split_once('?').map_or("", |(_, q)| q).to_owned(),
+	);
 	let hit = {
 		let mut hits = hits.lock().unwrap();
 		let n = hits.entry(path.to_owned()).or_default();
