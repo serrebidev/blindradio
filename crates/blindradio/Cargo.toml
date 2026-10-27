@@ -1,0 +1,14 @@
+[package]
+name = "blindradio"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+blindradio-core = { path = "../blindradio-core" }
+wxdragon = { git = "https://github.com/trypsynth/wxDragon" }
+crossbeam-channel = "*"
+serde_json = "*"
+
+[build-dependencies]
+embed-manifest = "*"
