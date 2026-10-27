@@ -53,6 +53,10 @@ fn codecs() -> CodecRegistry {
 	codecs
 }
 
+fn no_data() -> CoreError {
+	CoreError::Decode("No data".into())
+}
+
 fn decode_err(e: Error) -> CoreError {
 	CoreError::Decode(e.to_string())
 }
@@ -68,7 +72,13 @@ pub struct Decoder {
 }
 
 impl Decoder {
-	pub fn new(reader: Box<dyn Read + Send + Sync>, ext_hint: Option<&str>) -> Result<Decoder> {
+	pub fn new(mut reader: Box<dyn Read + Send + Sync>, ext_hint: Option<&str>) -> Result<Decoder> {
+		// One byte read up front tells an empty stream apart from an unrecognised one.
+		let mut head = [0u8];
+		if reader.read(&mut head)? == 0 {
+			return Err(no_data());
+		}
+		let reader = Read::chain(std::io::Cursor::new(head), reader);
 		let mss = MediaSourceStream::new(Box::new(ReadOnlySource::new(reader)), Default::default());
 		let mut hint = Hint::new();
 		if let Some(ext) = ext_hint {
@@ -81,30 +91,34 @@ impl Decoder {
 				FormatOptions::default(),
 				MetadataOptions::default(),
 			)
-			.map_err(decode_err)?;
+			.map_err(|_| CoreError::Decode("Unsupported format".into()))?;
 		let codecs = codecs();
-		let (decoder, track_id, rate) = open_track(format.as_ref(), &codecs)?;
+		let (decoder, track_id) = open_track(format.as_ref(), &codecs)?;
 		let mut dec = Decoder {
 			format,
 			codecs,
 			decoder,
 			track_id,
-			rate,
+			rate: 0,
 			scratch: Vec::new(),
 			first: Vec::new(),
 		};
 		// Decode one packet now so sample_rate() is right before the caller sizes its resampler.
 		let mut first = Vec::new();
-		dec.next_stereo(&mut first)?;
+		if !dec.next_stereo(&mut first)? {
+			return Err(no_data());
+		}
 		dec.first = first;
 		Ok(dec)
 	}
 
 	/// Rate of the audio last produced, read from each decoded buffer, so HE-AAC's SBR rate wins over the container's.
+	/// It can change after a decoder reset (chained Ogg): re-read it after each `next_stereo`.
 	pub fn sample_rate(&self) -> u32 {
 		self.rate
 	}
 
+	/// Appends one packet as interleaved stereo at `sample_rate()`; `false` at end of stream.
 	pub fn next_stereo(&mut self, out: &mut Vec<f32>) -> Result<bool> {
 		if !self.first.is_empty() {
 			out.append(&mut self.first);
@@ -119,10 +133,14 @@ impl Decoder {
 				}
 				// Chained Ogg (a new logical stream per song on Icecast) needs a fresh decoder.
 				Err(Error::ResetRequired) => {
-					(self.decoder, self.track_id, _) =
-						open_track(self.format.as_ref(), &self.codecs)?;
+					(self.decoder, self.track_id) = open_track(self.format.as_ref(), &self.codecs)?;
 					continue;
 				}
+				// Corrupt live data: the demuxer drops the bad header bytes and resyncs.
+				Err(Error::DecodeError(_)) => continue,
+				// A false ADTS sync can claim unsupported features; a genuinely unsupported
+				// stream fails before its first packet, when no audio has been produced yet.
+				Err(Error::Unsupported(_)) if self.rate != 0 => continue,
 				Err(e) => return Err(decode_err(e)),
 			};
 			if packet.track_id != self.track_id {
@@ -153,7 +171,7 @@ impl Decoder {
 fn open_track(
 	format: &dyn FormatReader,
 	codecs: &CodecRegistry,
-) -> Result<(Box<dyn AudioDecoder>, u32, u32)> {
+) -> Result<(Box<dyn AudioDecoder>, u32)> {
 	let track = format
 		.default_track(TrackType::Audio)
 		.ok_or_else(|| CoreError::Decode("no audio track".into()))?;
@@ -165,7 +183,7 @@ fn open_track(
 	let decoder = codecs
 		.make_audio_decoder(params, &AudioDecoderOptions::default())
 		.map_err(decode_err)?;
-	Ok((decoder, track.id, params.sample_rate.unwrap_or(0)))
+	Ok((decoder, track.id))
 }
 
 #[cfg(test)]
@@ -237,6 +255,45 @@ mod tests {
 		data[mid..mid + 2000].fill(0xAB);
 		let (_, out) = decode_all(Box::new(std::io::Cursor::new(data)), "mp3");
 		assert!(out.len() / 2 > 4 * 44100);
+	}
+
+	#[test]
+	fn corrupt_adts_bytes_are_skipped() {
+		let mut data = Vec::new();
+		fixture("tone.aac").read_to_end(&mut data).unwrap();
+		// False ADTS sync words: a forbidden sample rate (demuxer DecodeError), then a valid-looking
+		// header claiming 4 raw data blocks (demuxer Unsupported).
+		let third = data.len() / 3;
+		for (at, pattern) in [
+			(third, &[0xFF, 0xF1][..]),
+			(2 * third, &[0xFF, 0xF1, 0x50, 0x80, 0x10, 0x1F, 0xFF][..]),
+		] {
+			for (b, p) in data[at..at + 1400].iter_mut().zip(pattern.iter().cycle()) {
+				*b = *p;
+			}
+		}
+		let (_, out) = decode_all(Box::new(std::io::Cursor::new(data)), "aac");
+		assert!(out.len() / 2 > 4 * 44100, "{} frames", out.len() / 2);
+	}
+
+	fn open_piped(data: &'static [u8]) -> Result<Decoder> {
+		let (tx, reader) = byte_pipe();
+		if !data.is_empty() {
+			tx.send(Bytes::from_static(data)).unwrap();
+		}
+		drop(tx);
+		Decoder::new(Box::new(reader), None)
+	}
+
+	#[test]
+	fn garbage_then_eof_is_an_error() {
+		for garbage in [&[0xFF; 100][..], &[0xAB; 100][..]] {
+			assert!(matches!(open_piped(garbage), Err(CoreError::Decode(_))));
+		}
+		let Err(e) = open_piped(b"") else {
+			panic!("empty stream opened")
+		};
+		assert_eq!(e.to_string(), "No data");
 	}
 
 	#[test]
