@@ -2,10 +2,11 @@ use std::f32::consts::FRAC_PI_2;
 use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, SampleFormat, SupportedBufferSize};
+use cpal::{BufferSize, ErrorKind, SampleFormat, SupportedBufferSize, SupportedStreamConfig};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use parking_lot::Mutex;
 
@@ -64,6 +65,8 @@ pub struct MixerCore {
 	volume: f32,
 	muted: bool,
 	eq: Eq,
+	/// Kept to retune the EQ when the device rate changes.
+	eq_settings: EqSettings,
 	/// Between stations or waiting on the active one: hiss fills the gap.
 	hiss: bool,
 	hiss_level: f32,
@@ -77,9 +80,9 @@ pub struct MixerCore {
 
 impl MixerCore {
 	pub fn new(rate: u32) -> MixerCore {
-		MixerCore {
-			fade_frames: (rate as u64 * CROSSFADE_MS / 1000) as usize,
-			tail_frames: (rate as u64 * TAIL_MS / 1000) as usize,
+		let mut m = MixerCore {
+			fade_frames: 0,
+			tail_frames: 0,
 			cushion_ms: CUSHION_MS,
 			active: None,
 			flow: Flow::Buffering,
@@ -89,15 +92,27 @@ impl MixerCore {
 			volume: 1.0,
 			muted: false,
 			eq: Eq::new(rate),
+			eq_settings: EqSettings::default(),
 			hiss: false,
 			hiss_level: HISS_LEVEL,
 			hiss_gain: 0.0,
-			hiss_step: 1.0 / (rate as u64 * CROSSFADE_MS / 1000).max(1) as f32,
+			hiss_step: 0.0,
 			noise: 0x9E37_79B9,
 			noise_lp: 0.0,
 			a: Vec::new(),
 			b: Vec::new(),
-		}
+		};
+		m.set_rate(rate);
+		m
+	}
+
+	/// Retimes fades and retunes the EQ; rings and settings stay.
+	fn set_rate(&mut self, rate: u32) {
+		self.fade_frames = (rate as u64 * CROSSFADE_MS / 1000) as usize;
+		self.tail_frames = (rate as u64 * TAIL_MS / 1000) as usize;
+		self.hiss_step = 1.0 / self.fade_frames.max(1) as f32;
+		self.eq = Eq::new(rate);
+		self.eq.set(&self.eq_settings);
 	}
 
 	pub fn handle(&mut self, cmd: MixerCmd) {
@@ -127,7 +142,10 @@ impl MixerCore {
 			}
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
 			MixerCmd::Mute(muted) => self.muted = muted,
-			MixerCmd::Eq(s) => self.eq.set(&s),
+			MixerCmd::Eq(s) => {
+				self.eq.set(&s);
+				self.eq_settings = s;
+			}
 		}
 	}
 
@@ -218,101 +236,311 @@ struct Callback {
 	scratch: Vec<f32>,
 }
 
+/// Announced by `poll_devices`.
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeviceEvent {
+	/// The chosen device went away; playing through the default.
+	Lost,
+	/// The chosen device is back and playing.
+	Back(String),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum FallbackAction {
+	UseDefault,
+	UseChosen,
+}
+
+/// `active` is the chosen name while the stream is on it, `None` while on the default.
+pub fn fallback_step(
+	chosen: Option<&str>,
+	active: Option<&str>,
+	errored: bool,
+	available: &[String],
+) -> Option<FallbackAction> {
+	let chosen = chosen?;
+	let present = available.iter().any(|n| n == chosen);
+	if active == Some(chosen) {
+		(errored || !present).then_some(FallbackAction::UseDefault)
+	} else {
+		present.then_some(FallbackAction::UseChosen)
+	}
+}
+
+fn device_name(device: &cpal::Device) -> Option<String> {
+	device.description().ok().map(|d| d.name().to_string())
+}
+
+/// Names of every output device of the default host, default first.
+pub fn output_devices() -> Vec<String> {
+	let host = cpal::default_host();
+	let mut names: Vec<String> = host
+		.default_output_device()
+		.and_then(|d| device_name(&d))
+		.into_iter()
+		.collect();
+	for d in host.output_devices().into_iter().flatten() {
+		if let Some(n) = device_name(&d)
+			&& !names.contains(&n)
+		{
+			names.push(n);
+		}
+	}
+	names
+}
+
+/// The named device, or the default when the name is not found; the name comes back only when found.
+fn find_device(name: Option<&str>) -> Result<(cpal::Device, Option<String>)> {
+	let host = cpal::default_host();
+	if let Some(name) = name
+		&& let Some(d) = host
+			.output_devices()
+			.into_iter()
+			.flatten()
+			.find(|d| device_name(d).as_deref() == Some(name))
+	{
+		return Ok((d, Some(name.to_string())));
+	}
+	let d = host
+		.default_output_device()
+		.ok_or_else(|| CoreError::Output("no default output device".into()))?;
+	Ok((d, None))
+}
+
+fn out_err(e: impl std::fmt::Display) -> CoreError {
+	CoreError::Output(e.to_string())
+}
+
+/// f32 at `rate` when the device supports it, otherwise the device default.
+fn pick_config(device: &cpal::Device, rate: Option<u32>) -> Result<SupportedStreamConfig> {
+	let default = device.default_output_config().map_err(out_err)?;
+	let f32_ok = default.sample_format() == SampleFormat::F32;
+	if let Some(rate) = rate
+		&& !(f32_ok && default.sample_rate() == rate)
+		&& let Some(c) = device
+			.supported_output_configs()
+			.into_iter()
+			.flatten()
+			.filter(|c| c.sample_format() == SampleFormat::F32)
+			.filter_map(|c| c.try_with_sample_rate(rate))
+			.max_by_key(|c| c.channels() == default.channels())
+	{
+		return Ok(c);
+	}
+	if !f32_ok {
+		return Err(CoreError::Output(format!(
+			"unsupported sample format {:?}",
+			default.sample_format()
+		)));
+	}
+	Ok(default)
+}
+
+/// Built paused; every stream shares the one mixer, so a new device carries on where the last left off.
+fn build_stream(
+	device: &cpal::Device,
+	supported: SupportedStreamConfig,
+	state: &Arc<Mutex<Callback>>,
+	cmd_rx: &Receiver<MixerCmd>,
+	rendered_tx: &Sender<(u64, Instant)>,
+	errored: &Arc<AtomicBool>,
+) -> Result<cpal::Stream> {
+	let mut config = supported.config();
+	let frames = supported.sample_rate() * BUFFER_MS / 1000;
+	if let SupportedBufferSize::Range { min, max } = supported.buffer_size()
+		&& frames >= *min
+		&& frames <= *max
+	{
+		config.buffer_size = BufferSize::Fixed(frames);
+	}
+	let channels = config.channels as usize;
+	let (cb_state, cmd_rx, rendered_tx, errored) = (
+		state.clone(),
+		cmd_rx.clone(),
+		rendered_tx.clone(),
+		errored.clone(),
+	);
+	device
+		.build_output_stream(
+			config,
+			move |data: &mut [f32], _| {
+				let cb = &mut *cb_state.lock();
+				while let Ok(cmd) = cmd_rx.try_recv() {
+					cb.core.handle(cmd);
+				}
+				let channels = channels.max(1);
+				let frames = data.len() / channels;
+				if frames == 0 {
+					return;
+				}
+				cb.scratch.clear();
+				cb.scratch.resize(frames * 2, 0.0);
+				let (core, scratch) = (&mut cb.core, &mut cb.scratch);
+				if let Some(token) = core.render(scratch) {
+					let _ = rendered_tx.try_send((token, Instant::now()));
+				}
+				// Silence first, so a tail shorter than one frame never replays stale samples.
+				data.fill(0.0);
+				let (lr, _) = cb.scratch.as_chunks::<2>();
+				match channels {
+					1 => {
+						for (d, [l, r]) in data.iter_mut().zip(lr) {
+							*d = (l + r) * 0.5;
+						}
+					}
+					2 => data[..frames * 2].copy_from_slice(&cb.scratch),
+					// Stereo goes to the first two channels, the rest stay silent.
+					_ => {
+						for (frame, pair) in data.chunks_exact_mut(channels).zip(lr) {
+							frame[..2].copy_from_slice(pair);
+						}
+					}
+				}
+			},
+			// Only a flag: `poll_devices` decides on the UI thread. Glitches and reroutes keep playing.
+			move |err| {
+				if !matches!(
+					err.kind(),
+					ErrorKind::Xrun | ErrorKind::DeviceChanged | ErrorKind::RealtimeDenied
+				) {
+					errored.store(true, Ordering::Relaxed);
+				}
+			},
+			None,
+		)
+		.map_err(out_err)
+}
+
 /// Device output stream; built, driven and dropped on the UI thread.
 pub struct Output {
 	pub sample_rate: u32,
 	cmd_tx: Sender<MixerCmd>,
 	rendered_rx: Receiver<(u64, Instant)>,
+	// Kept so a rebuilt stream reads the same commands and reports to the same receiver.
+	cmd_rx: Receiver<MixerCmd>,
+	rendered_tx: Sender<(u64, Instant)>,
+	state: Arc<Mutex<Callback>>,
+	chosen: Option<String>,
+	/// The chosen device while the stream is on it; `None` on the default.
+	active: Option<String>,
+	/// Set by the current stream's error callback.
+	errored: Arc<AtomicBool>,
+	rate_changed: Option<u32>,
 	// Dropping the stream stops playback.
-	_stream: cpal::Stream,
+	stream: cpal::Stream,
 	// Not Send: Output stays on the thread that built it, so mixer commands come from one thread in order.
 	_ui_thread: PhantomData<Rc<()>>,
 }
 
 impl Output {
 	pub fn start_default() -> Result<Output> {
-		let host = cpal::default_host();
-		let device = host
-			.default_output_device()
-			.ok_or_else(|| CoreError::Output("no default output device".into()))?;
-		let default = device
-			.default_output_config()
-			.map_err(|e| CoreError::Output(e.to_string()))?;
-		if default.sample_format() != SampleFormat::F32 {
-			return Err(CoreError::Output(format!(
-				"unsupported sample format {:?}",
-				default.sample_format()
-			)));
-		}
-		let sample_rate = default.sample_rate();
-		let mut config = default.config();
-		let frames = sample_rate * BUFFER_MS / 1000;
-		if let SupportedBufferSize::Range { min, max } = default.buffer_size()
-			&& frames >= *min
-			&& frames <= *max
-		{
-			config.buffer_size = BufferSize::Fixed(frames);
-		}
-		let channels = config.channels as usize;
+		Output::start(None)
+	}
 
+	/// A `device` not found plays through the default and stays the choice.
+	pub fn start(device: Option<&str>) -> Result<Output> {
+		let (dev, active) = find_device(device)?;
+		let config = pick_config(&dev, None)?;
+		let sample_rate = config.sample_rate();
 		let state = Arc::new(Mutex::new(Callback {
 			core: MixerCore::new(sample_rate),
 			scratch: Vec::new(),
 		}));
-		let cb_state = state.clone();
 		let (cmd_tx, cmd_rx) = unbounded();
 		let (rendered_tx, rendered_rx) = unbounded();
-		let stream = device
-			.build_output_stream(
-				config,
-				move |data: &mut [f32], _| {
-					let cb = &mut *cb_state.lock();
-					while let Ok(cmd) = cmd_rx.try_recv() {
-						cb.core.handle(cmd);
-					}
-					let channels = channels.max(1);
-					let frames = data.len() / channels;
-					if frames == 0 {
-						return;
-					}
-					cb.scratch.clear();
-					cb.scratch.resize(frames * 2, 0.0);
-					let (core, scratch) = (&mut cb.core, &mut cb.scratch);
-					if let Some(token) = core.render(scratch) {
-						let _ = rendered_tx.try_send((token, Instant::now()));
-					}
-					// Silence first, so a tail shorter than one frame never replays stale samples.
-					data.fill(0.0);
-					let (lr, _) = cb.scratch.as_chunks::<2>();
-					match channels {
-						1 => {
-							for (d, [l, r]) in data.iter_mut().zip(lr) {
-								*d = (l + r) * 0.5;
-							}
-						}
-						2 => data[..frames * 2].copy_from_slice(&cb.scratch),
-						// Stereo goes to the first two channels, the rest stay silent.
-						_ => {
-							for (frame, pair) in data.chunks_exact_mut(channels).zip(lr) {
-								frame[..2].copy_from_slice(pair);
-							}
-						}
-					}
-				},
-				|err| eprintln!("audio output error: {err}"),
-				None,
-			)
-			.map_err(|e| CoreError::Output(e.to_string()))?;
-		stream
-			.play()
-			.map_err(|e| CoreError::Output(e.to_string()))?;
+		let errored = Arc::new(AtomicBool::new(false));
+		let stream = build_stream(&dev, config, &state, &cmd_rx, &rendered_tx, &errored)?;
+		stream.play().map_err(out_err)?;
 		Ok(Output {
 			sample_rate,
 			cmd_tx,
 			rendered_rx,
-			_stream: stream,
+			cmd_rx,
+			rendered_tx,
+			state,
+			chosen: device.map(str::to_string),
+			active,
+			errored,
+			rate_changed: None,
+			stream,
 			_ui_thread: PhantomData,
 		})
+	}
+
+	/// Moves playback to `device` (`None` = default) without a restart: same mixer, rings and settings.
+	pub fn switch(&mut self, device: Option<&str>) -> Result<()> {
+		self.reopen(device)?;
+		self.chosen = device.map(str::to_string);
+		Ok(())
+	}
+
+	fn reopen(&mut self, device: Option<&str>) -> Result<()> {
+		let (dev, active) = find_device(device)?;
+		let config = pick_config(&dev, Some(self.sample_rate))?;
+		let rate = config.sample_rate();
+		let errored = Arc::new(AtomicBool::new(false));
+		let stream = build_stream(
+			&dev,
+			config,
+			&self.state,
+			&self.cmd_rx,
+			&self.rendered_tx,
+			&errored,
+		)?;
+		// Old one paused first, so two streams never pull from the mixer at once.
+		let _ = self.stream.pause();
+		if let Err(e) = stream.play() {
+			let _ = self.stream.play();
+			return Err(out_err(e));
+		}
+		if rate != self.sample_rate {
+			self.state.lock().core.set_rate(rate);
+			self.sample_rate = rate;
+			self.rate_changed = Some(rate);
+		}
+		self.stream = stream;
+		self.active = active;
+		self.errored = errored;
+		Ok(())
+	}
+
+	/// The new rate, once, after a switch to a device that could not keep the old one.
+	pub fn rate_changed(&mut self) -> Option<u32> {
+		self.rate_changed.take()
+	}
+
+	pub fn chosen(&self) -> Option<&str> {
+		self.chosen.as_deref()
+	}
+
+	/// Call about every 2 s with `output_devices`. Falls back to the default when the chosen
+	/// device errors or goes missing, and returns to it when it is listed again.
+	pub fn poll_devices(&mut self, list: &dyn Fn() -> Vec<String>) -> Option<DeviceEvent> {
+		let errored = self.errored.load(Ordering::Relaxed);
+		let action = fallback_step(
+			self.chosen.as_deref(),
+			self.active.as_deref(),
+			errored,
+			&list(),
+		);
+		match action {
+			Some(FallbackAction::UseDefault) => {
+				self.reopen(None).ok()?;
+				Some(DeviceEvent::Lost)
+			}
+			Some(FallbackAction::UseChosen) => {
+				let name = self.chosen.clone()?;
+				self.reopen(Some(&name)).ok()?;
+				(self.active.as_deref() == Some(name.as_str())).then_some(DeviceEvent::Back(name))
+			}
+			None => {
+				// The default itself died (unplugged with nothing chosen): reopen whatever is default now.
+				if errored {
+					let _ = self.reopen(None);
+				}
+				None
+			}
+		}
 	}
 
 	pub fn send(&self, cmd: MixerCmd) {
@@ -579,6 +807,30 @@ mod tests {
 		});
 		render_frames(&mut mixer, 10);
 		assert_eq!(ring.len_ms(), 80, "20 frames taken at 1000 Hz, not 30");
+	}
+
+	#[test]
+	fn rate_change_keeps_mixer_state() {
+		let mut m = mixer();
+		let ring = const_ring(1.0, 100);
+		m.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 1,
+		});
+		m.handle(MixerCmd::Volume(0.5));
+		let eq = EqSettings {
+			enabled: true,
+			preset: crate::settings::EqPreset::Custom,
+			bass: 6,
+			mid: 0,
+			treble: 0,
+		};
+		m.handle(MixerCmd::Eq(eq.clone()));
+		m.set_rate(2 * RATE);
+		assert_eq!(m.fade_frames, 50, "25 ms at 2 kHz");
+		assert_eq!(m.eq_settings, eq);
+		assert!(m.active.as_ref().is_some_and(|a| Arc::ptr_eq(a, &ring)));
+		assert_eq!(m.volume, 0.5);
 	}
 
 	#[test]
