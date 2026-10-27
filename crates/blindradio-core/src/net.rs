@@ -12,7 +12,8 @@ const SNIFF_LIMIT: usize = 64 * 1024;
 
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 	reqwest::Client::builder()
-		.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
+		// SomaFM drops any user agent containing "blindradio" (any case) with an empty reply.
+		.user_agent(concat!("Blind-Radio/", env!("CARGO_PKG_VERSION")))
 		.connect_timeout(Duration::from_secs(4))
 		.redirect(reqwest::redirect::Policy::limited(10))
 		.build()

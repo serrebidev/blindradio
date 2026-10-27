@@ -1,0 +1,11 @@
+[
+	{ "id": "groovesalad-mp3", "name": "Groove Salad MP3", "url": "https://ice1.somafm.com/groovesalad-128-mp3" },
+	{ "id": "groovesalad-aac", "name": "Groove Salad AAC", "url": "https://ice1.somafm.com/groovesalad-128-aac" },
+	{ "id": "dronezone-mp3", "name": "Drone Zone MP3", "url": "https://ice1.somafm.com/dronezone-128-mp3" },
+	{ "id": "radioparadise-aac", "name": "Radio Paradise AAC", "url": "http://stream.radioparadise.com/aac-128" },
+	{ "id": "foxnews-heaac", "name": "Fox News Radio HE-AAC", "url": "https://live.amperwave.net/direct/foxnewsradio-foxnewsradioaac-imc?source=fnr.web" },
+	{ "id": "dlf-opus", "name": "Deutschlandfunk Opus", "url": "https://st01.sslstream.dlf.de/dlf/01/high/opus/stream.opus?aggregator=web" },
+	{ "id": "secretagent-pls", "name": "Secret Agent PLS", "url": "https://somafm.com/secretagent.pls" },
+	{ "id": "bbc4-hls", "name": "BBC Radio 4 HLS", "url": "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8" },
+	{ "id": "fip-aac", "name": "FIP", "url": "https://icecast.radiofrance.fr/fip-hifi.aac" }
+]
