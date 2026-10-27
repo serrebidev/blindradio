@@ -6,3 +6,10 @@ version.workspace = true
 
 [dependencies]
 thiserror = "*"
+reqwest = { version = "*", default-features = false, features = ["rustls", "stream"] }
+tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
+serde_json = "*"
+
+[dev-dependencies]
+tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
+tempfile = "*"
