@@ -34,7 +34,7 @@ pub enum Opened {
 	},
 }
 
-fn http_err(e: reqwest::Error) -> CoreError {
+pub(crate) fn http_err(e: reqwest::Error) -> CoreError {
 	if e.is_redirect() {
 		CoreError::Http("Too many redirects".into())
 	} else {
@@ -42,7 +42,7 @@ fn http_err(e: reqwest::Error) -> CoreError {
 	}
 }
 
-fn not_a_stream() -> CoreError {
+pub(crate) fn not_a_stream() -> CoreError {
 	CoreError::Playlist("Not a stream".into())
 }
 

@@ -17,6 +17,7 @@ symphonia-adapter-fdk-aac = "*"
 symphonia-adapter-libopus = "*"
 parking_lot = "*"
 serde = { version = "*", features = ["derive"] }
+m3u8-rs = "*"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }

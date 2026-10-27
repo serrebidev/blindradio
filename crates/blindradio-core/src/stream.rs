@@ -1,9 +1,11 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use crossbeam_channel::{Sender, TrySendError};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, TrySendError};
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 use tokio::task::AbortHandle;
@@ -11,6 +13,7 @@ use tokio::time::{sleep, timeout};
 
 use crate::Result;
 use crate::decode::{ByteReader, Decoder, byte_pipe};
+use crate::hls::{hint as hls_hint, run_hls};
 use crate::net::{Opened, ResolveCache, open};
 use crate::resample::Resampler;
 use crate::ring::PcmRing;
@@ -105,10 +108,60 @@ pub fn start(
 }
 
 struct Conn {
-	response: reqwest::Response,
+	source: Source,
 	first: Bytes,
-	metaint: Option<usize>,
 	hint: Option<&'static str>,
+}
+
+enum Source {
+	Http {
+		response: reqwest::Response,
+		metaint: Option<usize>,
+	},
+	Hls(Hls),
+}
+
+/// `run_hls` polled in place, so dropping the connection stops it.
+struct Hls {
+	task: Option<Pin<Box<dyn Future<Output = Result<()>> + Send>>>,
+	audio: Receiver<Bytes>,
+	titles: Receiver<Option<String>>,
+	/// Why the task ended.
+	end: String,
+}
+
+impl Hls {
+	fn start(client: reqwest::Client, playlist_url: String) -> Hls {
+		let (tx, audio) = crossbeam_channel::bounded(64);
+		let (title_tx, titles) = crossbeam_channel::unbounded();
+		let on_title = Box::new(move |t| drop(title_tx.send(t)));
+		Hls {
+			task: Some(Box::pin(run_hls(client, playlist_url, tx, on_title))),
+			audio,
+			titles,
+			end: "No data".into(),
+		}
+	}
+
+	/// Next segment's audio; `None` once `run_hls` has ended and all it sent is taken.
+	async fn next(&mut self) -> Option<Bytes> {
+		loop {
+			match self.audio.try_recv() {
+				Ok(bytes) => return Some(bytes),
+				Err(TryRecvError::Disconnected) => return None,
+				Err(TryRecvError::Empty) => {}
+			}
+			let task = self.task.as_mut()?;
+			// crossbeam has no async recv, so the queue is checked every 10 ms while the task runs.
+			if let Ok(result) = timeout(Duration::from_millis(10), task).await {
+				// Dropping the task drops its sender; what it queued is still taken first.
+				self.task = None;
+				if let Err(e) = result {
+					self.end = e.to_string();
+				}
+			}
+		}
+	}
 }
 
 async fn run(url: String, ctx: EngineCtx, ring: Arc<PcmRing>, shared: Arc<Shared>) {
@@ -165,8 +218,19 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 			response,
 			final_url,
 		} => (response, final_url),
-		// ponytail: HLS lands in Task 7 (HlsReader).
-		Opened::Hls { .. } => return Err("HLS".to_owned()),
+		// ponytail: run_hls fetches the playlist open() just read; pass the body in if that round trip matters.
+		Opened::Hls { playlist_url } => {
+			let mut hls = Hls::start(ctx.client.clone(), playlist_url.clone());
+			let Some(first) = hls.next().await else {
+				return Err(hls.end);
+			};
+			let conn = Conn {
+				hint: Some(hls_hint(&first)),
+				source: Source::Hls(hls),
+				first,
+			};
+			return Ok((conn, playlist_url));
+		}
 	};
 	let first = match response.chunk().await {
 		Ok(Some(c)) => c,
@@ -184,9 +248,8 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 		.filter(|&m| m > 0);
 	let hint = header("content-type").and_then(|ct| ext_hint(&ct));
 	let conn = Conn {
-		response,
+		source: Source::Http { response, metaint },
 		first,
-		metaint,
 		hint,
 	};
 	Ok((conn, final_url))
@@ -294,7 +357,10 @@ async fn pump(
 	shared: &Shared,
 	title: &mut Option<String>,
 ) -> String {
-	let mut icy = conn.metaint.map(Icy::new);
+	let mut icy = match conn.source {
+		Source::Http { metaint, .. } => metaint.map(Icy::new),
+		Source::Hls(_) => None,
+	};
 	let mut chunk = std::mem::take(&mut conn.first);
 	let mut audio = Vec::new();
 	let mut titles = Vec::new();
@@ -303,30 +369,47 @@ async fn pump(
 			Some(icy) => icy.feed(chunk, &mut audio, &mut titles),
 			None => audio.push(chunk),
 		}
+		if let Source::Hls(hls) = &conn.source {
+			titles.extend(hls.titles.try_iter());
+		}
 		for t in titles.drain(..) {
 			if t != *title {
 				title.clone_from(&t);
 				shared.emit(StreamEvent::Title(t));
 			}
 		}
-		for mut bytes in audio.drain(..) {
-			// The decoder keeps up with any live stream; Full only lasts through a burst.
-			loop {
-				match tx.try_send(bytes) {
-					Ok(()) => break,
-					Err(TrySendError::Full(back)) => {
-						bytes = back;
-						sleep(Duration::from_millis(10)).await;
-					}
-					Err(TrySendError::Disconnected(_)) => return "No data".into(),
-				}
+		for bytes in audio.drain(..) {
+			if !send(&tx, bytes).await {
+				return "No data".into();
 			}
 		}
-		chunk = match timeout(STALL, conn.response.chunk()).await {
-			Ok(Ok(Some(c))) => c,
-			Ok(Ok(None)) | Err(_) => return "No data".into(),
-			Ok(Err(_)) => return "Unreachable".into(),
+		chunk = match &mut conn.source {
+			Source::Http { response, .. } => match timeout(STALL, response.chunk()).await {
+				Ok(Ok(Some(c))) => c,
+				Ok(Ok(None)) | Err(_) => return "No data".into(),
+				Ok(Err(_)) => return "Unreachable".into(),
+			},
+			// run_hls has its own stall limit, since segments arrive a target duration apart.
+			Source::Hls(hls) => match hls.next().await {
+				Some(c) => c,
+				None => return hls.end.clone(),
+			},
 		};
+	}
+}
+
+/// Hands `bytes` to the decode thread; `false` once it is gone.
+pub(crate) async fn send(tx: &Sender<Bytes>, mut bytes: Bytes) -> bool {
+	// The decoder keeps up with any live stream; Full only lasts through a burst.
+	loop {
+		match tx.try_send(bytes) {
+			Ok(()) => return true,
+			Err(TrySendError::Full(back)) => {
+				bytes = back;
+				sleep(Duration::from_millis(10)).await;
+			}
+			Err(TrySendError::Disconnected(_)) => return false,
+		}
 	}
 }
 

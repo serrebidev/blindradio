@@ -1,5 +1,6 @@
 pub mod decode;
 pub mod error;
+pub mod hls;
 pub mod net;
 pub mod playlist;
 pub mod resample;

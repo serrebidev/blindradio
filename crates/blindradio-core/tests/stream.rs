@@ -342,3 +342,34 @@ fn stale_cached_url_falls_back_and_is_evicted() {
 		"cache still holds {cached:?}"
 	);
 }
+
+#[test]
+fn stream_plays_hls_with_extinf_titles() {
+	let mut playlist = "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n".to_owned();
+	let mut routes = Vec::new();
+	for i in 0..5 {
+		playlist += &format!("#EXTINF:1.0,A - One\nseg{i}.ts\n");
+		let path = format!(
+			"{}/tests/fixtures/hls/seg{i}.ts",
+			env!("CARGO_MANIFEST_DIR")
+		);
+		routes.push(Route::Static {
+			path: format!("/seg{i}.ts"),
+			content_type: "video/mp2t".into(),
+			body: std::fs::read(path).unwrap(),
+		});
+	}
+	routes.push(Route::Static {
+		path: "/live.m3u8".into(),
+		content_type: "application/vnd.apple.mpegurl".into(),
+		body: playlist.into_bytes(),
+	});
+	let server = serve(routes);
+	let (_s, rx) = play(&server.url("/live.m3u8"), &ctx(Duration::from_secs(60)));
+	let title = StreamEvent::Title(Some("A - One".into()));
+	let mut seen = Vec::new();
+	while !(seen.contains(&StreamEvent::FirstAudio) && seen.contains(&title)) {
+		seen.extend(events_until(&rx, Duration::from_secs(3), |_| true));
+	}
+	assert_eq!(seen.iter().filter(|e| **e == title).count(), 1, "{seen:?}");
+}

@@ -1,7 +1,9 @@
 //! Local HTTP test server shared by integration tests.
-//! `{base}` in a Static body or Redirect `to` is replaced with the server base URL.
+//! `{base}` in a Static or Sequence body or Redirect `to` is replaced with the server base URL.
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -11,6 +13,12 @@ pub enum Route {
 		path: String,
 		content_type: String,
 		body: Vec<u8>,
+	},
+	/// Like Static, but each request gets the next body; the last one repeats.
+	Sequence {
+		path: String,
+		content_type: String,
+		bodies: Vec<Vec<u8>>,
 	},
 	/// Endless loop of `data`. `burst` bytes go out at once, then `bytes_per_sec`
 	/// (0 = unpaced). An ICY block follows every `metaint` audio bytes, cycling
@@ -39,6 +47,7 @@ impl Route {
 	fn path(&self) -> &str {
 		match self {
 			Route::Static { path, .. }
+			| Route::Sequence { path, .. }
 			| Route::Stream { path, .. }
 			| Route::Silent { path }
 			| Route::Redirect { path, .. } => path,
@@ -48,16 +57,26 @@ impl Route {
 
 pub struct TestServer {
 	pub base: String,
+	hits: Hits,
 }
+
+/// Requests seen per path, 404s included.
+type Hits = Arc<Mutex<HashMap<String, usize>>>;
 
 impl TestServer {
 	pub fn url(&self, path: &str) -> String {
 		format!("{}{}", self.base, path)
 	}
+
+	pub fn hits(&self, path: &str) -> usize {
+		self.hits.lock().unwrap().get(path).copied().unwrap_or(0)
+	}
 }
 
 pub fn serve(routes: Vec<Route>) -> TestServer {
 	let (tx, rx) = std::sync::mpsc::channel();
+	let hits = Hits::default();
+	let server_hits = hits.clone();
 	std::thread::spawn(move || {
 		let rt = tokio::runtime::Builder::new_multi_thread()
 			.worker_threads(2)
@@ -68,31 +87,40 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 			let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
 			let base = format!("http://{}", listener.local_addr().unwrap());
 			tx.send(base.clone()).unwrap();
-			let routes = std::sync::Arc::new(routes);
+			let routes = Arc::new(routes);
 			loop {
 				let Ok((sock, _)) = listener.accept().await else {
 					continue;
 				};
 				let routes = routes.clone();
 				let base = base.clone();
+				let hits = server_hits.clone();
 				tokio::spawn(async move {
-					let _ = handle(sock, &routes, &base).await;
+					let _ = handle(sock, &routes, &base, &hits).await;
 				});
 			}
 		});
 	});
 	TestServer {
 		base: rx.recv().unwrap(),
+		hits,
 	}
 }
 
+/// Binary bodies (not UTF-8) go out untouched.
 fn fill(bytes: &[u8], base: &str) -> Vec<u8> {
-	String::from_utf8_lossy(bytes)
-		.replace("{base}", base)
-		.into_bytes()
+	match std::str::from_utf8(bytes) {
+		Ok(text) => text.replace("{base}", base).into_bytes(),
+		Err(_) => bytes.to_vec(),
+	}
 }
 
-async fn handle(mut sock: TcpStream, routes: &[Route], base: &str) -> std::io::Result<()> {
+async fn handle(
+	mut sock: TcpStream,
+	routes: &[Route],
+	base: &str,
+	hits: &Hits,
+) -> std::io::Result<()> {
 	let mut req = Vec::new();
 	let mut buf = [0u8; 1024];
 	while !req.windows(4).any(|w| w == b"\r\n\r\n") {
@@ -105,6 +133,12 @@ async fn handle(mut sock: TcpStream, routes: &[Route], base: &str) -> std::io::R
 	let line = String::from_utf8_lossy(&req);
 	let target = line.split_whitespace().nth(1).unwrap_or("/");
 	let path = target.split('?').next().unwrap_or("/");
+	let hit = {
+		let mut hits = hits.lock().unwrap();
+		let n = hits.entry(path.to_owned()).or_default();
+		*n += 1;
+		*n
+	};
 	let Some(route) = routes.iter().find(|r| r.path() == path) else {
 		return sock
 			.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
@@ -113,14 +147,14 @@ async fn handle(mut sock: TcpStream, routes: &[Route], base: &str) -> std::io::R
 	match route {
 		Route::Static {
 			content_type, body, ..
+		} => static_reply(&mut sock, content_type, &fill(body, base)).await,
+		Route::Sequence {
+			content_type,
+			bodies,
+			..
 		} => {
-			let body = fill(body, base);
-			let head = format!(
-				"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-				body.len()
-			);
-			sock.write_all(head.as_bytes()).await?;
-			sock.write_all(&body).await
+			let body = &bodies[(hit - 1).min(bodies.len() - 1)];
+			static_reply(&mut sock, content_type, &fill(body, base)).await
 		}
 		Route::Redirect { to, .. } => {
 			let to = String::from_utf8(fill(to.as_bytes(), base)).unwrap();
@@ -177,6 +211,19 @@ async fn handle(mut sock: TcpStream, routes: &[Route], base: &str) -> std::io::R
 			sock.shutdown().await
 		}
 	}
+}
+
+async fn static_reply(
+	sock: &mut TcpStream,
+	content_type: &str,
+	body: &[u8],
+) -> std::io::Result<()> {
+	let head = format!(
+		"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+		body.len()
+	);
+	sock.write_all(head.as_bytes()).await?;
+	sock.write_all(body).await
 }
 
 struct StreamGen<'a> {
