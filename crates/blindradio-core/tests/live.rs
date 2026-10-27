@@ -4,6 +4,8 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use blindradio_core::Engine;
+use blindradio_core::decode::Decoder;
+use blindradio_core::net::{Opened, open};
 use blindradio_core::station::Station;
 use blindradio_core::stream::{StationStream, StreamEvent, start};
 
@@ -71,7 +73,20 @@ fn he_aac_station_decodes() {
 		.into_iter()
 		.find(|s| s.id == "foxnews-heaac")
 		.unwrap();
-	let (stream, _) = first_audio(&engine, &station).unwrap();
-	std::thread::sleep(Duration::from_secs(1));
-	assert!(stream.ring.len_ms() > 0, "decoded audio reaches the ring");
+	first_audio(&engine, &station).unwrap();
+	// SBR doubles the 22.05 kHz core rate; a decoder that ignored it would report 22050.
+	let bytes = engine.rt.block_on(async {
+		let Opened::Audio { mut response, .. } =
+			open(&engine.ctx.client, &station.url).await.unwrap()
+		else {
+			panic!("expected audio");
+		};
+		let mut bytes = Vec::new();
+		while bytes.len() < 64 * 1024 {
+			bytes.extend_from_slice(&response.chunk().await.unwrap().unwrap());
+		}
+		bytes
+	});
+	let decoder = Decoder::new(Box::new(std::io::Cursor::new(bytes)), Some("aac")).unwrap();
+	assert_eq!(decoder.sample_rate(), 44_100);
 }

@@ -12,6 +12,7 @@ pub struct PcmRing {
 
 impl PcmRing {
 	pub fn new(rate: u32, seconds: f32) -> PcmRing {
+		let rate = rate.max(1);
 		let capacity = (rate as f32 * seconds) as usize * 2;
 		PcmRing {
 			rate,
@@ -20,7 +21,9 @@ impl PcmRing {
 		}
 	}
 
+	/// Whole frames only: a trailing odd sample is dropped so left and right never swap.
 	pub fn push(&self, stereo: &[f32]) {
+		let stereo = &stereo[..stereo.len() & !1];
 		let stereo = &stereo[stereo.len().saturating_sub(self.capacity)..];
 		let mut buf = self.buf.lock();
 		let excess = (buf.len() + stereo.len()).saturating_sub(self.capacity);
@@ -30,7 +33,7 @@ impl PcmRing {
 
 	pub fn pop_into(&self, out: &mut [f32]) -> usize {
 		let mut buf = self.buf.lock();
-		let n = out.len().min(buf.len());
+		let n = out.len().min(buf.len()) & !1;
 		for (o, s) in out.iter_mut().zip(buf.drain(..n)) {
 			*o = s;
 		}
@@ -109,7 +112,21 @@ mod tests {
 	#[test]
 	fn len_ms_counts_stereo_frames() {
 		let r = PcmRing::new(48000, 3.0);
-		r.push(&vec![0.0; 48000 * 2 / 2]);
+		// 24000 frames of stereo is half a second at 48 kHz.
+		r.push(&vec![0.0; 24000 * 2]);
 		assert_eq!(r.len_ms(), 500);
+	}
+
+	#[test]
+	fn odd_lengths_keep_whole_frames() {
+		let r = PcmRing::new(1000, 1.0);
+		r.push(&[1.0, 2.0, 3.0]);
+		r.push(&[4.0, 5.0]);
+		let mut out = [0.0; 3];
+		assert_eq!(r.pop_into(&mut out), 2);
+		assert_eq!(out[..2], [1.0, 2.0]);
+		assert_eq!(r.pop_into(&mut out), 2);
+		assert_eq!(out[..2], [4.0, 5.0], "left stays left");
+		assert_eq!(PcmRing::new(0, 1.0).len_ms(), 0);
 	}
 }

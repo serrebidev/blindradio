@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 
@@ -21,6 +21,8 @@ const WARM_IDLE: Duration = Duration::from_secs(25);
 const SWAP_MS: u32 = 250;
 /// DNS is warmed for the stations this close to the focused one.
 const DNS_SPAN: usize = 5;
+/// A host is warmed again after this, since the OS resolver cache expires.
+const DNS_REWARM: Duration = Duration::from_secs(300);
 
 /// The station to play and its warm neighbours (index-1 and index+1 when they exist).
 pub fn wanted(len: usize, index: usize) -> (usize, Vec<usize>) {
@@ -124,9 +126,9 @@ pub trait StreamFactory {
 	fn warm_dns(&self, _stations: &[Station]) {}
 }
 
-/// Hostnames already warmed this process; warming is only an OS resolver hint.
-static WARMED_HOSTS: LazyLock<Mutex<HashSet<String>>> =
-	LazyLock::new(|| Mutex::new(HashSet::new()));
+/// When each hostname was last warmed; warming is only an OS resolver hint.
+static WARMED_HOSTS: LazyLock<Mutex<HashMap<String, Instant>>> =
+	LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub struct LiveFactory(pub EngineCtx);
 
@@ -143,12 +145,16 @@ impl StreamFactory for LiveFactory {
 	fn warm_dns(&self, stations: &[Station]) {
 		let mut hosts = Vec::new();
 		{
+			let now = Instant::now();
 			let mut warmed = WARMED_HOSTS.lock();
 			for station in stations {
 				if let Ok(url) = reqwest::Url::parse(&station.url)
 					&& let Some(host) = url.host_str()
-					&& warmed.insert(host.to_owned())
+					&& warmed
+						.get(host)
+						.is_none_or(|at| now.duration_since(*at) >= DNS_REWARM)
 				{
+					warmed.insert(host.to_owned(), now);
 					hosts.push(host.to_owned());
 				}
 			}
@@ -248,14 +254,13 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn play(&mut self, station: &Station, now: Instant) {
+		// A focus right after this is key repeat relative to the play, not to an older focus.
+		self.last_focus = Some(now);
 		self.tune(station, Vec::new(), false, now);
 	}
 
 	pub fn stop(&mut self) {
-		self.sink.send(MixerCmd::SetActive {
-			ring: None,
-			token: 0,
-		});
+		self.silence();
 		self.open.clear();
 		self.playing = None;
 		self.deferred = None;
@@ -328,11 +333,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				}
 				None => {
 					// Silence first: the old station must never keep playing under a new focus.
-					self.sink.send(MixerCmd::SetActive {
-						ring: None,
-						token: 0,
-					});
-					self.pending = None;
+					self.silence();
 					cold = Some(now);
 				}
 			}
@@ -436,6 +437,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			}
 			_ => {}
 		}
+	}
+
+	/// Token 0 is never issued, so silence never reports latency.
+	fn silence(&mut self) {
+		self.sink.send(MixerCmd::SetActive {
+			ring: None,
+			token: 0,
+		});
+		self.pending = None;
 	}
 
 	fn is_open(&self, id: &str) -> bool {

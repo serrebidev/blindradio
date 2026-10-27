@@ -21,5 +21,4 @@ m3u8-rs = "*"
 cpal = "*"
 
 [dev-dependencies]
-tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
 tempfile = "*"

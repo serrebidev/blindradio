@@ -373,3 +373,64 @@ fn stream_plays_hls_with_extinf_titles() {
 	}
 	assert_eq!(seen.iter().filter(|e| **e == title).count(), 1, "{seen:?}");
 }
+
+#[test]
+fn stream_fails_on_endless_junk() {
+	let server = serve(vec![Route::Stream {
+		path: "/live".into(),
+		content_type: "audio/mpeg".into(),
+		data: b"not audio at all ".repeat(64),
+		metaint: None,
+		titles: vec![],
+		burst: 16_000,
+		bytes_per_sec: 16_000,
+		close_after: None,
+	}]);
+	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	let seen = events_until(&rx, Duration::from_secs(8), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	assert!(
+		matches!(seen.as_slice(), [StreamEvent::Failed(r)] if r == "Not a stream"),
+		"{seen:?}"
+	);
+}
+
+#[test]
+fn hls_vod_ends_once_without_refetching_playlist() {
+	let mut playlist = "#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MEDIA-SEQUENCE:0\n".to_owned();
+	let mut routes = Vec::new();
+	for i in 0..2 {
+		playlist += &format!("#EXTINF:1.0,\nseg{i}.ts\n");
+		let path = format!(
+			"{}/tests/fixtures/hls/seg{i}.ts",
+			env!("CARGO_MANIFEST_DIR")
+		);
+		routes.push(Route::Static {
+			path: format!("/seg{i}.ts"),
+			content_type: "video/mp2t".into(),
+			body: std::fs::read(path).unwrap(),
+		});
+	}
+	playlist += "#EXT-X-ENDLIST\n";
+	routes.push(Route::Static {
+		path: "/vod.m3u8".into(),
+		content_type: "application/vnd.apple.mpegurl".into(),
+		body: playlist.into_bytes(),
+	});
+	let server = serve(routes);
+	let (_s, rx) = play(&server.url("/vod.m3u8"), &ctx(Duration::from_secs(60)));
+	let seen = events_until(&rx, Duration::from_secs(6), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	assert_eq!(
+		seen.last(),
+		Some(&StreamEvent::Failed("Ended".into())),
+		"{seen:?}"
+	);
+	assert!(
+		rx.recv_timeout(Duration::from_secs(2)).is_err(),
+		"an ended playlist is not replayed"
+	);
+	assert_eq!(server.hits("/vod.m3u8"), 1, "open() read the playlist once");
+}

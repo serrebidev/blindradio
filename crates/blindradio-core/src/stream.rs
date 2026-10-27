@@ -27,6 +27,8 @@ const MIN_STATION_BUDGET: Duration = Duration::from_secs(3);
 /// A connection that sends nothing for this long is treated as lost.
 const STALL: Duration = Duration::from_secs(5);
 const RING_SECONDS: f32 = 3.0;
+/// End reason of an HLS playlist that finished (`#EXT-X-ENDLIST`).
+const ENDED: &str = "Ended";
 
 #[derive(Clone)]
 pub struct EngineCtx {
@@ -131,12 +133,13 @@ struct Hls {
 }
 
 impl Hls {
-	fn start(client: reqwest::Client, playlist_url: String) -> Hls {
+	fn start(client: reqwest::Client, playlist_url: String, playlist: String) -> Hls {
 		let (tx, audio) = crossbeam_channel::bounded(64);
 		let (title_tx, titles) = crossbeam_channel::unbounded();
 		let on_title = Box::new(move |t| drop(title_tx.send(t)));
+		let task = run_hls(client, playlist_url, Some(playlist), tx, on_title);
 		Hls {
-			task: Some(Box::pin(run_hls(client, playlist_url, tx, on_title))),
+			task: Some(Box::pin(task)),
 			audio,
 			titles,
 			end: "No data".into(),
@@ -156,9 +159,10 @@ impl Hls {
 			if let Ok(result) = timeout(Duration::from_millis(10), task).await {
 				// Dropping the task drops its sender; what it queued is still taken first.
 				self.task = None;
-				if let Err(e) = result {
-					self.end = e.to_string();
-				}
+				self.end = match result {
+					Ok(()) => ENDED.into(),
+					Err(e) => e.to_string(),
+				};
 			}
 		}
 	}
@@ -175,7 +179,8 @@ async fn run(url: String, ctx: EngineCtx, ring: Arc<PcmRing>, shared: Arc<Shared
 	let mut attempt = 0;
 	loop {
 		let (reason, produced) = play(conn, &ctx, &ring, &shared, &mut title).await;
-		if !shared.played.load(Ordering::Relaxed) {
+		// An ended HLS playlist (VOD) is over; reconnecting would replay it from the start.
+		if !shared.played.load(Ordering::Relaxed) || reason == ENDED {
 			return shared.emit(StreamEvent::Failed(reason));
 		}
 		if produced {
@@ -218,9 +223,11 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 			response,
 			final_url,
 		} => (response, final_url),
-		// ponytail: run_hls fetches the playlist open() just read; pass the body in if that round trip matters.
-		Opened::Hls { playlist_url } => {
-			let mut hls = Hls::start(ctx.client.clone(), playlist_url.clone());
+		Opened::Hls {
+			playlist_url,
+			playlist,
+		} => {
+			let mut hls = Hls::start(ctx.client.clone(), playlist_url.clone(), playlist);
 			let Some(first) = hls.next().await else {
 				return Err(hls.end);
 			};
@@ -299,8 +306,12 @@ async fn reconnect(
 				sleep(gap).await;
 			}
 			*attempt += 1;
-			if let Ok(conn) = connect(ctx, url).await {
-				return Some(conn);
+			// The window is a deadline: an attempt still connecting when it closes gives up.
+			let left = ctx.retry_window.saturating_sub(since.elapsed());
+			match timeout(left, connect(ctx, url)).await {
+				Ok(Ok(conn)) => return Some(conn),
+				Ok(Err(_)) => {}
+				Err(_) => return None,
 			}
 		}
 	};
@@ -322,41 +333,49 @@ async fn play(
 	let (done_tx, done_rx) = oneshot::channel();
 	let (thread_ring, thread_shared) = (ring.clone(), shared.clone());
 	let (out_rate, hint) = (ctx.out_rate, conn.hint);
+	let produced = Arc::new(AtomicBool::new(false));
+	let thread_produced = produced.clone();
 	let spawned = std::thread::Builder::new()
 		.name("decode".into())
 		.spawn(move || {
-			let mut produced = false;
 			let result = decode(
 				reader,
 				hint,
 				&thread_ring,
 				out_rate,
 				&thread_shared,
-				&mut produced,
+				&thread_produced,
 			);
-			let _ = done_tx.send((result, produced));
+			let _ = done_tx.send(result);
 		});
 	if spawned.is_err() {
 		return ("No data".into(), false);
 	}
 
-	let net_reason = pump(&mut conn, tx, shared, title).await;
+	let net_reason = pump(&mut conn, tx, shared, title, &produced).await;
 	// The sender is gone, so the decoder drains what it has and ends; waiting keeps two
 	// connections from pushing into the ring at once.
-	match done_rx.await {
-		Ok((Err(e), produced)) => (e.to_string(), produced),
-		Ok((Ok(()), produced)) => (net_reason, produced),
-		Err(_) => (net_reason, false),
-	}
+	let decoded = done_rx.await;
+	let reason = match (net_reason, decoded) {
+		// The network ended first: a decoder error after that is only the truncated input.
+		(Some(reason), _) => reason,
+		(None, Ok(Err(e))) => e.to_string(),
+		(None, _) => "No data".into(),
+	};
+	(reason, produced.load(Ordering::Relaxed))
 }
 
 /// Strips ICY metadata and feeds audio bytes to the decoder until the connection ends.
+/// Returns why the network side ended, or `None` when the decoder went away first.
 async fn pump(
 	conn: &mut Conn,
 	tx: Sender<Bytes>,
 	shared: &Shared,
 	title: &mut Option<String>,
-) -> String {
+	produced: &AtomicBool,
+) -> Option<String> {
+	// Bytes that never decode (endless junk under an audio content type) must not play silence forever.
+	let decode_by = Instant::now() + START_BUDGET;
 	let mut icy = match conn.source {
 		Source::Http { metaint, .. } => metaint.map(Icy::new),
 		Source::Hls(_) => None,
@@ -380,19 +399,22 @@ async fn pump(
 		}
 		for bytes in audio.drain(..) {
 			if !send(&tx, bytes).await {
-				return "No data".into();
+				return None;
 			}
+		}
+		if !produced.load(Ordering::Relaxed) && Instant::now() > decode_by {
+			return Some("Not a stream".into());
 		}
 		chunk = match &mut conn.source {
 			Source::Http { response, .. } => match timeout(STALL, response.chunk()).await {
 				Ok(Ok(Some(c))) => c,
-				Ok(Ok(None)) | Err(_) => return "No data".into(),
-				Ok(Err(_)) => return "Unreachable".into(),
+				Ok(Ok(None)) | Err(_) => return Some("No data".into()),
+				Ok(Err(_)) => return Some("Unreachable".into()),
 			},
 			// run_hls has its own stall limit, since segments arrive a target duration apart.
 			Source::Hls(hls) => match hls.next().await {
 				Some(c) => c,
-				None => return hls.end.clone(),
+				None => return Some(hls.end.clone()),
 			},
 		};
 	}
@@ -419,7 +441,7 @@ fn decode(
 	ring: &PcmRing,
 	out_rate: u32,
 	shared: &Shared,
-	produced: &mut bool,
+	produced: &AtomicBool,
 ) -> Result<()> {
 	let mut decoder = Decoder::new(Box::new(reader), hint)?;
 	let mut rate = decoder.sample_rate();
@@ -438,7 +460,7 @@ fn decode(
 		}
 		ring.push(&out);
 		out.clear();
-		if !std::mem::replace(produced, true) {
+		if !produced.swap(true, Ordering::Relaxed) {
 			if !shared.played.swap(true, Ordering::Relaxed) {
 				shared.emit(StreamEvent::FirstAudio);
 			} else if shared.announced.swap(false, Ordering::Relaxed) {

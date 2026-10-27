@@ -3,7 +3,7 @@
 Measured 2026-10-27, Windows 11, home broadband (west coast North America), release build, `cargo run -p blindradio-core --example tune --release`.
 
 ## Medians
-- Warm swap (focus to first rendered audio): 5 ms over 19 swaps. Target under 100 ms: met.
+- Warm swap (focus to first rendered audio): 5 ms over 19 swaps. Target under 100 ms: met. This is when the mixer renders the first samples; the device buffer (10 ms requested) comes on top before the speakers.
 - Cold start: 269 ms over 10 starts. Target under 1000 ms, ideally about 300 ms: met.
 
 ## Cold start per station

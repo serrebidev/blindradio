@@ -20,14 +20,19 @@ const MIN_FETCH: Duration = Duration::from_secs(2);
 
 /// Plays an HLS playlist into `tx` as ADTS or MPEG audio. Returns `Ok` at the end
 /// of an ended playlist or when the receiver goes away, `Err` when a live playlist stalls.
+/// `first` is the body of `playlist_url` when the caller already has it (`net::open` read it).
 pub async fn run_hls(
 	client: reqwest::Client,
 	playlist_url: String,
+	first: Option<String>,
 	tx: Sender<Bytes>,
 	on_title: Box<dyn Fn(Option<String>) + Send + Sync>,
 ) -> Result<()> {
 	let url = Url::parse(&playlist_url).map_err(|_| not_a_stream())?;
-	let (mut base, playlist) = fetch_playlist(&client, &url, FIRST_FETCH).await?;
+	let (mut base, playlist) = match first {
+		Some(body) => (url.clone(), parse(body.as_bytes())?),
+		None => fetch_playlist(&client, &url, FIRST_FETCH).await?,
+	};
 	let (url, playlist) = match playlist {
 		Playlist::MasterPlaylist(m) => {
 			let variant = pick_variant(&m.variants).ok_or_else(unsupported)?;
@@ -139,8 +144,11 @@ async fn fetch_playlist(
 	limit: Duration,
 ) -> Result<(Url, Playlist)> {
 	let (base, body) = get(client, url, limit).await?;
-	let playlist = m3u8_rs::parse_playlist_res(&body).map_err(|_| not_a_stream())?;
-	Ok((base, playlist))
+	Ok((base, parse(&body)?))
+}
+
+fn parse(body: &[u8]) -> Result<Playlist> {
+	m3u8_rs::parse_playlist_res(body).map_err(|_| not_a_stream())
 }
 
 /// Tries a segment twice; `None` skips it.

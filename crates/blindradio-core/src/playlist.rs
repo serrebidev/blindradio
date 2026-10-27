@@ -19,8 +19,22 @@ fn lines(body: &str) -> impl Iterator<Item = &str> {
 }
 
 fn is_url(s: &str) -> bool {
-	let s = s.to_ascii_lowercase();
-	s.starts_with("http://") || s.starts_with("https://")
+	let prefix = |p: &str| s.get(..p.len()).is_some_and(|h| h.eq_ignore_ascii_case(p));
+	prefix("http://") || prefix("https://")
+}
+
+/// The title after the first comma outside double quotes: attributes like `tvg-name="a, b"` may hold commas.
+fn extinf_title(rest: &str) -> Option<String> {
+	let mut quoted = false;
+	let comma = rest.char_indices().find_map(|(i, c)| match c {
+		'"' => {
+			quoted = !quoted;
+			None
+		}
+		',' if !quoted => Some(i),
+		_ => None,
+	})?;
+	Some(rest[comma + 1..].trim().to_string()).filter(|t| !t.is_empty())
 }
 
 pub fn sniff(body: &str) -> Option<PlaylistKind> {
@@ -73,21 +87,18 @@ pub fn parse_m3u(body: &str) -> Vec<PlaylistEntry> {
 	let mut title = None;
 	for l in lines(body) {
 		if let Some(rest) = l.strip_prefix("#EXTINF:") {
-			title = rest
-				.split_once(',')
-				.map(|(_, t)| t.trim().to_string())
-				.filter(|t| !t.is_empty());
+			title = extinf_title(rest);
 		} else if l.starts_with('#') {
 			// other directives do not consume the pending title
 		} else {
-			let url = is_url(l).then(|| l.to_string());
-			if let Some(url) = url {
+			// Any non-directive line consumes the pending title, even a skipped local file.
+			let title = title.take();
+			if is_url(l) {
 				out.push(PlaylistEntry {
-					url,
-					title: title.take(),
+					url: l.to_string(),
+					title,
 				});
 			}
-			title = None;
 		}
 	}
 	out
@@ -144,6 +155,23 @@ mod tests {
 			(e[1].url.as_str(), e[1].title.as_deref()),
 			("https://b", None)
 		);
+	}
+
+	#[test]
+	fn m3u_title_after_quoted_comma_and_uppercase_scheme() {
+		let body =
+			"#EXTINF:-1 tvg-name=\"Jazz, Blues\" tvg-logo=\"x\",Jazz FM\nHTTP://A.example/s\n";
+		let e = parse_m3u(body);
+		assert_eq!(e.len(), 1);
+		assert_eq!(e[0].url, "HTTP://A.example/s");
+		assert_eq!(e[0].title.as_deref(), Some("Jazz FM"));
+	}
+
+	#[test]
+	fn pls_skips_empty_file() {
+		let e = parse_pls("[playlist]\nFile1=\nFile2=http://b\n");
+		assert_eq!(e.len(), 1);
+		assert_eq!(e[0].url, "http://b");
 	}
 
 	#[test]

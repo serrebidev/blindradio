@@ -13,6 +13,9 @@ use symphonia::core::meta::MetadataOptions;
 
 use crate::{CoreError, Result};
 
+/// Back-to-back unsupported packets tolerated after first audio before the stream counts as unsupported.
+const MAX_UNSUPPORTED_RUN: u32 = 4096;
+
 /// Blocking `Read` over chunks sent from the async network side.
 pub struct ByteReader {
 	rx: Receiver<Bytes>,
@@ -124,6 +127,7 @@ impl Decoder {
 			out.append(&mut self.first);
 			return Ok(true);
 		}
+		let mut unsupported = 0;
 		loop {
 			let packet = match self.format.next_packet() {
 				Ok(Some(p)) => p,
@@ -139,8 +143,14 @@ impl Decoder {
 				// Corrupt live data: the demuxer drops the bad header bytes and resyncs.
 				Err(Error::DecodeError(_)) => continue,
 				// A false ADTS sync can claim unsupported features; a genuinely unsupported
-				// stream fails before its first packet, when no audio has been produced yet.
-				Err(Error::Unsupported(_)) if self.rate != 0 => continue,
+				// stream fails before its first packet, when no audio has been produced yet. A run of
+				// them means the stream really changed to something unsupported (chained Ogg).
+				Err(Error::Unsupported(_))
+					if self.rate != 0 && unsupported < MAX_UNSUPPORTED_RUN =>
+				{
+					unsupported += 1;
+					continue;
+				}
 				Err(e) => return Err(decode_err(e)),
 			};
 			if packet.track_id != self.track_id {

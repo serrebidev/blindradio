@@ -98,6 +98,12 @@ impl FakeFactory {
 		cb(event);
 	}
 
+	/// Delivers an event through the first stream ever started for station `i`.
+	fn emit_first(&self, i: usize, event: StreamEvent) {
+		let callbacks = self.shared.callbacks.lock();
+		callbacks[&id(i)][0](event);
+	}
+
 	fn dns_calls(&self) -> Vec<Vec<String>> {
 		self.shared.dns.lock().clone()
 	}
@@ -309,6 +315,13 @@ fn tuner_key_repeat_ends_on_last_station() {
 			"open streams after focus {i}: {}",
 			f.fake.max_active()
 		);
+		if i == 1 {
+			let (ring, _) = f.sink.last_active();
+			assert!(
+				Arc::ptr_eq(&ring, &f.fake.ring(1)),
+				"warm swaps are never deferred"
+			);
+		}
 	}
 	assert!(
 		!f.fake.started(199),
@@ -443,6 +456,7 @@ fn events_from_warm_stations_not_forwarded() {
 		f.drain_events().is_empty(),
 		"warm stations never forward events, but their titles are kept"
 	);
+	assert_eq!(f.fake.active(), 2, "the failed warm stream is closed");
 	// The playing station's events pass through.
 	f.fake.emit(4, StreamEvent::Title(Some("P".into())));
 	f.tuner.poll(f.t0 + ms(30), &[]);
@@ -509,6 +523,46 @@ fn title_announced_after_focus_rests() {
 	let got = f.drain_events();
 	assert!(
 		got.contains(&TunerEvent::Announce("Song B".into())),
+		"{got:?}"
+	);
+}
+
+#[test]
+fn late_events_from_a_reopened_station_are_ignored() {
+	let mut f = fixture();
+	let list = stations(11);
+	f.tuner.focus(&list, 4, f.t0);
+	f.tuner.focus(&list, 9, f.t0 + ms(1000));
+	f.tuner.focus(&list, 4, f.t0 + ms(2000));
+	assert_eq!(f.fake.start_count(4), 2, "station 4 reopened");
+	f.drain_events();
+	// The first, dropped stream of station 4 speaks after the second one opened.
+	f.fake.emit_first(4, StreamEvent::Title(Some("old".into())));
+	f.tuner.poll(f.t0 + ms(2010), &[]);
+	assert!(
+		f.drain_events().is_empty(),
+		"matched by stream, not by station"
+	);
+}
+
+#[test]
+fn deferred_cold_start_latency_counts_from_focus() {
+	let mut f = fixture();
+	let list = stations(11);
+	f.tuner.focus(&list, 0, f.t0);
+	f.tuner.focus(&list, 5, f.t0 + ms(50));
+	assert!(!f.fake.started(5), "deferred under key repeat");
+	f.tuner.poll(f.t0 + ms(200), &[]);
+	let (ring, token) = f.sink.last_active();
+	assert!(Arc::ptr_eq(&ring, &f.fake.ring(5)));
+	f.tuner.poll(f.t0 + ms(210), &[(token, f.t0 + ms(450))]);
+	let got = f.drain_events();
+	assert!(
+		got.contains(&TunerEvent::Latency {
+			station_id: "s5".into(),
+			ms: 400,
+			warm: false,
+		}),
 		"{got:?}"
 	);
 }

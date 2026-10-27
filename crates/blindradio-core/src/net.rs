@@ -9,6 +9,9 @@ use std::time::Duration;
 
 const MAX_DEPTH: u8 = 3;
 const SNIFF_LIMIT: usize = 64 * 1024;
+const SNIFF_DEADLINE: Duration = Duration::from_secs(3);
+/// Head start each playlist entry gets before the next one is tried alongside it.
+const ENTRY_STAGGER: Duration = Duration::from_millis(500);
 
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 	reqwest::Client::builder()
@@ -32,6 +35,8 @@ pub enum Opened {
 	},
 	Hls {
 		playlist_url: String,
+		/// The playlist body already read, so the HLS reader starts without fetching it again.
+		playlist: String,
 	},
 }
 
@@ -75,7 +80,8 @@ fn open_at<'a>(
 	depth: u8,
 ) -> Pin<Box<dyn Future<Output = Result<Opened>> + Send + 'a>> {
 	Box::pin(async move {
-		if depth > MAX_DEPTH {
+		// Depth 0 is the station URL itself, so MAX_DEPTH playlist levels mean MAX_DEPTH fetches in all.
+		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
 		}
 		let mut response = client
@@ -114,33 +120,64 @@ fn open_at<'a>(
 			return Err(not_a_stream());
 		}
 
+		// A slow or endless text body is judged on what arrived by the deadline.
 		let mut body = Vec::new();
+		let deadline = tokio::time::Instant::now() + SNIFF_DEADLINE;
 		while body.len() < SNIFF_LIMIT {
-			match response.chunk().await.map_err(http_err)? {
-				Some(c) => body.extend_from_slice(&c),
-				None => break,
+			match tokio::time::timeout_at(deadline, response.chunk()).await {
+				Ok(Ok(Some(c))) => body.extend_from_slice(&c),
+				Ok(Ok(None)) | Err(_) => break,
+				Ok(Err(e)) => return Err(http_err(e)),
 			}
 		}
-		let text = String::from_utf8_lossy(&body);
+		let text = String::from_utf8_lossy(&body).into_owned();
 		let entries = match sniff(&text) {
 			Some(PlaylistKind::Hls) => {
 				return Ok(Opened::Hls {
 					playlist_url: final_url,
+					playlist: text,
 				});
 			}
 			Some(PlaylistKind::Pls) => parse_pls(&text),
 			Some(PlaylistKind::M3u) => parse_m3u(&text),
 			None => return Err(not_a_stream()),
 		};
-		let mut last = not_a_stream();
-		for entry in entries {
-			match open_at(client, entry.url, depth + 1).await {
-				Ok(opened) => return Ok(opened),
-				Err(e) => last = e,
-			}
-		}
-		Err(last)
+		open_first(
+			client,
+			entries.into_iter().map(|e| e.url).collect(),
+			depth + 1,
+		)
+		.await
 	})
+}
+
+/// Opens playlist entries in order, starting the next one `ENTRY_STAGGER` after the last if
+/// nothing has answered yet, so a dead first entry does not spend the whole start budget.
+/// The first entry to open wins; dropping the set cancels the rest.
+async fn open_first(client: &reqwest::Client, urls: Vec<String>, depth: u8) -> Result<Opened> {
+	let mut urls = urls.into_iter();
+	let mut running = tokio::task::JoinSet::new();
+	let mut last = not_a_stream();
+	loop {
+		if let Some(url) = urls.next() {
+			let client = client.clone();
+			running.spawn(async move { open_at(&client, url, depth).await });
+		}
+		let finished = if urls.len() > 0 {
+			match tokio::time::timeout(ENTRY_STAGGER, running.join_next()).await {
+				Ok(done) => done,
+				Err(_) => continue,
+			}
+		} else {
+			running.join_next().await
+		};
+		match finished {
+			Some(Ok(Ok(opened))) => return Ok(opened),
+			Some(Ok(Err(e))) => last = e,
+			Some(Err(_)) => {}
+			None => return Err(last),
+		}
+	}
 }
 
 /// Warms the OS resolver cache; failures are irrelevant here.

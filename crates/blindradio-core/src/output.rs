@@ -55,10 +55,17 @@ impl MixerCore {
 	pub fn handle(&mut self, cmd: MixerCmd) {
 		match cmd {
 			MixerCmd::SetActive { ring, token } => {
-				if let Some(old) = self.active.take() {
-					self.fading = Some((old, 0));
+				let is = |a: Option<&Arc<PcmRing>>| matches!((a, &ring), (Some(a), Some(r)) if Arc::ptr_eq(a, r));
+				// The same ring again keeps playing; draining it as both old and new would double its speed.
+				if !is(self.active.as_ref()) {
+					if let Some(old) = self.active.take() {
+						self.fading = Some((old, 0));
+					}
+					if is(self.fading.as_ref().map(|(f, _)| f)) {
+						self.fading = None;
+					}
+					self.active = ring;
 				}
-				self.active = ring;
 				self.pending = Some(token);
 			}
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
@@ -120,7 +127,7 @@ pub struct Output {
 	rendered_rx: Receiver<(u64, Instant)>,
 	// Dropping the stream stops playback.
 	_stream: cpal::Stream,
-	// The cpal stream is Send; the mixer is not, so swaps can't race the callback from another thread.
+	// Not Send: Output stays on the thread that built it, so mixer commands come from one thread in order.
 	_ui_thread: PhantomData<Rc<()>>,
 }
 
@@ -176,17 +183,20 @@ impl Output {
 					if let Some(token) = core.render(scratch) {
 						let _ = rendered_tx.try_send((token, Instant::now()));
 					}
-					if channels == 2 {
-						data.copy_from_slice(&cb.scratch);
-					} else {
-						// Stereo goes to the first two channels, the rest stay silent.
-						for f in 0..frames {
-							data[f * channels] = cb.scratch[2 * f];
-							if channels > 1 {
-								data[f * channels + 1] = cb.scratch[2 * f + 1];
+					// Silence first, so a tail shorter than one frame never replays stale samples.
+					data.fill(0.0);
+					let (lr, _) = cb.scratch.as_chunks::<2>();
+					match channels {
+						1 => {
+							for (d, [l, r]) in data.iter_mut().zip(lr) {
+								*d = (l + r) * 0.5;
 							}
-							for c in 2..channels {
-								data[f * channels + c] = 0.0;
+						}
+						2 => data[..frames * 2].copy_from_slice(&cb.scratch),
+						// Stereo goes to the first two channels, the rest stay silent.
+						_ => {
+							for (frame, pair) in data.chunks_exact_mut(channels).zip(lr) {
+								frame[..2].copy_from_slice(pair);
 							}
 						}
 					}
@@ -320,5 +330,22 @@ mod tests {
 		assert_eq!(render_frames(&mut mixer, 2), [0.5; 4]);
 		mixer.handle(MixerCmd::Volume(2.0));
 		assert_eq!(render_frames(&mut mixer, 2), [1.0; 4]);
+	}
+
+	#[test]
+	fn same_ring_again_is_not_drained_twice() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = const_ring(1.0, 100);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 1,
+		});
+		render_frames(&mut mixer, 10);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 2,
+		});
+		render_frames(&mut mixer, 10);
+		assert_eq!(ring.len_ms(), 80, "20 frames taken at 1000 Hz, not 30");
 	}
 }

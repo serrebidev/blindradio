@@ -66,7 +66,7 @@ fn media(names: &[&str], first: u64, ended: bool) -> Vec<u8> {
 /// Runs `run_hls` while decoding the pipe; returns its result, the sample rate and stereo frames.
 fn play(url: String) -> (Result<()>, u32, usize) {
 	let (tx, reader) = byte_pipe();
-	let task = RT.spawn(run_hls(client(), url, tx, Box::new(|_| {})));
+	let task = RT.spawn(run_hls(client(), url, None, tx, Box::new(|_| {})));
 	let mut dec = Decoder::new(Box::new(reader), Some("aac")).unwrap();
 	let mut pcm = Vec::new();
 	while dec.next_stereo(&mut pcm).unwrap() {}
@@ -152,7 +152,13 @@ fn hls_fmp4_is_unsupported() {
 	]));
 	for path in ["/fmp4.m3u8", "/aes.m3u8"] {
 		let (tx, _rx) = crossbeam_channel::unbounded();
-		let result = RT.block_on(run_hls(client(), server.url(path), tx, Box::new(|_| {})));
+		let result = RT.block_on(run_hls(
+			client(),
+			server.url(path),
+			None,
+			tx,
+			Box::new(|_| {}),
+		));
 		match result {
 			Err(CoreError::Decode(e)) => assert_eq!(e, "Unsupported format", "{path}"),
 			other => panic!("{path}: {other:?}"),

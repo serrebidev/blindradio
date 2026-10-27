@@ -54,7 +54,12 @@ impl Harness {
 
 fn median(v: &mut [u32]) -> Option<u32> {
 	v.sort_unstable();
-	v.get(v.len() / 2).copied()
+	let mid = v.len() / 2;
+	match v.len() {
+		0 => None,
+		n if n % 2 == 1 => Some(v[mid]),
+		_ => Some((v[mid - 1] + v[mid]) / 2),
+	}
 }
 
 fn main() -> blindradio_core::Result<()> {
@@ -63,6 +68,9 @@ fn main() -> blindradio_core::Result<()> {
 		"/examples/stations.json"
 	))?;
 	let list: Vec<Station> = serde_json::from_slice(&json).map_err(std::io::Error::from)?;
+	if list.is_empty() {
+		return Err(std::io::Error::other("stations.json is empty").into());
+	}
 	let output = Output::start_default()?;
 	let engine = Engine::new(
 		&std::env::temp_dir().join("blindradio-tune/cache.json"),

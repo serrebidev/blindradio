@@ -90,10 +90,38 @@ async fn open_detects_hls() {
 		"application/vnd.apple.mpegurl",
 		"#EXTM3U\n#EXT-X-VERSION:3\n#EXTINF:4,\nseg.ts\n",
 	)]);
-	let Opened::Hls { playlist_url } = open(&client(), &s.url("/h.m3u8")).await.unwrap() else {
+	let Opened::Hls {
+		playlist_url,
+		playlist,
+	} = open(&client(), &s.url("/h.m3u8")).await.unwrap()
+	else {
 		panic!("expected hls");
 	};
 	assert_eq!(playlist_url, s.url("/h.m3u8"));
+	assert!(playlist.contains("seg.ts"), "the body read is handed on");
+}
+
+#[tokio::test]
+async fn open_skips_dead_first_entry_quickly() {
+	// 10.255.255.1 is unroutable: connecting there hangs until the 4 s connect timeout.
+	let s = serve(vec![
+		text(
+			"/s.pls",
+			"audio/x-scpls",
+			"[playlist]\nFile1=http://10.255.255.1/dead\nFile2={base}/live\n",
+		),
+		stream("/live"),
+	]);
+	let started = std::time::Instant::now();
+	let Opened::Audio { final_url, .. } = open(&client(), &s.url("/s.pls")).await.unwrap() else {
+		panic!("expected audio");
+	};
+	assert_eq!(final_url, s.url("/live"));
+	assert!(
+		started.elapsed() < std::time::Duration::from_secs(2),
+		"{:?}",
+		started.elapsed()
+	);
 }
 
 #[tokio::test]
@@ -116,6 +144,11 @@ async fn open_stops_at_depth_3() {
 	)]);
 	let err = open(&client(), &s.url("/loop.m3u")).await.err().unwrap();
 	assert_eq!(err.to_string(), "Not a stream");
+	assert_eq!(
+		s.hits("/loop.m3u"),
+		3,
+		"the station URL plus two nested levels"
+	);
 }
 
 #[tokio::test]
