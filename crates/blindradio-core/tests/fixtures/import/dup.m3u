@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1,One
+http://e.example/one
+#EXTINF:-1,One again
+http://e.example/one

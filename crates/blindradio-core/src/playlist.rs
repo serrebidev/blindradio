@@ -83,7 +83,22 @@ pub fn parse_pls(body: &str) -> Vec<PlaylistEntry> {
 }
 
 pub fn parse_m3u(body: &str) -> Vec<PlaylistEntry> {
+	parse_m3u_counted(body).0
+}
+
+/// Entries plus how many non-URL entries (local files) were skipped.
+pub fn parse_pls_counted(body: &str) -> (Vec<PlaylistEntry>, usize) {
+	let all = parse_pls(body);
+	let total = all.len();
+	let kept: Vec<_> = all.into_iter().filter(|e| is_url(&e.url)).collect();
+	let skipped = total - kept.len();
+	(kept, skipped)
+}
+
+/// Entries plus how many non-URL entries (local files) were skipped.
+pub fn parse_m3u_counted(body: &str) -> (Vec<PlaylistEntry>, usize) {
 	let mut out = Vec::new();
+	let mut skipped = 0;
 	let mut title = None;
 	for l in lines(body) {
 		if let Some(rest) = l.strip_prefix("#EXTINF:") {
@@ -98,10 +113,12 @@ pub fn parse_m3u(body: &str) -> Vec<PlaylistEntry> {
 					url: l.to_string(),
 					title,
 				});
+			} else {
+				skipped += 1;
 			}
 		}
 	}
-	out
+	(out, skipped)
 }
 
 #[cfg(test)]

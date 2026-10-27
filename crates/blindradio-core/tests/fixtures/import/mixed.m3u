@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:-1,Jazz FM
+http://a.example/jazz
+C:\music\x.mp3
+#EXTINF:-1,Rock
+https://b.example/rock
