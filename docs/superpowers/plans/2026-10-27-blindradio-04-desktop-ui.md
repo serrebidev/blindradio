@@ -173,3 +173,8 @@
 - [ ] **Step 1: Write the tests and the test plan.**
 - [ ] **Step 2: Run** `cargo build -p blindradio --release` then `cargo test -p blindradio --test ui -- --ignored --test-threads=1`. Expected: pass.
 - [ ] **Step 3: Commit** `test(desktop): UI automation and NVDA test plan`.
+
+## Owner additions (2026-10-27)
+
+- **SerrebiRadio starter list.** On first run (`store::first_run(data)`), fetch `import::STARTER_PLAYLIST_URL` through the bridge and `import::import_starter` it into the `SerrebiRadio` collection, save, then show it (below). A failure says `Starter stations not loaded` once and the app carries on. Stations > Get SerrebiRadio Stations re-fetches and says the import report. (Task 2.)
+- **A dial on the main window.** The main window has a `StationList` labelled `Stations` above the Play button: it shows the `SerrebiRadio` collection by default (later: the collection or list last played from, remembered in settings as `main_list: Option<String>` collection id). It tunes like every other list (focus plays). At startup focus goes to this list, not to Play, when it has stations (owner overrides YARSP's start-on-Play for this). (Task 2, using Task 3's `StationList`; build Task 3's list first if needed and say so.)
