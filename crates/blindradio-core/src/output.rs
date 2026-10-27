@@ -10,8 +10,10 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use parking_lot::Mutex;
 
 use crate::Result;
+use crate::eq::Eq;
 use crate::error::CoreError;
 use crate::ring::{CUSHION_MS, PcmRing};
+use crate::settings::EqSettings;
 
 /// Warm-swap crossfade length.
 const CROSSFADE_MS: u64 = 25;
@@ -32,6 +34,7 @@ pub enum MixerCmd {
 	},
 	Volume(f32),
 	Mute(bool),
+	Eq(EqSettings),
 	/// Leave the active station for the space between stations: it fades out into soft hiss,
 	/// which lasts until a `SetActive` ring has audio, so tuning never has dead air.
 	/// `SetActive { ring: None }` (stop) is silence.
@@ -60,6 +63,7 @@ pub struct MixerCore {
 	pending: Option<u64>,
 	volume: f32,
 	muted: bool,
+	eq: Eq,
 	/// Between stations or waiting on the active one: hiss fills the gap.
 	hiss: bool,
 	hiss_level: f32,
@@ -84,6 +88,7 @@ impl MixerCore {
 			pending: None,
 			volume: 1.0,
 			muted: false,
+			eq: Eq::new(rate),
 			hiss: false,
 			hiss_level: HISS_LEVEL,
 			hiss_gain: 0.0,
@@ -122,6 +127,7 @@ impl MixerCore {
 			}
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
 			MixerCmd::Mute(muted) => self.muted = muted,
+			MixerCmd::Eq(s) => self.eq.set(&s),
 		}
 	}
 
@@ -197,9 +203,10 @@ impl MixerCore {
 			}
 		}
 
+		self.eq.process(&mut self.a);
 		let vol = if self.muted { 0.0 } else { self.volume };
 		for (o, &s) in out.iter_mut().zip(&self.a) {
-			*o = s * vol;
+			*o = (s * vol).clamp(-1.0, 1.0);
 		}
 
 		if got > 0 { self.pending.take() } else { None }
@@ -572,5 +579,39 @@ mod tests {
 		});
 		render_frames(&mut mixer, 10);
 		assert_eq!(ring.len_ms(), 80, "20 frames taken at 1000 Hz, not 30");
+	}
+
+	#[test]
+	fn eq_never_clips() {
+		let rate = 48_000;
+		let ring = Arc::new(PcmRing::new(rate, 3.0));
+		let sine: Vec<f32> = (0..rate as usize)
+			.flat_map(|i| {
+				let v = (2.0 * std::f32::consts::PI * 100.0 * i as f32 / rate as f32).sin();
+				[v, v]
+			})
+			.collect();
+		ring.push(&sine);
+		let mut m = MixerCore::new(rate);
+		m.cushion_ms = 0;
+		m.handle(MixerCmd::Eq(EqSettings {
+			enabled: true,
+			preset: crate::settings::EqPreset::Custom,
+			bass: 12,
+			mid: 12,
+			treble: 12,
+		}));
+		m.handle(MixerCmd::SetActive {
+			ring: Some(ring),
+			token: 1,
+		});
+		let mut out = vec![0.0; 9600];
+		let mut peak = 0.0f32;
+		for _ in 0..8 {
+			m.render(&mut out);
+			peak = peak.max(out.iter().fold(0.0, |p, s| p.max(s.abs())));
+		}
+		assert!(peak > 0.9, "boosted signal reaches the limit: {peak}");
+		assert!(peak <= 1.0);
 	}
 }
