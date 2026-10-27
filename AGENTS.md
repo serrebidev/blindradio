@@ -8,6 +8,7 @@ Screen-reader-first internet radio player in Rust: core crate plus wxDragon desk
 
 ## Windows prerequisites
 - MSVC Build Tools 2022, CMake, Ninja.
+- LLVM (`winget install LLVM.LLVM`) for libclang, which wxdragon-sys bindgen needs. Set `LIBCLANG_PATH=C:\Program Files\LLVM\bin` if bindgen cannot find it.
 - Run from a shell where `cl.exe` is found. Otherwise run `"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"` first.
 
 ## Rules

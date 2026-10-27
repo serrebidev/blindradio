@@ -74,8 +74,9 @@ Behaviour:
 Mechanism (builder call; builder may improve it, targets matter more than method):
 
 - **Warm neighbours.** While a station list has focus, keep the stations directly above and below the focused one connected and decoding into a small buffer, muted. Moving onto a warm station swaps audio immediately.
-- **Instant swap.** Play a warm station from its live edge, not from the start of its buffer, so it sounds current.
-- **Cold start.** A station that is not warm starts connecting at once (no debounce). Moving away cancels it. Small start buffer: begin output after the first decodable frames, then grow the buffer in the background to ride out jitter.
+- **Instant swap.** Play a warm station from near its newest audio, not from the start of its buffer, so it sounds current.
+- **Cold start.** A station that is not warm starts connecting at once (no debounce; only key repeat defers it, see the plan). Moving away cancels it. Output starts once about 1 second is buffered: burst servers get there within milliseconds of the first frame, and servers that send their first seconds in lumps (amperwave) would otherwise stop again right after starting (measured 2026-10-27).
+- **Feels analogue, no dead air (owner, 2026-10-27).** Moving off a station fades it into soft tuning hiss, like a dial between stations; the next station fades in over the hiss the moment it is ready. Never silence while tuning, never the old station under a new focus. Stop is silent.
 - **Bandwidth limit.** At most the playing station plus 2 warm neighbours. Warm connections close when the list closes or focus has not moved for a short idle period (builder picks, around 20 to 30 seconds).
 - **Targets.** Warm swap: under 100 ms to audible sound. Cold start on a typical Icecast MP3 or AAC stream on broadband: under 1 second, ideally around 300 ms. Measure and log both in debug builds.
 
@@ -162,10 +163,10 @@ Chosen pipeline, per station:
 
 Latency tactics:
 
-- Icecast and Shoutcast servers "burst on connect" (default 64 KB, about 4 seconds of 128 kbps audio) the moment a listener connects. So start output on the first decoded frame instead of waiting to fill a buffer; the burst refills the cushion behind it.
-- Cache each station's resolved final stream URL (after PLS/M3U and redirects) on disk, so later starts skip the extra round trips.
+- Icecast and Shoutcast servers "burst on connect" (default 64 KB, about 4 seconds of 128 kbps audio) the moment a listener connects, so a 1 second start cushion costs almost nothing on them. No buffer ever drops audio: a full ring pauses its connection, so lumpy delivery (HLS segments, large Ogg pages, bursts) stays continuous.
+- Cache each station's resolved final stream URL (after PLS/M3U and redirects) on disk, so later starts skip the extra round trips. Per-session URLs (a session id or token in the query) are not cached: reusing them measured slower than redirecting again.
 - Pre-resolve DNS for stations in the visible list.
-- Warm neighbours keep decoding into a short PCM ring (2 to 3 seconds). A swap starts playback about 250 ms behind the ring's newest sample, which gives a safety cushion without sounding stale.
+- Warm neighbours keep decoding into a short PCM ring (2 to 3 seconds). A swap starts playback 1 second behind the ring's newest sample (the start cushion), which rides out lumpy delivery without sounding stale. A neighbour still filling waits for its cushion, with hiss, like a cold start.
 - A 20 to 30 ms crossfade on every swap to avoid clicks.
 - Short connect timeout; if a station has several stream URLs, try the next quickly.
 
