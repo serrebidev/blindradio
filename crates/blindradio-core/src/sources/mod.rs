@@ -1,6 +1,10 @@
 //! Station directories and the browse tree they share.
 
-use crate::station::Station;
+use crate::Result;
+use crate::station::{Source, Station};
+use serde::Deserialize;
+use std::collections::HashSet;
+use std::time::{Duration, UNIX_EPOCH};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -29,12 +33,6 @@ pub struct HistoryItem {
 	pub title: String,
 	pub played_at: Option<std::time::SystemTime>,
 }
-
-use crate::Result;
-use crate::station::Source;
-use serde::Deserialize;
-use std::collections::HashSet;
-use std::time::{Duration, UNIX_EPOCH};
 
 /// Base URLs of the directories; tests point them at a local server.
 #[derive(Clone, Debug)]
@@ -179,44 +177,48 @@ impl Sources {
 
 	/// Published song history, newest first; `None` when the station has none or it failed.
 	pub async fn history(&self, station: &Station) -> Option<Vec<HistoryItem>> {
-		match &station.source {
-			Source::IHeart => self.iheart.history(&self.client, &station.id).await.ok(),
-			Source::Network(_) => {
-				let key = networks::networks()
-					.iter()
-					.flat_map(|n| n.stations.iter().map(move |s| (n, s)))
-					.find(|(n, s)| station.id == format!("net:{}:{}", n.slug, s.slug))
-					.and_then(|(_, s)| s.history.as_deref())?;
-				let soma = key.strip_prefix("somafm:")?;
-				let url = format!(
-					"{}/songs/{soma}.json",
-					self.somafm_base.trim_end_matches('/')
-				);
-				let songs: SomaSongs = crate::net::get_json(&self.client, &url).await.ok()?;
-				Some(
-					songs
-						.songs
-						.into_iter()
-						.filter(|s| !s.title.trim().is_empty())
-						.map(|s| {
-							let (title, artist) = (s.title.trim(), s.artist.trim());
-							HistoryItem {
-								title: if artist.is_empty() {
-									title.to_owned()
-								} else {
-									format!("{artist} - {title}")
-								},
-								played_at: s
-									.date
-									.parse()
-									.ok()
-									.map(|t| UNIX_EPOCH + Duration::from_secs(t)),
-							}
-						})
-						.collect(),
-				)
-			}
-			_ => None,
+		// Dedupe keeps the first copy of a stream, so look up by URL as well as by id.
+		let ih = match &station.source {
+			Source::IHeart => Some(station.id.clone()),
+			_ => iheart::id_from_url(&station.url),
+		};
+		if let Some(id) = ih {
+			return self.iheart.history(&self.client, &id).await.ok();
 		}
+		let key = networks::networks()
+			.iter()
+			.flat_map(|n| n.stations.iter().map(move |s| (n, s)))
+			.find(|(n, s)| {
+				station.id == format!("net:{}:{}", n.slug, s.slug) || station.url == s.url
+			})
+			.and_then(|(_, s)| s.history.as_deref())?;
+		let soma = key.strip_prefix("somafm:")?;
+		let url = format!(
+			"{}/songs/{soma}.json",
+			self.somafm_base.trim_end_matches('/')
+		);
+		let songs: SomaSongs = crate::net::get_json(&self.client, &url).await.ok()?;
+		Some(
+			songs
+				.songs
+				.into_iter()
+				.filter(|s| !s.title.trim().is_empty())
+				.map(|s| {
+					let (title, artist) = (s.title.trim(), s.artist.trim());
+					HistoryItem {
+						title: if artist.is_empty() {
+							title.to_owned()
+						} else {
+							format!("{artist} - {title}")
+						},
+						played_at: s
+							.date
+							.parse()
+							.ok()
+							.map(|t| UNIX_EPOCH + Duration::from_secs(t)),
+					}
+				})
+				.collect(),
+		)
 	}
 }

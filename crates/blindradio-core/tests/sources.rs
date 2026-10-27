@@ -215,3 +215,18 @@ async fn history_somafm_and_iheart() {
 	let missing = station("net:somafm:beatblender", Source::Network("SomaFM".into()));
 	assert_eq!(src.history(&missing).await, None);
 }
+
+#[tokio::test]
+async fn history_found_by_url_after_dedupe() {
+	let (_s, src) = sources(vec![
+		json("/songs/groovesalad.json", SOMA),
+		json("/api/v3/live-meta/stream/1469/trackHistory", IH_HISTORY),
+	]);
+	let mut rb = station("rb:u9", Source::RadioBrowser);
+	rb.url = "https://stream.revma.ihrhls.com/zc1469/hls.m3u8".into();
+	assert_eq!(src.history(&rb).await.unwrap()[0].title, "Band - Song");
+
+	let mut copy = station("rb:u10", Source::RadioBrowser);
+	copy.url = "https://ice1.somafm.com/groovesalad-128-mp3".into();
+	assert_eq!(src.history(&copy).await.unwrap()[0].title, "Soma - Tune");
+}

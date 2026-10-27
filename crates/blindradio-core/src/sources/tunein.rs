@@ -48,7 +48,7 @@ impl TuneIn {
 			if o.kind == "link" && o.guide_id.starts_with('r') {
 				out.push(Node::Folder {
 					id: format!("tunein/{}", o.guide_id),
-					name: o.text,
+					name: o.text.trim().to_owned(),
 				});
 			} else if let Some(s) = self.station(&o) {
 				out.push(Node::Station(s));
@@ -62,14 +62,12 @@ impl TuneIn {
 			return None;
 		}
 		let info = o.subtext.trim();
+		let guide = utf8_percent_encode(&o.guide_id, NON_ALPHANUMERIC);
 		Some(Station {
 			id: format!("tunein:{}", o.guide_id),
 			name: o.text.trim().to_owned(),
 			// Without formats= TuneIn answers with a "notcompatible" stream.
-			url: self.url(
-				"Tune",
-				&format!("id={}&formats=mp3,aac,ogg,hls", o.guide_id),
-			),
+			url: self.url("Tune", &format!("id={guide}&formats=mp3,aac,ogg,hls")),
 			source: Source::TuneIn,
 			info: (!info.is_empty()).then(|| info.to_owned()),
 		})
@@ -81,6 +79,7 @@ impl TuneIn {
 			None if id == "tunein" => "r0",
 			None => return Ok(vec![]),
 		};
+		let guide = utf8_percent_encode(guide, NON_ALPHANUMERIC);
 		let reply: Reply = get_json(
 			client,
 			&self.url("Browse", &format!("id={guide}&render=json")),

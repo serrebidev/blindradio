@@ -120,7 +120,7 @@ fn tunein_station_plays() {
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "network"]
 async fn live_search_jazz() {
 	use blindradio_core::sources::{Endpoints, SearchQuery, Sources};
 	use std::collections::HashSet;
@@ -137,7 +137,7 @@ async fn live_search_jazz() {
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "network"]
 async fn live_browse_each_root() {
 	use blindradio_core::sources::{Endpoints, Node, Sources};
 	let sources = Sources::new(blindradio_core::net::client(), Endpoints::default());

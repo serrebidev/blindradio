@@ -191,3 +191,61 @@ async fn rb_filter_lists_sorted_by_name() {
 	assert!(!rb.countries(&c).await.unwrap().is_empty());
 	assert_eq!(rb.languages(&c).await.unwrap(), ["Arabic", "french"]);
 }
+
+fn exact_state_page() -> String {
+	r#"[{"stationuuid":"ex","name":"Exact","url_resolved":"http://x/1","state":"New York"},
+	{"stationuuid":"","name":"No id","url_resolved":"http://x/2","state":"New York"},
+	{"stationuuid":"nu","name":"No url","state":"New York"}]"#
+		.into()
+}
+
+#[tokio::test]
+async fn rb_state_keeps_exact_name_and_skips_unusable() {
+	let (_s, rb) = rb(vec![json("/json/stations/search", &exact_state_page())]);
+	let nodes = rb
+		.children(&client(), "rb/country/US/state/New%20York")
+		.await
+		.unwrap();
+	assert_eq!(names(&nodes), ["Exact"]);
+}
+
+#[tokio::test]
+async fn rb_state_skips_empty_full_pages() {
+	let seq = Route::Sequence {
+		path: "/json/stations/search".into(),
+		content_type: "application/json".into(),
+		bodies: vec![
+			PAGE.as_bytes().to_vec(),
+			PAGE.as_bytes().to_vec(),
+			exact_state_page().into_bytes(),
+		],
+	};
+	let (s, rb) = rb(vec![seq]);
+	let nodes = rb
+		.children(&client(), "rb/country/US/state/New%20York")
+		.await
+		.unwrap();
+	assert_eq!(names(&nodes), ["Exact"]);
+	assert_eq!(s.hits("/json/stations/search"), 3);
+	assert!(
+		s.last_query("/json/stations/search")
+			.unwrap()
+			.contains("offset=200")
+	);
+}
+
+#[tokio::test]
+async fn rb_state_gives_up_after_five_pages() {
+	let (s, rb) = rb(vec![json("/json/stations/search", PAGE)]);
+	let nodes = rb
+		.children(&client(), "rb/country/US/state/New%20York")
+		.await
+		.unwrap();
+	assert_eq!(s.hits("/json/stations/search"), 5);
+	assert_eq!(
+		nodes.last(),
+		Some(&Node::LoadMore {
+			id: "rb/country/US/state/New%20York@500".into()
+		})
+	);
+}

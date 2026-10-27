@@ -10,6 +10,8 @@ use serde::Deserialize;
 use std::collections::HashSet;
 
 const PAGE: usize = 100;
+/// Most pages fetched for one state request when exact-match filtering empties them.
+const STATE_PAGES: usize = 5;
 /// Countries with at least this many stations are browsed by state.
 const BIG_COUNTRY: u32 = 1000;
 const LIST_TOP: &str = "limit=200&order=stationcount&reverse=true&hidebroken=true";
@@ -103,12 +105,15 @@ fn unescape(s: &str) -> String {
 	out + rest
 }
 
-fn to_station(r: RbStation) -> Station {
+fn to_station(r: RbStation) -> Option<Station> {
 	let url = if r.url_resolved.is_empty() {
 		r.url
 	} else {
 		r.url_resolved
 	};
+	if r.stationuuid.is_empty() || url.is_empty() {
+		return None;
+	}
 	let mut name = unescape(&r.name).trim().to_owned();
 	if name.is_empty() {
 		name = Url::parse(&url)
@@ -133,13 +138,13 @@ fn to_station(r: RbStation) -> Station {
 		.filter(|p| !p.is_empty())
 		.collect::<Vec<_>>()
 		.join(", ");
-	Station {
+	Some(Station {
 		id: format!("rb:{}", r.stationuuid),
 		name,
 		url,
 		source: Source::RadioBrowser,
 		info: (!info.is_empty()).then_some(info),
-	}
+	})
 }
 
 /// `rb/genre/jazz@200` into (`rb/genre/jazz`, 200).
@@ -162,7 +167,8 @@ fn page_nodes(
 	let mut nodes: Vec<Node> = raw
 		.into_iter()
 		.filter(|r| keep(r))
-		.map(|r| Node::Station(to_station(r)))
+		.filter_map(to_station)
+		.map(Node::Station)
 		.collect();
 	if full {
 		nodes.push(Node::LoadMore {
@@ -225,7 +231,10 @@ impl RadioBrowser {
 				let tags = self.list(client, "tags", LIST_TOP).await?;
 				Ok(tags
 					.into_iter()
-					.map(|t| folder(format!("rb/genre/{}", enc(&t.name)), t.name))
+					.map(|t| {
+						let name = t.name.trim().to_owned();
+						folder(format!("rb/genre/{}", enc(&t.name)), name)
+					})
 					.collect())
 			}
 			["rb", "genre", tag] => {
@@ -242,7 +251,7 @@ impl RadioBrowser {
 				Ok(all
 					.into_iter()
 					.filter(|c| !c.iso_3166_1.is_empty())
-					.map(|c| folder(format!("rb/country/{}", c.iso_3166_1), c.name))
+					.map(|c| folder(format!("rb/country/{}", c.iso_3166_1), c.name.trim()))
 					.collect())
 			}
 			["rb", "country", iso] => self.country(client, iso, head, offset).await,
@@ -256,10 +265,19 @@ impl RadioBrowser {
 				let state = dec(state);
 				// The server matches `state` as a substring; keep exact matches only.
 				let extra = format!("state={}&countrycode={}", enc(&state), enc(iso));
-				let raw = self
-					.stations(client, &["stations", "search"], &extra, offset)
-					.await?;
-				Ok(page_nodes(raw, head, offset, |r| r.state.trim() == state))
+				let keep = |r: &RbStation| r.state.trim() == state;
+				let mut off = offset;
+				// A full page can filter to nothing; look a few pages further for a hit.
+				for pages in 1.. {
+					let raw = self
+						.stations(client, &["stations", "search"], &extra, off)
+						.await?;
+					if pages == STATE_PAGES || raw.len() < PAGE || raw.iter().any(keep) {
+						return Ok(page_nodes(raw, head, off, keep));
+					}
+					off += PAGE;
+				}
+				unreachable!()
 			}
 			_ => Ok(vec![]),
 		}
@@ -319,7 +337,7 @@ impl RadioBrowser {
 		query.push_str(&format!("limit={PAGE}&{BY_CLICKS}"));
 		let raw: Vec<RbStation> =
 			get_json(client, &self.url(&["stations", "search"], &query)).await?;
-		Ok(raw.into_iter().map(to_station).collect())
+		Ok(raw.into_iter().filter_map(to_station).collect())
 	}
 
 	async fn names(&self, client: &reqwest::Client, kind: &str) -> Result<Vec<String>> {

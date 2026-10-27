@@ -57,3 +57,22 @@ mod tests {
 		assert_eq!(Source::Custom.label(), "Custom");
 	}
 }
+
+#[cfg(test)]
+mod json_form_tests {
+	use super::*;
+
+	#[test]
+	fn source_json_form_is_pinned() {
+		for (source, json) in [
+			(Source::RadioBrowser, r#""RadioBrowser""#),
+			(Source::TuneIn, r#""TuneIn""#),
+			(Source::IHeart, r#""IHeart""#),
+			(Source::Network("BBC".into()), r#"{"Network":"BBC"}"#),
+			(Source::Custom, r#""Custom""#),
+		] {
+			assert_eq!(serde_json::to_string(&source).unwrap(), json);
+			assert_eq!(serde_json::from_str::<Source>(json).unwrap(), source);
+		}
+	}
+}

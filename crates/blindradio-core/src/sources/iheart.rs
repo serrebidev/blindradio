@@ -217,7 +217,7 @@ impl IHeart {
 		)
 		.await?;
 		let mut hits = live.hits;
-		hits.sort_by_key(|h| ids.iter().position(|i| *i == h.id));
+		hits.sort_by_key(|h| ids.iter().position(|i| *i == h.id).unwrap_or(usize::MAX));
 		Ok(hits.into_iter().filter_map(to_station).collect())
 	}
 
@@ -248,5 +248,38 @@ impl IHeart {
 				}
 			})
 			.collect())
+	}
+}
+
+/// iHeart station id in a stream URL such as `https://stream.revma.ihrhls.com/zc1469/hls.m3u8`.
+pub fn id_from_url(url: &str) -> Option<String> {
+	let u = reqwest::Url::parse(url).ok()?;
+	let host = u.host_str()?;
+	if host != "ihrhls.com" && !host.ends_with(".ihrhls.com") {
+		return None;
+	}
+	let digits = u.path_segments()?.next()?.strip_prefix("zc")?;
+	(!digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())).then(|| digits.to_owned())
+}
+
+#[cfg(test)]
+mod url_tests {
+	use super::id_from_url;
+
+	#[test]
+	fn id_from_ihrhls_url() {
+		let id = |u| id_from_url(u);
+		assert_eq!(
+			id("https://stream.revma.ihrhls.com/zc1469"),
+			Some("1469".into())
+		);
+		assert_eq!(
+			id("https://stream.revma.ihrhls.com/zc1469/hls.m3u8"),
+			Some("1469".into())
+		);
+		assert_eq!(id("https://example.com/zc1469"), None);
+		assert_eq!(id("https://stream.revma.ihrhls.com/other"), None);
+		assert_eq!(id("https://stream.revma.ihrhls.com/zcx"), None);
+		assert_eq!(id("not a url"), None);
 	}
 }
