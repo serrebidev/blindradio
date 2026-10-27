@@ -9,6 +9,7 @@ pub enum Node {
 	LoadMore { id: String },
 }
 
+pub mod iheart;
 pub mod radio_browser;
 pub mod tunein;
 
@@ -19,4 +20,11 @@ pub struct SearchQuery {
 	pub genre: Option<String>,
 	pub country: Option<String>,
 	pub language: Option<String>,
+}
+
+/// One entry of a station's published track history.
+#[derive(Clone, Debug, PartialEq)]
+pub struct HistoryItem {
+	pub title: String,
+	pub played_at: Option<std::time::SystemTime>,
 }
