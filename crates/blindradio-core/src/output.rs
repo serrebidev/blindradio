@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, ErrorKind, SampleFormat, SupportedBufferSize, SupportedStreamConfig};
@@ -245,25 +245,80 @@ pub enum DeviceEvent {
 	Back(String),
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum FallbackAction {
-	UseDefault,
-	UseChosen,
+/// How long a chosen device that failed to open is left alone, unless it is unplugged and back sooner.
+const HOLD: Duration = Duration::from_secs(30);
+
+/// Which device plays and when to move; pure, so `Output::poll_devices` is testable without hardware.
+#[derive(Debug, Default)]
+pub struct Devices {
+	pub chosen: Option<String>,
+	/// The chosen name while the stream is on it, `None` while on the default.
+	pub active: Option<String>,
+	/// When the chosen device failed to open, and whether it has left the list since.
+	/// Held, it is not tried again, so a broken device does not flap Lost and Back.
+	held: Option<(Instant, bool)>,
 }
 
-/// `active` is the chosen name while the stream is on it, `None` while on the default.
-pub fn fallback_step(
-	chosen: Option<&str>,
-	active: Option<&str>,
-	errored: bool,
-	available: &[String],
-) -> Option<FallbackAction> {
-	let chosen = chosen?;
-	let present = available.iter().any(|n| n == chosen);
-	if active == Some(chosen) {
-		(errored || !present).then_some(FallbackAction::UseDefault)
-	} else {
-		present.then_some(FallbackAction::UseChosen)
+impl Devices {
+	pub fn new(chosen: Option<&str>, active: Option<&str>) -> Devices {
+		Devices {
+			chosen: chosen.map(str::to_string),
+			active: active.map(str::to_string),
+			held: None,
+		}
+	}
+
+	/// One poll. `open(Some(name))` moves the stream to that device and `open(None)` to the
+	/// default; each is true when the stream is now there.
+	pub fn poll(
+		&mut self,
+		errored: bool,
+		available: &[String],
+		now: Instant,
+		mut open: impl FnMut(Option<&str>) -> bool,
+	) -> Option<DeviceEvent> {
+		let Some(chosen) = self.chosen.clone() else {
+			// The default itself died (unplugged with nothing chosen): reopen whatever is default now.
+			if errored {
+				open(None);
+			}
+			return None;
+		};
+		let present = available.contains(&chosen);
+		if let Some((since, gone)) = &mut self.held {
+			*gone |= !present;
+			if (*gone && present) || now.duration_since(*since) >= HOLD {
+				self.held = None;
+			}
+		}
+		if self.active.as_ref() == Some(&chosen) {
+			if present && !errored {
+				return None;
+			}
+			// Errored but still listed: a silent reopen in place usually brings it back.
+			if present && open(Some(&chosen)) {
+				return None;
+			}
+			if present {
+				self.held = Some((now, false));
+			}
+			if !open(None) {
+				return None;
+			}
+			self.active = None;
+			return Some(DeviceEvent::Lost);
+		}
+		if present && self.held.is_none() {
+			if open(Some(&chosen)) {
+				self.active = Some(chosen.clone());
+				return Some(DeviceEvent::Back(chosen));
+			}
+			self.held = Some((now, false));
+		}
+		if errored {
+			open(None);
+		}
+		None
 	}
 }
 
@@ -420,9 +475,7 @@ pub struct Output {
 	cmd_rx: Receiver<MixerCmd>,
 	rendered_tx: Sender<(u64, Instant)>,
 	state: Arc<Mutex<Callback>>,
-	chosen: Option<String>,
-	/// The chosen device while the stream is on it; `None` on the default.
-	active: Option<String>,
+	devices: Devices,
 	/// Set by the current stream's error callback.
 	errored: Arc<AtomicBool>,
 	rate_changed: Option<u32>,
@@ -437,20 +490,28 @@ impl Output {
 		Output::start(None)
 	}
 
-	/// A `device` not found plays through the default and stays the choice.
+	/// A `device` not found, or found but failing to open, plays through the default and stays
+	/// the choice; `poll_devices` moves to it once it opens.
 	pub fn start(device: Option<&str>) -> Result<Output> {
-		let (dev, active) = find_device(device)?;
-		let config = pick_config(&dev, None)?;
-		let sample_rate = config.sample_rate();
-		let state = Arc::new(Mutex::new(Callback {
-			core: MixerCore::new(sample_rate),
-			scratch: Vec::new(),
-		}));
 		let (cmd_tx, cmd_rx) = unbounded();
 		let (rendered_tx, rendered_rx) = unbounded();
-		let errored = Arc::new(AtomicBool::new(false));
-		let stream = build_stream(&dev, config, &state, &cmd_rx, &rendered_tx, &errored)?;
-		stream.play().map_err(out_err)?;
+		let launch = |name: Option<&str>| -> Result<_> {
+			let (dev, active) = find_device(name)?;
+			let config = pick_config(&dev, None)?;
+			let sample_rate = config.sample_rate();
+			let state = Arc::new(Mutex::new(Callback {
+				core: MixerCore::new(sample_rate),
+				scratch: Vec::new(),
+			}));
+			let errored = Arc::new(AtomicBool::new(false));
+			let stream = build_stream(&dev, config, &state, &cmd_rx, &rendered_tx, &errored)?;
+			stream.play().map_err(out_err)?;
+			Ok((stream, state, sample_rate, active, errored))
+		};
+		let (stream, state, sample_rate, active, errored) = match launch(device) {
+			Err(_) if device.is_some() => launch(None)?,
+			r => r?,
+		};
 		Ok(Output {
 			sample_rate,
 			cmd_tx,
@@ -458,8 +519,7 @@ impl Output {
 			cmd_rx,
 			rendered_tx,
 			state,
-			chosen: device.map(str::to_string),
-			active,
+			devices: Devices::new(device, active.as_deref()),
 			errored,
 			rate_changed: None,
 			stream,
@@ -469,12 +529,13 @@ impl Output {
 
 	/// Moves playback to `device` (`None` = default) without a restart: same mixer, rings and settings.
 	pub fn switch(&mut self, device: Option<&str>) -> Result<()> {
-		self.reopen(device)?;
-		self.chosen = device.map(str::to_string);
+		let active = self.reopen(device)?;
+		self.devices = Devices::new(device, active.as_deref());
 		Ok(())
 	}
 
-	fn reopen(&mut self, device: Option<&str>) -> Result<()> {
+	/// The device name when that device was found, `None` when on the default.
+	fn reopen(&mut self, device: Option<&str>) -> Result<Option<String>> {
 		let (dev, active) = find_device(device)?;
 		let config = pick_config(&dev, Some(self.sample_rate))?;
 		let rate = config.sample_rate();
@@ -489,19 +550,25 @@ impl Output {
 		)?;
 		// Old one paused first, so two streams never pull from the mixer at once.
 		let _ = self.stream.pause();
+		let old = self.sample_rate;
+		// Retimed before the new stream's first callback, so it never renders at the old rate.
+		if rate != old {
+			self.state.lock().core.set_rate(rate);
+		}
 		if let Err(e) = stream.play() {
+			if rate != old {
+				self.state.lock().core.set_rate(old);
+			}
 			let _ = self.stream.play();
 			return Err(out_err(e));
 		}
-		if rate != self.sample_rate {
-			self.state.lock().core.set_rate(rate);
+		if rate != old {
 			self.sample_rate = rate;
 			self.rate_changed = Some(rate);
 		}
 		self.stream = stream;
-		self.active = active;
 		self.errored = errored;
-		Ok(())
+		Ok(active)
 	}
 
 	/// The new rate, once, after a switch to a device that could not keep the old one.
@@ -510,37 +577,19 @@ impl Output {
 	}
 
 	pub fn chosen(&self) -> Option<&str> {
-		self.chosen.as_deref()
+		self.devices.chosen.as_deref()
 	}
 
-	/// Call about every 2 s with `output_devices`. Falls back to the default when the chosen
-	/// device errors or goes missing, and returns to it when it is listed again.
+	/// Call about every 2 s with `output_devices`. Rules in `Devices::poll`.
 	pub fn poll_devices(&mut self, list: &dyn Fn() -> Vec<String>) -> Option<DeviceEvent> {
 		let errored = self.errored.load(Ordering::Relaxed);
-		let action = fallback_step(
-			self.chosen.as_deref(),
-			self.active.as_deref(),
-			errored,
-			&list(),
-		);
-		match action {
-			Some(FallbackAction::UseDefault) => {
-				self.reopen(None).ok()?;
-				Some(DeviceEvent::Lost)
-			}
-			Some(FallbackAction::UseChosen) => {
-				let name = self.chosen.clone()?;
-				self.reopen(Some(&name)).ok()?;
-				(self.active.as_deref() == Some(name.as_str())).then_some(DeviceEvent::Back(name))
-			}
-			None => {
-				// The default itself died (unplugged with nothing chosen): reopen whatever is default now.
-				if errored {
-					let _ = self.reopen(None);
-				}
-				None
-			}
-		}
+		let mut devices = std::mem::take(&mut self.devices);
+		let event = devices.poll(errored, &list(), Instant::now(), |name| {
+			self.reopen(name)
+				.is_ok_and(|active| name.is_none() || active.as_deref() == name)
+		});
+		self.devices = devices;
+		event
 	}
 
 	pub fn send(&self, cmd: MixerCmd) {
