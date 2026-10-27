@@ -1,0 +1,232 @@
+mod common;
+
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, LazyLock, mpsc};
+use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
+
+use blindradio_core::net::{ResolveCache, client};
+use blindradio_core::ring::PcmRing;
+use blindradio_core::station::Station;
+use blindradio_core::stream::{EngineCtx, StationStream, StreamEvent, start};
+use common::{Route, serve};
+
+const OUT_RATE: u32 = 48000;
+
+static RT: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+	tokio::runtime::Builder::new_multi_thread()
+		.enable_all()
+		.build()
+		.unwrap()
+});
+
+fn ctx(retry_window: Duration) -> EngineCtx {
+	// Never saved, so the path only has to not exist.
+	let cache = ResolveCache::load(&std::env::temp_dir().join("blindradio-no-such-dir/cache.json"));
+	EngineCtx {
+		rt: RT.handle().clone(),
+		client: client(),
+		cache: Arc::new(parking_lot::Mutex::new(cache)),
+		out_rate: OUT_RATE,
+		retry_window,
+	}
+}
+
+fn tone() -> Vec<u8> {
+	std::fs::read(concat!(
+		env!("CARGO_MANIFEST_DIR"),
+		"/tests/fixtures/tone.mp3"
+	))
+	.unwrap()
+}
+
+/// tone.mp3 looped at 128 kbps after a one-second burst.
+fn live(metaint: Option<usize>, titles: Vec<Vec<u8>>, close_after: Option<usize>) -> Route {
+	Route::Stream {
+		path: "/live".into(),
+		content_type: "audio/mpeg".into(),
+		data: tone(),
+		metaint,
+		titles,
+		burst: 16_000,
+		bytes_per_sec: 16_000,
+		close_after,
+	}
+}
+
+fn play(url: &str, ctx: &EngineCtx) -> (StationStream, mpsc::Receiver<StreamEvent>) {
+	let (tx, rx) = mpsc::channel();
+	let station = Station {
+		id: "test".into(),
+		name: "Test".into(),
+		url: url.into(),
+	};
+	let s = start(&station, ctx, Box::new(move |e| drop(tx.send(e))));
+	(s, rx)
+}
+
+/// Collects events until `want` matches or `within` passes; returns everything seen.
+fn events_until(
+	rx: &mpsc::Receiver<StreamEvent>,
+	within: Duration,
+	want: impl Fn(&StreamEvent) -> bool,
+) -> Vec<StreamEvent> {
+	let end = Instant::now() + within;
+	let mut seen = Vec::new();
+	while let Some(left) = end.checked_duration_since(Instant::now()) {
+		match rx.recv_timeout(left) {
+			Ok(e) => {
+				let done = want(&e);
+				seen.push(e);
+				if done {
+					return seen;
+				}
+			}
+			Err(_) => break,
+		}
+	}
+	panic!("timed out after {within:?}; events: {seen:?}");
+}
+
+/// Plays the ring out in real time like the audio device would; returns the longest underrun.
+fn consume(ring: Arc<PcmRing>, stop: Arc<AtomicBool>) -> JoinHandle<Duration> {
+	std::thread::spawn(move || {
+		let mut last = Instant::now();
+		let mut dry_since: Option<Instant> = None;
+		let mut longest = Duration::ZERO;
+		let mut buf = Vec::new();
+		while !stop.load(Ordering::Relaxed) {
+			std::thread::sleep(Duration::from_millis(10));
+			let now = Instant::now();
+			let frames = ((now - last).as_secs_f64() * OUT_RATE as f64) as usize;
+			last = now;
+			buf.resize(frames * 2, 0.0);
+			if ring.pop_into(&mut buf) < buf.len() {
+				let since = *dry_since.get_or_insert(now);
+				longest = longest.max(now - since);
+			} else {
+				dry_since = None;
+			}
+		}
+		longest
+	})
+}
+
+#[test]
+fn stream_fills_ring_and_reports_first_audio() {
+	let server = serve(vec![live(None, vec![], None)]);
+	let (s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	assert!(s.ring.len_ms() > 0);
+
+	let ring = s.ring.clone();
+	drop(s);
+	std::thread::sleep(Duration::from_millis(300));
+	ring.clear();
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(ring.len_ms(), 0, "decoding went on after drop");
+}
+
+#[test]
+fn stream_reports_icy_titles() {
+	let titles = vec![b"A - One".to_vec(), Vec::new()];
+	let server = serve(vec![live(Some(8192), titles, None)]);
+	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	let got: Vec<_> = events_until(&rx, Duration::from_secs(3), |e| {
+		*e == StreamEvent::Title(None)
+	})
+	.into_iter()
+	.filter(|e| matches!(e, StreamEvent::Title(_)))
+	.collect();
+	assert_eq!(
+		got,
+		[
+			StreamEvent::Title(Some("A - One".into())),
+			StreamEvent::Title(None)
+		]
+	);
+}
+
+#[test]
+fn icy_title_latin1_and_quotes() {
+	let title = b"Caf\xe9 - It's".to_vec();
+	let server = serve(vec![live(Some(8192), vec![title], None)]);
+	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	let seen = events_until(&rx, Duration::from_secs(3), |e| {
+		matches!(e, StreamEvent::Title(_))
+	});
+	assert_eq!(
+		seen.last(),
+		Some(&StreamEvent::Title(Some("Café - It's".into())))
+	);
+}
+
+#[test]
+fn stream_fails_on_silent_server() {
+	let server = serve(vec![Route::Silent {
+		path: "/live".into(),
+	}]);
+	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	let seen = events_until(&rx, Duration::from_secs(6), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	assert_eq!(seen, [StreamEvent::Failed("No data".into())]);
+}
+
+#[test]
+fn stream_reconnects_silently() {
+	let server = serve(vec![live(None, vec![], Some(64 * 1024))]);
+	let (s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	let stop = Arc::new(AtomicBool::new(false));
+	let consumer = consume(s.ring.clone(), stop.clone());
+	// Each connection lasts about 3.1 s, so this spans two reconnects.
+	std::thread::sleep(Duration::from_secs(7));
+	stop.store(true, Ordering::Relaxed);
+	let longest_dry = consumer.join().unwrap();
+	let events: Vec<_> = rx.try_iter().collect();
+	assert!(events.is_empty(), "unexpected events: {events:?}");
+	assert!(
+		longest_dry <= Duration::from_millis(300),
+		"ring dry for {longest_dry:?}"
+	);
+}
+
+#[test]
+fn stream_reports_lost_after_retries() {
+	// One connection with about 2 s of audio, then the port closes for good.
+	let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+	let url = format!("http://{}/live", listener.local_addr().unwrap());
+	std::thread::spawn(move || {
+		let (mut sock, _) = listener.accept().unwrap();
+		let mut req = [0u8; 1024];
+		let _ = sock.read(&mut req).unwrap();
+		sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nConnection: close\r\n\r\n")
+			.unwrap();
+		sock.write_all(&tone()[..16_000]).unwrap();
+	});
+	let (s, rx) = play(&url, &ctx(Duration::from_secs(3)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	let stop = Arc::new(AtomicBool::new(false));
+	let consumer = consume(s.ring.clone(), stop.clone());
+	let seen = events_until(&rx, Duration::from_secs(15), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	stop.store(true, Ordering::Relaxed);
+	consumer.join().unwrap();
+	assert_eq!(
+		seen,
+		[
+			StreamEvent::Reconnecting,
+			StreamEvent::Failed("Lost".into())
+		]
+	);
+}
