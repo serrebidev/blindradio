@@ -18,6 +18,9 @@ use crate::station::Station;
 
 /// Connect, open and the first body bytes must all fit in this.
 const START_BUDGET: Duration = Duration::from_secs(5);
+/// A cached final URL gets this much before the station URL is tried instead.
+const CACHED_BUDGET: Duration = Duration::from_secs(2);
+const MIN_STATION_BUDGET: Duration = Duration::from_secs(3);
 /// A connection that sends nothing for this long is treated as lost.
 const STALL: Duration = Duration::from_secs(5);
 const RING_SECONDS: f32 = 3.0;
@@ -40,6 +43,7 @@ pub enum StreamEvent {
 	Failed(String),
 }
 
+/// An event can still arrive just after the stream is dropped; ignore events from dropped streams.
 pub struct StationStream {
 	pub ring: Arc<PcmRing>,
 	pub station: Station,
@@ -59,6 +63,8 @@ struct Shared {
 	on_event: Box<dyn Fn(StreamEvent) + Send + Sync>,
 	alive: AtomicBool,
 	played: AtomicBool,
+	/// `Reconnecting` was sent and no connection has played since.
+	announced: AtomicBool,
 }
 
 impl Shared {
@@ -79,6 +85,7 @@ pub fn start(
 		on_event,
 		alive: AtomicBool::new(true),
 		played: AtomicBool::new(false),
+		announced: AtomicBool::new(false),
 	});
 	let task = ctx
 		.rt
@@ -130,51 +137,59 @@ async fn run(url: String, ctx: EngineCtx, ring: Arc<PcmRing>, shared: Arc<Shared
 	}
 }
 
-/// Opens the cached final URL, else the station URL, and waits for the first body bytes.
+/// Tries the cached final URL briefly, evicting it on any failure, then the station URL.
 async fn connect(ctx: &EngineCtx, url: &str) -> std::result::Result<Conn, String> {
-	let attempt = async {
-		let cached = ctx.cache.lock().get(url);
-		let opened = match cached {
-			Some(c) => match open(&ctx.client, &c).await {
-				Ok(o) => Ok(o),
-				Err(_) => open(&ctx.client, url).await,
-			},
-			None => open(&ctx.client, url).await,
-		};
-		let (mut response, final_url) = match opened.map_err(|e| e.to_string())? {
-			Opened::Audio {
-				response,
-				final_url,
-			} => (response, final_url),
-			// ponytail: HLS lands in Task 7 (HlsReader).
-			Opened::Hls { .. } => return Err("HLS".to_owned()),
-		};
-		let first = match response.chunk().await {
-			Ok(Some(c)) => c,
-			_ => return Err("No data".to_owned()),
-		};
-		ctx.cache.lock().put(url, &final_url);
-		let header = |name| {
-			response
-				.headers()
-				.get(name)
-				.and_then(|v| v.to_str().ok())
-				.map(|v| v.trim().to_ascii_lowercase())
-		};
-		let metaint = header("icy-metaint")
-			.and_then(|v| v.parse().ok())
-			.filter(|&m| m > 0);
-		let hint = header("content-type").and_then(|ct| ext_hint(&ct));
-		Ok(Conn {
-			response,
-			first,
-			metaint,
-			hint,
-		})
-	};
-	timeout(START_BUDGET, attempt)
+	let began = Instant::now();
+	let cached = ctx.cache.lock().get(url).filter(|c| c != url);
+	if let Some(cached) = cached {
+		if let Ok(Ok((conn, final_url))) = timeout(CACHED_BUDGET, open_audio(ctx, &cached)).await {
+			ctx.cache.lock().put(url, &final_url);
+			return Ok(conn);
+		}
+		ctx.cache.lock().remove(url);
+	}
+	let budget = START_BUDGET
+		.saturating_sub(began.elapsed())
+		.max(MIN_STATION_BUDGET);
+	let (conn, final_url) = timeout(budget, open_audio(ctx, url))
 		.await
-		.unwrap_or_else(|_| Err("No data".to_owned()))
+		.unwrap_or_else(|_| Err("No data".to_owned()))?;
+	ctx.cache.lock().put(url, &final_url);
+	Ok(conn)
+}
+
+/// Opens `url` and waits for the first body bytes.
+async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, String), String> {
+	let (mut response, final_url) = match open(&ctx.client, url).await.map_err(|e| e.to_string())? {
+		Opened::Audio {
+			response,
+			final_url,
+		} => (response, final_url),
+		// ponytail: HLS lands in Task 7 (HlsReader).
+		Opened::Hls { .. } => return Err("HLS".to_owned()),
+	};
+	let first = match response.chunk().await {
+		Ok(Some(c)) => c,
+		_ => return Err("No data".to_owned()),
+	};
+	let header = |name| {
+		response
+			.headers()
+			.get(name)
+			.and_then(|v| v.to_str().ok())
+			.map(|v| v.trim().to_ascii_lowercase())
+	};
+	let metaint = header("icy-metaint")
+		.and_then(|v| v.parse().ok())
+		.filter(|&m| m > 0);
+	let hint = header("content-type").and_then(|ct| ext_hint(&ct));
+	let conn = Conn {
+		response,
+		first,
+		metaint,
+		hint,
+	};
+	Ok((conn, final_url))
 }
 
 fn ext_hint(content_type: &str) -> Option<&'static str> {
@@ -189,7 +204,7 @@ fn ext_hint(content_type: &str) -> Option<&'static str> {
 }
 
 /// Retries with 1, 2, 4, then 5 s gaps until `retry_window` after `since`. Says `Reconnecting`
-/// only if the ring runs dry meanwhile, and then `Reconnected` on success.
+/// once per outage, only if the ring runs dry; the decode thread says `Reconnected`.
 async fn reconnect(
 	url: &str,
 	ctx: &EngineCtx,
@@ -198,10 +213,9 @@ async fn reconnect(
 	since: Instant,
 	attempt: &mut u32,
 ) -> Option<Conn> {
-	let dry = AtomicBool::new(false);
 	let watch = async {
 		loop {
-			if ring.len_ms() == 0 && !dry.swap(true, Ordering::Relaxed) {
+			if ring.len_ms() == 0 && !shared.announced.swap(true, Ordering::Relaxed) {
 				shared.emit(StreamEvent::Reconnecting);
 			}
 			sleep(Duration::from_millis(100)).await;
@@ -227,14 +241,10 @@ async fn reconnect(
 			}
 		}
 	};
-	let conn = tokio::select! {
+	tokio::select! {
 		c = retry => c,
 		_ = watch => unreachable!(),
-	};
-	if conn.is_some() && dry.load(Ordering::Relaxed) {
-		shared.emit(StreamEvent::Reconnected);
 	}
-	conn
 }
 
 /// Plays one connection to its end; returns why it ended and whether it produced audio.
@@ -249,7 +259,7 @@ async fn play(
 	let (done_tx, done_rx) = oneshot::channel();
 	let (thread_ring, thread_shared) = (ring.clone(), shared.clone());
 	let (out_rate, hint) = (ctx.out_rate, conn.hint);
-	std::thread::Builder::new()
+	let spawned = std::thread::Builder::new()
 		.name("decode".into())
 		.spawn(move || {
 			let mut produced = false;
@@ -262,8 +272,10 @@ async fn play(
 				&mut produced,
 			);
 			let _ = done_tx.send((result, produced));
-		})
-		.expect("spawn decode thread");
+		});
+	if spawned.is_err() {
+		return ("No data".into(), false);
+	}
 
 	let net_reason = pump(&mut conn, tx, shared, title).await;
 	// The sender is gone, so the decoder drains what it has and ends; waiting keeps two
@@ -343,9 +355,12 @@ fn decode(
 		}
 		ring.push(&out);
 		out.clear();
-		*produced = true;
-		if !shared.played.swap(true, Ordering::Relaxed) {
-			shared.emit(StreamEvent::FirstAudio);
+		if !std::mem::replace(produced, true) {
+			if !shared.played.swap(true, Ordering::Relaxed) {
+				shared.emit(StreamEvent::FirstAudio);
+			} else if shared.announced.swap(false, Ordering::Relaxed) {
+				shared.emit(StreamEvent::Reconnected);
+			}
 		}
 	}
 	Ok(())

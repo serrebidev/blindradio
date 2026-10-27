@@ -230,3 +230,115 @@ fn stream_reports_lost_after_retries() {
 		]
 	);
 }
+
+enum Reply {
+	/// 200 with these body bytes, then close.
+	Audio(Vec<u8>),
+	/// 200 with a body no decoder accepts, then close.
+	Junk,
+	Busy,
+}
+
+/// Local server whose reply to each connection is chosen by `script(index, since_start)`.
+fn scripted(script: impl Fn(usize, Duration) -> Reply + Send + 'static) -> String {
+	let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+	let url = format!("http://{}/live", listener.local_addr().unwrap());
+	let began = Instant::now();
+	std::thread::spawn(move || {
+		for (i, sock) in listener.incoming().enumerate() {
+			let Ok(mut sock) = sock else { continue };
+			let reply = script(i, began.elapsed());
+			std::thread::spawn(move || {
+				let mut req = [0u8; 1024];
+				let _ = sock.read(&mut req);
+				let ok = "HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nConnection: close\r\n\r\n";
+				let _ = match reply {
+					Reply::Audio(body) => sock
+						.write_all(ok.as_bytes())
+						.and_then(|()| sock.write_all(&body)),
+					Reply::Junk => sock
+						.write_all(ok.as_bytes())
+						.and_then(|()| sock.write_all(&[0xAB; 2000])),
+					Reply::Busy => sock.write_all(
+						b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+					),
+				};
+			});
+		}
+	});
+	url
+}
+
+#[test]
+fn reconnected_fires_once_after_audio_returns() {
+	// About 1 s of audio, refusals until the ring has run dry, then the station is back.
+	let url = scripted(|i, since| match i {
+		0 => Reply::Audio(tone()[..8_000].to_vec()),
+		_ if since < Duration::from_millis(2500) => Reply::Busy,
+		_ => Reply::Audio(tone()),
+	});
+	let (s, rx) = play(&url, &ctx(Duration::from_secs(60)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	let stop = Arc::new(AtomicBool::new(false));
+	let consumer = consume(s.ring.clone(), stop.clone());
+	let mut seen = events_until(&rx, Duration::from_secs(10), |e| {
+		*e == StreamEvent::Reconnected
+	});
+	assert!(s.ring.len_ms() > 0, "Reconnected before audio returned");
+	std::thread::sleep(Duration::from_secs(1));
+	stop.store(true, Ordering::Relaxed);
+	consumer.join().unwrap();
+	seen.extend(rx.try_iter());
+	assert_eq!(seen, [StreamEvent::Reconnecting, StreamEvent::Reconnected]);
+}
+
+#[test]
+fn reconnect_to_stalling_server_announces_once() {
+	// After the first connection every reconnect is accepted but never yields audio.
+	let url = scripted(|i, _| match i {
+		0 => Reply::Audio(tone()[..8_000].to_vec()),
+		_ => Reply::Junk,
+	});
+	let (s, rx) = play(&url, &ctx(Duration::from_secs(4)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	let stop = Arc::new(AtomicBool::new(false));
+	let consumer = consume(s.ring.clone(), stop.clone());
+	let seen = events_until(&rx, Duration::from_secs(15), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	stop.store(true, Ordering::Relaxed);
+	consumer.join().unwrap();
+	assert_eq!(
+		seen,
+		[
+			StreamEvent::Reconnecting,
+			StreamEvent::Failed("Lost".into())
+		]
+	);
+}
+
+#[test]
+fn stale_cached_url_falls_back_and_is_evicted() {
+	let server = serve(vec![
+		Route::Silent {
+			path: "/old".into(),
+		},
+		live(None, vec![], None),
+	]);
+	let station_url = server.url("/live");
+	let ctx = ctx(Duration::from_secs(60));
+	ctx.cache.lock().put(&station_url, &server.url("/old"));
+	let (_s, rx) = play(&station_url, &ctx);
+	events_until(&rx, Duration::from_secs(5), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	let cached = ctx.cache.lock().get(&station_url);
+	assert!(
+		cached.is_none() || cached.as_deref() == Some(station_url.as_str()),
+		"cache still holds {cached:?}"
+	);
+}

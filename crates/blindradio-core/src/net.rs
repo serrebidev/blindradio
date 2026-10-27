@@ -175,6 +175,10 @@ impl ResolveCache {
 		self.map.insert(url.to_owned(), final_url.to_owned());
 	}
 
+	pub fn remove(&mut self, url: &str) {
+		self.map.remove(url);
+	}
+
 	pub fn save(&self) -> Result<()> {
 		if let Some(dir) = self.path.parent() {
 			std::fs::create_dir_all(dir)?;

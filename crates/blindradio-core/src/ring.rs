@@ -13,7 +13,11 @@ pub struct PcmRing {
 impl PcmRing {
 	pub fn new(rate: u32, seconds: f32) -> PcmRing {
 		let capacity = (rate as f32 * seconds) as usize * 2;
-		PcmRing { rate, capacity, buf: Mutex::new(VecDeque::with_capacity(capacity)) }
+		PcmRing {
+			rate,
+			capacity,
+			buf: Mutex::new(VecDeque::with_capacity(capacity)),
+		}
 	}
 
 	pub fn push(&self, stereo: &[f32]) {
@@ -54,7 +58,9 @@ mod tests {
 	use super::*;
 
 	fn ramp(from: usize, frames: usize) -> Vec<f32> {
-		(from..from + frames).flat_map(|i| [i as f32, i as f32]).collect()
+		(from..from + frames)
+			.flat_map(|i| [i as f32, i as f32])
+			.collect()
 	}
 
 	#[test]
