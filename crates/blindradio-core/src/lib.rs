@@ -8,6 +8,7 @@ pub mod resample;
 pub mod ring;
 pub mod sources;
 pub mod station;
+pub mod store;
 pub mod stream;
 pub mod tuner;
 
