@@ -10,6 +10,7 @@ pub mod playlist;
 pub mod resample;
 pub mod ring;
 pub mod settings;
+pub mod sleep;
 pub mod sources;
 pub mod station;
 pub mod store;
