@@ -119,11 +119,11 @@ async fn rb_state_keeps_exact_matches_only() {
 			.iter()
 			.all(|n| !matches!(n, Node::Station(s) if s.name == "Classic Vinyl HD"))
 	);
-	// A full raw page still offers more even when filtering emptied it.
+	// A full raw page still offers more even when filtering emptied it, after the page cap.
 	assert_eq!(
 		nodes.last(),
 		Some(&Node::LoadMore {
-			id: "rb/country/US/state/New%20York@100".into()
+			id: "rb/country/US/state/New%20York@500".into()
 		})
 	);
 	let q = s.last_query("/json/stations/search").unwrap();
