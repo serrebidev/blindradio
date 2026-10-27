@@ -10,6 +10,7 @@ pub enum Node {
 }
 
 pub mod iheart;
+pub mod networks;
 pub mod radio_browser;
 pub mod tunein;
 

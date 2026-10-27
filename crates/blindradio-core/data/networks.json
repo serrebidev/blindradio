@@ -1,0 +1,1871 @@
+[
+  {
+    "name": "BBC",
+    "slug": "bbc",
+    "stations": [
+      {
+        "slug": "radio-1",
+        "name": "Radio 1",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-1-dance",
+        "name": "Radio 1 Dance",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_62063831/live/ww/bbc_radio_one_dance/bbc_radio_one_dance.isml/bbc_radio_one_dance-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-1-anthems",
+        "name": "Radio 1 Anthems",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_11351741/live/ww/bbc_radio_one_anthems/bbc_radio_one_anthems.isml/bbc_radio_one_anthems-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "1xtra",
+        "name": "1Xtra",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_92079267/live/ww/bbc_1xtra/bbc_1xtra.isml/bbc_1xtra-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-2",
+        "name": "Radio 2",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_74208725/live/ww/bbc_radio_two/bbc_radio_two.isml/bbc_radio_two-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-3",
+        "name": "Radio 3",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_23461179/live/ww/bbc_radio_three/bbc_radio_three.isml/bbc_radio_three-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-3-unwind",
+        "name": "Radio 3 Unwind",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_30624046/live/ww/bbc_radio_three_unwind/bbc_radio_three_unwind.isml/bbc_radio_three_unwind-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-4",
+        "name": "Radio 4",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-4-extra",
+        "name": "Radio 4 Extra",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_26173715/live/ww/bbc_radio_four_extra/bbc_radio_four_extra.isml/bbc_radio_four_extra-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-5-live",
+        "name": "Radio 5 Live",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_89021708/live/ww/bbc_radio_five_live/bbc_radio_five_live.isml/bbc_radio_five_live-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "6-music",
+        "name": "6 Music",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_81827798/live/ww/bbc_6music/bbc_6music.isml/bbc_6music-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "asian-network",
+        "name": "Asian Network",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_22108647/live/ww/bbc_asian_network/bbc_asian_network.isml/bbc_asian_network-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "world-service",
+        "name": "World Service",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_87948813/live/ww/bbc_world_service/bbc_world_service.isml/bbc_world_service-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "world-service-mp3",
+        "name": "World Service (MP3)",
+        "url": "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+        "info": "MP3 56k"
+      },
+      {
+        "slug": "radio-scotland",
+        "name": "Radio Scotland",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_43322914/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-scotland-extra",
+        "name": "Radio Scotland Extra",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_59378121/live/ww/bbc_radio_scotland_mw/bbc_radio_scotland_mw.isml/bbc_radio_scotland_mw-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-nan-gaidheal",
+        "name": "Radio nan Gàidheal",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_01935182/live/ww/bbc_radio_nan_gaidheal/bbc_radio_nan_gaidheal.isml/bbc_radio_nan_gaidheal-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-orkney",
+        "name": "Radio Orkney",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_50082558/live/ww/bbc_radio_orkney/bbc_radio_orkney.isml/bbc_radio_orkney-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-shetland",
+        "name": "Radio Shetland",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_23386112/live/ww/bbc_radio_shetland/bbc_radio_shetland.isml/bbc_radio_shetland-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-wales",
+        "name": "Radio Wales",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_97517794/live/ww/bbc_radio_wales_fm/bbc_radio_wales_fm.isml/bbc_radio_wales_fm-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-cymru",
+        "name": "Radio Cymru",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_24792333/live/ww/bbc_radio_cymru/bbc_radio_cymru.isml/bbc_radio_cymru-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-cymru-2",
+        "name": "Radio Cymru 2",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_98610936/live/ww/bbc_radio_cymru_2/bbc_radio_cymru_2.isml/bbc_radio_cymru_2-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-ulster",
+        "name": "Radio Ulster",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_31244774/live/ww/bbc_radio_ulster/bbc_radio_ulster.isml/bbc_radio_ulster-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-foyle",
+        "name": "Radio Foyle",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_43178797/live/ww/bbc_radio_foyle/bbc_radio_foyle.isml/bbc_radio_foyle-audio%3d128000.norewind.m3u8",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "radio-berkshire",
+        "name": "Radio Berkshire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_64162474/live/ww/bbc_radio_berkshire/bbc_radio_berkshire.isml/bbc_radio_berkshire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-bristol",
+        "name": "Radio Bristol",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_41858929/live/ww/bbc_radio_bristol/bbc_radio_bristol.isml/bbc_radio_bristol-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-cambridgeshire",
+        "name": "Radio Cambridgeshire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_21074581/live/ww/bbc_radio_cambridge/bbc_radio_cambridge.isml/bbc_radio_cambridge-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-cornwall",
+        "name": "Radio Cornwall",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_72477894/live/ww/bbc_radio_cornwall/bbc_radio_cornwall.isml/bbc_radio_cornwall-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "cwr-coventry-and-warwickshire",
+        "name": "CWR (Coventry and Warwickshire)",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_79805333/live/ww/bbc_radio_coventry_warwickshire/bbc_radio_coventry_warwickshire.isml/bbc_radio_coventry_warwickshire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-cumbria",
+        "name": "Radio Cumbria",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_85294020/live/ww/bbc_radio_cumbria/bbc_radio_cumbria.isml/bbc_radio_cumbria-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-derby",
+        "name": "Radio Derby",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_63732303/live/ww/bbc_radio_derby/bbc_radio_derby.isml/bbc_radio_derby-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-devon",
+        "name": "Radio Devon",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_08856933/live/ww/bbc_radio_devon/bbc_radio_devon.isml/bbc_radio_devon-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "essex",
+        "name": "Essex",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_23657270/live/ww/bbc_radio_essex/bbc_radio_essex.isml/bbc_radio_essex-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-gloucestershire",
+        "name": "Radio Gloucestershire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_74607547/live/ww/bbc_radio_gloucestershire/bbc_radio_gloucestershire.isml/bbc_radio_gloucestershire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-guernsey",
+        "name": "Radio Guernsey",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_65313722/live/ww/bbc_radio_guernsey/bbc_radio_guernsey.isml/bbc_radio_guernsey-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "hereford-and-worcester",
+        "name": "Hereford and Worcester",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_80112859/live/ww/bbc_radio_hereford_worcester/bbc_radio_hereford_worcester.isml/bbc_radio_hereford_worcester-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-humberside",
+        "name": "Radio Humberside",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_43379345/live/ww/bbc_radio_humberside/bbc_radio_humberside.isml/bbc_radio_humberside-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-jersey",
+        "name": "Radio Jersey",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_14000630/live/ww/bbc_radio_jersey/bbc_radio_jersey.isml/bbc_radio_jersey-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-kent",
+        "name": "Radio Kent",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_17754185/live/ww/bbc_radio_kent/bbc_radio_kent.isml/bbc_radio_kent-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-lancashire",
+        "name": "Radio Lancashire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_98146551/live/ww/bbc_radio_lancashire/bbc_radio_lancashire.isml/bbc_radio_lancashire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-leeds",
+        "name": "Radio Leeds",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_50115440/live/ww/bbc_radio_leeds/bbc_radio_leeds.isml/bbc_radio_leeds-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-leicester",
+        "name": "Radio Leicester",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_04542919/live/ww/bbc_radio_leicester/bbc_radio_leicester.isml/bbc_radio_leicester-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-lincolnshire",
+        "name": "Radio Lincolnshire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_77667780/live/ww/bbc_radio_lincolnshire/bbc_radio_lincolnshire.isml/bbc_radio_lincolnshire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-london",
+        "name": "Radio London",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_98137350/live/ww/bbc_london/bbc_london.isml/bbc_london-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-manchester",
+        "name": "Radio Manchester",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_25317916/live/ww/bbc_radio_manchester/bbc_radio_manchester.isml/bbc_radio_manchester-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-merseyside",
+        "name": "Radio Merseyside",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_46699767/live/ww/bbc_radio_merseyside/bbc_radio_merseyside.isml/bbc_radio_merseyside-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-newcastle",
+        "name": "Radio Newcastle",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_46887953/live/ww/bbc_radio_newcastle/bbc_radio_newcastle.isml/bbc_radio_newcastle-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-norfolk",
+        "name": "Radio Norfolk",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_61510571/live/ww/bbc_radio_norfolk/bbc_radio_norfolk.isml/bbc_radio_norfolk-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-northampton",
+        "name": "Radio Northampton",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_73827654/live/ww/bbc_radio_northampton/bbc_radio_northampton.isml/bbc_radio_northampton-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-nottingham",
+        "name": "Radio Nottingham",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_96088503/live/ww/bbc_radio_nottingham/bbc_radio_nottingham.isml/bbc_radio_nottingham-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-oxford",
+        "name": "Radio Oxford",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_19212690/live/ww/bbc_radio_oxford/bbc_radio_oxford.isml/bbc_radio_oxford-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-sheffield",
+        "name": "Radio Sheffield",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_19967704/live/ww/bbc_radio_sheffield/bbc_radio_sheffield.isml/bbc_radio_sheffield-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-shropshire",
+        "name": "Radio Shropshire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_83478576/live/ww/bbc_radio_shropshire/bbc_radio_shropshire.isml/bbc_radio_shropshire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-solent",
+        "name": "Radio Solent",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_11685351/live/ww/bbc_radio_solent/bbc_radio_solent.isml/bbc_radio_solent-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-solent-west-dorset",
+        "name": "Radio Solent West Dorset",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_48517520/live/ww/bbc_radio_solent_west_dorset/bbc_radio_solent_west_dorset.isml/bbc_radio_solent_west_dorset-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-somerset",
+        "name": "Radio Somerset",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_00727706/live/ww/bbc_radio_somerset_sound/bbc_radio_somerset_sound.isml/bbc_radio_somerset_sound-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-stoke",
+        "name": "Radio Stoke",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_34849862/live/ww/bbc_radio_stoke/bbc_radio_stoke.isml/bbc_radio_stoke-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-suffolk",
+        "name": "Radio Suffolk",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_18067288/live/ww/bbc_radio_suffolk/bbc_radio_suffolk.isml/bbc_radio_suffolk-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-surrey",
+        "name": "Radio Surrey",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_27374427/live/ww/bbc_radio_surrey/bbc_radio_surrey.isml/bbc_radio_surrey-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-sussex",
+        "name": "Radio Sussex",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_76643803/live/ww/bbc_radio_sussex/bbc_radio_sussex.isml/bbc_radio_sussex-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-tees",
+        "name": "Radio Tees",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_08918172/live/ww/bbc_tees/bbc_tees.isml/bbc_tees-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "three-counties-radio",
+        "name": "Three Counties Radio",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_69997923/live/ww/bbc_three_counties_radio/bbc_three_counties_radio.isml/bbc_three_counties_radio-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-wiltshire",
+        "name": "Radio Wiltshire",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_44240917/live/ww/bbc_radio_wiltshire/bbc_radio_wiltshire.isml/bbc_radio_wiltshire-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-wm",
+        "name": "Radio WM",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_05353924/live/ww/bbc_wm/bbc_wm.isml/bbc_wm-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      },
+      {
+        "slug": "radio-york",
+        "name": "Radio York",
+        "url": "http://as-hls-ww-live.akamaized.net/pool_90848428/live/ww/bbc_radio_york/bbc_radio_york.isml/bbc_radio_york-audio%3d128000.norewind.m3u8",
+        "info": "Local, AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "NPR",
+    "slug": "npr",
+    "stations": [
+      {
+        "slug": "npr-program-stream",
+        "name": "NPR Program Stream",
+        "url": "https://npr-ice.streamguys1.com/live.mp3",
+        "info": "NPR, MP3 96k"
+      },
+      {
+        "slug": "wnyc-93-9",
+        "name": "WNYC 93.9",
+        "url": "https://fm939.wnyc.org/wnycfm-web",
+        "info": "New York, MP3 96k"
+      },
+      {
+        "slug": "kqed-88-5",
+        "name": "KQED 88.5",
+        "url": "https://hls.kqed.org/hls/kqed_app/playlist.m3u8",
+        "info": "San Francisco, AAC 128k"
+      },
+      {
+        "slug": "wamu-88-5",
+        "name": "WAMU 88.5",
+        "url": "https://wamu.cdnstream1.com/wamu.mp3",
+        "info": "Washington, DC, MP3 96k"
+      },
+      {
+        "slug": "wbur-90-9",
+        "name": "WBUR 90.9",
+        "url": "http://wbur-sc.streamguys.com/wbur.aac",
+        "info": "Boston, AAC 64k"
+      },
+      {
+        "slug": "gbh-89-7",
+        "name": "GBH 89.7",
+        "url": "https://wgbh-live.streamguys1.com/wgbh.mp3",
+        "info": "Boston, MP3 128k"
+      },
+      {
+        "slug": "whyy-90-9",
+        "name": "WHYY 90.9",
+        "url": "https://whyy.streamguys1.com/whyy-mp3",
+        "info": "Philadelphia, MP3 64k"
+      },
+      {
+        "slug": "laist-89-3",
+        "name": "LAist 89.3",
+        "url": "https://laist.streamguys1.com/kpcc-mp3",
+        "info": "Los Angeles, MP3 192k"
+      },
+      {
+        "slug": "kcrw-89-9",
+        "name": "KCRW 89.9",
+        "url": "https://streams.kcrw.com/kcrw_mp3",
+        "info": "Los Angeles, MP3 192k"
+      },
+      {
+        "slug": "wbez-91-5",
+        "name": "WBEZ 91.5",
+        "url": "https://stream.wbez.org/wbez128.mp3",
+        "info": "Chicago, MP3 128k"
+      },
+      {
+        "slug": "kuow-94-9",
+        "name": "KUOW 94.9",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/KUOWFM_HIGH_MP3.mp3",
+        "info": "Seattle, MP3 96k"
+      },
+      {
+        "slug": "knkx-88-5",
+        "name": "KNKX 88.5",
+        "url": "https://knkx-live-a.edge.audiocdn.com/6284_128k",
+        "info": "Tacoma, MP3 128k"
+      },
+      {
+        "slug": "mpr-news",
+        "name": "MPR News",
+        "url": "https://nis.stream.publicradio.org/nis.mp3",
+        "info": "Minnesota, MP3 128k"
+      },
+      {
+        "slug": "opb",
+        "name": "OPB",
+        "url": "http://stream1.opb.org/radio.mp3",
+        "info": "Oregon, MP3 128k"
+      },
+      {
+        "slug": "kera-90-1",
+        "name": "KERA 90.1",
+        "url": "https://kera.streamguys1.com/keralive",
+        "info": "Dallas, MP3 64k"
+      },
+      {
+        "slug": "houston-public-media-88-7",
+        "name": "Houston Public Media 88.7",
+        "url": "https://stream.houstonpublicmedia.org/news-mp3",
+        "info": "Houston, MP3 128k"
+      },
+      {
+        "slug": "kut-90-5",
+        "name": "KUT 90.5",
+        "url": "https://streams.kut.org/4426_128.mp3",
+        "info": "Austin, MP3 128k"
+      },
+      {
+        "slug": "wabe-90-1",
+        "name": "WABE 90.1",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WABEFM_HD1_SC.mp3",
+        "info": "Atlanta, MP3 64k"
+      },
+      {
+        "slug": "wunc-91-5",
+        "name": "WUNC 91.5",
+        "url": "https://edg-iad-wunc-ice.streamguys1.com/wunc-128-mp3",
+        "info": "North Carolina, MP3 56k"
+      },
+      {
+        "slug": "wfae-90-7",
+        "name": "WFAE 90.7",
+        "url": "https://wfae-ice.streamguys1.com/wfae1",
+        "info": "Charlotte, MP3 64k"
+      },
+      {
+        "slug": "kjzz-91-5",
+        "name": "KJZZ 91.5",
+        "url": "http://stream.kjzz.org/kjzz_mp3_128",
+        "info": "Phoenix, MP3 128k"
+      },
+      {
+        "slug": "cpr-news",
+        "name": "CPR News",
+        "url": "https://stream1.cprnetwork.org/cpr1_lo",
+        "info": "Colorado, MP3 64k"
+      },
+      {
+        "slug": "wlrn-91-3",
+        "name": "WLRN 91.3",
+        "url": "https://wlrn.streamguys1.com/wlrn-news-web-icy",
+        "info": "Miami, AAC 64k"
+      },
+      {
+        "slug": "wusf-89-7",
+        "name": "WUSF 89.7",
+        "url": "https://wusf.streamguys1.com/wusf-web",
+        "info": "Tampa, AAC 64k"
+      },
+      {
+        "slug": "kpbs-89-5",
+        "name": "KPBS 89.5",
+        "url": "https://kpbs.streamguys1.com/kpbs-mp3",
+        "info": "San Diego, MP3 128k"
+      },
+      {
+        "slug": "capradio-news",
+        "name": "CapRadio News",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/KXJZ.mp3",
+        "info": "Sacramento, MP3 96k"
+      },
+      {
+        "slug": "wesa-90-5",
+        "name": "WESA 90.5",
+        "url": "https://ais-sa3.cdnstream1.com/2556_128.mp3",
+        "info": "Pittsburgh, MP3 56k"
+      },
+      {
+        "slug": "kcur-89-3",
+        "name": "KCUR 89.3",
+        "url": "https://kcur.streamguys1.com/kcur-website-icy",
+        "info": "Kansas City, AAC 96k"
+      },
+      {
+        "slug": "st-louis-public-radio-90-7",
+        "name": "St. Louis Public Radio 90.7",
+        "url": "https://kwmu1-ice.streamguys1.com/kwmu1",
+        "info": "St. Louis, MP3 64k"
+      },
+      {
+        "slug": "michigan-radio",
+        "name": "Michigan Radio",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WUOMFM.mp3",
+        "info": "Ann Arbor, MP3 64k"
+      },
+      {
+        "slug": "wosu-89-7",
+        "name": "WOSU 89.7",
+        "url": "https://wosu.streamguys1.com/NPR_128",
+        "info": "Columbus, AAC 128k"
+      },
+      {
+        "slug": "wksu-89-7",
+        "name": "WKSU 89.7",
+        "url": "https://live.ideastream.org/wksu1-64.aac",
+        "info": "Northeast Ohio, AAC 64k"
+      },
+      {
+        "slug": "wfyi-90-1",
+        "name": "WFYI 90.1",
+        "url": "https://wfyi-iad.streamguys1.com/live",
+        "info": "Indianapolis, MP3 128k"
+      },
+      {
+        "slug": "wpln-90-3",
+        "name": "WPLN 90.3",
+        "url": "https://wpln.streamguys1.com/wplnfm.mp3",
+        "info": "Nashville, MP3 64k"
+      },
+      {
+        "slug": "wamc-90-3",
+        "name": "WAMC 90.3",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WAMCFM.mp3",
+        "info": "Albany, MP3 64k"
+      },
+      {
+        "slug": "wpr-news-and-music",
+        "name": "WPR News and Music",
+        "url": "https://wpr-ice.streamguys1.com/wpr-music-mp3-96",
+        "info": "Wisconsin, MP3 128k"
+      },
+      {
+        "slug": "connecticut-public-radio",
+        "name": "Connecticut Public Radio",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WNPRFM.mp3",
+        "info": "Connecticut, MP3 64k"
+      }
+    ]
+  },
+  {
+    "name": "CBC",
+    "slug": "cbc",
+    "stations": [
+      {
+        "slug": "radio-one-calgary",
+        "name": "Radio One Calgary",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041039/ES_R1MCG/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-edmonton",
+        "name": "Radio One Edmonton",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041041/ES_R1MED/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-kamloops",
+        "name": "Radio One Kamloops",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041048/ES_R1PKP/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-kelowna",
+        "name": "Radio One Kelowna",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041047/ES_R1PKE/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-prince-george",
+        "name": "Radio One Prince George",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041049/ES_R1PPR/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-vancouver",
+        "name": "Radio One Vancouver",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041050/ES_R1PVC/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-victoria",
+        "name": "Radio One Victoria",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041051/ES_R1PVI/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-winnipeg",
+        "name": "Radio One Winnipeg",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040991/ES_R1CWP/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-fredericton",
+        "name": "Radio One Fredericton",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040986/ES_R1AFR/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-moncton",
+        "name": "Radio One Moncton",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040989/ES_R1AMC/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-saint-john",
+        "name": "Radio One Saint John",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040988/ES_R1ASB/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-corner-brook",
+        "name": "Radio One Corner Brook",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041044/ES_R1NCR/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-goose-bay",
+        "name": "Radio One Goose Bay",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041045/ES_R1NGB/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-grand-falls-gander",
+        "name": "Radio One Grand Falls-Gander",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041046/ES_R1NGN/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-st-john-s",
+        "name": "Radio One St. John's",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2037435/ES_R1NSN/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-halifax",
+        "name": "Radio One Halifax",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040987/ES_R1AHF/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-inuvik",
+        "name": "Radio One Inuvik",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041042/ES_R1MNN/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-yellowknife",
+        "name": "Radio One Yellowknife",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041043/ES_R1MNS/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-iqaluit",
+        "name": "Radio One Iqaluit",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040993/ES_R1EIQ/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-barrie",
+        "name": "Radio One Barrie",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041032/ES_R1ERI/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-kingston",
+        "name": "Radio One Kingston",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040994/ES_R1EKI/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-kitchener-waterloo",
+        "name": "Radio One Kitchener-Waterloo",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040995/ES_R1EKW/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-london",
+        "name": "Radio One London",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041029/ES_R1ELD/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-ottawa",
+        "name": "Radio One Ottawa",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041037/ES_R1ETT/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-peterborough",
+        "name": "Radio One Peterborough",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041033/ES_R1ERI1/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-sudbury",
+        "name": "Radio One Sudbury",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041034/ES_R1ESU/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-thunder-bay",
+        "name": "Radio One Thunder Bay",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041035/ES_R1ETH/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-toronto",
+        "name": "Radio One Toronto",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041036/ES_R1ETR/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-windsor",
+        "name": "Radio One Windsor",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041038/ES_R1EWD/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-charlottetown",
+        "name": "Radio One Charlottetown",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040985/ES_R1ACH/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-montreal",
+        "name": "Radio One Montreal",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041030/ES_R1EMT/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-nord-du-quebec",
+        "name": "Radio One Nord-du-Québec",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2040992/ES_R1ECB/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-quebec-city",
+        "name": "Radio One Quebec City",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041031/ES_R1EQQ/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-regina",
+        "name": "Radio One Regina",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041053/ES_R1SRE/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-saskatoon",
+        "name": "Radio One Saskatoon",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041054/ES_R1SSA/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "radio-one-whitehorse",
+        "name": "Radio One Whitehorse",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041052/ES_R1PWH/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "cbc-music-atlantic",
+        "name": "CBC Music Atlantic",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041055/ES_R2AHF/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "cbc-music-central",
+        "name": "CBC Music Central",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041056/ES_R2CWP/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "cbc-music-eastern",
+        "name": "CBC Music Eastern",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041057/ES_R2ETR/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "cbc-music-mountain",
+        "name": "CBC Music Mountain",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041058/ES_R2MED/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "cbc-music-pacific",
+        "name": "CBC Music Pacific",
+        "url": "https://cbcradiolive.akamaized.net/hls/live/2041059/ES_R2PVC/master.m3u8",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "ici-premiere-montreal",
+        "name": "Ici Première Montréal",
+        "url": "https://rcavliveaudio.akamaized.net/hls/live/2006635/P-2QMTL0_MTL/master.m3u8",
+        "info": "French, AAC 96k"
+      }
+    ]
+  },
+  {
+    "name": "ABC Australia",
+    "slug": "abc",
+    "stations": [
+      {
+        "slug": "radio-national",
+        "name": "Radio National",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/rnnsw.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "abc-classic",
+        "name": "ABC Classic",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/classicfmnsw.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "triple-j",
+        "name": "triple j",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/triplejnsw.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "double-j",
+        "name": "Double J",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/doublejnsw.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "triple-j-unearthed",
+        "name": "triple j Unearthed",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/triplejunearthed.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "abc-newsradio",
+        "name": "ABC NewsRadio",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/newsradio.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "abc-jazz",
+        "name": "ABC Jazz",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/abcjazz.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "abc-country",
+        "name": "ABC Country",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/abccountry.m3u8",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "abc-radio-sydney",
+        "name": "ABC Radio Sydney",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsydney.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-melbourne",
+        "name": "ABC Radio Melbourne",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localmelbourne.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-brisbane",
+        "name": "ABC Radio Brisbane",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localbrisbane.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-adelaide",
+        "name": "ABC Radio Adelaide",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localadelaide.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-perth",
+        "name": "ABC Radio Perth",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localperth.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-hobart",
+        "name": "ABC Radio Hobart",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localhobart.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-darwin",
+        "name": "ABC Radio Darwin",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localdarwin.m3u8",
+        "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-radio-canberra",
+        "name": "ABC Radio Canberra",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localcanberra.m3u8",
+        "info": "Local, AAC 192k"
+      }
+    ]
+  },
+  {
+    "name": "Radio France",
+    "slug": "radio-france",
+    "stations": [
+      {
+        "slug": "france-inter",
+        "name": "France Inter",
+        "url": "https://icecast.radiofrance.fr/franceinter-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "la-musique-d-inter",
+        "name": "La Musique d'Inter",
+        "url": "https://icecast.radiofrance.fr/franceinterlamusiqueinter-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "franceinfo",
+        "name": "franceinfo",
+        "url": "https://icecast.radiofrance.fr/franceinfo-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-culture",
+        "name": "France Culture",
+        "url": "https://icecast.radiofrance.fr/franceculture-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique",
+        "name": "France Musique",
+        "url": "https://icecast.radiofrance.fr/francemusique-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-baroque",
+        "name": "France Musique Baroque",
+        "url": "https://icecast.radiofrance.fr/francemusiquebaroque-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-classique-plus",
+        "name": "France Musique Classique Plus",
+        "url": "https://icecast.radiofrance.fr/francemusiqueclassiqueplus-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-concerts-radio-france",
+        "name": "France Musique Concerts Radio France",
+        "url": "https://icecast.radiofrance.fr/francemusiqueconcertsradiofrance-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-classique-easy",
+        "name": "France Musique Classique Easy",
+        "url": "https://icecast.radiofrance.fr/francemusiqueeasyclassique-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-la-jazz",
+        "name": "France Musique La Jazz",
+        "url": "https://icecast.radiofrance.fr/francemusiquelajazz-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-labo",
+        "name": "France Musique Labo",
+        "url": "https://icecast.radiofrance.fr/francemusiquelabo-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-la-contemporaine",
+        "name": "France Musique La Contemporaine",
+        "url": "https://icecast.radiofrance.fr/francemusiquelacontemporaine-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-ocora-musiques-du-monde",
+        "name": "France Musique Ocora Musiques du monde",
+        "url": "https://icecast.radiofrance.fr/francemusiqueocoramonde-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-opera",
+        "name": "France Musique Opéra",
+        "url": "https://icecast.radiofrance.fr/francemusiqueopera-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "france-musique-piano-zen",
+        "name": "France Musique Piano Zen",
+        "url": "https://icecast.radiofrance.fr/francemusiquepianozen-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip",
+        "name": "FIP",
+        "url": "https://icecast.radiofrance.fr/fip-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-rock",
+        "name": "FIP Rock",
+        "url": "https://icecast.radiofrance.fr/fiprock-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-jazz",
+        "name": "FIP Jazz",
+        "url": "https://icecast.radiofrance.fr/fipjazz-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-groove",
+        "name": "FIP Groove",
+        "url": "https://icecast.radiofrance.fr/fipgroove-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-monde",
+        "name": "FIP Monde",
+        "url": "https://icecast.radiofrance.fr/fipworld-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-nouveautes",
+        "name": "FIP Nouveautés",
+        "url": "https://icecast.radiofrance.fr/fipnouveautes-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-reggae",
+        "name": "FIP Reggae",
+        "url": "https://icecast.radiofrance.fr/fipreggae-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-electro",
+        "name": "FIP Electro",
+        "url": "https://icecast.radiofrance.fr/fipelectro-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-metal",
+        "name": "FIP Metal",
+        "url": "https://icecast.radiofrance.fr/fipmetal-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-pop",
+        "name": "FIP Pop",
+        "url": "https://icecast.radiofrance.fr/fippop-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-hip-hop",
+        "name": "FIP Hip-Hop",
+        "url": "https://icecast.radiofrance.fr/fiphiphop-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-sacre-francais",
+        "name": "FIP Sacré français",
+        "url": "https://icecast.radiofrance.fr/fipsacrefrancais-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "fip-cultes",
+        "name": "FIP Cultes",
+        "url": "https://icecast.radiofrance.fr/fipcultes-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "mouv",
+        "name": "Mouv'",
+        "url": "https://icecast.radiofrance.fr/mouv-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "ici-100-percent-annees-80",
+        "name": "ici 100% Années 80",
+        "url": "https://icecast.radiofrance.fr/fb100pour100annees80-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "ici-chanson-francaise",
+        "name": "ici Chanson française",
+        "url": "https://icecast.radiofrance.fr/fbchansonfrancaise-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "ici-paris",
+        "name": "ici Paris",
+        "url": "https://icecast.radiofrance.fr/fb1071-hifi.aac",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "ici-rcfm",
+        "name": "ici RCFM",
+        "url": "https://icecast.radiofrance.fr/fbfrequenzamora-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-alsace",
+        "name": "ici Alsace",
+        "url": "https://icecast.radiofrance.fr/fbalsace-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-armorique",
+        "name": "ici Armorique",
+        "url": "https://icecast.radiofrance.fr/fbarmorique-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-auxerre",
+        "name": "ici Auxerre",
+        "url": "https://icecast.radiofrance.fr/fbauxerre-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-bearn-bigorre",
+        "name": "ici Béarn Bigorre",
+        "url": "https://icecast.radiofrance.fr/fbbearn-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-belfort-montbeliard",
+        "name": "ici Belfort-Montbéliard",
+        "url": "https://icecast.radiofrance.fr/fbbelfort-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-berry",
+        "name": "ici Berry",
+        "url": "https://icecast.radiofrance.fr/fbberry-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-besancon",
+        "name": "ici Besançon",
+        "url": "https://icecast.radiofrance.fr/fbbesancon-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-bourgogne",
+        "name": "ici Bourgogne",
+        "url": "https://icecast.radiofrance.fr/fbbourgogne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-breizh-izel",
+        "name": "ici Breizh Izel",
+        "url": "https://icecast.radiofrance.fr/fbbreizizel-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-champagne-ardenne",
+        "name": "ici Champagne-Ardenne",
+        "url": "https://icecast.radiofrance.fr/fbchampagne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-cotentin",
+        "name": "ici Cotentin",
+        "url": "https://icecast.radiofrance.fr/fbcotentin-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-creuse",
+        "name": "ici Creuse",
+        "url": "https://icecast.radiofrance.fr/fbcreuse-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-drome-ardeche",
+        "name": "ici Drôme Ardèche",
+        "url": "https://icecast.radiofrance.fr/fbdromeardeche-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-elsass",
+        "name": "ici Elsass",
+        "url": "https://icecast.radiofrance.fr/fbelsass-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-gard-lozere",
+        "name": "ici Gard Lozère",
+        "url": "https://icecast.radiofrance.fr/fbgardlozere-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-gascogne",
+        "name": "ici Gascogne",
+        "url": "https://icecast.radiofrance.fr/fbgascogne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-gironde",
+        "name": "ici Gironde",
+        "url": "https://icecast.radiofrance.fr/fbgironde-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-herault",
+        "name": "ici Hérault",
+        "url": "https://icecast.radiofrance.fr/fbherault-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-isere",
+        "name": "ici Isère",
+        "url": "https://icecast.radiofrance.fr/fbisere-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-la-rochelle",
+        "name": "ici La Rochelle",
+        "url": "https://icecast.radiofrance.fr/fblarochelle-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-limousin",
+        "name": "ici Limousin",
+        "url": "https://icecast.radiofrance.fr/fblimousin-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-loire-ocean",
+        "name": "ici Loire Océan",
+        "url": "https://icecast.radiofrance.fr/fbloireocean-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-lorraine-nord",
+        "name": "ici Lorraine Nord",
+        "url": "https://icecast.radiofrance.fr/fblorrainenord-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-maine",
+        "name": "ici Maine",
+        "url": "https://icecast.radiofrance.fr/fbmaine-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-mayenne",
+        "name": "ici Mayenne",
+        "url": "https://icecast.radiofrance.fr/fbmayenne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-nord",
+        "name": "ici Nord",
+        "url": "https://icecast.radiofrance.fr/fbnord-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-normandie-calvados-orne",
+        "name": "ici Normandie (Calvados - Orne)",
+        "url": "https://icecast.radiofrance.fr/fbbassenormandie-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-normandie-seine-maritime-eure",
+        "name": "ici Normandie (Seine-Maritime - Eure)",
+        "url": "https://icecast.radiofrance.fr/fbhautenormandie-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-occitanie",
+        "name": "ici Occitanie",
+        "url": "https://icecast.radiofrance.fr/fbtoulouse-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-orleans",
+        "name": "ici Orléans",
+        "url": "https://icecast.radiofrance.fr/fborleans-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-pays-d-auvergne",
+        "name": "ici Pays d'Auvergne",
+        "url": "https://icecast.radiofrance.fr/fbpaysdauvergne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-pays-basque",
+        "name": "ici Pays Basque",
+        "url": "https://icecast.radiofrance.fr/fbpaysbasque-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-pays-de-savoie",
+        "name": "ici Pays de Savoie",
+        "url": "https://icecast.radiofrance.fr/fbpaysdesavoie-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-perigord",
+        "name": "ici Périgord",
+        "url": "https://icecast.radiofrance.fr/fbperigord-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-picardie",
+        "name": "ici Picardie",
+        "url": "https://icecast.radiofrance.fr/fbpicardie-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-poitou",
+        "name": "ici Poitou",
+        "url": "https://icecast.radiofrance.fr/fbpoitou-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-provence",
+        "name": "ici Provence",
+        "url": "https://icecast.radiofrance.fr/fbprovence-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-roussillon",
+        "name": "ici Roussillon",
+        "url": "https://icecast.radiofrance.fr/fbroussillon-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-saint-etienne-loire",
+        "name": "ici Saint-Étienne Loire",
+        "url": "https://icecast.radiofrance.fr/fbstetienne-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-sud-lorraine",
+        "name": "ici Sud Lorraine",
+        "url": "https://icecast.radiofrance.fr/fbsudlorraine-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-touraine",
+        "name": "ici Touraine",
+        "url": "https://icecast.radiofrance.fr/fbtouraine-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-vaucluse",
+        "name": "ici Vaucluse",
+        "url": "https://icecast.radiofrance.fr/fbvaucluse-midfi.mp3",
+        "info": "Local, MP3 128k"
+      },
+      {
+        "slug": "ici-azur",
+        "name": "ici Azur",
+        "url": "https://icecast.radiofrance.fr/fbazur-midfi.mp3",
+        "info": "Local, MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Deutschlandfunk",
+    "slug": "dlf",
+    "stations": [
+      {
+        "slug": "deutschlandfunk",
+        "name": "Deutschlandfunk",
+        "url": "https://st01.sslstream.dlf.de/dlf/01/high/opus/stream.opus?aggregator=web",
+        "info": "Opus"
+      },
+      {
+        "slug": "deutschlandfunk-kultur",
+        "name": "Deutschlandfunk Kultur",
+        "url": "https://st02.sslstream.dlf.de/dlf/02/high/opus/stream.opus?aggregator=web",
+        "info": "Opus"
+      },
+      {
+        "slug": "deutschlandfunk-nova",
+        "name": "Deutschlandfunk Nova",
+        "url": "https://st03.sslstream.dlf.de/dlf/03/high/opus/stream.opus?aggregator=web",
+        "info": "Opus"
+      }
+    ]
+  },
+  {
+    "name": "SomaFM",
+    "slug": "somafm",
+    "stations": [
+      {
+        "slug": "beatblender",
+        "name": "Beat Blender",
+        "url": "https://ice1.somafm.com/beatblender-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:beatblender"
+      },
+      {
+        "slug": "brfm",
+        "name": "Black Rock FM",
+        "url": "https://ice1.somafm.com/brfm-128-mp3",
+        "info": "Eclectic, MP3 128k",
+        "history": "somafm:brfm"
+      },
+      {
+        "slug": "bootliquor",
+        "name": "Boot Liquor",
+        "url": "https://ice1.somafm.com/bootliquor-128-mp3",
+        "info": "Americana, MP3 128k",
+        "history": "somafm:bootliquor"
+      },
+      {
+        "slug": "bossa",
+        "name": "Bossa Beyond",
+        "url": "https://ice1.somafm.com/bossa-128-mp3",
+        "info": "Bossanova, World, MP3 128k",
+        "history": "somafm:bossa"
+      },
+      {
+        "slug": "chillits",
+        "name": "Chillits Radio",
+        "url": "https://ice1.somafm.com/chillits-128-mp3",
+        "info": "Chill, Live, MP3 128k",
+        "history": "somafm:chillits"
+      },
+      {
+        "slug": "christmas",
+        "name": "Christmas Lounge",
+        "url": "https://ice1.somafm.com/christmas-128-mp3",
+        "info": "Holiday, MP3 128k",
+        "history": "somafm:christmas"
+      },
+      {
+        "slug": "xmasrocks",
+        "name": "Christmas Rocks!",
+        "url": "https://ice1.somafm.com/xmasrocks-128-mp3",
+        "info": "Holiday, MP3 128k",
+        "history": "somafm:xmasrocks"
+      },
+      {
+        "slug": "cliqhop",
+        "name": "cliqhop idm",
+        "url": "https://ice1.somafm.com/cliqhop-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:cliqhop"
+      },
+      {
+        "slug": "covers",
+        "name": "Covers",
+        "url": "https://ice1.somafm.com/covers-128-mp3",
+        "info": "Eclectic, MP3 128k",
+        "history": "somafm:covers"
+      },
+      {
+        "slug": "deepspaceone",
+        "name": "Deep Space One",
+        "url": "https://ice1.somafm.com/deepspaceone-128-mp3",
+        "info": "Ambient, MP3 128k",
+        "history": "somafm:deepspaceone"
+      },
+      {
+        "slug": "defcon",
+        "name": "DEF CON Radio",
+        "url": "https://ice1.somafm.com/defcon-128-mp3",
+        "info": "Electronic, Specials, MP3 128k",
+        "history": "somafm:defcon"
+      },
+      {
+        "slug": "deptstore",
+        "name": "Department Store Christmas",
+        "url": "https://ice1.somafm.com/deptstore-128-mp3",
+        "info": "Holiday, MP3 128k",
+        "history": "somafm:deptstore"
+      },
+      {
+        "slug": "digitalis",
+        "name": "Digitalis",
+        "url": "https://ice1.somafm.com/digitalis-128-mp3",
+        "info": "Electronic, Alternative, MP3 128k",
+        "history": "somafm:digitalis"
+      },
+      {
+        "slug": "doomed",
+        "name": "Doomed",
+        "url": "https://ice1.somafm.com/doomed-128-mp3",
+        "info": "Ambient, Industrial, MP3 128k",
+        "history": "somafm:doomed"
+      },
+      {
+        "slug": "dronezone",
+        "name": "Drone Zone",
+        "url": "https://ice1.somafm.com/dronezone-128-mp3",
+        "info": "Ambient, MP3 128k",
+        "history": "somafm:dronezone"
+      },
+      {
+        "slug": "dz2",
+        "name": "Drone Zone 2",
+        "url": "https://ice1.somafm.com/dz2-128-mp3",
+        "info": "Ambient, MP3 128k",
+        "history": "somafm:dz2"
+      },
+      {
+        "slug": "dubstep",
+        "name": "Dub Step Beyond",
+        "url": "https://ice1.somafm.com/dubstep-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:dubstep"
+      },
+      {
+        "slug": "fluid",
+        "name": "Fluid",
+        "url": "https://ice1.somafm.com/fluid-128-mp3",
+        "info": "Electronic, Hiphop, MP3 128k",
+        "history": "somafm:fluid"
+      },
+      {
+        "slug": "folkfwd",
+        "name": "Folk Forward",
+        "url": "https://ice1.somafm.com/folkfwd-128-mp3",
+        "info": "Folk, Alternative, MP3 128k",
+        "history": "somafm:folkfwd"
+      },
+      {
+        "slug": "groovesalad",
+        "name": "Groove Salad",
+        "url": "https://ice1.somafm.com/groovesalad-128-mp3",
+        "info": "Ambient, Electronic, MP3 128k",
+        "history": "somafm:groovesalad"
+      },
+      {
+        "slug": "groovesalad2",
+        "name": "Groove Salad 2",
+        "url": "https://ice1.somafm.com/groovesalad2-128-mp3",
+        "info": "Ambient, Electronic, MP3 128k",
+        "history": "somafm:groovesalad2"
+      },
+      {
+        "slug": "gsclassic",
+        "name": "Groove Salad Classic",
+        "url": "https://ice1.somafm.com/gsclassic-128-mp3",
+        "info": "Ambient, Electronic, MP3 128k",
+        "history": "somafm:gsclassic"
+      },
+      {
+        "slug": "reggae",
+        "name": "Heavyweight Reggae",
+        "url": "https://ice1.somafm.com/reggae-128-mp3",
+        "info": "Reggae, MP3 128k",
+        "history": "somafm:reggae"
+      },
+      {
+        "slug": "illstreet",
+        "name": "Illinois Street Lounge",
+        "url": "https://ice1.somafm.com/illstreet-128-mp3",
+        "info": "Lounge, MP3 128k",
+        "history": "somafm:illstreet"
+      },
+      {
+        "slug": "indiepop",
+        "name": "Indie Pop Rocks!",
+        "url": "https://ice1.somafm.com/indiepop-128-mp3",
+        "info": "Alternative, Rock, MP3 128k",
+        "history": "somafm:indiepop"
+      },
+      {
+        "slug": "jollysoul",
+        "name": "Jolly Ol' Soul",
+        "url": "https://ice1.somafm.com/jollysoul-128-mp3",
+        "info": "Holiday, MP3 128k",
+        "history": "somafm:jollysoul"
+      },
+      {
+        "slug": "seventies",
+        "name": "Left Coast 70s",
+        "url": "https://ice1.somafm.com/seventies-128-mp3",
+        "info": "70s, Rock, MP3 128k",
+        "history": "somafm:seventies"
+      },
+      {
+        "slug": "lush",
+        "name": "Lush",
+        "url": "https://ice1.somafm.com/lush-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:lush"
+      },
+      {
+        "slug": "metal",
+        "name": "Metal Detector",
+        "url": "https://ice1.somafm.com/metal-128-mp3",
+        "info": "Metal, MP3 128k",
+        "history": "somafm:metal"
+      },
+      {
+        "slug": "missioncontrol",
+        "name": "Mission Control",
+        "url": "https://ice1.somafm.com/missioncontrol-128-mp3",
+        "info": "Ambient, Electronic, MP3 128k",
+        "history": "somafm:missioncontrol"
+      },
+      {
+        "slug": "n5md",
+        "name": "n5MD Radio",
+        "url": "https://ice1.somafm.com/n5md-128-mp3",
+        "info": "Specials, MP3 128k",
+        "history": "somafm:n5md"
+      },
+      {
+        "slug": "poptron",
+        "name": "PopTron",
+        "url": "https://ice1.somafm.com/poptron-128-mp3",
+        "info": "Alternative, MP3 128k",
+        "history": "somafm:poptron"
+      },
+      {
+        "slug": "secretagent",
+        "name": "Secret Agent",
+        "url": "https://ice1.somafm.com/secretagent-128-mp3",
+        "info": "Lounge, MP3 128k",
+        "history": "somafm:secretagent"
+      },
+      {
+        "slug": "7soul",
+        "name": "Seven Inch Soul",
+        "url": "https://ice1.somafm.com/7soul-128-mp3",
+        "info": "Oldies, MP3 128k",
+        "history": "somafm:7soul"
+      },
+      {
+        "slug": "sf1033",
+        "name": "SF 10-33",
+        "url": "https://ice1.somafm.com/sf1033-128-mp3",
+        "info": "Ambient, News, MP3 128k",
+        "history": "somafm:sf1033"
+      },
+      {
+        "slug": "sfinsf",
+        "name": "SF in SF",
+        "url": "https://ice1.somafm.com/sfinsf-128-mp3",
+        "info": "Spoken, MP3 128k",
+        "history": "somafm:sfinsf"
+      },
+      {
+        "slug": "scanner",
+        "name": "SF Police Scanner",
+        "url": "https://ice1.somafm.com/scanner-128-mp3",
+        "info": "Live, News, MP3 128k",
+        "history": "somafm:scanner"
+      },
+      {
+        "slug": "live",
+        "name": "SomaFM Live",
+        "url": "https://ice1.somafm.com/live-128-mp3",
+        "info": "Live, Specials, MP3 128k",
+        "history": "somafm:live"
+      },
+      {
+        "slug": "specials",
+        "name": "SomaFM Specials",
+        "url": "https://ice1.somafm.com/specials-128-mp3",
+        "info": "Specials, MP3 128k",
+        "history": "somafm:specials"
+      },
+      {
+        "slug": "sonicuniverse",
+        "name": "Sonic Universe",
+        "url": "https://ice1.somafm.com/sonicuniverse-128-mp3",
+        "info": "Jazz, MP3 128k",
+        "history": "somafm:sonicuniverse"
+      },
+      {
+        "slug": "spacestation",
+        "name": "Space Station Soma",
+        "url": "https://ice1.somafm.com/spacestation-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:spacestation"
+      },
+      {
+        "slug": "suburbsofgoa",
+        "name": "Suburbs of Goa",
+        "url": "https://ice1.somafm.com/suburbsofgoa-128-mp3",
+        "info": "World, MP3 128k",
+        "history": "somafm:suburbsofgoa"
+      },
+      {
+        "slug": "synphaera",
+        "name": "Synphaera Radio",
+        "url": "https://ice1.somafm.com/synphaera-128-mp3",
+        "info": "Ambient, Electronic, MP3 128k",
+        "history": "somafm:synphaera"
+      },
+      {
+        "slug": "darkzone",
+        "name": "The Dark Zone",
+        "url": "https://ice1.somafm.com/darkzone-128-mp3",
+        "info": "Ambient, MP3 128k",
+        "history": "somafm:darkzone"
+      },
+      {
+        "slug": "insound",
+        "name": "The In-Sound",
+        "url": "https://ice1.somafm.com/insound-128-mp3",
+        "info": "Oldies, MP3 128k",
+        "history": "somafm:insound"
+      },
+      {
+        "slug": "thetrip",
+        "name": "The Trip",
+        "url": "https://ice1.somafm.com/thetrip-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:thetrip"
+      },
+      {
+        "slug": "thistle",
+        "name": "ThistleRadio",
+        "url": "https://ice1.somafm.com/thistle-128-mp3",
+        "info": "Celtic, World, MP3 128k",
+        "history": "somafm:thistle"
+      },
+      {
+        "slug": "tikitime",
+        "name": "Tiki Time",
+        "url": "https://ice1.somafm.com/tikitime-128-mp3",
+        "info": "Tiki, World, MP3 128k",
+        "history": "somafm:tikitime"
+      },
+      {
+        "slug": "u80s",
+        "name": "Underground 80s",
+        "url": "https://ice1.somafm.com/u80s-128-mp3",
+        "info": "Alternative, Electronic, MP3 128k",
+        "history": "somafm:u80s"
+      },
+      {
+        "slug": "vaporwaves",
+        "name": "Vaporwaves",
+        "url": "https://ice1.somafm.com/vaporwaves-128-mp3",
+        "info": "Electronic, MP3 128k",
+        "history": "somafm:vaporwaves"
+      },
+      {
+        "slug": "xmasinfrisko",
+        "name": "Xmas in Frisko",
+        "url": "https://ice1.somafm.com/xmasinfrisko-128-mp3",
+        "info": "Holiday, MP3 128k",
+        "history": "somafm:xmasinfrisko"
+      }
+    ]
+  },
+  {
+    "name": "Stream Madness",
+    "slug": "stream-madness",
+    "stations": [
+      {
+        "slug": "the-plague",
+        "name": "The Plague",
+        "url": "http://streammadness.com:8000/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-plague-altcast",
+        "name": "The Plague Altcast",
+        "url": "http://streammadness.com:8002/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-demo",
+        "name": "The Demo",
+        "url": "http://streammadness.com:8010/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-block-party",
+        "name": "The Block Party",
+        "url": "http://streammadness.com:8020/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-ice-cold-stream",
+        "name": "The Ice Cold Stream",
+        "url": "http://streammadness.com:8030/stream",
+        "info": "MP3 128k"
+      }
+    ]
+  }
+]
