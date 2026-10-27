@@ -10,6 +10,7 @@ pub enum Node {
 }
 
 pub mod radio_browser;
+pub mod tunein;
 
 /// What the Search window sends to every directory. Empty `name` and unset filters are ignored.
 #[derive(Clone, Debug, Default, PartialEq)]

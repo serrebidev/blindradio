@@ -90,3 +90,31 @@ fn he_aac_station_decodes() {
 	let decoder = Decoder::new(Box::new(std::io::Cursor::new(bytes)), Some("aac")).unwrap();
 	assert_eq!(decoder.sample_rate(), 44_100);
 }
+
+#[test]
+#[ignore = "network"]
+fn tunein_station_plays() {
+	use blindradio_core::sources::Node;
+	use blindradio_core::sources::tunein::TuneIn;
+	let engine = engine();
+	let t = TuneIn::new("https://opml.radiotime.com");
+	// Drill from the location root, first folder at each level, until stations show up.
+	let station = engine.rt.block_on(async {
+		let mut id = "tunein".to_owned();
+		for _ in 0..6 {
+			let nodes = t.children(&engine.ctx.client, &id).await.unwrap();
+			if let Some(Node::Station(s)) = nodes.iter().find(|n| matches!(n, Node::Station(_))) {
+				return s.clone();
+			}
+			id = nodes
+				.into_iter()
+				.find_map(|n| match n {
+					Node::Folder { id, .. } => Some(id),
+					_ => None,
+				})
+				.expect("a folder or station");
+		}
+		panic!("no station found");
+	});
+	first_audio(&engine, &station).unwrap();
+}
