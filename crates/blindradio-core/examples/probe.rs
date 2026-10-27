@@ -1,6 +1,7 @@
-//! Playback health per station without a device: `cargo run -p blindradio-core --example probe --release`.
-//! Drains each ring in 10 ms ticks like an audio callback, from the cold start, and reports
-//! underruns (ticks that came up short after first audio) and frames lost to ring overflow.
+//! Playback health per station without a device: `cargo run -p blindradio-core --example probe --release [warm_secs]`.
+//! Drains each ring in 10 ms ticks like an audio callback and reports underruns (ticks that
+//! came up short after first audio). With `warm_secs`, each station first sits warm (open,
+//! not played) that long, then is swapped to like the tuner does (trim to 250 ms).
 
 use std::time::{Duration, Instant};
 
@@ -11,8 +12,13 @@ use blindradio_core::stream::start;
 const RATE: u32 = 48_000;
 const TICK: Duration = Duration::from_millis(10);
 const RUN: Duration = Duration::from_secs(20);
+const SWAP_MS: u32 = 250;
 
 fn main() -> blindradio_core::Result<()> {
+	let warm = std::env::args()
+		.nth(1)
+		.and_then(|s| s.parse().ok())
+		.map(Duration::from_secs_f32);
 	let json = std::fs::read(concat!(
 		env!("CARGO_MANIFEST_DIR"),
 		"/examples/stations.json"
@@ -28,6 +34,10 @@ fn main() -> blindradio_core::Result<()> {
 			let ctx = engine.ctx.clone();
 			std::thread::spawn(move || {
 				let stream = start(&station, &ctx, Box::new(|_| {}));
+				if let Some(warm) = warm {
+					std::thread::sleep(warm);
+					stream.ring.trim_to_ms(SWAP_MS);
+				}
 				let frames = (RATE as usize * TICK.as_millis() as usize) / 1000;
 				let mut buf = vec![0.0; frames * 2];
 				let (mut started, mut short_ticks, mut missing, mut min_ms) =
@@ -50,11 +60,10 @@ fn main() -> blindradio_core::Result<()> {
 					}
 				}
 				format!(
-					"{}: first {:?}, short ticks {short_ticks}, missing {} ms, overflow {} ms, min level {} ms",
+					"{}: first {:?}, short ticks {short_ticks}, missing {} ms, min level {} ms",
 					station.name,
 					started.map(|d| d.as_millis()),
 					missing * 1000 / RATE as usize,
-					stream.ring.dropped_frames() * 1000 / u64::from(RATE),
 					if min_ms == u32::MAX { 0 } else { min_ms },
 				)
 			})

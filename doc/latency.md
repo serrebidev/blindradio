@@ -28,6 +28,8 @@ Measured 2026-10-27, Windows 11, home broadband (west coast North America), rele
 Each station drained in 10 ms ticks for 20 s, all 9 at once.
 - Before (ring dropped its oldest audio when full, even while playing): SomaFM lost about 13.5 s of audio in 20 s to overflow (its connect burst is far faster than real time), so playback kept jumping forward. BBC HLS lost 28 s to overflow (every 6.4 s segment arrives at once) and then starved for 11 s. Fox News had 7 short underruns.
 - After (a ring being played makes the decoder wait for room; only warm neighbours drop their oldest audio): 0 ms overflow and 0 underruns on all 9 stations. The playing ring now sits near its full 3 s on bursty servers. First audio times are unchanged.
+- Warm then swap (`probe 5`: each station sits warm 5 s, is trimmed to 250 ms, then played): with warm rings dropping their oldest audio, DLF Opus came up 750 ms short and BBC HLS 6.8 s short, because both deliver in lumps (large Ogg pages, 6.4 s segments) and the next lump had not arrived. Now no ring drops audio: a full warm ring pauses its connection, so the next audio is already queued. 0 ms short on all 9 stations, after both 1.5 s and 5 s warm. A dropped stream closes its ring so its decoder can finish.
+- DLF cold start stays about 1.1 s: one redirect to a per-session server, so two TLS handshakes to Europe before the first byte. Stepping faster than that onto a neighbour that is still connecting gives silence until it connects.
 - Mixer: each fading station keeps its own 25 ms fade, so fast steps never cut a fade short; audio starting from silence fades in; a ring that runs dry eases out over 5 ms and resumes only once 100 ms is buffered.
 
 ## Notes

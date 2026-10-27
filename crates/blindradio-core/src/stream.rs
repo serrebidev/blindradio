@@ -59,6 +59,8 @@ pub struct StationStream {
 impl Drop for StationStream {
 	fn drop(&mut self) {
 		self.shared.alive.store(false, Ordering::Relaxed);
+		// A decode thread waiting on a full ring would otherwise wait forever.
+		self.ring.close();
 		// Dropping the task's future drops the pipe sender, so the decode thread reads EOF and exits.
 		self.task.abort();
 	}
