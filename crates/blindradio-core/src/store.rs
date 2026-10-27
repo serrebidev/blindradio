@@ -49,6 +49,11 @@ pub fn data_dir() -> PathBuf {
 	dir
 }
 
+/// No library saved yet: the starter stations are due.
+pub fn first_run(dir: &Path) -> bool {
+	!dir.join(LIBRARY_FILE).exists()
+}
+
 fn sibling(path: &Path, ext: &str) -> PathBuf {
 	let mut name = path.file_name().unwrap_or_default().to_owned();
 	name.push(ext);

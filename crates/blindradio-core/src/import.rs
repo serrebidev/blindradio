@@ -3,12 +3,17 @@ use std::path::Path;
 use crate::library::{CUSTOM, Library};
 use crate::playlist::{PlaylistKind, parse_m3u_counted, parse_pls_counted, sniff};
 use crate::station::{Source, Station};
-use crate::{CoreError, Result};
+use crate::{CoreError, Result, net};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub const STARTER_PLAYLIST_URL: &str = "https://serrebiradio.com/radios.m3u";
+pub const STARTER_COLLECTION: &str = "SerrebiRadio";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportTarget {
 	Custom,
-	CollectionNamedAfterFile,
+	/// The collection with this name (any case), created if missing. Import as collection
+	/// passes the file stem: `My Stations.m3u` makes `My Stations`.
+	Collection(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,54 +60,71 @@ pub fn import_playlist(
 			Some(k) => k,
 		},
 	};
-	let (entries, skipped) = if kind == PlaylistKind::Pls {
-		parse_pls_counted(&body)
-	} else {
-		parse_m3u_counted(&body)
-	};
+	Ok(import_playlist_text(lib, &body, Some(kind), target))
+}
 
-	let target_id = match target {
-		ImportTarget::Custom => CUSTOM.to_string(),
-		ImportTarget::CollectionNamedAfterFile => {
-			let stem = path
-				.file_stem()
-				.and_then(|s| s.to_str())
-				.filter(|s| !s.is_empty())
-				.unwrap_or("Imported");
-			lib.create_collection(stem)
-		}
+/// `kind_hint` None sniffs the body; anything but PLS is read as M3U. A URL already in the
+/// target counts as had. New stations are `custom:` stations; an M3U `group-title` is their info.
+pub fn import_playlist_text(
+	lib: &mut Library,
+	body: &str,
+	kind_hint: Option<PlaylistKind>,
+	target: ImportTarget,
+) -> ImportReport {
+	let (entries, skipped) = match kind_hint.or_else(|| sniff(body)) {
+		Some(PlaylistKind::Pls) => parse_pls_counted(body),
+		_ => parse_m3u_counted(body),
 	};
-
 	let mut report = ImportReport {
 		added: 0,
 		had: 0,
 		skipped,
 	};
-	for e in entries {
-		let name = e.title.as_deref().unwrap_or(&e.url);
-		let has = |lib: &Library| {
-			lib.collections
-				.iter()
-				.find(|c| c.id == target_id)
-				.is_some_and(|c| c.stations.iter().any(|s| s.url == e.url))
-		};
-		if has(lib) {
-			report.had += 1;
-		} else if target == ImportTarget::Custom {
-			lib.add_custom(name, &e.url);
-			report.added += 1;
-		} else if let Some(c) = lib.collections.iter_mut().find(|c| c.id == target_id) {
-			c.stations.push(Station {
-				id: format!("custom:{}", uuid::Uuid::new_v4()),
-				name: name.into(),
-				url: e.url.clone(),
-				source: Source::Custom,
-				info: None,
-			});
-			report.added += 1;
+	let target_id = match target {
+		ImportTarget::Custom => {
+			lib.ensure_custom();
+			CUSTOM.to_string()
 		}
+		ImportTarget::Collection(name) => lib.create_collection(&name),
+	};
+	let Some(c) = lib.collections.iter_mut().find(|c| c.id == target_id) else {
+		return report;
+	};
+	for e in entries {
+		if c.stations.iter().any(|s| s.url == e.url) {
+			report.had += 1;
+			continue;
+		}
+		c.stations.push(Station {
+			id: format!("custom:{}", uuid::Uuid::new_v4()),
+			name: e.title.unwrap_or_else(|| e.url.clone()),
+			url: e.url,
+			source: Source::Custom,
+			info: e.group,
+		});
+		report.added += 1;
 	}
-	Ok(report)
+	report
+}
+
+/// The SerrebiRadio starter list, as text.
+pub async fn fetch_starter(client: &reqwest::Client) -> Result<String> {
+	fetch_playlist(client, STARTER_PLAYLIST_URL).await
+}
+
+/// A playlist body, decoded like a file; 8 s in all.
+pub async fn fetch_playlist(client: &reqwest::Client, url: &str) -> Result<String> {
+	Ok(decode(net::get_bytes(client, url).await?.to_vec()))
+}
+
+/// Into the SerrebiRadio collection; running it again adds only new URLs.
+pub fn import_starter(lib: &mut Library, body: &str) -> ImportReport {
+	import_playlist_text(
+		lib,
+		body,
+		Some(PlaylistKind::M3u),
+		ImportTarget::Collection(STARTER_COLLECTION.into()),
+	)
 }
 
 pub fn export_m3u(stations: &[Station], path: &Path) -> Result<()> {

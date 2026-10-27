@@ -2,6 +2,8 @@
 pub struct PlaylistEntry {
 	pub url: String,
 	pub title: Option<String>,
+	/// M3U `group-title`; PLS has none.
+	pub group: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,8 +25,9 @@ fn is_url(s: &str) -> bool {
 	prefix("http://") || prefix("https://")
 }
 
-/// The title after the first comma outside double quotes: attributes like `tvg-name="a, b"` may hold commas.
-fn extinf_title(rest: &str) -> Option<String> {
+/// Title and `group-title` of an EXTINF line. The title follows the first comma outside double
+/// quotes: attributes like `tvg-name="a, b"` may hold commas.
+fn extinf(rest: &str) -> (Option<String>, Option<String>) {
 	let mut quoted = false;
 	let comma = rest.char_indices().find_map(|(i, c)| match c {
 		'"' => {
@@ -33,8 +36,15 @@ fn extinf_title(rest: &str) -> Option<String> {
 		}
 		',' if !quoted => Some(i),
 		_ => None,
-	})?;
-	Some(rest[comma + 1..].trim().to_string()).filter(|t| !t.is_empty())
+	});
+	let attrs = &rest[..comma.unwrap_or(rest.len())];
+	let text = |s: &str| Some(s.trim().to_string()).filter(|t| !t.is_empty());
+	let title = comma.and_then(|c| text(&rest[c + 1..]));
+	let group = attrs
+		.split_once("group-title=\"")
+		.and_then(|(_, v)| v.split_once('"'))
+		.and_then(|(g, _)| text(g));
+	(title, group)
 }
 
 pub fn sniff(body: &str) -> Option<PlaylistKind> {
@@ -78,6 +88,7 @@ pub fn parse_pls(body: &str) -> Vec<PlaylistEntry> {
 		.map(|(n, url)| PlaylistEntry {
 			url,
 			title: titles.remove(&n).filter(|t| !t.is_empty()),
+			group: None,
 		})
 		.collect()
 }
@@ -99,19 +110,20 @@ pub fn parse_pls_counted(body: &str) -> (Vec<PlaylistEntry>, usize) {
 pub fn parse_m3u_counted(body: &str) -> (Vec<PlaylistEntry>, usize) {
 	let mut out = Vec::new();
 	let mut skipped = 0;
-	let mut title = None;
+	let mut pending = None;
 	for l in lines(body) {
 		if let Some(rest) = l.strip_prefix("#EXTINF:") {
-			title = extinf_title(rest);
+			pending = Some(extinf(rest));
 		} else if l.starts_with('#') {
 			// other directives do not consume the pending title
 		} else {
 			// Any non-directive line consumes the pending title, even a skipped local file.
-			let title = title.take();
+			let (title, group) = pending.take().unwrap_or_default();
 			if is_url(l) {
 				out.push(PlaylistEntry {
 					url: l.to_string(),
 					title,
+					group,
 				});
 			} else {
 				skipped += 1;
@@ -182,6 +194,16 @@ mod tests {
 		assert_eq!(e.len(), 1);
 		assert_eq!(e[0].url, "HTTP://A.example/s");
 		assert_eq!(e[0].title.as_deref(), Some("Jazz FM"));
+	}
+
+	#[test]
+	fn m3u_group_title_is_kept() {
+		let body = "#EXTINF:-1 group-title=\" news, talk \" tvg-name=\"x\",CBC\nhttp://a\n#EXTINF:-1,Plain\nhttp://b\n";
+		let e = parse_m3u(body);
+		assert_eq!(e[0].title.as_deref(), Some("CBC"));
+		assert_eq!(e[0].group.as_deref(), Some("news, talk"));
+		assert_eq!(e[1].group, None);
+		assert_eq!(parse_pls("[playlist]\nFile1=http://c\n")[0].group, None);
 	}
 
 	#[test]

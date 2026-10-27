@@ -1,7 +1,19 @@
+mod common;
+
 use std::path::{Path, PathBuf};
 
-use blindradio_core::import::{ImportReport, ImportTarget, export_m3u, import_playlist};
+use blindradio_core::import::{
+	ImportReport, ImportTarget, STARTER_COLLECTION, STARTER_PLAYLIST_URL, export_m3u,
+	fetch_playlist, import_playlist, import_starter,
+};
 use blindradio_core::library::{CUSTOM, Library};
+use blindradio_core::net::client;
+use blindradio_core::store;
+use common::{Route, serve};
+
+fn collection(name: &str) -> ImportTarget {
+	ImportTarget::Collection(name.into())
+}
 
 fn fixture(name: &str) -> PathBuf {
 	Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -32,12 +44,7 @@ fn import_custom_reports_counts() {
 #[test]
 fn import_as_collection_named_after_file() {
 	let mut lib = Library::default();
-	let r = import_playlist(
-		&mut lib,
-		&fixture("mixed.m3u"),
-		ImportTarget::CollectionNamedAfterFile,
-	)
-	.unwrap();
+	let r = import_playlist(&mut lib, &fixture("mixed.m3u"), collection("mixed")).unwrap();
 	assert_eq!(r.message(), "Added 2. Had 0. Skipped 1.");
 	assert!(custom(&lib).is_empty());
 	let c = lib.collections.iter().find(|c| c.name == "mixed").unwrap();
@@ -51,12 +58,7 @@ fn import_into_existing_collection_counts_had() {
 	let id = lib.create_collection("MIXED");
 	let s = lib.add_custom("Mine", "http://a.example/jazz");
 	lib.toggle_in_collection(&id, &s);
-	let r = import_playlist(
-		&mut lib,
-		&fixture("mixed.m3u"),
-		ImportTarget::CollectionNamedAfterFile,
-	)
-	.unwrap();
+	let r = import_playlist(&mut lib, &fixture("mixed.m3u"), collection("mixed")).unwrap();
 	assert_eq!(r.message(), "Added 1. Had 1. Skipped 1.");
 	assert_eq!(lib.collections.iter().filter(|c| c.id != CUSTOM).count(), 1);
 	let c = lib.collections.iter().find(|c| c.id == id).unwrap();
@@ -120,4 +122,67 @@ fn not_a_playlist_errors() {
 	std::fs::write(&p, "<html></html>").unwrap();
 	let mut lib = Library::default();
 	assert!(import_playlist(&mut lib, &p, ImportTarget::Custom).is_err());
+}
+
+fn starter_body() -> String {
+	std::fs::read_to_string(fixture("radios.m3u")).unwrap()
+}
+
+#[test]
+fn starter_constants() {
+	assert_eq!(STARTER_PLAYLIST_URL, "https://serrebiradio.com/radios.m3u");
+	assert_eq!(STARTER_COLLECTION, "SerrebiRadio");
+}
+
+#[test]
+fn starter_imports_all_into_serrebiradio_collection() {
+	let mut lib = Library::default();
+	let r = import_starter(&mut lib, &starter_body());
+	assert_eq!(r.message(), "Added 175. Had 0. Skipped 0.");
+	assert!(custom(&lib).is_empty());
+	let c = lib
+		.collections
+		.iter()
+		.find(|c| c.name == "SerrebiRadio")
+		.unwrap();
+	assert_eq!(c.stations.len(), 175);
+	let first = &c.stations[0];
+	assert_eq!(first.name, "SerrebiRadio");
+	assert_eq!(first.url, "http://radio.serrebiradio.com:8000/SerrebiRadio");
+	assert_eq!(first.info.as_deref(), Some("electronic"));
+}
+
+#[test]
+fn starter_reimport_counts_had() {
+	let mut lib = Library::default();
+	let body = starter_body();
+	import_starter(&mut lib, &body);
+	let r = import_starter(&mut lib, &body);
+	assert_eq!(r.message(), "Added 0. Had 175. Skipped 0.");
+	assert_eq!(lib.collections.len(), 2, "Custom Stations and SerrebiRadio");
+}
+
+#[tokio::test]
+async fn fetch_starter_against_test_server() {
+	let s = serve(vec![Route::Static {
+		path: "/radios.m3u".into(),
+		content_type: "application/octet-stream".into(),
+		body: starter_body().into_bytes(),
+	}]);
+	let body = fetch_playlist(&client(), &s.url("/radios.m3u"))
+		.await
+		.unwrap();
+	assert_eq!(body, starter_body());
+	let e = fetch_playlist(&client(), &s.url("/nope"))
+		.await
+		.unwrap_err();
+	assert_eq!(e.to_string(), "HTTP 404");
+}
+
+#[test]
+fn first_run_true_until_library_saved() {
+	let d = tempfile::tempdir().unwrap();
+	assert!(store::first_run(d.path()));
+	Library::default().save(d.path()).unwrap();
+	assert!(!store::first_run(d.path()));
 }
