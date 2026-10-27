@@ -1,8 +1,59 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Where a station came from. Ids follow the source: `rb:<uuid>`, `tunein:<guide_id>`,
+/// `iheart:<id>`, `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum Source {
+	RadioBrowser,
+	TuneIn,
+	IHeart,
+	/// A curated network; the string is its display name.
+	Network(String),
+	#[default]
+	Custom,
+}
+
+impl Source {
+	pub fn label(&self) -> &str {
+		match self {
+			Source::RadioBrowser => "Radio Browser",
+			Source::TuneIn => "TuneIn",
+			Source::IHeart => "iHeartRadio",
+			Source::Network(name) => name,
+			Source::Custom => "Custom",
+		}
+	}
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Station {
 	pub id: String,
 	pub name: String,
 	pub url: String,
+	#[serde(default)]
+	pub source: Source,
+	/// Short second column, e.g. `Jazz, France, AAC 128k`.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub info: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn plan1_json_still_loads() {
+		let s: Station = serde_json::from_str(r#"{"id":"a","name":"A","url":"http://x"}"#).unwrap();
+		assert_eq!(s.source, Source::Custom);
+		assert_eq!(s.info, None);
+	}
+
+	#[test]
+	fn source_labels() {
+		assert_eq!(Source::RadioBrowser.label(), "Radio Browser");
+		assert_eq!(Source::TuneIn.label(), "TuneIn");
+		assert_eq!(Source::IHeart.label(), "iHeartRadio");
+		assert_eq!(Source::Network("BBC".into()).label(), "BBC");
+		assert_eq!(Source::Custom.label(), "Custom");
+	}
 }

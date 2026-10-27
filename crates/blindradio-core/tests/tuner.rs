@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use blindradio_core::output::MixerCmd;
 use blindradio_core::ring::PcmRing;
-use blindradio_core::station::Station;
+use blindradio_core::station::{Source, Station};
 use blindradio_core::stream::StreamEvent;
 use blindradio_core::tuner::{Settle, Sink, StreamFactory, Tuner, TunerEvent, wanted};
 use crossbeam_channel::Receiver;
@@ -27,6 +27,8 @@ fn stations(n: usize) -> Vec<Station> {
 			id: id(i),
 			name: format!("Station {i}"),
 			url: format!("http://h{i}.example/listen"),
+			source: Source::Custom,
+			info: None,
 		})
 		.collect()
 }

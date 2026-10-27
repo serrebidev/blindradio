@@ -1,6 +1,6 @@
 mod common;
 
-use blindradio_core::net::{Opened, ResolveCache, client, open};
+use blindradio_core::net::{Opened, ResolveCache, client, get_json, open};
 use common::{Route, serve};
 
 fn stream(path: &str) -> Route {
@@ -218,4 +218,22 @@ async fn test_server_icy_framing() {
 	assert_eq!(&body[49..65], &[b'a'; 16]);
 	assert_eq!(body[65], 2);
 	assert_eq!(&body[66..85], b"StreamTitle='Caf\xE9';");
+}
+
+#[tokio::test]
+async fn get_json_reads_and_rejects() {
+	let s = serve(vec![
+		text("/ok", "application/json", r#"{"a":1}"#),
+		text("/html", "text/html", "<html>hi</html>"),
+	]);
+	let v: serde_json::Value = get_json(&client(), &s.url("/ok")).await.unwrap();
+	assert_eq!(v["a"], 1);
+	let e = get_json::<serde_json::Value>(&client(), &s.url("/html"))
+		.await
+		.unwrap_err();
+	assert_eq!(e.to_string(), "Bad reply");
+	let e = get_json::<serde_json::Value>(&client(), &s.url("/nope"))
+		.await
+		.unwrap_err();
+	assert_eq!(e.to_string(), "HTTP 404");
 }

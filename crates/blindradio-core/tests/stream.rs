@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use blindradio_core::net::{ResolveCache, client};
 use blindradio_core::ring::PcmRing;
-use blindradio_core::station::Station;
+use blindradio_core::station::{Source, Station};
 use blindradio_core::stream::{EngineCtx, StationStream, StreamEvent, start};
 use common::{Route, serve};
 
@@ -62,6 +62,8 @@ fn play(url: &str, ctx: &EngineCtx) -> (StationStream, mpsc::Receiver<StreamEven
 		id: "test".into(),
 		name: "Test".into(),
 		url: url.into(),
+		source: Source::Custom,
+		info: None,
 	};
 	let s = start(&station, ctx, Box::new(move |e| drop(tx.send(e))));
 	(s, rx)

@@ -9,6 +9,7 @@ thiserror = "*"
 reqwest = { version = "*", default-features = false, features = ["rustls", "stream"] }
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync"] }
 serde_json = "*"
+uuid = { version = "*", features = ["v4"] }
 bytes = "*"
 crossbeam-channel = "*"
 rubato = "*"

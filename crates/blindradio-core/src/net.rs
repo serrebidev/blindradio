@@ -237,3 +237,22 @@ impl ResolveCache {
 		Ok(())
 	}
 }
+
+/// Fetches `url` and parses the body as JSON, all within 8 s.
+pub async fn get_json<T: serde::de::DeserializeOwned>(
+	client: &reqwest::Client,
+	url: &str,
+) -> Result<T> {
+	let response = client
+		.get(url)
+		.timeout(Duration::from_secs(8))
+		.send()
+		.await
+		.map_err(http_err)?;
+	let status = response.status().as_u16();
+	if status >= 400 {
+		return Err(CoreError::Http(format!("HTTP {status}")));
+	}
+	let body = response.bytes().await.map_err(http_err)?;
+	serde_json::from_slice(&body).map_err(|_| CoreError::Http("Bad reply".into()))
+}
