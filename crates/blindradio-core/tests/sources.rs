@@ -97,7 +97,12 @@ async fn children_dispatch_by_prefix() {
 		src.children("net/somafm", Sort::default()).await.unwrap()[0],
 		Node::Station(_)
 	));
-	assert!(src.children("custom", Sort::default()).await.unwrap().is_empty());
+	assert!(
+		src.children("custom", Sort::default())
+			.await
+			.unwrap()
+			.is_empty()
+	);
 }
 
 #[tokio::test]

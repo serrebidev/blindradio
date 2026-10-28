@@ -3,7 +3,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use blindradio_core::sources::{Filters, SearchQuery};
+use blindradio_core::sources::{Filters, SearchQuery, Sort};
 use blindradio_core::station::Station;
 use wxdragon::prelude::*;
 
@@ -132,6 +132,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			genre: filter(fields.genre.get_value()),
 			country: filter(fields.country.get_value()),
 			language: filter(fields.language.get_value()),
+			sort: Sort::default(),
 		};
 		generation.set(generation.get() + 1);
 		let (mine, generation, list) = (generation.get(), generation.clone(), list.clone());

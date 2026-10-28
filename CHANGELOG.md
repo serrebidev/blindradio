@@ -22,6 +22,8 @@ The whole desktop interface, from the empty window to a shipped app.
 - Tray icon with Play/Pause, Stop, favorites, Show and Exit.
 - One copy at a time: a second launch raises the first and exits.
 - F1 user guide embedded in the app, About box with the licences page.
+- Updates: a daily check and Help > Check for Updates, the download verified with minisign before
+  it installs, portable and installed copies each updating the right way.
 - Windows portable zip and per-user installer, signed; the release build embeds the version
   resource, icon and commit hash.
 

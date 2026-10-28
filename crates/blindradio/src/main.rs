@@ -16,6 +16,7 @@ mod speech;
 mod station_list;
 mod strings;
 mod tray;
+mod update;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -49,6 +50,8 @@ fn main() {
 		app.borrow_mut().tray = tray;
 		frame.show(true);
 		frame.centre();
+		// A copy the updater just relaunched takes the foreground on Windows.
+		ship_shape::ui::bring_to_front_after_update(&frame);
 		// Focuses the Stations list, else Play.
 		app.borrow_mut().start();
 	});

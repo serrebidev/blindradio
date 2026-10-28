@@ -48,7 +48,10 @@ async fn rb_root_has_genre_and_country() {
 #[tokio::test]
 async fn rb_genres_list_folders() {
 	let (_s, rb) = rb(vec![json("/json/tags", TAGS)]);
-	let nodes = rb.children(&client(), "rb/genres", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/genres", Sort::default())
+		.await
+		.unwrap();
 	assert_eq!(nodes.len(), 200);
 	assert!(matches!(&nodes[0], Node::Folder { id, .. } if id.starts_with("rb/genre/")));
 }
@@ -62,7 +65,10 @@ async fn rb_big_country_splits_by_state() {
 			STATES_US,
 		),
 	]);
-	let nodes = rb.children(&client(), "rb/country/US", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/country/US", Sort::default())
+		.await
+		.unwrap();
 	assert_eq!(names(&nodes)[0], "All stations");
 	assert!(matches!(&nodes[0], Node::Folder { id, .. } if id == "rb/country/US/all"));
 	assert!(names(&nodes).contains(&"California"));
@@ -75,7 +81,10 @@ async fn rb_small_country_lists_stations() {
 		json("/json/countries", COUNTRIES),
 		json("/json/stations/bycountrycodeexact/LI", SHORT),
 	]);
-	let nodes = rb.children(&client(), "rb/country/LI", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/country/LI", Sort::default())
+		.await
+		.unwrap();
 	assert_eq!(nodes.len(), 3);
 	assert!(nodes.iter().all(|n| matches!(n, Node::Station(_))));
 }
@@ -83,7 +92,10 @@ async fn rb_small_country_lists_stations() {
 #[tokio::test]
 async fn rb_full_page_ends_with_load_more() {
 	let (s, rb) = rb(vec![json("/json/stations/bytagexact/jazz", PAGE)]);
-	let nodes = rb.children(&client(), "rb/genre/jazz", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/genre/jazz", Sort::default())
+		.await
+		.unwrap();
 	assert_eq!(nodes.len(), 101);
 	assert_eq!(
 		nodes.last(),
@@ -93,7 +105,10 @@ async fn rb_full_page_ends_with_load_more() {
 	);
 	let q = s.last_query("/json/stations/bytagexact/jazz").unwrap();
 	assert!(q.contains("offset=0") && q.contains("limit=100"), "{q}");
-	let more = rb.children(&client(), "rb/genre/jazz@100", Sort::default()).await.unwrap();
+	let more = rb
+		.children(&client(), "rb/genre/jazz@100", Sort::default())
+		.await
+		.unwrap();
 	assert!(matches!(more.last(), Some(Node::LoadMore { id }) if id == "rb/genre/jazz@200"));
 	let q = s.last_query("/json/stations/bytagexact/jazz").unwrap();
 	assert!(q.contains("offset=100"), "{q}");
@@ -102,7 +117,10 @@ async fn rb_full_page_ends_with_load_more() {
 #[tokio::test]
 async fn rb_load_more_ends() {
 	let (_s, rb) = rb(vec![json("/json/stations/bytagexact/jazz", "[]")]);
-	let nodes = rb.children(&client(), "rb/genre/jazz@200", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/genre/jazz@200", Sort::default())
+		.await
+		.unwrap();
 	assert!(nodes.is_empty());
 }
 
@@ -136,14 +154,20 @@ async fn rb_state_keeps_exact_matches_only() {
 #[tokio::test]
 async fn rb_station_names_cleaned() {
 	let (_s, rb) = rb(vec![json("/json/stations/bytagexact/x", SHORT)]);
-	let nodes = rb.children(&client(), "rb/genre/x", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/genre/x", Sort::default())
+		.await
+		.unwrap();
 	assert_eq!(names(&nodes), ["A & B", "Spaced", "stream.example.org"]);
 }
 
 #[tokio::test]
 async fn rb_station_info_and_id() {
 	let (_s, rb) = rb(vec![json("/json/stations/bytagexact/x", SHORT)]);
-	let nodes = rb.children(&client(), "rb/genre/x", Sort::default()).await.unwrap();
+	let nodes = rb
+		.children(&client(), "rb/genre/x", Sort::default())
+		.await
+		.unwrap();
 	let (Node::Station(a), Node::Station(b)) = (&nodes[0], &nodes[1]) else {
 		panic!("stations expected");
 	};

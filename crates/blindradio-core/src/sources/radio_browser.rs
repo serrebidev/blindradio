@@ -268,7 +268,13 @@ impl RadioBrowser {
 			["rb", "country", iso] => self.country(client, iso, head, offset, sort).await,
 			["rb", "country", iso, "all"] => {
 				let raw = self
-					.stations(client, &["stations", "bycountrycodeexact", iso], "", offset, sort)
+					.stations(
+						client,
+						&["stations", "bycountrycodeexact", iso],
+						"",
+						offset,
+						sort,
+					)
 					.await?;
 				Ok(page_nodes(raw, head, offset, |_| true))
 			}
@@ -310,7 +316,13 @@ impl RadioBrowser {
 		};
 		if country.stationcount < BIG_COUNTRY {
 			let raw = self
-				.stations(client, &["stations", "bycountrycodeexact", iso], "", offset, sort)
+				.stations(
+					client,
+					&["stations", "bycountrycodeexact", iso],
+					"",
+					offset,
+					sort,
+				)
 				.await?;
 			return Ok(page_nodes(raw, head, offset, |_| true));
 		}

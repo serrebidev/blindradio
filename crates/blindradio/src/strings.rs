@@ -73,6 +73,7 @@ pub const SLEEP_ITEMS: [&str; 6] = [
 pub const SLEEP_OFF: &str = "&Off";
 pub const EQUALIZER: &str = "&Equalizer…";
 pub const USER_GUIDE: &str = "User &Guide";
+pub const CHECK_UPDATES: &str = "Check for &Updates";
 pub const ABOUT: &str = "&About BlindRadio";
 
 // Station lists.

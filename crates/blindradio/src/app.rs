@@ -16,6 +16,7 @@ use blindradio_core::station::Station;
 use blindradio_core::tuner::{LiveFactory, Sink, Tuner, TunerEvent};
 use blindradio_core::{Engine, import, store};
 use crossbeam_channel::Receiver;
+use ship_shape::ui::CheckTrigger;
 use wx_utils::set_menu_item_label;
 use wxdragon::prelude::*;
 
@@ -28,9 +29,12 @@ use crate::main_window::{MainWindow, escape};
 use crate::menus::{self, MenuIds};
 use crate::speech::{self, Kind, Speech};
 use crate::strings as s;
+use crate::update;
 
 const VOLUME_STEP: i32 = 5;
 const DEVICE_POLL: Duration = Duration::from_secs(2);
+/// The daily check waits until the window and the first station are settled.
+const UPDATE_DELAY: Duration = Duration::from_secs(10);
 
 /// The tuner sends mixer commands through it while the app switches devices on it.
 pub struct SharedOutput(Rc<RefCell<Output>>);
@@ -141,6 +145,8 @@ pub struct App {
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
+	/// When the daily update check is due this run.
+	update_due: Option<Instant>,
 	/// Taken and stopped on shutdown, while the frame it ticks on still exists.
 	pub timer: Option<Timer<Frame>>,
 	// Dropped last: the tuner's streams run on its runtime.
@@ -200,6 +206,7 @@ impl App {
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
+			update_due: None,
 			timer: Some(timer),
 			engine,
 		})
@@ -226,6 +233,9 @@ impl App {
 			self.get_starter(true);
 		}
 		self.report_hotkeys();
+		if update::daily_check_due(self.settings.last_update_check, update::now()) {
+			self.update_due = Some(Instant::now() + UPDATE_DELAY);
+		}
 		if let Some(text) = readonly_message(self.readonly, self.readonly_said) {
 			self.readonly_said = true;
 			self.say(text);
@@ -366,6 +376,7 @@ impl App {
 			| Action::Equalizer
 			| Action::GlobalHotkeys => {}
 			Action::CopyUrl => self.copy_url(),
+			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
 		}
 		self.refresh();
 	}
@@ -417,6 +428,14 @@ impl App {
 			if let Some(st) = playing {
 				self.tuner.play(&st, Instant::now());
 			}
+		}
+		if let Some(due) = self.update_due
+			&& now >= due
+		{
+			self.update_due = None;
+			self.settings.last_update_check = Some(update::now());
+			self.save_settings();
+			update::check(&self.win.frame, CheckTrigger::Automatic);
 		}
 		self.refresh();
 	}

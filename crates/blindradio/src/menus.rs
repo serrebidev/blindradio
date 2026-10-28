@@ -88,6 +88,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 			s::MENU_HELP,
 			vec![
 				Item(s::USER_GUIDE, "F1", A::Help),
+				Item(s::CHECK_UPDATES, "", A::CheckForUpdates),
 				Item(s::ABOUT, "", A::About),
 			],
 		),

@@ -105,8 +105,10 @@ Announce Connection Status only governs playing, buffering and stopped messages.
 
 ## Updates
 
-Help, Check for Updates asks GitHub whether a newer release is published and offers to install
-it. The download is verified before it is used.
+Once a day, ten seconds after it starts, BlindRadio asks GitHub whether a newer release is
+published and offers it. Help, Check for Updates asks at once and says when there is nothing new.
+The download is verified before it is used; a portable copy updates itself in place and keeps its
+data folder, and an installed copy runs the new installer. BlindRadio restarts by itself.
 
 ## Tray icon
 

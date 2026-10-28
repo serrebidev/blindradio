@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use blindradio_core::library::{CUSTOM, Library};
-use blindradio_core::sources::{Node, Sources};
+use blindradio_core::sources::{Node, Sort, Sources};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
@@ -777,7 +777,7 @@ impl View {
 		app.bridge.spawn(
 			token.clone(),
 			async move {
-				let r = sources.children(&id).await;
+				let r = sources.children(&id, Sort::default()).await;
 				(id, r)
 			},
 			move |app: &mut App, (id, r)| {

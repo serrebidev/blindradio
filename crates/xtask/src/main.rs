@@ -42,6 +42,7 @@ fn main() {
 		#[cfg(target_os = "linux")]
 		"dist-linux" => linux::dist(&root(), &dist_dir()),
 		"release" => release(&args[1..]),
+		"minisign-key" => minisign_key(&args[1..]),
 		"version" => match package::crate_version(&root(), PKG) {
 			Ok(v) => {
 				println!("{v}");
@@ -49,7 +50,7 @@ fn main() {
 			}
 			Err(e) => Err(format!("version: {e}")),
 		},
-		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | release <version>".to_string()),
+		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | release <version> | minisign-key <dir> [password]".to_string()),
 	};
 	if let Err(e) = done {
 		eprintln!("xtask: {e}");
@@ -167,6 +168,35 @@ fn release(args: &[String]) -> Result<(), String> {
 		"publishing",
 	)?;
 	println!("xtask: {APP} {version} is published");
+	Ok(())
+}
+
+/// `cargo xtask minisign-key <dir>`: writes `minisign.key` and `minisign.pub`, the pair the
+/// release signs with. Unencrypted: the secret key lives in `MINISIGN_KEY` and Vaultwarden, never
+/// in git.
+fn minisign_key(args: &[String]) -> Result<(), String> {
+	let dir = args
+		.first()
+		.ok_or("minisign-key needs a folder, such as ~/.minisign")?;
+	let pair = minisign::KeyPair::generate_unencrypted_keypair()
+		.map_err(|e| format!("generating the key: {e}"))?;
+	std::fs::create_dir_all(dir).map_err(|e| format!("{dir}: {e}"))?;
+	let secret = pair
+		.sk
+		.to_box(None)
+		.map_err(|e| format!("secret key: {e}"))?
+		.into_string();
+	let public = pair
+		.pk
+		.to_box()
+		.map_err(|e| format!("public key: {e}"))?
+		.into_string();
+	std::fs::write(Path::new(dir).join("minisign.key"), &secret)
+		.map_err(|e| format!("{dir}: {e}"))?;
+	std::fs::write(Path::new(dir).join("minisign.pub"), &public)
+		.map_err(|e| format!("{dir}: {e}"))?;
+	// The second line is what the updater is given.
+	println!("{public}");
 	Ok(())
 }
 

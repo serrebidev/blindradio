@@ -47,6 +47,8 @@ pub struct Settings {
 	pub last_station: Option<Station>,
 	/// Collection id the main window list shows; None is the SerrebiRadio collection.
 	pub main_list: Option<String>,
+	/// When the daily update check last ran, in seconds since the Unix epoch.
+	pub last_update_check: Option<u64>,
 }
 
 impl Default for Settings {
@@ -63,6 +65,7 @@ impl Default for Settings {
 			hotkeys: BTreeMap::new(),
 			last_station: None,
 			main_list: None,
+			last_update_check: None,
 		}
 	}
 }
@@ -106,6 +109,7 @@ mod tests {
 		assert!(s.hotkeys.is_empty());
 		assert_eq!(s.last_station, None);
 		assert_eq!(s.main_list, None);
+		assert_eq!(s.last_update_check, None);
 	}
 
 	#[test]

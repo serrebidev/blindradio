@@ -46,6 +46,8 @@ pub enum Action {
 	ToggleSetting(SettingId),
 	/// File > Global Hotkeys…: the chord editor.
 	GlobalHotkeys,
+	/// Help > Check for Updates.
+	CheckForUpdates,
 	Help,
 	About,
 	/// Fetch the SerrebiRadio starter list again.
