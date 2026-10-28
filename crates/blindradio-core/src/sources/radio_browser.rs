@@ -1,6 +1,6 @@
 //! Radio Browser (radio-browser.info): browse by genre and country, search, and the filter lists.
 
-use super::{Node, SearchQuery};
+use super::{Node, SearchQuery, Sort};
 use crate::Result;
 use crate::net::get_json;
 use crate::station::{Source, Station};
@@ -15,7 +15,6 @@ const STATE_PAGES: usize = 5;
 /// Countries with at least this many stations are browsed by state.
 const BIG_COUNTRY: u32 = 1000;
 const LIST_TOP: &str = "limit=200&order=stationcount&reverse=true&hidebroken=true";
-const BY_CLICKS: &str = "order=clickcount&reverse=true&hidebroken=true";
 
 pub struct RadioBrowser {
 	base: String,
@@ -211,15 +210,27 @@ impl RadioBrowser {
 		segments: &[&str],
 		extra: &str,
 		offset: usize,
+		sort: Sort,
 	) -> Result<Vec<RbStation>> {
-		let query = format!(
-			"{extra}{}{BY_CLICKS}&limit={PAGE}&offset={offset}",
-			if extra.is_empty() { "" } else { "&" }
-		);
+		let mut query = String::new();
+		for part in [extra, &sort.query(), "hidebroken=true"] {
+			if !part.is_empty() {
+				if !query.is_empty() {
+					query.push('&');
+				}
+				query.push_str(part);
+			}
+		}
+		query.push_str(&format!("&limit={PAGE}&offset={offset}"));
 		get_json(client, &self.url(segments, &query)).await
 	}
 
-	pub async fn children(&self, client: &reqwest::Client, id: &str) -> Result<Vec<Node>> {
+	pub async fn children(
+		&self,
+		client: &reqwest::Client,
+		id: &str,
+		sort: Sort,
+	) -> Result<Vec<Node>> {
 		let (head, offset) = split_offset(id);
 		let parts: Vec<&str> = head.split('/').collect();
 		match parts.as_slice() {
@@ -240,7 +251,7 @@ impl RadioBrowser {
 			["rb", "genre", tag] => {
 				let tag = dec(tag);
 				let raw = self
-					.stations(client, &["stations", "bytagexact", &tag], "", offset)
+					.stations(client, &["stations", "bytagexact", &tag], "", offset, sort)
 					.await?;
 				Ok(page_nodes(raw, head, offset, |_| true))
 			}
@@ -254,10 +265,10 @@ impl RadioBrowser {
 					.map(|c| folder(format!("rb/country/{}", c.iso_3166_1), c.name.trim()))
 					.collect())
 			}
-			["rb", "country", iso] => self.country(client, iso, head, offset).await,
+			["rb", "country", iso] => self.country(client, iso, head, offset, sort).await,
 			["rb", "country", iso, "all"] => {
 				let raw = self
-					.stations(client, &["stations", "bycountrycodeexact", iso], "", offset)
+					.stations(client, &["stations", "bycountrycodeexact", iso], "", offset, sort)
 					.await?;
 				Ok(page_nodes(raw, head, offset, |_| true))
 			}
@@ -270,7 +281,7 @@ impl RadioBrowser {
 				// A full page can filter to nothing; look a few pages further for a hit.
 				for pages in 1.. {
 					let raw = self
-						.stations(client, &["stations", "search"], &extra, off)
+						.stations(client, &["stations", "search"], &extra, off, sort)
 						.await?;
 					if pages == STATE_PAGES || raw.len() < PAGE || raw.iter().any(keep) {
 						return Ok(page_nodes(raw, head, off, keep));
@@ -289,6 +300,7 @@ impl RadioBrowser {
 		iso: &str,
 		head: &str,
 		offset: usize,
+		sort: Sort,
 	) -> Result<Vec<Node>> {
 		let all = self
 			.list(client, "countries", "order=name&hidebroken=true")
@@ -298,7 +310,7 @@ impl RadioBrowser {
 		};
 		if country.stationcount < BIG_COUNTRY {
 			let raw = self
-				.stations(client, &["stations", "bycountrycodeexact", iso], "", offset)
+				.stations(client, &["stations", "bycountrycodeexact", iso], "", offset, sort)
 				.await?;
 			return Ok(page_nodes(raw, head, offset, |_| true));
 		}
@@ -334,7 +346,12 @@ impl RadioBrowser {
 				query.push_str(&format!("{key}={}&", enc(v)));
 			}
 		}
-		query.push_str(&format!("limit={PAGE}&{BY_CLICKS}"));
+		let order = q.sort.query();
+		if !order.is_empty() {
+			query.push_str(&order);
+			query.push('&');
+		}
+		query.push_str(&format!("limit={PAGE}&hidebroken=true"));
 		let raw: Vec<RbStation> =
 			get_json(client, &self.url(&["stations", "search"], &query)).await?;
 		Ok(raw.into_iter().filter_map(to_station).collect())

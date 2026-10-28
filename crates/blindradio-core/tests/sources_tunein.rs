@@ -107,6 +107,7 @@ async fn tunein_search_ignores_filters() {
 		genre: Some("blues".into()),
 		country: Some("France".into()),
 		language: Some("french".into()),
+		sort: blindradio_core::sources::Sort::default(),
 	};
 	t.search(&client(), &q).await.unwrap();
 	let sent = s.last_query("/Search.ashx").unwrap();

@@ -146,7 +146,7 @@ async fn live_browse_each_root() {
 			panic!("root is not a folder")
 		};
 		let kids = sources
-			.children(&id)
+			.children(&id, blindradio_core::sources::Sort::default())
 			.await
 			.unwrap_or_else(|e| panic!("{name}: {e}"));
 		assert!(!kids.is_empty(), "{name} is empty");

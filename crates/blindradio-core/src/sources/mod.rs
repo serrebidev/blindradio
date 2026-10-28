@@ -25,6 +25,137 @@ pub struct SearchQuery {
 	pub genre: Option<String>,
 	pub country: Option<String>,
 	pub language: Option<String>,
+	pub sort: Sort,
+}
+
+/// One Radio Browser `order` value for station lists. `Default` sends no order at all,
+/// which leaves the API's own default (name, A to Z). Only Radio Browser supports
+/// ordering; the other directories ignore a sort.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SortField {
+	Default,
+	Name,
+	Votes,
+	ClickCount,
+	ClickTrend,
+	Bitrate,
+	Codec,
+	Country,
+	State,
+	Language,
+	Tags,
+	Url,
+	Homepage,
+	Favicon,
+	LastCheckOk,
+	LastCheckTime,
+	ClickTimestamp,
+	ChangeTimestamp,
+	Random,
+}
+
+impl SortField {
+	/// Every field, in the order a sort control lists them.
+	pub const ALL: [SortField; 19] = [
+		SortField::Default,
+		SortField::Name,
+		SortField::Votes,
+		SortField::ClickCount,
+		SortField::ClickTrend,
+		SortField::Bitrate,
+		SortField::Codec,
+		SortField::Country,
+		SortField::State,
+		SortField::Language,
+		SortField::Tags,
+		SortField::Url,
+		SortField::Homepage,
+		SortField::Favicon,
+		SortField::LastCheckOk,
+		SortField::LastCheckTime,
+		SortField::ClickTimestamp,
+		SortField::ChangeTimestamp,
+		SortField::Random,
+	];
+
+	/// Short label for a sort control.
+	pub fn label(self) -> &'static str {
+		match self {
+			SortField::Default => "Default",
+			SortField::Name => "Name",
+			SortField::Votes => "Votes",
+			SortField::ClickCount => "Clicks",
+			SortField::ClickTrend => "Click trend",
+			SortField::Bitrate => "Bitrate",
+			SortField::Codec => "Codec",
+			SortField::Country => "Country",
+			SortField::State => "State",
+			SortField::Language => "Language",
+			SortField::Tags => "Tags",
+			SortField::Url => "URL",
+			SortField::Homepage => "Homepage",
+			SortField::Favicon => "Favicon",
+			SortField::LastCheckOk => "Last check OK",
+			SortField::LastCheckTime => "Last check time",
+			SortField::ClickTimestamp => "Last clicked",
+			SortField::ChangeTimestamp => "Last changed",
+			SortField::Random => "Random",
+		}
+	}
+
+	/// The API value; empty for `Default`.
+	fn value(self) -> &'static str {
+		match self {
+			SortField::Default => "",
+			SortField::Name => "name",
+			SortField::Votes => "votes",
+			SortField::ClickCount => "clickcount",
+			SortField::ClickTrend => "clicktrend",
+			SortField::Bitrate => "bitrate",
+			SortField::Codec => "codec",
+			SortField::Country => "country",
+			SortField::State => "state",
+			SortField::Language => "language",
+			SortField::Tags => "tags",
+			SortField::Url => "url",
+			SortField::Homepage => "homepage",
+			SortField::Favicon => "favicon",
+			SortField::LastCheckOk => "lastcheckok",
+			SortField::LastCheckTime => "lastchecktime",
+			SortField::ClickTimestamp => "clicktimestamp",
+			SortField::ChangeTimestamp => "changetimestamp",
+			SortField::Random => "random",
+		}
+	}
+}
+
+/// Station list order: a field plus the API's `reverse` direction. The default is the
+/// order browse and search have always used, most plays first.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sort {
+	pub field: SortField,
+	pub reverse: bool,
+}
+
+impl Default for Sort {
+	fn default() -> Self {
+		Sort {
+			field: SortField::ClickCount,
+			reverse: true,
+		}
+	}
+}
+
+impl Sort {
+	/// The `order`/`reverse` query fragment; empty when the API default applies.
+	pub fn query(self) -> String {
+		let value = self.field.value();
+		if value.is_empty() {
+			String::new()
+		} else {
+			format!("order={value}&reverse={}", self.reverse)
+		}
+	}
 }
 
 /// One entry of a station's published track history.
@@ -114,10 +245,12 @@ impl Sources {
 		.into()
 	}
 
-	pub async fn children(&self, id: &str) -> Result<Vec<Node>> {
+	/// Children of a browse folder. `sort` orders Radio Browser station lists; the
+	/// other directories have no ordering and ignore it.
+	pub async fn children(&self, id: &str, sort: Sort) -> Result<Vec<Node>> {
 		let head = id.split(['/', '@']).next().unwrap_or("");
 		match head {
-			"rb" => self.rb.children(&self.client, id).await,
+			"rb" => self.rb.children(&self.client, id, sort).await,
 			"tunein" => self.tunein.children(&self.client, id).await,
 			"iheart" => self.iheart.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
@@ -220,5 +353,49 @@ impl Sources {
 				})
 				.collect(),
 		)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn sort_query_fragments() {
+		assert_eq!(Sort::default().query(), "order=clickcount&reverse=true");
+		assert_eq!(
+			Sort {
+				field: SortField::Default,
+				reverse: true
+			}
+			.query(),
+			""
+		);
+		assert_eq!(
+			Sort {
+				field: SortField::Name,
+				reverse: false
+			}
+			.query(),
+			"order=name&reverse=false"
+		);
+		assert_eq!(
+			Sort {
+				field: SortField::Bitrate,
+				reverse: true
+			}
+			.query(),
+			"order=bitrate&reverse=true"
+		);
+	}
+
+	#[test]
+	fn sort_fields_have_labels_and_values() {
+		assert_eq!(SortField::ALL.len(), 19);
+		for f in SortField::ALL {
+			assert!(!f.label().is_empty());
+		}
+		assert_eq!(SortField::ClickCount.value(), "clickcount");
+		assert_eq!(SortField::Default.value(), "");
 	}
 }

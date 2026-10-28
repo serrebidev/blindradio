@@ -1,7 +1,7 @@
 mod common;
 
 use blindradio_core::net::client;
-use blindradio_core::sources::{Endpoints, Filters, Node, SearchQuery, Sources};
+use blindradio_core::sources::{Endpoints, Filters, Node, SearchQuery, Sort, Sources};
 use blindradio_core::station::{Source, Station};
 use common::{Route, TestServer, serve};
 use std::time::{Duration, Instant, UNIX_EPOCH};
@@ -74,30 +74,30 @@ async fn children_dispatch_by_prefix() {
 		json("/json/tags", r#"[{"name":"jazz","stationcount":5}]"#),
 	]);
 	assert_eq!(
-		src.children("rb").await.unwrap(),
+		src.children("rb", Sort::default()).await.unwrap(),
 		vec![
 			folder("rb/genres", "By Genre"),
 			folder("rb/countries", "By Country")
 		]
 	);
 	assert_eq!(
-		src.children("tunein").await.unwrap(),
+		src.children("tunein", Sort::default()).await.unwrap(),
 		vec![folder("tunein/r1", "Africa")]
 	);
 	assert_eq!(
-		src.children("iheart").await.unwrap(),
+		src.children("iheart", Sort::default()).await.unwrap(),
 		vec![
 			folder("iheart/all", "All Stations"),
 			folder("iheart/genres", "Genres")
 		]
 	);
-	let nets = src.children("net").await.unwrap();
+	let nets = src.children("net", Sort::default()).await.unwrap();
 	assert_eq!(nets.first(), Some(&folder("net/bbc", "BBC")));
 	assert!(matches!(
-		src.children("net/somafm").await.unwrap()[0],
+		src.children("net/somafm", Sort::default()).await.unwrap()[0],
 		Node::Station(_)
 	));
-	assert!(src.children("custom").await.unwrap().is_empty());
+	assert!(src.children("custom", Sort::default()).await.unwrap().is_empty());
 }
 
 #[tokio::test]
