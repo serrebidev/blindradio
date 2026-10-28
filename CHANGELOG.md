@@ -11,6 +11,11 @@ Terse, newest first. Each release's section is its GitHub release note.
   provide keeps their own order.
 - Networks adds 181.fm (77 channels), .977 (9), Big R Radio (51), Radio Swiss (3),
   KEXP and WFUV. Every added stream was checked live before shipping.
+- Networks adds Sunshine Live (7), Radio 538, SLAM!, Capital (4), Heart (5), Smooth (3),
+  Classic FM, Gold, LBC (2), Radio X, Power Hit Radio Estonia and Lithuania (3 total),
+  Dance Wave!, PulsRadio (8), Power Hitz (15), WHFF (18) and Radio Record (92). 101.ru
+  is left out because its stream URLs are IP-bound tokens; ampradio.ru no longer
+  resolves.
 - Streams whose server delivers slower than the bitrate (the TopRadio mounts are the known
   case) no longer stutter every few seconds: after a stream runs dry, it must refill a
   deeper cushion before it sounds again — three seconds, then nine, up to fifteen — so

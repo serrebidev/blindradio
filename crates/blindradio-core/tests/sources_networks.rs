@@ -25,7 +25,24 @@ fn networks_parse_and_order() {
 			"Big R Radio",
 			"Radio Swiss",
 			"KEXP",
-			"WFUV"
+			"WFUV",
+			"Sunshine Live",
+			"Radio 538",
+			"SLAM!",
+			"Capital",
+			"Heart",
+			"Smooth",
+			"Classic FM",
+			"Gold",
+			"LBC",
+			"Radio X",
+			"Power Hit Radio Estonia",
+			"Power Hit Radio Lithuania",
+			"Dance Wave!",
+			"Power Hitz",
+			"WHFF",
+			"Radio Record",
+			"PulsRadio"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -118,6 +135,23 @@ fn new_networks_are_complete() {
 		("radio-swiss", 3),
 		("kexp", 1),
 		("wfuv", 1),
+		("sunshine-live", 7),
+		("538", 1),
+		("slam", 1),
+		("capital", 4),
+		("heart", 5),
+		("smooth", 3),
+		("classic-fm", 1),
+		("gold", 1),
+		("lbc", 2),
+		("radio-x", 1),
+		("power-hit-estonia", 1),
+		("power-hit-lithuania", 2),
+		("dance-wave", 1),
+		("powerhitz", 15),
+		("whff", 18),
+		("radio-record", 92),
+		("pulsradio", 8),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");

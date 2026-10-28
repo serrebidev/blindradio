@@ -2857,5 +2857,1085 @@
         "info": "MP3 128k"
       }
     ]
+  },
+  {
+    "name": "Sunshine Live",
+    "slug": "sunshine-live",
+    "stations": [
+      {
+        "slug": "sunshine-live",
+        "name": "SUNSHINE LIVE",
+        "url": "https://stream.sunshine-live.de/live/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-classic",
+        "name": "SUNSHINE LIVE Classic",
+        "url": "https://stream.sunshine-live.de/classic/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-hardstyle",
+        "name": "SUNSHINE LIVE Hardstyle",
+        "url": "https://stream.sunshine-live.de/hardstyle/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-house",
+        "name": "SUNSHINE LIVE House",
+        "url": "https://stream.sunshine-live.de/house/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-techno",
+        "name": "SUNSHINE LIVE Techno",
+        "url": "https://stream.sunshine-live.de/techno/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-trance",
+        "name": "SUNSHINE LIVE Trance",
+        "url": "https://stream.sunshine-live.de/trance/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sunshine-live-chillout",
+        "name": "SUNSHINE LIVE Chillout",
+        "url": "https://stream.sunshine-live.de/chillout/mp3-192/stream.mp3",
+        "info": "MP3 192k"
+      }
+    ]
+  },
+  {
+    "name": "Radio 538",
+    "slug": "538",
+    "stations": [
+      {
+        "slug": "radio-538",
+        "name": "Radio 538",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO538.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "SLAM!",
+    "slug": "slam",
+    "stations": [
+      {
+        "slug": "slam",
+        "name": "SLAM!",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/SLAM_MP3.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Capital",
+    "slug": "capital",
+    "stations": [
+      {
+        "slug": "capital",
+        "name": "Capital",
+        "url": "https://media-ice.musicradio.com/CapitalMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "capital-dance",
+        "name": "Capital Dance",
+        "url": "https://media-ice.musicradio.com/CapitalDanceMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "capital-chill",
+        "name": "Capital Chill",
+        "url": "https://media-ice.musicradio.com/CapitalChillMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "capital-anthems",
+        "name": "Capital Anthems",
+        "url": "https://media-ice.musicradio.com/CapitalAnthemsMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Heart",
+    "slug": "heart",
+    "stations": [
+      {
+        "slug": "heart-london",
+        "name": "Heart London",
+        "url": "https://media-ice.musicradio.com/HeartLondonMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "heart-dance",
+        "name": "Heart Dance",
+        "url": "https://media-ice.musicradio.com/HeartDanceMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "heart-80s",
+        "name": "Heart 80s",
+        "url": "https://media-ice.musicradio.com/Heart80sMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "heart-90s",
+        "name": "Heart 90s",
+        "url": "https://media-ice.musicradio.com/Heart90sMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "heart-70s",
+        "name": "Heart 70s",
+        "url": "https://media-ice.musicradio.com/Heart70sMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Smooth",
+    "slug": "smooth",
+    "stations": [
+      {
+        "slug": "smooth-london",
+        "name": "Smooth London",
+        "url": "https://media-ice.musicradio.com/SmoothLondonMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "smooth-chill",
+        "name": "Smooth Chill",
+        "url": "https://media-ice.musicradio.com/SmoothChillMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "smooth-country",
+        "name": "Smooth Country",
+        "url": "https://media-ice.musicradio.com/SmoothCountryMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Classic FM",
+    "slug": "classic-fm",
+    "stations": [
+      {
+        "slug": "classic-fm",
+        "name": "Classic FM",
+        "url": "https://media-ice.musicradio.com/ClassicFMMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Gold",
+    "slug": "gold",
+    "stations": [
+      {
+        "slug": "gold",
+        "name": "Gold",
+        "url": "https://media-ice.musicradio.com/GoldMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "LBC",
+    "slug": "lbc",
+    "stations": [
+      {
+        "slug": "lbc-london",
+        "name": "LBC London",
+        "url": "https://media-ice.musicradio.com/LBCLondonMP3",
+        "info": "MP3"
+      },
+      {
+        "slug": "lbc-news",
+        "name": "LBC News",
+        "url": "https://media-ice.musicradio.com/LBCNewsLondonMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Radio X",
+    "slug": "radio-x",
+    "stations": [
+      {
+        "slug": "radio-x-london",
+        "name": "Radio X London",
+        "url": "https://media-ice.musicradio.com/RadioXLondonMP3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Power Hit Radio Estonia",
+    "slug": "power-hit-estonia",
+    "stations": [
+      {
+        "slug": "power-hit-radio",
+        "name": "Power Hit Radio",
+        "url": "https://ice.leviracloud.eu/phr128-aac",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "Power Hit Radio Lithuania",
+    "slug": "power-hit-lithuania",
+    "stations": [
+      {
+        "slug": "power-hit-radio",
+        "name": "Power Hit Radio",
+        "url": "https://stream.rcs.revma.com/f31w7e0fveuvv",
+        "info": "MP3"
+      },
+      {
+        "slug": "power-hit-radio-gold",
+        "name": "Power Hit Radio Gold",
+        "url": "https://stream.rcs.revma.com/asdpz3qfbhuvv",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Dance Wave!",
+    "slug": "dance-wave",
+    "stations": [
+      {
+        "slug": "dance-wave",
+        "name": "Dance Wave!",
+        "url": "https://dancewave.online/dance.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Power Hitz",
+    "slug": "powerhitz",
+    "stations": [
+      {
+        "slug": "hot108-jamz",
+        "name": "Hot108 Jamz",
+        "url": "https://live.powerhitz.com/hot108",
+        "info": "MP3"
+      },
+      {
+        "slug": "1power",
+        "name": "1Power",
+        "url": "https://live.powerhitz.com/1power",
+        "info": "MP3"
+      },
+      {
+        "slug": "the-office-mix",
+        "name": "The Office Mix",
+        "url": "https://live.powerhitz.com/officemix",
+        "info": "MP3"
+      },
+      {
+        "slug": "the-hitlist",
+        "name": "The Hitlist",
+        "url": "https://live.powerhitz.com/hitlist",
+        "info": "MP3"
+      },
+      {
+        "slug": "classic-soul",
+        "name": "Classic Soul",
+        "url": "https://live.powerhitz.com/bumpin",
+        "info": "MP3"
+      },
+      {
+        "slug": "pure-classic-rock",
+        "name": "Pure Classic Rock",
+        "url": "https://live.powerhitz.com/pureclassicrock",
+        "info": "MP3"
+      },
+      {
+        "slug": "timeblender",
+        "name": "Timeblender",
+        "url": "https://live.powerhitz.com/timeblender",
+        "info": "MP3"
+      },
+      {
+        "slug": "ultimate-80s",
+        "name": "Ultimate '80s",
+        "url": "https://live.powerhitz.com/ultimate80s",
+        "info": "MP3"
+      },
+      {
+        "slug": "90s-area",
+        "name": "'90s Area",
+        "url": "https://live.powerhitz.com/90sarea",
+        "info": "MP3"
+      },
+      {
+        "slug": "total-country",
+        "name": "Total Country",
+        "url": "https://live.powerhitz.com/country",
+        "info": "MP3"
+      },
+      {
+        "slug": "the-planet",
+        "name": "The Planet",
+        "url": "https://live.powerhitz.com/planet",
+        "info": "MP3"
+      },
+      {
+        "slug": "real-r-and-b",
+        "name": "Real R&B",
+        "url": "https://live.powerhitz.com/realrnb",
+        "info": "MP3"
+      },
+      {
+        "slug": "backbounce",
+        "name": "BacKBounce",
+        "url": "https://live.powerhitz.com/backbounce",
+        "info": "MP3"
+      },
+      {
+        "slug": "sensational-70s",
+        "name": "Sensational '70s",
+        "url": "https://live.powerhitz.com/70s",
+        "info": "MP3"
+      },
+      {
+        "slug": "the-heart",
+        "name": "The Heart",
+        "url": "https://live.powerhitz.com/lovesongs",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "WHFF",
+    "slug": "whff",
+    "stations": [
+      {
+        "slug": "hip-hop-vibes",
+        "name": "Hip-Hop Vibes",
+        "url": "https://azuracast.whff.radio/listen/my_whff_hip-hop/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "electronic-beats",
+        "name": "Electronic Beats",
+        "url": "https://azuracast.whff.radio/listen/my_whff_electronic/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "whff-trauma-recovery-radio",
+        "name": "WHFF Trauma Recovery Radio",
+        "url": "https://azuracast.whff.radio/listen/my_whff_trauma_recovery_radio/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "folk-tunes",
+        "name": "Folk Tunes",
+        "url": "https://azuracast.whff.radio/listen/my_whff_folk_tunes/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pop-hits",
+        "name": "Pop Hits",
+        "url": "https://azuracast.whff.radio/listen/my_whff_pop_hits/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "retro-70s-80s-90s-mix",
+        "name": "Retro 70s, 80s, 90s Mix",
+        "url": "https://azuracast.whff.radio/listen/my_retro_mix_whff_radio/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "classic-soul",
+        "name": "Classic Soul",
+        "url": "https://azuracast.whff.radio/listen/my_whff_classic_soul/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "rock-and-jukebox",
+        "name": "Rock & Jukebox",
+        "url": "https://azuracast.whff.radio/listen/my_whff_rock_and_jukebox/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "bluegrass-classics",
+        "name": "Bluegrass Classics",
+        "url": "https://azuracast.whff.radio/listen/my_whff_bluegrass_classics/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "afrobeats-energy",
+        "name": "Afrobeats Energy",
+        "url": "https://azuracast.whff.radio/listen/my_whff_afrobeats_energy/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "country-roads",
+        "name": "Country Roads",
+        "url": "https://azuracast.whff.radio/listen/country_roads__whff_radio/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "easy-listening",
+        "name": "Easy Listening",
+        "url": "https://azuracast.whff.radio/listen/my_whff_easy_listening/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "whff-professional-channel",
+        "name": "WHFF Professional Channel",
+        "url": "https://azuracast.whff.radio/listen/my_whff_professional_channel/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "classical-masterpieces",
+        "name": "Classical Masterpieces",
+        "url": "https://azuracast.whff.radio/listen/my_whff_classical_masterpieces/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "whff-corporate-soundscapes-spanish",
+        "name": "WHFF Corporate Soundscapes – Spanish",
+        "url": "https://azuracast.whff.radio/listen/whff_corporate_soundscapes__espanol_whff_radio/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "whff-on-the-go",
+        "name": "WHFF On-the-Go",
+        "url": "https://azuracast.whff.radio/listen/my_whff_on_the_go/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "dr-rachel-levitch-24-7",
+        "name": "Dr Rachel Levitch 24/7",
+        "url": "https://azuracast.whff.radio/listen/my_whff_dr_rachel_levitch_24_7/radio.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "neo-soul",
+        "name": "Neo Soul",
+        "url": "https://azuracast.whff.radio/listen/my_whff_neo-soul/radio.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Radio Record",
+    "slug": "radio-record",
+    "stations": [
+      {
+        "slug": "record",
+        "name": "Record",
+        "url": "https://radiorecord.hostingradio.ru/rr_main64.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "russian-mix",
+        "name": "Russian Mix",
+        "url": "https://radiorecord.hostingradio.ru/rus96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "90",
+        "name": "Супердискотека 90-х",
+        "url": "https://radiorecord.hostingradio.ru/sd9096.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station",
+        "name": "Колбасный Цех",
+        "url": "https://radiorecord.hostingradio.ru/pump96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "festivals",
+        "name": "Festivals",
+        "url": "https://radiorecord.hostingradio.ru/livedjsets96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "deep",
+        "name": "Deep",
+        "url": "https://radiorecord.hostingradio.ru/deep96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "chill-out",
+        "name": "Chill-Out",
+        "url": "https://radiorecord.hostingradio.ru/chil96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station-2",
+        "name": "На шашлыки!",
+        "url": "https://radiorecord.hostingradio.ru/nashashlyki96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "megamix",
+        "name": "Megamix",
+        "url": "https://radiorecord.hostingradio.ru/mix96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rock",
+        "name": "Rock",
+        "url": "https://radiorecord.hostingradio.ru/rock96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "remix",
+        "name": "Remix",
+        "url": "https://radiorecord.hostingradio.ru/rmx96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "big-hits",
+        "name": "Big Hits",
+        "url": "https://radiorecord.hostingradio.ru/bighits96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "chill-house",
+        "name": "Chill House",
+        "url": "https://radiorecord.hostingradio.ru/chillhouse96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "00",
+        "name": "Рекорд 00-х",
+        "url": "https://radiorecord.hostingradio.ru/200096.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "record-80",
+        "name": "Record 80-х",
+        "url": "https://radiorecord.hostingradio.ru/198096.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "fm",
+        "name": "Нафталин FM",
+        "url": "https://radiorecord.hostingradio.ru/naft96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station-3",
+        "name": "Маятник Фуко",
+        "url": "https://radiorecord.hostingradio.ru/mf96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "trancemission",
+        "name": "Trancemission",
+        "url": "https://radiorecord.hostingradio.ru/tm96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "summer-dance",
+        "name": "Summer Dance",
+        "url": "https://radiorecord.hostingradio.ru/summerparty96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "russian-gold",
+        "name": "Russian Gold",
+        "url": "https://radiorecord.hostingradio.ru/russiangold96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "pirate-station",
+        "name": "Pirate Station",
+        "url": "https://radiorecord.hostingradio.ru/ps96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "innocence",
+        "name": "Innocence",
+        "url": "https://radiorecord.hostingradio.ru/ibiza96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "fm-2",
+        "name": "Медляк FM",
+        "url": "https://radiorecord.hostingradio.ru/mdl96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "party-24-7",
+        "name": "Party 24/7",
+        "url": "https://radiorecord.hostingradio.ru/party96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "phonk",
+        "name": "Phonk",
+        "url": "https://radiorecord.hostingradio.ru/phonk96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "record-gold",
+        "name": "Record Gold",
+        "url": "https://radiorecord.hostingradio.ru/gold96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station-4",
+        "name": "Руки Вверх!",
+        "url": "https://radiorecord.hostingradio.ru/rv96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station-5",
+        "name": "На Хайпе",
+        "url": "https://radiorecord.hostingradio.ru/hype96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rap-hits",
+        "name": "Rap Hits",
+        "url": "https://radiorecord.hostingradio.ru/rap96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rap-classics",
+        "name": "Rap Classics",
+        "url": "https://radiorecord.hostingradio.ru/rapclassics96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "trance-classics",
+        "name": "Trance Classics",
+        "url": "https://radiorecord.hostingradio.ru/trancehits96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "d-n-b-classics",
+        "name": "D'n'B Classics",
+        "url": "https://radiorecord.hostingradio.ru/drumhits96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "armin-van-buuren",
+        "name": "Armin van Buuren",
+        "url": "https://radiorecord.hostingradio.ru/armin96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "organic",
+        "name": "Organic",
+        "url": "https://radiorecord.hostingradio.ru/organic96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "vip-house",
+        "name": "VIP House",
+        "url": "https://radiorecord.hostingradio.ru/vip96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "breaks",
+        "name": "Breaks",
+        "url": "https://radiorecord.hostingradio.ru/brks96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "liquid-funk",
+        "name": "Liquid Funk",
+        "url": "https://radiorecord.hostingradio.ru/liquidfunk96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "edm",
+        "name": "EDM",
+        "url": "https://radiorecord.hostingradio.ru/club96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "bass-house",
+        "name": "Bass House",
+        "url": "https://radiorecord.hostingradio.ru/jackin96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "goa-psy",
+        "name": "GOA/PSY",
+        "url": "https://radiorecord.hostingradio.ru/goa96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "10-s-dance",
+        "name": "10's Dance",
+        "url": "https://radiorecord.hostingradio.ru/201096.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "trancehouse",
+        "name": "Trancehouse",
+        "url": "https://radiorecord.hostingradio.ru/trancehouse96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "black-rap",
+        "name": "Black Rap",
+        "url": "https://radiorecord.hostingradio.ru/yo96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "techno",
+        "name": "Techno",
+        "url": "https://radiorecord.hostingradio.ru/techno96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "tropical",
+        "name": "Tropical",
+        "url": "https://radiorecord.hostingradio.ru/trop96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "lo-fi",
+        "name": "Lo-Fi",
+        "url": "https://radiorecord.hostingradio.ru/lofi96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "tech-house",
+        "name": "Tech House",
+        "url": "https://radiorecord.hostingradio.ru/techouse96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "trap",
+        "name": "Trap",
+        "url": "https://radiorecord.hostingradio.ru/trap96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "technopop",
+        "name": "Technopop",
+        "url": "https://radiorecord.hostingradio.ru/technopop96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "70-s-dance",
+        "name": "70's Dance",
+        "url": "https://radiorecord.hostingradio.ru/197096.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "neurofunk",
+        "name": "Neurofunk",
+        "url": "https://radiorecord.hostingradio.ru/neurofunk96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "ambient",
+        "name": "Ambient",
+        "url": "https://radiorecord.hostingradio.ru/ambient96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "eurodance",
+        "name": "Eurodance",
+        "url": "https://radiorecord.hostingradio.ru/eurodance96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "house-hits",
+        "name": "House Hits",
+        "url": "https://radiorecord.hostingradio.ru/househits96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "uplifting",
+        "name": "Uplifting",
+        "url": "https://radiorecord.hostingradio.ru/uplift96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "tiesto",
+        "name": "Tiesto",
+        "url": "https://radiorecord.hostingradio.ru/tiesto96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "fm-3",
+        "name": "Веснушка FM",
+        "url": "https://radiorecord.hostingradio.ru/deti96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "fm-4",
+        "name": "Симфония FM",
+        "url": "https://radiorecord.hostingradio.ru/symph96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "minimal-tech",
+        "name": "Minimal/Tech",
+        "url": "https://radiorecord.hostingradio.ru/mini96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "top-100-edm",
+        "name": "TOP 100 EDM",
+        "url": "https://radiorecord.hostingradio.ru/top100edm96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "dream-pop",
+        "name": "Dream Pop",
+        "url": "https://radiorecord.hostingradio.ru/dreampop96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "house-classics",
+        "name": "House Classics",
+        "url": "https://radiorecord.hostingradio.ru/houseclss96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "david-guetta",
+        "name": "David Guetta",
+        "url": "https://radiorecord.hostingradio.ru/guetta96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "disco-funk",
+        "name": "Disco/Funk",
+        "url": "https://radiorecord.hostingradio.ru/discofunk96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "hard-bass",
+        "name": "Hard Bass",
+        "url": "https://radiorecord.hostingradio.ru/hbass96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rave-fm",
+        "name": "Rave FM",
+        "url": "https://radiorecord.hostingradio.ru/rave96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "60-s-dance",
+        "name": "60's Dance",
+        "url": "https://radiorecord.hostingradio.ru/cadillac96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "dancecore",
+        "name": "Dancecore",
+        "url": "https://radiorecord.hostingradio.ru/dc96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "future-house",
+        "name": "Future House",
+        "url": "https://radiorecord.hostingradio.ru/fut96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "darkside",
+        "name": "Darkside",
+        "url": "https://radiorecord.hostingradio.ru/darkside96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "future-rave",
+        "name": "Future Rave",
+        "url": "https://radiorecord.hostingradio.ru/futurerave96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "electro",
+        "name": "Electro",
+        "url": "https://radiorecord.hostingradio.ru/elect96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "hardstyle",
+        "name": "Hardstyle",
+        "url": "https://radiorecord.hostingradio.ru/teo96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "dubstep",
+        "name": "Dubstep",
+        "url": "https://radiorecord.hostingradio.ru/dub96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "progressive",
+        "name": "Progressive",
+        "url": "https://radiorecord.hostingradio.ru/progr96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "synthwave",
+        "name": "Synthwave",
+        "url": "https://radiorecord.hostingradio.ru/synth96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "latina-dance",
+        "name": "Latina Dance",
+        "url": "https://radiorecord.hostingradio.ru/latina96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "edm-classics",
+        "name": "EDM Classics",
+        "url": "https://radiorecord.hostingradio.ru/edmhits96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "tecktonik",
+        "name": "Tecktonik",
+        "url": "https://radiorecord.hostingradio.ru/tecktonik96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "jungle",
+        "name": "Jungle",
+        "url": "https://radiorecord.hostingradio.ru/jungle96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "hypnotic",
+        "name": "Hypnotic",
+        "url": "https://radiorecord.hostingradio.ru/hypno96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "uk-garage",
+        "name": "UK Garage",
+        "url": "https://radiorecord.hostingradio.ru/ukgarage96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "fm-5",
+        "name": "Гастарбайтер FM",
+        "url": "https://radiorecord.hostingradio.ru/gast96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "midtempo",
+        "name": "Midtempo",
+        "url": "https://radiorecord.hostingradio.ru/mt96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "future-bass",
+        "name": "Future Bass",
+        "url": "https://radiorecord.hostingradio.ru/fbass96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "moombahton",
+        "name": "Moombahton",
+        "url": "https://radiorecord.hostingradio.ru/mmbt96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "2-step",
+        "name": "2-step",
+        "url": "https://radiorecord.hostingradio.ru/2step96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "complextro",
+        "name": "Complextro",
+        "url": "https://radiorecord.hostingradio.ru/complextro96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "groove-tribal",
+        "name": "Groove/Tribal",
+        "url": "https://radiorecord.hostingradio.ru/groovetribal96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "christmas-chill",
+        "name": "Christmas Chill",
+        "url": "https://radiorecord.hostingradio.ru/christmaschill96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "christmas",
+        "name": "Christmas",
+        "url": "https://radiorecord.hostingradio.ru/christmas96.aacp",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "station-6",
+        "name": "Русская Зима",
+        "url": "https://radiorecord.hostingradio.ru/ruszima96.aacp",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "PulsRadio",
+    "slug": "pulsradio",
+    "stations": [
+      {
+        "slug": "pulsradio-dance",
+        "name": "PulsRadio Dance",
+        "url": "https://icecast.pulsradio.com/pulsHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-hits",
+        "name": "PulsRadio Hits",
+        "url": "https://icecast.pulsradio.com/hitpartyHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-club",
+        "name": "PulsRadio Club",
+        "url": "https://icecast.pulsradio.com/mxHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-lounge",
+        "name": "PulsRadio Lounge",
+        "url": "https://icecast.pulsradio.com/relaxHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-trance",
+        "name": "PulsRadio Trance",
+        "url": "https://icecast.pulsradio.com/pulstranceHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-80s",
+        "name": "PulsRadio 80s",
+        "url": "https://icecast.pulsradio.com/magicradioHD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-90s",
+        "name": "PulsRadio 90s",
+        "url": "https://icecast.pulsradio.com/puls90HD.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "pulsradio-2000",
+        "name": "PulsRadio 2000",
+        "url": "https://icecast.pulsradio.com/puls00HD.mp3",
+        "info": "MP3"
+      }
+    ]
   }
 ]

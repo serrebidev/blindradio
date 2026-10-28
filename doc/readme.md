@@ -50,8 +50,10 @@ Icecast offers All Stations and By Genre. Its live directory stays cached for fi
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
 Stations and By Genre. A listed station may be offline or unavailable in your region.
 
-Networks includes 181.fm, .977, Big R Radio, Radio Swiss, KEXP, WFUV, Radio Paradise, NTS
-and WFMU alongside the existing broadcasters.
+Networks carries the broadcasters and internet networks, among them 181.fm, .977,
+Big R Radio, Radio Swiss, Sunshine Live, Radio 538, SLAM!, Capital, Heart, Smooth,
+Classic FM, Gold, LBC, Radio X, Power Hit Radio in Estonia and Lithuania, Dance Wave!,
+PulsRadio, Power Hitz, WHFF, Radio Record, KEXP, WFUV, Radio Paradise, NTS and WFMU.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for
