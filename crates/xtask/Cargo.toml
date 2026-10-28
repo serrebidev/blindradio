@@ -7,3 +7,7 @@ version.workspace = true
 [dependencies]
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
 minisign = "0.10.0"
+
+[dev-dependencies]
+# The check the updater itself makes on a download.
+minisign-verify = "0.2.5"

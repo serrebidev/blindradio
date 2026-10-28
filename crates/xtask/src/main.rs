@@ -7,7 +7,6 @@ use std::process::Command;
 use shipfitter::build::configure_file;
 use shipfitter::docs::{self, Page};
 use shipfitter::package::{self, Zip};
-use shipfitter::sign::Minisign;
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -139,10 +138,8 @@ fn release(args: &[String]) -> Result<(), String> {
 		assets.push(dist.join(format!("{APP}.tar.gz")));
 	}
 	// Every asset carries its signature, so the updater can verify the download.
-	if let Some(key) = Minisign::from_env().map_err(|e| format!("minisign: {e}"))? {
-		for asset in &assets {
-			key.sign(asset).map_err(|e| format!("signing: {e}"))?;
-		}
+	for asset in &assets {
+		sign_file(asset)?;
 	}
 	let mut upload: Vec<String> = vec![
 		"release".into(),
@@ -185,14 +182,51 @@ fn release(args: &[String]) -> Result<(), String> {
 	Ok(())
 }
 
-/// `cargo xtask sign <file>…`: writes `<file>.minisig` beside each, from `MINISIGN_KEY`.
+/// Writes `<file>.minisig` beside `file`, the signature a ship-shape update verifies.
+/// `MINISIGN_KEY` holds the key, `MINISIGN_PASSWORD` unlocks it if it is encrypted. Returns
+/// false when there is no key, so a build without one still runs.
+pub(crate) fn sign_file(path: &Path) -> Result<bool, String> {
+	let Ok(key) = std::env::var("MINISIGN_KEY") else {
+		return Ok(false);
+	};
+	let password = std::env::var("MINISIGN_PASSWORD").ok();
+	let boxed =
+		minisign::SecretKeyBox::from_string(&key).map_err(|e| format!("MINISIGN_KEY: {e}"))?;
+	let key = match password {
+		Some(password) => boxed.into_secret_key(Some(password)),
+		None => boxed.into_unencrypted_secret_key(),
+	}
+	.map_err(|e| format!("MINISIGN_KEY: {e}"))?;
+	let name = path
+		.file_name()
+		.ok_or_else(|| format!("{} has no file name", path.display()))?
+		.to_string_lossy();
+	let timestamp = std::time::SystemTime::now()
+		.duration_since(std::time::UNIX_EPOCH)
+		.map(|d| d.as_secs())
+		.unwrap_or_default();
+	let trusted = format!("timestamp:{timestamp}\tfile:{name}\thashed");
+	let reader = std::io::BufReader::new(
+		std::fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?,
+	);
+	let signature = minisign::sign(None, &key, reader, Some(&trusted), None)
+		.map_err(|e| format!("signing {}: {e}", path.display()))?;
+	let mut out = path.as_os_str().to_owned();
+	out.push(".minisig");
+	std::fs::write(&out, signature.into_string())
+		.map_err(|e| format!("{}: {e}", Path::new(&out).display()))?;
+	Ok(true)
+}
+
+/// `cargo xtask sign <file>…`: writes `<file>.minisig` beside each.
 fn sign_assets(args: &[String]) -> Result<(), String> {
-	let key = Minisign::from_env()
-		.map_err(|e| format!("minisign: {e}"))?
-		.ok_or("MINISIGN_KEY is not set")?;
+	if args.is_empty() {
+		return Err("sign needs at least one file".to_string());
+	}
 	for file in args {
-		key.sign(Path::new(file))
-			.map_err(|e| format!("signing {file}: {e}"))?;
+		if !sign_file(Path::new(file))? {
+			return Err("MINISIGN_KEY is not set".to_string());
+		}
 		println!("xtask: signed {file}");
 	}
 	Ok(())
@@ -416,11 +450,8 @@ fn dist_windows() -> Result<(), String> {
 	sign(&setup)?;
 
 	// Signatures last: both files are final.
-	if let Some(key) = Minisign::from_env().map_err(|e| format!("minisign: {e}"))? {
-		key.sign(&zip_path)
-			.map_err(|e| format!("signing zip: {e}"))?;
-		key.sign(&setup)
-			.map_err(|e| format!("signing setup: {e}"))?;
+	if sign_file(&zip_path)? {
+		sign_file(&setup)?;
 	} else {
 		println!("xtask: no MINISIGN_KEY, so nothing is signed with minisign");
 	}
@@ -497,4 +528,39 @@ fn find_signtool() -> Result<PathBuf, String> {
 		.max()
 		.ok_or("signtool.exe not found; set SIGNTOOL_PATH")?;
 	Ok(newest.join("x64").join("signtool.exe"))
+}
+
+#[cfg(test)]
+mod tests {
+	/// A signature this command writes is one the updater accepts, and a changed file is refused.
+	#[test]
+	fn signature_verifies_with_the_public_key() {
+		let dir = std::env::temp_dir().join(format!("blindradio-sign-{}", std::process::id()));
+		let _ = std::fs::remove_dir_all(&dir);
+		std::fs::create_dir_all(&dir).unwrap();
+		let asset = dir.join("BlindRadio.zip");
+		std::fs::write(&asset, b"release contents").unwrap();
+
+		let pair = minisign::KeyPair::generate_unencrypted_keypair().unwrap();
+		let secret = pair.sk.to_box(None).unwrap().into_string();
+		let public = pair.pk.to_box().unwrap().into_string();
+		// SAFETY: the only test in this binary.
+		unsafe { std::env::set_var("MINISIGN_KEY", &secret) };
+		assert!(super::sign_file(&asset).unwrap());
+
+		let public =
+			minisign_verify::PublicKey::from_base64(public.lines().nth(1).unwrap()).unwrap();
+		let signature = minisign_verify::Signature::decode(
+			&std::fs::read_to_string(dir.join("BlindRadio.zip.minisig")).unwrap(),
+		)
+		.unwrap();
+		public
+			.verify(&std::fs::read(&asset).unwrap(), &signature, false)
+			.unwrap();
+		assert!(
+			public.verify(b"tampered", &signature, false).is_err(),
+			"a changed download must be refused"
+		);
+		std::fs::remove_dir_all(&dir).unwrap();
+	}
 }
