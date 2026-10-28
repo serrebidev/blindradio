@@ -12,6 +12,7 @@ wx-utils = { git = "https://github.com/trypsynth/wx-utils" }
 crossbeam-channel = "*"
 tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
+live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }
 
 [build-dependencies]
 embed-manifest = "*"

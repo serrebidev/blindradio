@@ -25,6 +25,7 @@ use crate::clipboard;
 use crate::dialogs::browse;
 use crate::main_window::{MainWindow, escape};
 use crate::menus::{self, MenuIds};
+use crate::speech::{self, Kind, Speech};
 use crate::strings as s;
 
 const VOLUME_STEP: i32 = 5;
@@ -110,6 +111,8 @@ pub struct App {
 	dial: bool,
 	pub win: MainWindow,
 	pub menus: MenuIds,
+	/// Spoken messages; the message line shows them either way.
+	pub speech: Speech,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -133,6 +136,7 @@ impl App {
 		let output = Rc::new(RefCell::new(output));
 		let (tx, events) = crossbeam_channel::unbounded();
 		let menus = menus::build(&win.frame, &settings, &output_devices());
+		let speech = Speech::new(&win.frame);
 		let timer = Timer::new(&win.frame);
 		Ok(App {
 			sources: Arc::new(Sources::new(
@@ -159,6 +163,7 @@ impl App {
 			dial: false,
 			win,
 			menus,
+			speech,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
@@ -191,7 +196,15 @@ impl App {
 	}
 
 	pub fn say(&mut self, text: &str) {
+		self.say_kind(Kind::Info, text);
+	}
+
+	/// Shown in the message line, and spoken when the kind and settings allow.
+	pub fn say_kind(&mut self, kind: Kind, text: &str) {
 		self.win.message.set_label(&escape(text));
+		if speech::should_speak(kind, &self.settings, self.dial) {
+			self.speech.say(text, speech::priority(kind));
+		}
 	}
 
 	/// Empties the message line without a word.
@@ -386,10 +399,8 @@ impl App {
 		match event {
 			TunerEvent::Playing { station_id } => {
 				// Dial tuning stays quiet: the audio is the confirmation.
-				if self.settings.announce_status
-					&& !self.dial && let Some(name) = self.playing_name(&station_id)
-				{
-					self.say(&name);
+				if let Some(name) = self.playing_name(&station_id) {
+					self.say_kind(Kind::Status, &name);
 				}
 			}
 			// A title queued for a station focus already left must not overwrite the playing one.
@@ -404,14 +415,12 @@ impl App {
 				self.history.station_changed(&station_id);
 				self.history.title(title.as_deref(), SystemTime::now());
 			}
-			TunerEvent::Announce(song) => {
-				if self.settings.announce_titles {
-					self.say(&song);
-				}
+			TunerEvent::Announce(song) => self.say_kind(Kind::Title, &song),
+			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, s::RECONNECTING),
+			TunerEvent::Reconnected { .. } => self.say_kind(Kind::Info, s::RECONNECTED),
+			TunerEvent::Failed { name, .. } => {
+				self.say_kind(Kind::Failure, &format!("{}{name}", s::FAILED));
 			}
-			TunerEvent::Reconnecting { .. } => self.say(s::RECONNECTING),
-			TunerEvent::Reconnected { .. } => self.say(s::RECONNECTED),
-			TunerEvent::Failed { name, .. } => self.say(&format!("{}{name}", s::FAILED)),
 			// Spec: measure and log warm and cold latency in debug builds.
 			TunerEvent::Latency {
 				station_id,

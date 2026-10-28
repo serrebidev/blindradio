@@ -9,6 +9,7 @@ mod context_menu;
 mod dialogs;
 mod main_window;
 mod menus;
+mod speech;
 mod station_list;
 mod strings;
 
