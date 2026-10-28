@@ -14,8 +14,8 @@ mkdir -p "$dist"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-# The committed tree, not the working copy.
-git -C "$here" archive --format=tar.gz --prefix=blindradio/ HEAD > "$tmp/src.tar.gz"
+# The committed tree, not the working copy. `cd` because git -C gets the MSYS path unconverted.
+( cd "$here" && git archive --format=tar.gz --prefix=blindradio/ HEAD ) > "$tmp/src.tar.gz"
 
 echo "copying the source to $host:$remote"
 ssh "$host" "rm -rf $remote && mkdir -p $remote/src"

@@ -139,10 +139,17 @@ pub fn install(app: &Rc<RefCell<App>>) -> Option<Tray> {
 	let mut menu = fill(&app.borrow(), &mut ids.borrow_mut());
 	icon.set_popup_menu(&mut menu);
 
-	// Bound before the icon moves into the handle.
+	// Bound before the icon moves into the handle. macOS has no click event in wxDragon, so the
+	// menu's Show is the only way in there.
+	#[cfg(target_os = "windows")]
 	{
 		let a = app.clone();
 		icon.on_left_up(move |_| raise(&a));
+	}
+	#[cfg(target_os = "linux")]
+	{
+		let a = app.clone();
+		icon.on_left_down(move |_| raise(&a));
 	}
 	{
 		let (a, ids) = (app.clone(), ids.clone());
