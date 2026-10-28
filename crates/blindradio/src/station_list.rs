@@ -190,7 +190,7 @@ impl StationList {
 			});
 
 		// The Applications key, Shift+F10 and a right click.
-		let (a, me, on_delete) = (app.clone(), self.clone(), hooks.on_delete);
+		let (a, me) = (app.clone(), self.clone());
 		self.list
 			.bind_internal(EventType::CONTEXT_MENU, move |e: Event| {
 				e.skip(false);
@@ -203,11 +203,9 @@ impl StationList {
 				};
 				let items = context_menu::items_for(&target, &a.borrow().library);
 				match (items, focused) {
-					(Ok(items), Some((i, st))) => {
+					(Ok(items), Some((_, st))) => {
 						if let Some(choice) = context_menu::popup(&me.list, &items) {
-							let delete = on_delete.as_ref().map(|d| move || d(i));
-							let delete = delete.as_ref().map(|d| d as &dyn Fn());
-							context_menu::apply(&a, &me.list, &st, choice, delete);
+							context_menu::apply(&a, &me.list, &st, choice);
 						}
 					}
 					(Err(text), _) => a.borrow_mut().say(text),

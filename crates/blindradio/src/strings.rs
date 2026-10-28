@@ -107,6 +107,8 @@ pub const RESULTS: &str = "Results";
 pub const CLOSE: &str = "Close";
 pub const SEARCHING: &str = "Searching";
 pub const NO_RESULTS: &str = "No results";
+/// No filter in Search's boxes.
+pub const ANY: &str = "Any";
 
 // Browse.
 pub const BROWSE_TITLE: &str = "Browse";

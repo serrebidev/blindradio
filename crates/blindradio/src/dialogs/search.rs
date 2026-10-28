@@ -26,17 +26,20 @@ impl Fields {
 		fn refs(v: &[String]) -> Vec<&str> {
 			v.iter().map(String::as_str).collect()
 		}
+		// "Any" rather than a blank first item, which NVDA reads as "blank".
+		for combo in [self.genre, self.country, self.language] {
+			combo.append(s::ANY);
+		}
 		self.genre.append_items(&refs(&f.genres));
 		self.country.append_items(&refs(&f.countries));
-		// Read-only: the blank first item is no language.
-		self.language.append("");
 		self.language.append_items(&refs(&f.languages));
 	}
 }
 
+/// An empty box and "Any" are the same: no filter.
 fn filter(value: String) -> Option<String> {
 	let value = value.trim();
-	(!value.is_empty()).then(|| value.to_string())
+	(!value.is_empty() && value != s::ANY).then(|| value.to_string())
 }
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
@@ -166,4 +169,17 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 	name.set_focus();
 	crate::dialogs::run(app, dialog, Action::OpenSearch, name, &token)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::filter;
+	use crate::strings as s;
+
+	#[test]
+	fn any_is_no_filter() {
+		assert_eq!(filter(s::ANY.into()), None);
+		assert_eq!(filter("  ".into()), None);
+		assert_eq!(filter(" Jazz ".into()), Some("Jazz".into()));
+	}
 }

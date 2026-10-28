@@ -894,7 +894,7 @@ impl View {
 			return;
 		};
 		match (station, collection, choice) {
-			(Some(st), _, choice) => context_menu::apply(app, &self.tree, &st, choice, None),
+			(Some(st), _, choice) => context_menu::apply(app, &self.tree, &st, choice),
 			(None, Some((id, _)), Choice::Rename) => {
 				if let Some(name) =
 					prompt_text(&self.tree, s::COLLECTION_NAME, &plain(s::RENAME_ITEM))

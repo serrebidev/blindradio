@@ -71,7 +71,13 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 						.collect(),
 				),
 			];
-			if st.id.starts_with("custom:") {
+			// Imported stations get `custom:` ids too, so only Custom Stations membership counts.
+			let custom = lib
+				.collections
+				.iter()
+				.find(|c| c.id == CUSTOM)
+				.is_some_and(|c| c.stations.iter().any(|x| x.id == st.id));
+			if custom {
 				items.push(Item::DeleteCustom);
 			}
 			Ok(items)
@@ -186,14 +192,8 @@ fn open_on_first_item(window: &dyn WxWidget) {
 #[cfg(not(windows))]
 fn open_on_first_item(_: &dyn WxWidget) {}
 
-/// Runs a station menu choice. `on_delete` is the list's own delete, else Custom Stations loses it.
-pub fn apply(
-	app: &Rc<RefCell<App>>,
-	parent: &dyn WxWidget,
-	station: &Station,
-	choice: Choice,
-	on_delete: Option<&dyn Fn()>,
-) {
+/// Runs a station menu choice.
+pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, choice: Choice) {
 	let action = match choice {
 		Choice::Play => Action::Play,
 		Choice::Favorite => Action::ToggleFavorite,
@@ -207,10 +207,8 @@ pub fn apply(
 			return;
 		}
 		Choice::DeleteCustom => {
-			match on_delete {
-				Some(delete) => delete(),
-				None => app.borrow_mut().delete_custom(&station.id),
-			}
+			// Out of Custom Stations wherever it was chosen: copies in lists and collections stay.
+			app.borrow_mut().delete_custom(&station.id);
 			return;
 		}
 		// Collection owners handle their own.
@@ -254,6 +252,23 @@ mod tests {
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), true),
+				]),
+			])
+		);
+		// Imported stations carry `custom:` ids but are not in Custom Stations.
+		let imported = Station {
+			id: "custom:starter".into(),
+			..station("Serrebi One")
+		};
+		assert_eq!(
+			items_for(&Target::Station(&imported), &lib),
+			Ok(vec![
+				Item::Play,
+				Item::Favorite(false),
+				Item::CopyUrl,
+				Item::AddToCollection(vec![
+					(jazz.clone(), "Jazz".into(), false),
+					(news.clone(), "News".into(), false),
 				]),
 			])
 		);

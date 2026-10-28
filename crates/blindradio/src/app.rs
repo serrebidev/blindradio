@@ -173,7 +173,9 @@ impl App {
 		// Play/Pause right after start plays the station from last time.
 		self.remembered = self.settings.last_station.clone();
 		self.refresh_dial();
-		if !self.land_dial(self.settings.play_last_at_startup) {
+		// Owner rule: the dial plays on the first run or with Play Last Station at Startup;
+		// otherwise it only takes focus and plays on the first arrow.
+		if !self.land_dial(first_run || self.settings.play_last_at_startup) {
 			self.win.play.set_focus();
 			if self.settings.play_last_at_startup
 				&& let Some(st) = self.remembered.clone()
@@ -486,7 +488,7 @@ impl App {
 						app.say(&report.message());
 					} else if !app.dialog_open && app.tuner.playing().is_none() {
 						// What a normal start does, a second late.
-						app.land_dial(false);
+						app.land_dial(true);
 					}
 				}
 				Err(e) => {
@@ -533,16 +535,21 @@ impl App {
 		list.set_stations(stations, focus);
 	}
 
-	/// Focuses the main window list and plays from it (owner rule); false when it is empty.
-	/// `play_last`: the last station if the list has it, else that station with the list at the top.
-	fn land_dial(&mut self, play_last: bool) -> bool {
+	/// Focuses the main window list; false when it is empty. `play`: it plays now, the last
+	/// station first with Play Last Station at Startup; silent otherwise.
+	fn land_dial(&mut self, play: bool) -> bool {
 		let list = self.win.stations.clone();
 		let stations = list.stations();
 		if stations.is_empty() {
 			return false;
 		}
 		list.list.set_focus();
-		match play_last
+		if !play {
+			return true;
+		}
+		match self
+			.settings
+			.play_last_at_startup
 			.then(|| self.settings.last_station.clone())
 			.flatten()
 		{
