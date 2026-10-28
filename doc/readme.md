@@ -52,8 +52,9 @@ Stations and By Genre. A listed station may be offline or unavailable in your re
 
 Networks carries the broadcasters and internet networks, among them 181.fm, .977,
 Big R Radio, Radio Swiss, Sunshine Live, Radio 538, SLAM!, Capital, Heart, Smooth,
-Classic FM, Gold, LBC, Radio X, Power Hit Radio in Estonia and Lithuania, Dance Wave!,
-PulsRadio, Power Hitz, WHFF, Radio Record, KEXP, WFUV, Radio Paradise, NTS and WFMU.
+Classic FM, Gold, LBC, Radio X, Planet Radio, Power Hit Radio in Estonia and Lithuania,
+Dance Wave!, PulsRadio, Nightride FM, FRISKY, XLtrax, Radio FG, Power Hitz, WHFF,
+Radio Record, KEXP, WFUV, Radio Paradise, NTS and WFMU.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for

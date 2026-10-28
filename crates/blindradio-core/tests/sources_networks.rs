@@ -42,7 +42,12 @@ fn networks_parse_and_order() {
 			"Power Hitz",
 			"WHFF",
 			"Radio Record",
-			"PulsRadio"
+			"PulsRadio",
+			"Planet Radio",
+			"Nightride FM",
+			"FRISKY",
+			"XLtrax",
+			"Radio FG"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -152,6 +157,11 @@ fn new_networks_are_complete() {
 		("whff", 18),
 		("radio-record", 92),
 		("pulsradio", 8),
+		("planet-radio", 33),
+		("nightride-fm", 7),
+		("frisky", 1),
+		("xltrax", 1),
+		("radio-fg", 1),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");

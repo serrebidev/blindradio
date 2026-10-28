@@ -3937,5 +3937,293 @@
         "info": "MP3"
       }
     ]
+  },
+  {
+    "name": "Planet Radio",
+    "slug": "planet-radio",
+    "stations": [
+      {
+        "slug": "ffh-relax",
+        "name": "FFH RELAX",
+        "url": "https://mp3.ffh.de/ffhchannels/hqrelax.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-kuschelrock",
+        "name": "FFH KUSCHELROCK",
+        "url": "https://mp3.ffh.de/ffhchannels/hqkuschelrock.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-kuschelpop",
+        "name": "FFH KUSCHELPOP",
+        "url": "https://mp3.ffh.de/ffhchannels/hqkuschelpop.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-weihnachtsradio",
+        "name": "FFH WEIHNACHTSRADIO",
+        "url": "https://mp3.ffh.de/ffhchannels/hqxmas.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-weihnachtsklassiker",
+        "name": "FFH WEIHNACHTSKLASSIKER",
+        "url": "https://mp3.ffh.de/ffhchannels/hqxmasclassics.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-top-40",
+        "name": "FFH TOP 40",
+        "url": "https://mp3.ffh.de/ffhchannels/hqtop40.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-leider-geil",
+        "name": "FFH LEIDER GEIL",
+        "url": "https://mp3.ffh.de/ffhchannels/hqvoting.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-die-80er",
+        "name": "FFH DIE 80ER",
+        "url": "https://mp3.ffh.de/ffhchannels/hq80er.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-just-90s",
+        "name": "FFH JUST 90s",
+        "url": "https://mp3.ffh.de/ffhchannels/hq90er.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-die-2000er",
+        "name": "FFH DIE 2000ER",
+        "url": "https://mp3.ffh.de/ffhchannels/hq2000er.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-die-2010er",
+        "name": "FFH DIE 2010ER",
+        "url": "https://mp3.ffh.de/ffhchannels/hq2010er.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-best-of-2026",
+        "name": "FFH BEST OF 2026",
+        "url": "https://mp3.ffh.de/ffhchannels/hqbestof.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-lounge",
+        "name": "FFH LOUNGE",
+        "url": "https://mp3.ffh.de/ffhchannels/hqlounge.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "wohlf-hlzeit",
+        "name": "WOHLFÜHLZEIT",
+        "url": "https://mp3.ffh.de/ffhchannels/hqmeditation.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-country-radio",
+        "name": "FFH COUNTRY RADIO",
+        "url": "https://mp3.ffh.de/ffhchannels/hqcountry.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "radio-feierbiest",
+        "name": "RADIO FEIERBIEST",
+        "url": "https://mp3.ffh.de/ffhchannels/hqfeierbiest.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-just-party",
+        "name": "FFH JUST PARTY",
+        "url": "https://mp3.ffh.de/ffhchannels/hqparty.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-happy-hits",
+        "name": "FFH HAPPY HITS",
+        "url": "https://mp3.ffh.de/ffhchannels/hqhappyhits.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-top-1000",
+        "name": "FFH TOP 1000",
+        "url": "https://mp3.ffh.de/ffhchannels/hqtop1000.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-oldies",
+        "name": "FFH OLDIES",
+        "url": "https://mp3.ffh.de/ffhchannels/hqoldies.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-just-white",
+        "name": "FFH JUST WHITE",
+        "url": "https://mp3.ffh.de/ffhchannels/hqjustwhite.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-chill-and-grill",
+        "name": "FFH CHILL & GRILL",
+        "url": "https://mp3.ffh.de/ffhchannels/hqchillandgrill.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-eurodance",
+        "name": "FFH EURODANCE",
+        "url": "https://mp3.ffh.de/ffhchannels/hqeurodance.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-rock",
+        "name": "FFH ROCK",
+        "url": "https://mp3.ffh.de/ffhchannels/hqrock.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-workout",
+        "name": "FFH WORKOUT",
+        "url": "https://mp3.ffh.de/ffhchannels/hqworkout.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "radio-schlagerherz",
+        "name": "RADIO SCHLAGERHERZ",
+        "url": "https://mp3.ffh.de/ffhchannels/hqschlagerherz.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-schlagerkult",
+        "name": "FFH SCHLAGERKULT",
+        "url": "https://mp3.ffh.de/ffhchannels/hqschlager.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-deutsch-pur",
+        "name": "FFH DEUTSCH PUR",
+        "url": "https://mp3.ffh.de/ffhchannels/hqdeutsch.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-brandneu",
+        "name": "FFH BRANDNEU",
+        "url": "https://mp3.ffh.de/ffhchannels/hqbrandneu.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-acoustic-hits",
+        "name": "FFH ACOUSTIC HITS",
+        "url": "https://mp3.ffh.de/ffhchannels/hqacoustichits.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-soundtrack",
+        "name": "FFH SOUNDTRACK",
+        "url": "https://mp3.ffh.de/ffhchannels/hqsoundtrack.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-summer-feeling",
+        "name": "FFH SUMMER FEELING",
+        "url": "https://mp3.ffh.de/ffhchannels/hqsummerfeeling.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ffh-fr-hlings-feeling",
+        "name": "FFH FRÜHLINGS FEELING",
+        "url": "https://mp3.ffh.de/ffhchannels/hqfruehlingsfeeling.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Nightride FM",
+    "slug": "nightride-fm",
+    "stations": [
+      {
+        "slug": "nightride-fm",
+        "name": "Nightride FM",
+        "url": "https://stream.nightride.fm/nightride.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "chillsynth",
+        "name": "Chillsynth",
+        "url": "https://stream.nightride.fm/chillsynth.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "darksynth",
+        "name": "Darksynth",
+        "url": "https://stream.nightride.fm/darksynth.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "datawave",
+        "name": "Datawave",
+        "url": "https://stream.nightride.fm/datawave.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "spacesynth",
+        "name": "Spacesynth",
+        "url": "https://stream.nightride.fm/spacesynth.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "horrorsynth",
+        "name": "Horrorsynth",
+        "url": "https://stream.nightride.fm/horrorsynth.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "ebsm",
+        "name": "EBSM",
+        "url": "https://stream.nightride.fm/ebsm.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "FRISKY",
+    "slug": "frisky",
+    "stations": [
+      {
+        "slug": "frisky-radio",
+        "name": "FRISKY Radio",
+        "url": "https://stream.friskyradio.com/frisky_mp3_hi",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "XLtrax",
+    "slug": "xltrax",
+    "stations": [
+      {
+        "slug": "xltrax-radio",
+        "name": "XLtrax Radio",
+        "url": "https://centova.radioservers.biz/proxy/xltrax/stream",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Radio FG",
+    "slug": "radio-fg",
+    "stations": [
+      {
+        "slug": "radio-fg",
+        "name": "Radio FG",
+        "url": "https://radiofg.impek.com/fg",
+        "info": "MP3"
+      }
+    ]
   }
 ]

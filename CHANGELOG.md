@@ -16,6 +16,9 @@ Terse, newest first. Each release's section is its GitHub release note.
   Dance Wave!, PulsRadio (8), Power Hitz (15), WHFF (18) and Radio Record (92). 101.ru
   is left out because its stream URLs are IP-bound tokens; ampradio.ru no longer
   resolves.
+- Networks adds Planet Radio, the 33-channel FFH group, Nightride FM (7), FRISKY,
+  XLtrax and Radio FG. AMG Radio, m2o, 1Club.FM and DI.fm are left out: their streams
+  are behind player scripts, refuse the request, or no longer exist.
 - Streams whose server delivers slower than the bitrate (the TopRadio mounts are the known
   case) no longer stutter every few seconds: after a stream runs dry, it must refill a
   deeper cushion before it sounds again — three seconds, then nine, up to fifteen — so

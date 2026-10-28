@@ -146,6 +146,29 @@ the site:
 All eight answer MP3 audio. The mount names do not match the channel names, which is
 why they are recorded here rather than guessed.
 
+## Planet Radio
+
+planetradio.de is the FFH group. Its page carries the channel table itself:
+`data-streamurl="http://mp3.ffh.de/ffhchannels/hq<channel>.mp3"` with the label in the
+same element. 33 channels answered over HTTPS (the site publishes HTTP; the host serves
+both). Labels are kept as the site writes them, e.g. FFH RELAX, FFH DIE 80ER.
+The Christmas channels are included because they are live year-round streams there.
+
+## Nightride FM
+
+Seven synthwave channels on `stream.nightride.fm`: nightride, chillsynth, darksynth,
+datawave, spacesynth, horrorsynth and ebsm. The page advertises `.m4a`; only the `.mp3`
+mounts answer, so those are used.
+
+## FRISKY, XLtrax and Radio FG
+
+- FRISKY: `stream.friskyradio.com/frisky_mp3_hi`. The newer frisky.fm player offers no
+  plain stream URL.
+- XLtrax: `centova.radioservers.biz/proxy/xltrax/stream`, one station.
+- Radio FG: `radiofg.impek.com/fg`. The site's other branded channels (Chic, Deep,
+  Underground) return an HTML page rather than audio from that host, so only the main
+  FG stream is added.
+
 ## Not added
 
 - **101.ru**: the API works (`/api/channel/getListServersChannel/<id>`), but every
@@ -155,6 +178,17 @@ why they are recorded here rather than guessed.
   non-radio site.
 - **Power Hit Radio Estonia's old domain**: powerhitradio.ee no longer resolves; the
   station is carried at raadiod.tv3.ee and is added from there.
+- **AMG Radio (amgradio.ru)**: the holding page lists about twenty stations (Remix FM,
+  Hype FM, Deep FM, Chilla, Retro, Classic and others), but each one's player lives at
+  ru.volna.top and exposes no stream URL in its HTML or WordPress API. Leaving it out
+  rather than shipping entries that cannot be played.
+- **m2o (Italy)**: `m2o-live.mediaserver.it/m2o.mp3` answers with an audio content type
+  but two bytes of body, which is the server refusing the request rather than audio. No
+  working public URL found from here.
+- **1Club.FM**: the domain no longer resolves.
+- **DI.fm and Sky.fm/RadioTunes**: no free stream. `stream.di.fm` and `pub1.di.fm` do
+  not resolve, and the free listener URLs answer with an account gate rather than
+  audio. Sky.fm became RadioTunes in 2012; it is the same paid service.
 - **ooTunes**: `http://ootunes.com/stations` still serves its 38,008-station table, but
   a row carries only name, genre and comment: the stream URL and the per-station detail
   page are behind a session-gated app, and the search form posts opaque Tapestry state.
