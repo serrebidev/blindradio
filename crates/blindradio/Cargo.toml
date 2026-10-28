@@ -18,3 +18,4 @@ embed-manifest = "*"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["rt-multi-thread", "time"] }
+uiautomation = "0.25.1"
