@@ -30,9 +30,10 @@ jobs:
       - name: Build the app and the disk image
         env:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
         run: cargo xtask dist-macos
 
       - name: Attach it to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ inputs.tag }}" target/dist/BlindRadio.dmg --clobber
+        run: gh release upload "${{ inputs.tag }}" target/dist/BlindRadio.dmg target/dist/BlindRadio.dmg.minisig --clobber

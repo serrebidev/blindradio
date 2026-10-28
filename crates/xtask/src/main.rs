@@ -43,6 +43,7 @@ fn main() {
 		"dist-linux" => linux::dist(&root(), &dist_dir()),
 		"release" => release(&args[1..]),
 		"minisign-key" => minisign_key(&args[1..]),
+		"sign" => sign_assets(&args[1..]),
 		"version" => match package::crate_version(&root(), PKG) {
 			Ok(v) => {
 				println!("{v}");
@@ -50,7 +51,7 @@ fn main() {
 			}
 			Err(e) => Err(format!("version: {e}")),
 		},
-		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | release <version> | minisign-key <dir> [password]".to_string()),
+		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | release <version> | minisign-key <dir> | sign <file>…".to_string()),
 	};
 	if let Err(e) = done {
 		eprintln!("xtask: {e}");
@@ -137,15 +138,28 @@ fn release(args: &[String]) -> Result<(), String> {
 		assets.push(dist.join(format!("{APP}.AppImage")));
 		assets.push(dist.join(format!("{APP}.tar.gz")));
 	}
+	// Every asset carries its signature, so the updater can verify the download.
+	if let Some(key) = Minisign::from_env().map_err(|e| format!("minisign: {e}"))? {
+		for asset in &assets {
+			key.sign(asset).map_err(|e| format!("signing: {e}"))?;
+		}
+	}
 	let mut upload: Vec<String> = vec![
 		"release".into(),
 		"upload".into(),
 		tag.clone(),
 		"--clobber".into(),
 	];
-	upload.extend(assets.iter().map(|a| a.to_string_lossy().to_string()));
+	for asset in &assets {
+		upload.push(asset.to_string_lossy().to_string());
+		let name = asset.file_name().unwrap_or_default().to_string_lossy();
+		let sig = dist.join(format!("{name}.minisig"));
+		if sig.is_file() {
+			upload.push(sig.to_string_lossy().to_string());
+		}
+	}
 	let upload: Vec<&str> = upload.iter().map(String::as_str).collect();
-	run("gh", &upload, "uploading the Windows assets")?;
+	run("gh", &upload, "uploading the assets")?;
 
 	if !windows_only {
 		run(
@@ -168,6 +182,19 @@ fn release(args: &[String]) -> Result<(), String> {
 		"publishing",
 	)?;
 	println!("xtask: {APP} {version} is published");
+	Ok(())
+}
+
+/// `cargo xtask sign <file>…`: writes `<file>.minisig` beside each, from `MINISIGN_KEY`.
+fn sign_assets(args: &[String]) -> Result<(), String> {
+	let key = Minisign::from_env()
+		.map_err(|e| format!("minisign: {e}"))?
+		.ok_or("MINISIGN_KEY is not set")?;
+	for file in args {
+		key.sign(Path::new(file))
+			.map_err(|e| format!("signing {file}: {e}"))?;
+		println!("xtask: signed {file}");
+	}
 	Ok(())
 }
 

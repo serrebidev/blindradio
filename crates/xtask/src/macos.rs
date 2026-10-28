@@ -30,6 +30,14 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 		eprintln!("xtask: ad-hoc signing did not run");
 	}
 	dmg(&bundle, &dist.join("BlindRadio.dmg")).map_err(|e| format!("dmg: {e}"))?;
-	println!("xtask: {}", dist.join("BlindRadio.dmg").display());
+	let image = dist.join("BlindRadio.dmg");
+	// Signed when the runner has the key; a local build without one still makes the image.
+	if let Some(key) =
+		shipfitter::sign::Minisign::from_env().map_err(|e| format!("minisign: {e}"))?
+	{
+		key.sign(&image)
+			.map_err(|e| format!("signing the dmg: {e}"))?;
+	}
+	println!("xtask: {}", image.display());
 	Ok(())
 }
