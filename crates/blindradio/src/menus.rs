@@ -42,6 +42,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Separator,
 				Entry::Devices,
 				Separator,
+				Item(s::GLOBAL_HOTKEYS, "", A::GlobalHotkeys),
 				Item(s::EXIT, "", A::Exit),
 			],
 		),

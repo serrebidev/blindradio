@@ -7,6 +7,7 @@ mod bridge;
 mod clipboard;
 mod context_menu;
 mod dialogs;
+mod hotkeys;
 mod main_window;
 mod menus;
 mod speech;

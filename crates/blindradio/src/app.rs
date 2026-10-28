@@ -23,6 +23,7 @@ use crate::action::{Action, SettingId};
 use crate::bridge::{Bridge, WindowToken};
 use crate::clipboard;
 use crate::dialogs::browse;
+use crate::hotkeys::{self, HotkeyAction, Hotkeys};
 use crate::main_window::{MainWindow, escape};
 use crate::menus::{self, MenuIds};
 use crate::speech::{self, Kind, Speech};
@@ -113,6 +114,10 @@ pub struct App {
 	pub menus: MenuIds,
 	/// Spoken messages; the message line shows them either way.
 	pub speech: Speech,
+	/// The chords that work from anywhere, and the ones another program holds.
+	pub hotkeys: Hotkeys,
+	/// The song playing, for Announce Now Playing.
+	song: Option<String>,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -137,6 +142,7 @@ impl App {
 		let (tx, events) = crossbeam_channel::unbounded();
 		let menus = menus::build(&win.frame, &settings, &output_devices());
 		let speech = Speech::new(&win.frame);
+		let hotkeys = hotkeys::register(&settings);
 		let timer = Timer::new(&win.frame);
 		Ok(App {
 			sources: Arc::new(Sources::new(
@@ -164,6 +170,8 @@ impl App {
 			win,
 			menus,
 			speech,
+			hotkeys,
+			song: None,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
@@ -192,6 +200,7 @@ impl App {
 		if first_run {
 			self.get_starter(true);
 		}
+		self.report_hotkeys();
 		self.refresh();
 	}
 
@@ -224,6 +233,7 @@ impl App {
 			return;
 		};
 		self.dial = true;
+		self.song = None;
 		landed(&mut self.selected, &mut self.remembered, station);
 		self.history.station_changed(&station.id);
 		// The window title follows focus at once; the song is added when known.
@@ -323,7 +333,8 @@ impl App {
 			| Action::Import
 			| Action::ImportAsCollection
 			| Action::SongHistory
-			| Action::Equalizer => {}
+			| Action::Equalizer
+			| Action::GlobalHotkeys => {}
 			Action::CopyUrl => self.copy_url(),
 		}
 		self.refresh();
@@ -340,6 +351,10 @@ impl App {
 		}
 		for done in self.bridge.ready() {
 			done(self);
+		}
+		let pressed: Vec<HotkeyAction> = self.hotkeys.keys.try_iter().collect();
+		for action in pressed {
+			self.hotkey(action);
 		}
 		// Already stopped: the timer ends without a word.
 		if self.sleep.due(now) && self.tuner.playing().is_some() {
@@ -379,6 +394,67 @@ impl App {
 		self.menus = menus::build(&self.win.frame, &self.settings, &output_devices());
 	}
 
+	/// Registers the chords again after the editor changed them.
+	pub fn reload_hotkeys(&mut self) {
+		self.hotkeys = hotkeys::register(&self.settings);
+		self.report_hotkeys();
+	}
+
+	fn report_hotkeys(&mut self) {
+		let text = hotkeys::report(&self.hotkeys.taken, self.hotkeys.unavailable);
+		if let Some(text) = text {
+			self.say(&text);
+		}
+	}
+
+	/// A chord pressed anywhere.
+	fn hotkey(&mut self, action: HotkeyAction) {
+		match action {
+			HotkeyAction::PlayPause => self.run(Action::PlayPause),
+			HotkeyAction::Stop => self.run(Action::Stop),
+			HotkeyAction::VolumeUp => self.run(Action::VolumeUp),
+			HotkeyAction::VolumeDown => self.run(Action::VolumeDown),
+			HotkeyAction::NextFavorite => self.step_favorite(true),
+			HotkeyAction::PreviousFavorite => self.step_favorite(false),
+			HotkeyAction::AnnounceNowPlaying => {
+				let playing = self.tuner.playing().map(|st| st.name.clone());
+				let text = hotkeys::now_playing_text(self.song.as_deref(), playing.as_deref());
+				self.say(&text);
+			}
+			HotkeyAction::ToggleWindow => self.toggle_window(),
+			HotkeyAction::ToggleEq => self.toggle_eq(),
+		}
+	}
+
+	fn step_favorite(&mut self, forward: bool) {
+		let playing = self.tuner.playing().map(|st| st.id.clone());
+		let Some(i) = hotkeys::next_favorite(&self.library.favorites, playing.as_deref(), forward)
+		else {
+			return self.say(s::NO_FAVORITES);
+		};
+		let station = self.library.favorites[i].clone();
+		self.play(station);
+	}
+
+	fn toggle_window(&mut self) {
+		let frame = self.win.frame;
+		if frame.is_shown() {
+			frame.hide();
+		} else {
+			frame.show(true);
+			frame.raise();
+			frame.set_focus();
+		}
+	}
+
+	fn toggle_eq(&mut self) {
+		let mut eq = self.settings.eq.clone();
+		eq.enabled = !eq.enabled;
+		let text = if eq.enabled { s::EQ_ON } else { s::EQ_OFF };
+		self.set_eq(eq);
+		self.say(text);
+	}
+
 	/// Before the main window closes: nothing may tick or play into a destroyed window.
 	pub fn shutdown(&mut self) {
 		if let Some(timer) = self.timer.take() {
@@ -408,6 +484,7 @@ impl App {
 				let Some(name) = self.playing_name(&station_id) else {
 					return;
 				};
+				self.song = title.clone();
 				match &title {
 					Some(song) => self.now_playing(Some(&format!("{song} - {name}"))),
 					None => self.now_playing(Some(&name)),
@@ -444,6 +521,7 @@ impl App {
 
 	fn play(&mut self, station: Station) {
 		self.dial = false;
+		self.song = None;
 		self.now_playing(Some(&station.name));
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
@@ -461,6 +539,7 @@ impl App {
 			self.remembered = Some(playing.clone());
 		}
 		self.tuner.stop();
+		self.song = None;
 		self.now_playing(None);
 		if announce && self.settings.announce_status {
 			self.say(s::STOPPED);
@@ -546,7 +625,7 @@ impl App {
 		self.output.borrow().send(cmd);
 	}
 
-	fn save_settings(&mut self) {
+	pub fn save_settings(&mut self) {
 		if let Err(e) = self.settings.save(&self.data) {
 			eprintln!("settings: {e}");
 			self.say(s::NOT_SAVED);

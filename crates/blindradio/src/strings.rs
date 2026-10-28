@@ -169,3 +169,22 @@ pub const BASS: &str = "&Bass (dB)";
 pub const MID: &str = "&Mid (dB)";
 pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
+
+// Global hotkeys.
+pub const GLOBAL_HOTKEYS: &str = "&Global Hotkeys…";
+pub const TAB_GLOBAL: &str = "Global";
+pub const HK_PLAY_PAUSE: &str = "Play/Pause";
+pub const HK_STOP: &str = "Stop";
+pub const HK_VOLUME_UP: &str = "Volume Up";
+pub const HK_VOLUME_DOWN: &str = "Volume Down";
+pub const HK_NEXT_FAVORITE: &str = "Next Favorite";
+pub const HK_PREVIOUS_FAVORITE: &str = "Previous Favorite";
+pub const HK_ANNOUNCE: &str = "Announce Now Playing";
+pub const HK_TOGGLE_WINDOW: &str = "Hide or Show BlindRadio";
+pub const HK_TOGGLE_EQ: &str = "Equalizer On or Off";
+/// Prefix: `Hotkey taken: <chord>, <chord>`.
+pub const HOTKEY_TAKEN: &str = "Hotkey taken: ";
+pub const HOTKEYS_UNAVAILABLE: &str = "Hotkeys unavailable";
+pub const EQ_ON: &str = "Equalizer on";
+pub const EQ_OFF: &str = "Equalizer off";
+pub const NO_FAVORITES: &str = "No favorites";

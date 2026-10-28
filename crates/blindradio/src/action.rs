@@ -44,6 +44,8 @@ pub enum Action {
 	/// `None` is the default device.
 	SetDevice(Option<String>),
 	ToggleSetting(SettingId),
+	/// File > Global Hotkeys…: the chord editor.
+	GlobalHotkeys,
 	Help,
 	About,
 	/// Fetch the SerrebiRadio starter list again.

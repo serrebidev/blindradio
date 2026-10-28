@@ -155,6 +155,11 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::GlobalHotkeys => {
+			if let Some(next) = dialogs::hotkeys::show(app) {
+				dispatch(app, next);
+			}
+		}
 		a => app.borrow_mut().run(a),
 	}
 }

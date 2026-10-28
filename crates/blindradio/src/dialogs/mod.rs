@@ -7,6 +7,7 @@ pub mod custom_station;
 pub mod equalizer;
 pub mod favorites;
 pub mod history;
+pub mod hotkeys;
 pub mod recent;
 pub mod search;
 
@@ -44,6 +45,7 @@ fn opens_window(a: &Action) -> bool {
 			| Action::NewCustomStation
 			| Action::SongHistory
 			| Action::Equalizer
+			| Action::GlobalHotkeys
 	)
 }
 

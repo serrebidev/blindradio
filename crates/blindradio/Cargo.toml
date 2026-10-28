@@ -8,11 +8,15 @@ version.workspace = true
 blindradio-core = { path = "../blindradio-core" }
 # crates.io (AllenDang upstream): trypsynth/wxDragon main is behind it (0.9.21, wxWidgets 3.3.3) and wx-utils needs 0.9.22+.
 wxdragon = "*"
-wx-utils = { git = "https://github.com/trypsynth/wx-utils" }
+wx-utils = { git = "https://github.com/trypsynth/wx-utils", features = ["shortcuts", "global-hotkeys"] }
 crossbeam-channel = "*"
 tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
 live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }
+
+[target.'cfg(not(windows))'.dependencies]
+# Global hotkeys on macOS and X11; Windows uses wx-utils.
+global-hotkey = "*"
 
 [build-dependencies]
 embed-manifest = "*"
