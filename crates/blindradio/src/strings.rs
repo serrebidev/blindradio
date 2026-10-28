@@ -118,3 +118,26 @@ pub const LOAD_MORE: &str = "Load More";
 pub const ONLY_OWN: &str = "Only your own stations can be deleted.";
 /// Prefix: `Delete <collection>?`.
 pub const DELETE_PREFIX: &str = "Delete ";
+
+// Favorites and Recently Played.
+pub const FAVORITES_TITLE: &str = "Favorites";
+pub const FAVORITES_LIST: &str = "Favorites";
+pub const RECENT_TITLE: &str = "Recently Played";
+pub const RECENT_LIST: &str = "Recently played";
+pub const REMOVE: &str = "&Remove";
+pub const MOVE_UP: &str = "Move &Up";
+pub const MOVE_DOWN: &str = "Move &Down";
+pub const EXPORT: &str = "&Export…";
+/// Prefix: `Exported <n>`.
+pub const EXPORTED: &str = "Exported ";
+pub const FAVORITES_FILE: &str = "Favorites.m3u";
+pub const PLAYLISTS_FILTER: &str = "Playlists (*.m3u;*.m3u8;*.pls)|*.m3u;*.m3u8;*.pls";
+
+// Add Custom Station.
+pub const ADD_CUSTOM_TITLE: &str = "Add Custom Station";
+pub const STREAM_URL: &str = "Stream &URL";
+pub const NOT_A_STREAM_URL: &str = "Not a stream URL";
+/// Prefix: `Added <name>`.
+pub const ADDED: &str = "Added ";
+pub const OK: &str = "OK";
+pub const CANCEL: &str = "Cancel";

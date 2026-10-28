@@ -1,6 +1,9 @@
 //! Modal windows: one at a time, app keys inside them, and switching between them.
 
 pub mod browse;
+pub mod custom_station;
+pub mod favorites;
+pub mod recent;
 pub mod search;
 
 use std::cell::RefCell;

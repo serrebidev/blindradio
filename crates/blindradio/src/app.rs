@@ -294,11 +294,8 @@ impl App {
 				self.shutdown();
 				self.win.frame.close(true);
 			}
-			// Windows, menus and the slider arrive in Tasks 2 to 7.
-			Action::OpenFavorites
-			| Action::OpenRecent
-			| Action::OpenCollections
-			| Action::NewCustomStation
+			// Windows, menus and the slider arrive in Tasks 6 and 7.
+			Action::OpenCollections
 			| Action::CopyUrl
 			| Action::SongHistory
 			| Action::AddToCollection
@@ -308,7 +305,12 @@ impl App {
 			| Action::Help
 			| Action::Close => {}
 			// The main window shows them (`main_window::dispatch`): they are modal.
-			Action::About | Action::OpenSearch | Action::OpenBrowse => {}
+			Action::About
+			| Action::OpenSearch
+			| Action::OpenBrowse
+			| Action::OpenFavorites
+			| Action::OpenRecent
+			| Action::NewCustomStation => {}
 		}
 		self.refresh();
 	}
@@ -617,6 +619,23 @@ impl App {
 		self.library.delete_custom(id);
 		self.save_library();
 		self.refresh_dial();
+	}
+
+	/// Out of Favorites; the playing station plays on.
+	pub fn remove_favorite(&mut self, index: usize) {
+		let Some(st) = self.library.favorites.get(index).cloned() else {
+			return;
+		};
+		self.library.remove_favorite(&st.id);
+		self.save_library();
+		self.say(s::REMOVED_FROM_FAVORITES);
+	}
+
+	/// Reorders Favorites; the station's new index.
+	pub fn move_favorite(&mut self, index: usize, up: bool) -> usize {
+		let index = self.library.move_favorite(index, up);
+		self.save_library();
+		index
 	}
 
 	pub fn save_library(&mut self) {

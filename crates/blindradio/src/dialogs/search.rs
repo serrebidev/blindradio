@@ -11,7 +11,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::bridge::WindowToken;
 use crate::main_window::dispatch;
-use crate::station_list::{Hooks, StationList};
+use crate::station_list::{Hooks, StationList, favorite_label_of};
 use crate::strings as s;
 
 #[derive(Clone, Copy)]
@@ -153,16 +153,24 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				list.set_stations(found, 0);
 				list.list.set_focus();
 				list.land(app);
+				favorite.set_label(favorite_label_of(app, &list));
 			},
 		);
 	});
 
-	let a = app.clone();
-	favorite.on_click(move |_| dispatch(&a, Action::ToggleFavorite));
+	let (a, me) = (app.clone(), results.clone());
+	favorite.on_click(move |_| {
+		dispatch(&a, Action::ToggleFavorite);
+		favorite.set_label(favorite_label_of(&a.borrow(), &me));
+	});
 	results.bind(
 		app,
 		Hooks {
 			close: Some(dialog),
+			on_focus: Some(Rc::new({
+				let (a, me) = (app.clone(), results.clone());
+				move |_| favorite.set_label(favorite_label_of(&a.borrow(), &me))
+			})),
 			..Hooks::default()
 		},
 	);

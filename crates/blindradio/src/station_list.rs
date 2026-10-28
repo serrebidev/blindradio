@@ -12,6 +12,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::context_menu::{self, Target};
 use crate::main_window::dispatch;
+use crate::menus;
 use crate::strings as s;
 
 /// The next station after `from` whose name starts with `c` (any case), wrapping round.
@@ -37,6 +38,14 @@ pub struct Hooks {
 	pub on_delete: Option<Rc<dyn Fn(usize)>>,
 	/// The focused index; true is up.
 	pub on_move: Option<Rc<dyn Fn(usize, bool)>>,
+	/// The focused index, after the user moved it.
+	pub on_focus: Option<Rc<dyn Fn(usize)>>,
+}
+
+/// Add to Favorites or Remove from Favorites for the station focused in `list`.
+pub fn favorite_label_of(app: &App, list: &StationList) -> &'static str {
+	let focused = list.current().and_then(|i| list.stations().get(i).cloned());
+	menus::favorite_label(focused.is_some_and(|st| app.library.is_favorite(&st.id)))
 }
 
 #[derive(Clone)]
@@ -120,6 +129,7 @@ impl StationList {
 	/// return before borrowing it (`quiet`).
 	pub fn bind(&self, app: &Rc<RefCell<App>>, hooks: Hooks) {
 		let (a, me) = (app.clone(), self.clone());
+		let on_focus = hooks.on_focus;
 		self.list.on_item_selected(move |e| {
 			if me.quiet.get() {
 				return;
@@ -127,6 +137,9 @@ impl StationList {
 			if let Ok(i) = usize::try_from(e.get_item_index()) {
 				let stations = me.stations();
 				a.borrow_mut().tune(&stations, i);
+				if let Some(hook) = &on_focus {
+					hook(i);
+				}
 			}
 		});
 

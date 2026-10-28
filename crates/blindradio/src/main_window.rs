@@ -113,6 +113,21 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::OpenFavorites => {
+			if let Some(next) = dialogs::favorites::show(app) {
+				dispatch(app, next);
+			}
+		}
+		Action::OpenRecent => {
+			if let Some(next) = dialogs::recent::show(app) {
+				dispatch(app, next);
+			}
+		}
+		Action::NewCustomStation => {
+			if let Some(next) = dialogs::custom_station::show(app) {
+				dispatch(app, next);
+			}
+		}
 		a => app.borrow_mut().run(a),
 	}
 }
