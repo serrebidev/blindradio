@@ -88,6 +88,19 @@ pub fn data_dir() -> PathBuf {
 	}
 }
 
+/// A data folder that cannot be written: the app runs, and nothing is kept.
+pub fn writable(dir: &std::path::Path) -> bool {
+	let probe = dir.join(".probe");
+	let wrote = std::fs::write(&probe, b"").is_ok();
+	let _ = std::fs::remove_file(&probe);
+	wrote
+}
+
+/// `Settings not saved`, said once and only when the folder cannot be written.
+pub fn readonly_message(readonly: bool, said: bool) -> Option<&'static str> {
+	(readonly && !said).then_some(s::NOT_SAVED)
+}
+
 pub struct App {
 	pub data: PathBuf,
 	pub settings: Settings,
@@ -122,6 +135,9 @@ pub struct App {
 	pub tray: Option<crate::tray::Tray>,
 	/// The single-instance claim; a later copy raises this window through it.
 	pub instance: Option<crate::instance::Guard>,
+	/// The data folder cannot be written: everything stays in memory.
+	readonly: bool,
+	readonly_said: bool,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -147,6 +163,7 @@ impl App {
 		let menus = menus::build(&win.frame, &settings, &output_devices());
 		let speech = Speech::new(&win.frame);
 		let hotkeys = hotkeys::register(&settings);
+		let readonly = !writable(&data);
 		let timer = Timer::new(&win.frame);
 		Ok(App {
 			sources: Arc::new(Sources::new(
@@ -178,6 +195,8 @@ impl App {
 			song: None,
 			tray: None,
 			instance: None,
+			readonly,
+			readonly_said: false,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
@@ -207,6 +226,10 @@ impl App {
 			self.get_starter(true);
 		}
 		self.report_hotkeys();
+		if let Some(text) = readonly_message(self.readonly, self.readonly_said) {
+			self.readonly_said = true;
+			self.say(text);
+		}
 		self.refresh();
 	}
 
@@ -841,6 +864,13 @@ mod tests {
 			PlayPause::Play("b"),
 			"after a stop, Play/Pause plays the station the user is on"
 		);
+	}
+
+	#[test]
+	fn read_only_data_says_once() {
+		assert_eq!(readonly_message(true, false), Some("Not saved"));
+		assert_eq!(readonly_message(true, true), None, "said once");
+		assert_eq!(readonly_message(false, false), None, "writable: no message");
 	}
 
 	#[test]

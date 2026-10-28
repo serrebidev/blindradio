@@ -1,0 +1,41 @@
+; BlindRadio installer: per-user, Start menu entry, optional desktop icon.
+#define AppName "BlindRadio"
+#define AppExe "blindradio.exe"
+
+[Setup]
+AppName={#AppName}
+AppVersion=@PROJECT_VERSION@
+AppPublisher=serrebidev
+AppPublisherURL=https://github.com/serrebidev/blindradio
+DefaultDirName={localappdata}\Programs\{#AppName}
+DefaultGroupName={#AppName}
+DisableProgramGroupPage=yes
+OutputDir=.
+OutputBaseFilename={#AppName}_setup
+ArchitecturesAllowed=@ARCH_ALLOWED@
+ArchitecturesInstallIn64BitMode=@ARCH_MODE@
+PrivilegesRequired=lowest
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+UninstallDisplayIcon={app}\{#AppExe}
+; Settings live in %APPDATA%\BlindRadio and survive an upgrade or uninstall.
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
+
+[Files]
+Source: "@APP_DIR@\blindradio.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@APP_DIR@\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@APP_DIR@\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@APP_DIR@\vcruntime140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@APP_DIR@\readme.html"; DestDir: "{app}"; Flags: ignoreversion
+Source: "@APP_DIR@\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
+Name: "{group}\BlindRadio user guide"; Filename: "{app}\readme.html"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\{#AppExe}"; Description: "Run {#AppName}"; Flags: nowait postinstall skipifsilent

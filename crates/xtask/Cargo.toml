@@ -1,0 +1,8 @@
+[package]
+name = "xtask"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
