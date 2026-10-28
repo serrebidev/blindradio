@@ -4,9 +4,9 @@
 set -eu
 
 host="${BLINDRADIO_LINUX_HOST:-root@serrebiradio.com}"
-# Relative to the remote home, not /tmp: that is a tmpfs there and a wx build fills it. Left
-# unexpanded here so the remote shell resolves it, not this one.
-remote=blindradio-build
+# Absolute, because docker needs one for -v. Not /tmp: that is a tmpfs there and a wx build
+# fills it.
+remote=/root/blindradio-build
 here=$(cd "$(dirname "$0")/.." && pwd)
 dist="$here/target/dist"
 

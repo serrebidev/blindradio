@@ -1,11 +1,12 @@
 # GTK, ALSA and the wxDragon toolchain, then the release build and the AppImage.
+# libssl-dev: wxdragon-sys fetches wxWidgets over native-tls while it builds.
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		build-essential cmake ninja-build clang libclang-dev \
-		libgtk-3-dev libasound2-dev pkg-config \
+		libgtk-3-dev libasound2-dev libssl-dev pkg-config \
 		curl ca-certificates file xvfb fuse libfuse2 \
 	&& rm -rf /var/lib/apt/lists/*
 
