@@ -4,6 +4,7 @@
 mod action;
 mod app;
 mod bridge;
+mod clipboard;
 mod context_menu;
 mod dialogs;
 mod main_window;

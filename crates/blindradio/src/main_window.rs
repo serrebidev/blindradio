@@ -145,6 +145,16 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 		}
 		Action::Import => dialogs::collections::import(app, false),
 		Action::ImportAsCollection => dialogs::collections::import(app, true),
+		Action::SongHistory => {
+			if let Some(next) = dialogs::history::show(app) {
+				dispatch(app, next);
+			}
+		}
+		Action::Equalizer => {
+			if let Some(next) = dialogs::equalizer::show(app) {
+				dispatch(app, next);
+			}
+		}
 		a => app.borrow_mut().run(a),
 	}
 }

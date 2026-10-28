@@ -4,7 +4,9 @@ pub mod add_to_collection;
 pub mod browse;
 pub mod collections;
 pub mod custom_station;
+pub mod equalizer;
 pub mod favorites;
+pub mod history;
 pub mod recent;
 pub mod search;
 

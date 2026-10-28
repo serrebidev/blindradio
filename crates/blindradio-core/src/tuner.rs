@@ -125,6 +125,9 @@ pub trait StreamFactory {
 	) -> (Arc<PcmRing>, Box<dyn Send>);
 
 	fn warm_dns(&self, _stations: &[Station]) {}
+
+	/// The output reopened at a new rate: streams started from now decode to it.
+	fn set_rate(&mut self, _rate: u32) {}
 }
 
 /// When each hostname was last warmed; warming is only an OS resolver hint.
@@ -163,6 +166,10 @@ impl StreamFactory for LiveFactory {
 		if !hosts.is_empty() {
 			drop(self.0.rt.spawn(net::warm_dns(hosts)));
 		}
+	}
+
+	fn set_rate(&mut self, rate: u32) {
+		self.0.out_rate = rate;
 	}
 }
 
@@ -323,6 +330,13 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	pub fn playing(&self) -> Option<&Station> {
 		self.playing.as_ref()
+	}
+
+	/// The output reopened at a new rate: everything open closes, so the restart after it
+	/// decodes to that rate.
+	pub fn set_rate(&mut self, rate: u32) {
+		self.factory.set_rate(rate);
+		self.stop();
 	}
 
 	fn tune(&mut self, target: &Station, warm: Vec<Station>, repeat: bool, now: Instant) {

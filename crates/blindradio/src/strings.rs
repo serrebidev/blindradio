@@ -153,3 +153,19 @@ pub const CUSTOM_FIXED: &str = "Custom Stations cannot be changed";
 pub const TO: &str = " to ";
 pub const M3U_EXTENSION: &str = ".m3u";
 pub const IMPORT_TITLE: &str = "Import Playlist";
+
+// Copy, Song History and Equalizer.
+pub const COPIED: &str = "Copied";
+pub const COPY_FAILED: &str = "Copy failed";
+pub const NOTHING_TO_COPY: &str = "Nothing to copy";
+pub const SONG_HISTORY_TITLE: &str = "Song History";
+pub const SONGS: &str = "Songs";
+pub const COLUMN_SONG: &str = "Song";
+pub const COLUMN_PLAYED: &str = "Played";
+pub const COPY: &str = "&Copy";
+pub const EQUALIZER_TITLE: &str = "Equalizer";
+pub const PRESET: &str = "&Preset";
+pub const BASS: &str = "&Bass (dB)";
+pub const MID: &str = "&Mid (dB)";
+pub const TREBLE: &str = "&Treble (dB)";
+pub const ENABLED: &str = "&Enabled";

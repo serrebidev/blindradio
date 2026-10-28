@@ -9,7 +9,7 @@ use std::time::{Duration, Instant, SystemTime};
 use blindradio_core::history::SessionHistory;
 use blindradio_core::library::{Collection, Library};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
-use blindradio_core::settings::Settings;
+use blindradio_core::settings::{EqSettings, Settings};
 use blindradio_core::sleep::SleepTimer;
 use blindradio_core::sources::{Endpoints, Filters, Sources};
 use blindradio_core::station::Station;
@@ -21,6 +21,7 @@ use wxdragon::prelude::*;
 
 use crate::action::{Action, SettingId};
 use crate::bridge::{Bridge, WindowToken};
+use crate::clipboard;
 use crate::dialogs::browse;
 use crate::main_window::{MainWindow, escape};
 use crate::menus::{self, MenuIds};
@@ -271,6 +272,7 @@ impl App {
 					Ok(()) => {
 						self.settings.audio_device = device;
 						self.save_settings();
+						self.refresh_menus();
 					}
 					Err(_) => {
 						let name = device.as_deref().unwrap_or(s::DEFAULT_DEVICE);
@@ -294,12 +296,8 @@ impl App {
 				self.shutdown();
 				self.win.frame.close(true);
 			}
-			// Windows, menus and the slider arrive in Task 7.
-			Action::CopyUrl
-			| Action::SongHistory
-			| Action::Equalizer
-			| Action::Help
-			| Action::Close => {}
+			// Windows, menus and the slider arrive in later tasks.
+			Action::Help | Action::Close => {}
 			// The main window shows them (`main_window::dispatch`): they are modal.
 			Action::About
 			| Action::OpenSearch
@@ -310,7 +308,10 @@ impl App {
 			| Action::OpenCollections
 			| Action::AddToCollection
 			| Action::Import
-			| Action::ImportAsCollection => {}
+			| Action::ImportAsCollection
+			| Action::SongHistory
+			| Action::Equalizer => {}
+			Action::CopyUrl => self.copy_url(),
 		}
 		self.refresh();
 	}
@@ -335,13 +336,34 @@ impl App {
 		if now.duration_since(self.last_device_poll) >= DEVICE_POLL {
 			self.last_device_poll = now;
 			let event = self.output.borrow_mut().poll_devices(&output_devices);
+			let changed = event.is_some();
 			match event {
 				Some(DeviceEvent::Lost) => self.say(s::DEVICE_LOST),
 				Some(DeviceEvent::Back(name)) => self.say(&format!("{}{name}", s::USING)),
 				None => {}
 			}
+			// The Audio Device check mark follows what is there now.
+			if changed {
+				self.refresh_menus();
+			}
+		}
+		// A device that could not keep the rate: decode again at the one it took.
+		if let Some(rate) = self.output.borrow_mut().rate_changed() {
+			let playing = self.tuner.playing().cloned();
+			self.tuner.set_rate(rate);
+			if let Some(st) = playing {
+				self.tuner.play(&st, Instant::now());
+			}
 		}
 		self.refresh();
+	}
+
+	/// The menu bar is built from the settings: device events and a switch rebuild it.
+	fn refresh_menus(&mut self) {
+		if self.dialog_open {
+			return;
+		}
+		self.menus = menus::build(&self.win.frame, &self.settings, &output_devices());
 	}
 
 	/// Before the main window closes: nothing may tick or play into a destroyed window.
@@ -650,6 +672,24 @@ impl App {
 			.unwrap_or_default();
 		self.save_library();
 		self.say(&format!("{}{n}{}{name}", s::ADDED, s::TO));
+	}
+
+	/// Copy Stream URL: the focused station's URL, read back from the clipboard.
+	fn copy_url(&mut self) {
+		match self.selected_or_playing() {
+			Some(st) => {
+				let ok = clipboard::copy(&st.url);
+				self.say(clipboard::message(ok));
+			}
+			None => self.say(s::NOTHING_TO_COPY),
+		}
+	}
+
+	/// The equalizer changed: heard at once and remembered.
+	pub fn set_eq(&mut self, eq: EqSettings) {
+		self.settings.eq = eq;
+		self.mixer(MixerCmd::Eq(self.settings.eq.clone()));
+		self.save_settings();
 	}
 
 	pub fn save_library(&mut self) {
