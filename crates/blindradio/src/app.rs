@@ -120,6 +120,8 @@ pub struct App {
 	song: Option<String>,
 	/// The tray icon, once installed.
 	pub tray: Option<crate::tray::Tray>,
+	/// The single-instance claim; a later copy raises this window through it.
+	pub instance: Option<crate::instance::Guard>,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -175,6 +177,7 @@ impl App {
 			hotkeys,
 			song: None,
 			tray: None,
+			instance: None,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
@@ -359,6 +362,11 @@ impl App {
 		for action in pressed {
 			self.hotkey(action);
 		}
+		if let Some(guard) = &self.instance
+			&& guard.raises.try_recv().is_ok()
+		{
+			self.toggle_window_to(true);
+		}
 		// Already stopped: the timer ends without a word.
 		if self.sleep.due(now) && self.tuner.playing().is_some() {
 			self.stop(false);
@@ -440,13 +448,19 @@ impl App {
 	}
 
 	fn toggle_window(&mut self) {
+		let shown = self.win.frame.is_shown();
+		self.toggle_window_to(!shown);
+	}
+
+	/// Shows the window with focus, or hides it to the tray.
+	fn toggle_window_to(&mut self, show: bool) {
 		let frame = self.win.frame;
-		if frame.is_shown() {
-			frame.hide();
-		} else {
+		if show {
 			frame.show(true);
 			frame.raise();
 			frame.set_focus();
+		} else {
+			frame.hide();
 		}
 	}
 

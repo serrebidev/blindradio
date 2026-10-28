@@ -205,3 +205,29 @@ fn one_window_at_a_time() {
 		"Search closed"
 	);
 }
+
+#[test]
+#[ignore = "needs a desktop"]
+fn second_instance_raises_first() {
+	let app = App::start("single", Library::default());
+	// Hide it, then start another copy: that one exits and this one comes back.
+	app.press("{ctrl}{alt}{shift}y");
+	let mut second = Command::new(env!("CARGO_BIN_EXE_blindradio"))
+		.env("BLINDRADIO_DATA", &app.data)
+		.spawn()
+		.expect("the second copy starts");
+	let mut code = None;
+	for _ in 0..60 {
+		if let Some(status) = second.try_wait().expect("wait") {
+			code = status.code();
+			break;
+		}
+		std::thread::sleep(Duration::from_millis(50));
+	}
+	let _ = second.kill();
+	assert_eq!(code, Some(0), "the second copy exits by itself");
+	assert!(
+		app.find("BlindRadio", Duration::from_secs(3)).is_some(),
+		"the first copy is shown again"
+	);
+}

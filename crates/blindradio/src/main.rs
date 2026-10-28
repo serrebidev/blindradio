@@ -8,6 +8,7 @@ mod clipboard;
 mod context_menu;
 mod dialogs;
 mod hotkeys;
+mod instance;
 mod main_window;
 mod menus;
 mod speech;
@@ -33,12 +34,15 @@ fn fail(frame: Frame, error: &dyn std::fmt::Display) {
 
 fn main() {
 	let _ = wxdragon::main(|_| {
+		// Before any window: a second copy pokes the first and exits here.
+		let claim = instance::claim();
 		let win = main_window::build();
 		let frame = win.frame;
 		let app = match App::new(win) {
 			Ok(a) => Rc::new(RefCell::new(a)),
 			Err(e) => return fail(frame, &e),
 		};
+		app.borrow_mut().instance = claim;
 		main_window::bind(&app);
 		let tray = tray::install(&app);
 		app.borrow_mut().tray = tray;
