@@ -19,3 +19,19 @@ Screen-reader-first internet radio player in Rust: core crate plus wxDragon desk
 ## Docs
 - Spec: `docs/superpowers/specs/2026-10-26-blindradio-desktop-design.md`
 - Plan: `docs/superpowers/plans/2026-10-26-blindradio-01-audio-engine.md`
+- User guide: `doc/readme.md` (F1 in the app, converted at build time)
+
+## Release
+
+- `cargo xtask release <version>`: checks `main` is clean, runs the tests and clippy, bumps the
+  workspace version, commits `chore: release <version>`, builds Windows, creates the draft
+  release, tags and pushes, dispatches the macOS workflow, builds Linux over SSH, verifies the
+  assets, then publishes. `--windows-only` skips the macOS and Linux legs; `--dry-run` stops
+  before pushing anything.
+- Windows builds here: `cargo xtask dist-windows` makes `target/dist/BlindRadio.zip` and
+  `BlindRadio_setup.exe`, signing both with the owner's certificate (`signtool`), and with
+  minisign when `MINISIGN_KEY` (and `MINISIGN_PASSWORD`) are set.
+- macOS builds on GitHub Actions (`macos-release.yml`, arm64 only), Linux over SSH on
+  `root@serrebiradio.com` in a container (`tools/build_linux_remote.sh`).
+- Never run a cloud release and a local one at the same time: both bump from the latest tag.
+- Notes come from the `CHANGELOG.md` section for the version.

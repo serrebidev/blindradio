@@ -1,0 +1,40 @@
+name: macOS release
+
+# The one Mac build: Apple Silicon only. Dispatched by `cargo xtask release`, which passes the
+# tag it created; the workflow attaches the disk image to that release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, such as v0.2.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - name: Apple Silicon only
+        run: test "$(uname -m)" = arm64
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Toolchain the wxDragon build needs
+        run: brew install cmake ninja llvm
+
+      - name: Build the app and the disk image
+        env:
+          LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+        run: cargo xtask dist-macos
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" target/dist/BlindRadio.dmg --clobber

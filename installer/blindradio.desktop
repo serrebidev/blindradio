@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=BlindRadio
+Comment=Screen-reader-first internet radio
+Exec=blindradio
+Icon=blindradio
+Terminal=false
+Categories=AudioVideo;Audio;Player;
