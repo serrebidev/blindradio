@@ -21,6 +21,7 @@ use wxdragon::prelude::*;
 
 use crate::action::{Action, SettingId};
 use crate::bridge::{Bridge, WindowToken};
+use crate::dialogs::browse;
 use crate::main_window::{MainWindow, escape};
 use crate::menus::{self, MenuIds};
 use crate::strings as s;
@@ -91,6 +92,8 @@ pub struct App {
 	pub sources: Arc<Sources>,
 	/// Search's filter lists, fetched once per run.
 	pub filters: Option<Filters>,
+	/// Browse's place and loaded levels, for the session.
+	pub browse: browse::Memory,
 	/// A modal window is open.
 	pub dialog_open: bool,
 	pub bridge: Bridge<App>,
@@ -136,6 +139,7 @@ impl App {
 				Endpoints::default(),
 			)),
 			filters: None,
+			browse: browse::Memory::default(),
 			dialog_open: false,
 			bridge: Bridge::new(engine.ctx.rt.clone()),
 			tuner: Tuner::new(
@@ -289,8 +293,7 @@ impl App {
 				self.win.frame.close(true);
 			}
 			// Windows, menus and the slider arrive in Tasks 2 to 7.
-			Action::OpenBrowse
-			| Action::OpenFavorites
+			Action::OpenFavorites
 			| Action::OpenRecent
 			| Action::OpenCollections
 			| Action::NewCustomStation
@@ -303,7 +306,7 @@ impl App {
 			| Action::Help
 			| Action::Close => {}
 			// The main window shows them (`main_window::dispatch`): they are modal.
-			Action::About | Action::OpenSearch => {}
+			Action::About | Action::OpenSearch | Action::OpenBrowse => {}
 		}
 		self.refresh();
 	}

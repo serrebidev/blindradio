@@ -18,10 +18,6 @@ use crate::strings as s;
 pub enum Target<'a> {
 	Station(&'a Station),
 	/// `custom` is Custom Stations, which cannot be renamed or deleted.
-	#[cfg_attr(
-		not(test),
-		expect(dead_code, reason = "Browse and Collections menus (Tasks 4 and 6)")
-	)]
 	Collection {
 		custom: bool,
 	},
