@@ -59,6 +59,7 @@ pub struct TestServer {
 	pub base: String,
 	hits: Hits,
 	queries: Queries,
+	agents: Queries,
 }
 
 /// Query string of the latest request per path.
@@ -77,6 +78,11 @@ impl TestServer {
 		self.queries.lock().unwrap().get(path).cloned()
 	}
 
+	/// User-Agent of the latest request to `path`.
+	pub fn last_user_agent(&self, path: &str) -> Option<String> {
+		self.agents.lock().unwrap().get(path).cloned()
+	}
+
 	pub fn hits(&self, path: &str) -> usize {
 		self.hits.lock().unwrap().get(path).copied().unwrap_or(0)
 	}
@@ -88,6 +94,8 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 	let server_hits = hits.clone();
 	let queries = Queries::default();
 	let server_queries = queries.clone();
+	let agents = Queries::default();
+	let server_agents = agents.clone();
 	std::thread::spawn(move || {
 		let rt = tokio::runtime::Builder::new_multi_thread()
 			.worker_threads(2)
@@ -107,8 +115,9 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 				let base = base.clone();
 				let hits = server_hits.clone();
 				let queries = server_queries.clone();
+				let agents = server_agents.clone();
 				tokio::spawn(async move {
-					let _ = handle(sock, &routes, &base, &hits, &queries).await;
+					let _ = handle(sock, &routes, &base, &hits, &queries, &agents).await;
 				});
 			}
 		});
@@ -117,6 +126,7 @@ pub fn serve(routes: Vec<Route>) -> TestServer {
 		base: rx.recv().unwrap(),
 		hits,
 		queries,
+		agents,
 	}
 }
 
@@ -134,6 +144,7 @@ async fn handle(
 	base: &str,
 	hits: &Hits,
 	queries: &Queries,
+	agents: &Queries,
 ) -> std::io::Result<()> {
 	let mut req = Vec::new();
 	let mut buf = [0u8; 1024];
@@ -151,6 +162,15 @@ async fn handle(
 		path.to_owned(),
 		target.split_once('?').map_or("", |(_, q)| q).to_owned(),
 	);
+	let agent = line
+		.lines()
+		.filter_map(|l| l.split_once(':'))
+		.find(|(k, _)| k.eq_ignore_ascii_case("user-agent"))
+		.map_or("", |(_, v)| v.trim());
+	agents
+		.lock()
+		.unwrap()
+		.insert(path.to_owned(), agent.to_owned());
 	let hit = {
 		let mut hits = hits.lock().unwrap();
 		let n = hits.entry(path.to_owned()).or_default();

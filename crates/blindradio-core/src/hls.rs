@@ -6,7 +6,7 @@ use m3u8_rs::{KeyMethod, MediaPlaylist, Playlist, VariantStream};
 use reqwest::Url;
 use tokio::time::{sleep_until, timeout};
 
-use crate::net::{http_err, not_a_stream};
+use crate::net::{http_err, not_a_stream, user_agent_for};
 use crate::stream::send;
 use crate::{CoreError, Result};
 
@@ -173,7 +173,12 @@ async fn fetch_segment(
 
 async fn get(client: &reqwest::Client, url: &Url, limit: Duration) -> Result<(Url, Bytes)> {
 	let fetch = async {
-		let response = client.get(url.clone()).send().await.map_err(http_err)?;
+		let response = client
+			.get(url.clone())
+			.header("User-Agent", user_agent_for(url.as_str()))
+			.send()
+			.await
+			.map_err(http_err)?;
 		let status = response.status().as_u16();
 		if status >= 400 {
 			return Err(CoreError::Http(format!("HTTP {status}")));

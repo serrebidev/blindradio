@@ -42,5 +42,5 @@ All 9 stations at once through the real mixer, 10 ms ticks, 20 s. "Dry" is a tic
 
 ## Notes
 - HLS: BBC `as-hls-ww-live.akamaized.net/.../*.isml/*.norewind.m3u8` media playlists use MPEG-TS segments (`.ts`), AAC LC 48 kHz at 128k. The `a.files.bbci.co.uk/.../pc_hd_abr_v2/...` masters point at the same TS kind (HE-AAC, `mp4a.40.5`). No fMP4 BBC HLS was found in Radio Browser.
-- SomaFM drops any User-Agent containing "blindradio" (any case) with an empty reply, so the client sends `Blind-Radio/<version>`.
+- SomaFM drops any User-Agent containing "blindradio" (any case) with an empty reply, so `ice<digits>.somafm.com` stream hosts get `Blind-Radio/<version>`; every other request sends `BlindRadio/<version>`.
 - Debug builds of the desktop shell keep a console and print each warm and cold latency.

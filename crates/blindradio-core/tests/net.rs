@@ -1,6 +1,6 @@
 mod common;
 
-use blindradio_core::net::{Opened, ResolveCache, client, get_json, open};
+use blindradio_core::net::{Opened, ResolveCache, client, get_json, open, user_agent_for};
 use common::{Route, serve};
 
 fn stream(path: &str) -> Route {
@@ -256,4 +256,34 @@ async fn get_json_reads_and_rejects() {
 		.await
 		.unwrap_err();
 	assert_eq!(e.to_string(), "HTTP 404");
+}
+
+#[test]
+fn user_agent_per_host() {
+	let soma = concat!("Blind-Radio/", env!("CARGO_PKG_VERSION"));
+	let plain = concat!("BlindRadio/", env!("CARGO_PKG_VERSION"));
+	for url in [
+		"https://ice1.somafm.com/groovesalad-128-mp3",
+		"https://ICE6.SomaFM.com/x",
+	] {
+		assert_eq!(user_agent_for(url), soma, "{url}");
+	}
+	for url in [
+		"https://somafm.com/songs/x.json",
+		"https://api.somafm.com/channels.json",
+		"https://example.com/",
+		"not a url",
+	] {
+		assert_eq!(user_agent_for(url), plain, "{url}");
+	}
+}
+
+#[tokio::test]
+async fn requests_send_blindradio_agent() {
+	let s = serve(vec![stream("/a"), text("/j", "application/json", "{}")]);
+	let want = concat!("BlindRadio/", env!("CARGO_PKG_VERSION"));
+	open(&client(), &s.url("/a")).await.unwrap();
+	assert_eq!(s.last_user_agent("/a").as_deref(), Some(want));
+	let _: serde_json::Value = get_json(&client(), &s.url("/j")).await.unwrap();
+	assert_eq!(s.last_user_agent("/j").as_deref(), Some(want));
 }

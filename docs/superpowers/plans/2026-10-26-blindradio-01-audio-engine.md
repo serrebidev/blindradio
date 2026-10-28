@@ -258,5 +258,5 @@ The owner tested the desktop shell by ear. Each change was measured first with `
 - Mixer (Task 8): each fading station keeps its own fade; audio fades in from silence; an underrun eases out over 5 ms. Playback starts, and resumes after running dry, only once 1 s is buffered (`ring::CUSHION_MS`): amperwave (Fox News) sends its first seconds in lumps up to a second apart.
 - Tuner (Task 9): a warm swap trims to the 1 s cushion instead of 250 ms. A cold focus sends `MixerCmd::Tune`: the old station fades into soft hiss until the new one sounds (owner: feel analogue, no pauses). Stop stays silent. No DNS warming under key repeat. A warm station's earlier `Reconnecting` is passed on when it is swapped to.
 - Resolve cache (Task 3): final URLs carrying their own query (session id, token) are not cached.
-- User-Agent (Task 3): `Blind-Radio/<version>`. SomaFM drops any agent containing "blindradio".
+- User-Agent (Task 3): `BlindRadio/<version>` per request via `net::user_agent_for`, except `ice<digits>.somafm.com` stream hosts, which get `Blind-Radio/<version>` because SomaFM drops any agent containing "blindradio".
 - HLS (Task 7): ID3 `TIT2` titles come from TS timed metadata (stream type 0x15) and packed-audio tags.

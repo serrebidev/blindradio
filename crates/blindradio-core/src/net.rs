@@ -15,13 +15,29 @@ const ENTRY_STAGGER: Duration = Duration::from_millis(500);
 
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 	reqwest::Client::builder()
-		// SomaFM drops any user agent containing "blindradio" (any case) with an empty reply.
-		.user_agent(concat!("Blind-Radio/", env!("CARGO_PKG_VERSION")))
+		// Per-request headers from `user_agent_for` override this; it covers any stray request.
+		.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
 		.connect_timeout(Duration::from_secs(4))
 		.redirect(reqwest::redirect::Policy::limited(10))
 		.build()
 		.expect("http client")
 });
+
+/// SomaFM stream hosts (`ice<digits>.somafm.com`) drop any user agent containing "blindradio"
+/// (any case) with an empty reply, so they get a hyphenated name; everything else gets the real one.
+pub fn user_agent_for(url: &str) -> &'static str {
+	let soma_stream = reqwest::Url::parse(url)
+		.ok()
+		.and_then(|u| u.host_str().map(str::to_ascii_lowercase))
+		.and_then(|h| h.strip_suffix(".somafm.com").map(str::to_owned))
+		.and_then(|h| h.strip_prefix("ice").map(str::to_owned))
+		.is_some_and(|d| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()));
+	if soma_stream {
+		concat!("Blind-Radio/", env!("CARGO_PKG_VERSION"))
+	} else {
+		concat!("BlindRadio/", env!("CARGO_PKG_VERSION"))
+	}
+}
 
 /// One process-wide client; cloning shares the connection pool.
 pub fn client() -> reqwest::Client {
@@ -86,6 +102,7 @@ fn open_at<'a>(
 		}
 		let mut response = client
 			.get(&url)
+			.header("User-Agent", user_agent_for(&url))
 			.header("Icy-MetaData", "1")
 			.header("Accept-Encoding", "identity")
 			.send()
@@ -233,6 +250,7 @@ impl ResolveCache {
 pub async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<bytes::Bytes> {
 	let response = client
 		.get(url)
+		.header("User-Agent", user_agent_for(url))
 		.timeout(Duration::from_secs(8))
 		.send()
 		.await
