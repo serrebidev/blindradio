@@ -6,9 +6,15 @@ version.workspace = true
 
 [dependencies]
 blindradio-core = { path = "../blindradio-core" }
-wxdragon = { git = "https://github.com/trypsynth/wxDragon" }
+# crates.io (AllenDang upstream): trypsynth/wxDragon main is behind it (0.9.21, wxWidgets 3.3.3) and wx-utils needs 0.9.22+.
+wxdragon = "*"
+wx-utils = { git = "https://github.com/trypsynth/wx-utils" }
 crossbeam-channel = "*"
+tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
 
 [build-dependencies]
 embed-manifest = "*"
+
+[dev-dependencies]
+tokio = { version = "*", features = ["rt-multi-thread", "time"] }

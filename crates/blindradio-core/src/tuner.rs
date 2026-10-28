@@ -305,12 +305,19 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.last_focus
 			.is_some_and(|t| now.duration_since(t) >= WARM_IDLE)
 		{
-			let playing = self.playing.as_ref().map(|p| p.id.as_str());
-			self.open.retain(|o| Some(o.station.id.as_str()) == playing);
+			self.close_warm();
 		}
 
 		if let Some(title) = self.settle.tick(now) {
 			self.emit(TunerEvent::Announce(title));
+		}
+	}
+
+	/// The station list closed: its warm neighbours close, the playing station plays on.
+	pub fn list_closed(&mut self) {
+		self.close_warm();
+		if let Some(d) = &mut self.deferred {
+			d.warm.clear();
 		}
 	}
 
@@ -468,6 +475,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			token: 0,
 		});
 		self.pending = None;
+	}
+
+	fn close_warm(&mut self) {
+		let playing = self.playing.as_ref().map(|p| p.id.as_str());
+		self.open.retain(|o| Some(o.station.id.as_str()) == playing);
 	}
 
 	fn is_open(&self, id: &str) -> bool {

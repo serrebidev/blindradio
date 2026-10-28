@@ -583,3 +583,26 @@ fn deferred_cold_start_latency_counts_from_focus() {
 		"{got:?}"
 	);
 }
+
+#[test]
+fn list_closed_keeps_only_playing() {
+	let mut f = fixture();
+	let list = stations(11);
+	f.tuner.focus(&list, 4, f.t0);
+	assert_eq!(f.fake.active(), 3);
+	f.tuner.list_closed();
+	assert_eq!(f.fake.active(), 1, "only the playing station stays open");
+	assert_eq!(f.tuner.playing().map(|s| s.id.as_str()), Some("s4"));
+	let (ring, _) = f.sink.last_active();
+	assert!(Arc::ptr_eq(&ring, &f.fake.ring(4)), "audio carries on");
+	// Closed under key repeat: the deferred cold start still happens, its neighbours never do.
+	f.tuner.focus(&list, 8, f.t0 + ms(50));
+	f.tuner.list_closed();
+	f.tuner.poll(f.t0 + ms(200), &[]);
+	assert!(f.fake.started(8), "the playing station still starts");
+	assert!(
+		!f.fake.started(7) && !f.fake.started(9),
+		"no warm neighbours"
+	);
+	assert_eq!(f.fake.active(), 1);
+}

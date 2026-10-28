@@ -1,156 +1,89 @@
-// Plan 1 test shell: a station list that dial-tunes. The real UI arrives in plan 4.
-// Debug builds keep a console, so the stderr log below is visible.
+// The main window here is still the plan 1 dial list; Task 2 builds the real one.
+// Debug builds keep a console, so the stderr log is visible.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod action;
+mod app;
+mod bridge;
+mod strings;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::Instant;
 
-use blindradio_core::Engine;
-use blindradio_core::output::Output;
 use blindradio_core::station::Station;
-use blindradio_core::tuner::{LiveFactory, Tuner, TunerEvent};
-use crossbeam_channel::Receiver;
 use wxdragon::prelude::*;
+
+use crate::action::app_key;
+use crate::app::App;
+use crate::strings as s;
 
 const STATIONS: &str = include_str!("../../blindradio-core/examples/stations.json");
 const POLL_MS: i32 = 50;
-const TITLE: &str = "BlindRadio";
-
-struct App {
-	tuner: Tuner<LiveFactory, Output>,
-	stations: Vec<Station>,
-	rendered: Receiver<(u64, Instant)>,
-	events: Receiver<TunerEvent>,
-	frame: Frame,
-	/// Taken and stopped on close, while the frame it ticks on still exists.
-	timer: Option<Timer<Frame>>,
-	// Dropped last: the tuner's streams run on its runtime.
-	_engine: Engine,
-}
-
-impl App {
-	fn focus(&mut self, index: usize) {
-		if let Some(station) = self.stations.get(index) {
-			// The window title follows focus at once; the song is added when known.
-			self.frame.set_title(&station.name);
-		}
-		self.tuner.focus(&self.stations, index, Instant::now());
-	}
-
-	fn stop(&mut self) {
-		self.tuner.stop();
-		self.frame.set_title(TITLE);
-	}
-
-	fn poll(&mut self) {
-		let rendered: Vec<_> = self.rendered.try_iter().collect();
-		self.tuner.poll(Instant::now(), &rendered);
-		for event in self.events.try_iter() {
-			match event {
-				// A title queued for a station focus already left must not overwrite the playing one.
-				TunerEvent::Title { station_id, title } => {
-					let Some(station) = self.tuner.playing().filter(|s| s.id == station_id) else {
-						continue;
-					};
-					match title {
-						Some(song) => self.frame.set_title(&format!("{song} - {}", station.name)),
-						None => self.frame.set_title(&station.name),
-					}
-				}
-				// Speech arrives in plan 5.
-				TunerEvent::Failed { name, reason, .. } => eprintln!("Failed: {name} ({reason})"),
-				TunerEvent::Announce(song) => eprintln!("{song}"),
-				// Spec: measure and log warm and cold latency in debug builds.
-				TunerEvent::Latency {
-					station_id,
-					ms,
-					warm,
-				} if cfg!(debug_assertions) => {
-					let name = self
-						.stations
-						.iter()
-						.find(|s| s.id == station_id)
-						.map_or("?", |s| s.name.as_str());
-					eprintln!("{name} warm={warm} {ms} ms");
-				}
-				_ => {}
-			}
-		}
-	}
-}
 
 /// Says why the app cannot start, then closes; with no window left the app exits.
 fn fail(frame: Frame, error: &dyn std::fmt::Display) {
-	MessageDialog::builder(&frame, &format!("Failed: {error}"), TITLE)
+	MessageDialog::builder(&frame, &format!("{}{error}", s::FAILED), s::APP_NAME)
 		.build()
 		.show_modal();
 	frame.close(true);
 }
 
 fn main() {
-	let stations: Vec<Station> = serde_json::from_str(STATIONS).expect("embedded stations.json");
+	let stations: Rc<Vec<Station>> =
+		Rc::new(serde_json::from_str(STATIONS).expect("embedded stations.json"));
 	let _ = wxdragon::main(move |_| {
-		let frame = Frame::builder().with_title(TITLE).build();
-		let output = match Output::start_default() {
-			Ok(o) => o,
-			Err(e) => return fail(frame, &e),
-		};
-		let cache = std::env::temp_dir().join("blindradio/cache.json");
-		let engine = match Engine::new(&cache, output.sample_rate) {
-			Ok(e) => e,
-			Err(e) => return fail(frame, &e),
-		};
-
+		let frame = Frame::builder().with_title(s::APP_NAME).build();
 		let panel = Panel::builder(&frame).build();
 		// wxMSW names the list after the label created just before it.
-		let label = StaticText::builder(&panel).with_label("Stations").build();
+		let label = StaticText::builder(&panel).with_label(s::STATIONS).build();
 		let list = ListBox::builder(&panel)
 			.with_choices(stations.iter().map(|s| s.name.clone()).collect())
 			.build();
+		let message = StaticText::builder(&panel).with_label("").build();
 		let sizer = BoxSizer::builder(Orientation::Vertical).build();
 		sizer.add(&label, 0, SizerFlag::All, 5);
 		sizer.add(&list, 1, SizerFlag::Expand | SizerFlag::All, 5);
+		sizer.add(&message, 0, SizerFlag::Expand | SizerFlag::All, 5);
 		panel.set_sizer(sizer, true);
 
-		let rendered = output.rendered().clone();
-		let (tx, events) = crossbeam_channel::unbounded();
-		let app = Rc::new(RefCell::new(App {
-			tuner: Tuner::new(LiveFactory(engine.ctx.clone()), output, tx),
-			stations,
-			rendered,
-			events,
-			frame,
-			timer: Some(Timer::new(&frame)),
-			_engine: engine,
-		}));
+		let app = match App::new(frame, message) {
+			Ok(a) => Rc::new(RefCell::new(a)),
+			Err(e) => return fail(frame, &e),
+		};
 
-		let a = app.clone();
+		let (a, list_stations) = (app.clone(), stations.clone());
 		list.on_selection_changed(move |e| {
 			if let Some(i) = e.get_selection().and_then(|i| usize::try_from(i).ok()) {
-				a.borrow_mut().focus(i);
+				a.borrow_mut().tune(&list_stations, i);
 			}
 		});
 
 		let a = app.clone();
-		list.on_key_down(move |e| {
+		frame.on_char_hook(move |e| {
 			let WindowEventData::Keyboard(key) = e else {
 				return;
 			};
-			match key.get_key_code() {
-				Some(c) if c == 'S' as i32 && key.control_down() => a.borrow_mut().stop(),
-				Some(WXK_ESCAPE) => frame.close(true),
-				_ => key.event.skip(true),
+			let action = key.get_key_code().and_then(|code| {
+				app_key(
+					code,
+					key.control_down(),
+					key.alt_down(),
+					key.shift_down(),
+					true,
+				)
+			});
+			match action {
+				Some(action) => a.borrow_mut().run(action),
+				None => key.event.skip(true),
 			}
 		});
 
 		let a = app.clone();
 		frame.on_close(move |e| {
-			let mut app = a.borrow_mut();
-			if let Some(timer) = app.timer.take() {
-				timer.stop();
+			// Exit already shut down and still holds the app.
+			if let Ok(mut app) = a.try_borrow_mut() {
+				app.shutdown();
 			}
-			app.tuner.stop();
 			if let WindowEventData::General(e) = e {
 				e.skip(true);
 			}
@@ -167,6 +100,6 @@ fn main() {
 		// Landing on a station plays it (owner rule), including the first one at start.
 		list.set_selection(0, true);
 		list.set_focus();
-		app.borrow_mut().focus(0);
+		app.borrow_mut().tune(&stations, 0);
 	});
 }
