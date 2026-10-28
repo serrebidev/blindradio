@@ -2,6 +2,12 @@
 
 Terse, newest first. Each release's section is its GitHub release note.
 
+## 0.2.1
+
+- Browse has a Sort choice: Radio Browser station lists in any order the API offers (the
+  API default, name, votes, clicks, click trend, bitrate, codec, country, state, language,
+  tags and more), with Reverse for the other direction. Search carries the same order.
+
 ## 0.2.0
 
 The whole desktop interface, from the empty window to a shipped app.

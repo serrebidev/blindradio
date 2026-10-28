@@ -116,6 +116,8 @@ pub const BROWSE_TITLE: &str = "Browse";
 pub const COLLECTIONS_FOLDER: &str = "Collections";
 pub const LOADING: &str = "Loading";
 pub const LOAD_MORE: &str = "Load More";
+pub const SORT: &str = "Sort";
+pub const REVERSE: &str = "&Reverse";
 pub const ONLY_OWN: &str = "Only your own stations can be deleted.";
 /// Prefix: `Delete <collection>?`.
 pub const DELETE_PREFIX: &str = "Delete ";

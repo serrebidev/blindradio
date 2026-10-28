@@ -39,6 +39,11 @@ Ctrl+G opens Browse: Radio Browser, TuneIn, iHeartRadio, Networks, Collections a
 Stations. Right opens a folder, Left closes it, and a folder that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
 
+The `Sort` choice at the top orders Radio Browser station lists: the API default, name,
+votes, clicks, click trend, bitrate, codec, country, state, language, tags and more, with
+`Reverse` for the other direction. Changing it loads the Radio Browser branches again in
+the new order. The other directories have no ordering.
+
 ## Favorites and recently played
 
 Ctrl+B lists Favorites with Remove, Move Up, Move Down and Export. Ctrl+H lists Recently Played.

@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use blindradio_core::library::{CUSTOM, Library};
-use blindradio_core::sources::{Node, Sort, Sources};
+use blindradio_core::sources::{Node, Sort, SortField, Sources};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
@@ -29,6 +29,7 @@ const COLLECTIONS: &str = "collections";
 pub struct Memory {
 	path: Vec<String>,
 	cache: HashMap<String, Vec<Node>>,
+	sort: Sort,
 }
 
 enum Children {
@@ -140,10 +141,36 @@ impl BrowseModel {
 	}
 
 	/// Taken when the window closes.
-	pub fn memory(&mut self) -> Memory {
+	pub fn memory(&mut self, sort: Sort) -> Memory {
 		Memory {
 			path: self.path(),
 			cache: std::mem::take(&mut self.cache),
+			sort,
+		}
+	}
+
+	/// The sort changed: Radio Browser levels (the only sorted ones) are dropped, cache
+	/// first, so the next open fetches them in the new order. Focus inside one moves to
+	/// the Radio Browser root.
+	pub fn resort(&mut self) {
+		self.cache.retain(|id, _| !id.starts_with("rb"));
+		let rb = self.roots[0];
+		let mut under = vec![false; self.items.len()];
+		for (i, item) in self.items.iter().enumerate() {
+			under[i] = i == rb || item.parent.is_some_and(|p| under[p]);
+		}
+		for (i, item) in self.items.iter_mut().enumerate() {
+			if under[i]
+				&& let Kind::Folder {
+					children, expanded, ..
+				} = &mut item.kind
+			{
+				*children = Children::Unloaded;
+				*expanded = false;
+			}
+		}
+		if self.focus.is_some_and(|f| f != rb && under[f]) {
+			self.focus = Some(rb);
 		}
 	}
 
@@ -616,6 +643,7 @@ struct View {
 	items: RefCell<HashMap<usize, TreeItemId>>,
 	model: RefCell<BrowseModel>,
 	quiet: Cell<bool>,
+	sort: Cell<Sort>,
 }
 
 impl View {
@@ -773,14 +801,19 @@ impl View {
 
 	fn fetch(self: &Rc<Self>, app: &App, token: &WindowToken, i: usize, id: String) {
 		let sources = app.sources.clone();
+		let sort = self.sort.get();
 		let v = self.clone();
 		app.bridge.spawn(
 			token.clone(),
 			async move {
-				let r = sources.children(&id, Sort::default()).await;
+				let r = sources.children(&id, sort).await;
 				(id, r)
 			},
 			move |app: &mut App, (id, r)| {
+				// The sort changed while this was in flight: its order is stale.
+				if v.sort.get() != sort {
+					return;
+				}
 				let nodes = r.inspect_err(|e| eprintln!("browse {id}: {e}")).ok();
 				let (more, parent) = {
 					let m = v.model.borrow();
@@ -804,6 +837,20 @@ impl View {
 				}
 			},
 		);
+	}
+
+	/// A new sort from the controls: Radio Browser levels load again in the new order.
+	fn resort(self: &Rc<Self>, sort: Sort) {
+		if self.sort.get() == sort {
+			return;
+		}
+		self.sort.set(sort);
+		self.model.borrow_mut().resort();
+		self.sync_deep(None);
+		if let Some(item) = self.item(self.model.borrow().top()) {
+			self.quietly(|| self.tree.collapse(&item));
+		}
+		self.show_focus();
 	}
 
 	/// Enter, Space or a double click.
@@ -924,6 +971,24 @@ impl View {
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	let dialog = Dialog::builder(&frame, s::BROWSE_TITLE).build();
+	// The label first: wxMSW names the choice after it.
+	let sort_label = StaticText::builder(&dialog).with_label(s::SORT).build();
+	// Full path: `Choice` here is the context menu's enum.
+	let sort_choice = wxdragon::widgets::choice::Choice::builder(&dialog).build();
+	for f in SortField::ALL {
+		sort_choice.append(f.label());
+	}
+	let sort0 = app.borrow().browse.sort;
+	let at = SortField::ALL
+		.iter()
+		.position(|f| *f == sort0.field)
+		.unwrap_or(0);
+	sort_choice.set_selection(at as u32);
+	let reverse = CheckBox::builder(&dialog).with_label(s::REVERSE).build();
+	reverse.set_value(sort0.reverse);
+	let sort_row = BoxSizer::builder(Orientation::Horizontal).build();
+	sort_row.add(&sort_choice, 1, SizerFlag::Expand | SizerFlag::Right, 5);
+	sort_row.add(&reverse, 0, SizerFlag::All, 0);
 	// The label first: wxMSW names the tree after it.
 	let label = StaticText::builder(&dialog).with_label(s::STATIONS).build();
 	let tree = TreeCtrl::builder(&dialog)
@@ -939,6 +1004,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.with_label(s::CLOSE)
 		.build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
+	sizer.add(
+		&sort_label,
+		0,
+		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+		5,
+	);
+	sizer.add_sizer(&sort_row, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add(
 		&label,
 		0,
@@ -962,7 +1034,16 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		items: RefCell::new(HashMap::new()),
 		model: RefCell::new(model),
 		quiet: Cell::new(false),
+		sort: Cell::new(sort0),
 	});
+	let read_sort = Rc::new(move || Sort {
+		field: SortField::ALL[sort_choice.get_selection().unwrap_or(0) as usize],
+		reverse: reverse.get_value(),
+	});
+	let (v, read) = (view.clone(), read_sort.clone());
+	sort_choice.on_selection_changed(move |_| v.resort(read()));
+	let v = view.clone();
+	reverse.on_toggled(move |_| v.resort(read_sort()));
 	view.sync_deep(None);
 	view.expand_open(None);
 	view.show_focus();
@@ -976,7 +1057,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		view.focused(app, f);
 	}
 	let next = crate::dialogs::run(app, dialog, Action::OpenBrowse, tree, &token);
-	app.borrow_mut().browse = view.model.borrow_mut().memory();
+	app.borrow_mut().browse = view.model.borrow_mut().memory(view.sort.get());
 	next
 }
 
@@ -1282,7 +1363,7 @@ mod tests {
 		m.more(page);
 		m.loaded(page, Some(vec![station("s2")]));
 		m.set_focus(find(&m, Some(kenya), "s2"));
-		let mut m = BrowseModel::new(m.memory(), &lib);
+		let mut m = BrowseModel::new(m.memory(Sort::default()), &lib);
 		let f = m.focus().unwrap();
 		assert_eq!(
 			m.station(f).map(|s| s.id.as_str()),
@@ -1300,7 +1381,7 @@ mod tests {
 		let jazz_folder = find(&m, Some(collections), &jazz);
 		m.open(jazz_folder);
 		m.set_focus(find(&m, Some(jazz_folder), "y"));
-		let memory = m.memory();
+		let memory = m.memory(Sort::default());
 		lib.remove_from_collection(&jazz, "y");
 		let mut m = BrowseModel::new(memory, &lib);
 		let collections = find(&m, None, "collections");
@@ -1312,7 +1393,7 @@ mod tests {
 		let genre = find(&m, Some(rb), "rb/genre");
 		m.open(genre);
 		m.set_focus(m.children(Some(genre))[0]);
-		let m = BrowseModel::new(m.memory(), &lib);
+		let m = BrowseModel::new(m.memory(Sort::default()), &lib);
 		let rb = find(&m, None, "rb");
 		assert_eq!(m.focus(), Some(find(&m, Some(rb), "rb/genre")));
 	}
@@ -1356,6 +1437,27 @@ mod tests {
 		);
 		assert_eq!(m.label(page), "Load More", "Enter tries again");
 		assert_eq!(m.more(page).as_deref(), Some("rb/genre@100"));
+	}
+
+	#[test]
+	fn browse_resort_drops_radio_browser_levels() {
+		let mut m = BrowseModel::new(Memory::default(), &Library::default());
+		let rb = load(&mut m, None, "rb", vec![folder("rb/genre")]);
+		let genre = load(&mut m, Some(rb), "rb/genre", vec![station("a")]);
+		m.set_focus(find(&m, Some(genre), "a"));
+		m.resort();
+		assert_eq!(m.focus(), Some(rb), "focus out of the dropped level");
+		assert_eq!(m.open(rb).as_deref(), Some("rb"), "root fetches again");
+		m.loaded(rb, Some(vec![folder("rb/genre")]));
+		let genre = find(&m, Some(rb), "rb/genre");
+		assert_eq!(
+			m.open(genre).as_deref(),
+			Some("rb/genre"),
+			"cache dropped too"
+		);
+		// Local levels are not the directory's to drop.
+		let collections = find(&m, None, "collections");
+		assert_eq!(m.open(collections), None);
 	}
 
 	#[test]
