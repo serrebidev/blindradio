@@ -5,6 +5,7 @@
 Expand BlindRadio's station discovery using the directories and networks listed at
 <https://fmhy.net/audio#radio-streaming>. The user selected both a new live directory
 and curated networks, then explicitly added SHOUTcast to the scope.
+After approving the design, the user also requested Internet-Radio.com.
 
 ## Approaches
 
@@ -35,6 +36,11 @@ network data, playlist resolver, favorites and collections. No separate interfac
   deduplication and directory failure isolation. Icecast supports local genre
   matching too. Country and language filters remain Radio Browser features;
   keep filter-only searches on Radio Browser to preserve current behavior.
+- Add Internet-Radio.com as an Internet-Radio root with Featured Stations and
+  By Genre, plus combined name search. Parse its public HTML using a real HTML
+  parser, follow its genre/search pagination through Load More, and use the
+  published playlist links with the existing resolver. Accept only same-site
+  navigation paths and HTTP stream targets. Website changes are a maintenance risk.
 - Add Radio Paradise, NTS and WFMU under Networks, using only official published
   stream links that pass a live connection check. Include verified current
   channels; exact channel count is left to implementation based on verification.
