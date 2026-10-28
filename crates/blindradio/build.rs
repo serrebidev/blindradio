@@ -21,6 +21,13 @@ fn main() {
 	let hash = commit_hash();
 	println!("cargo:rustc-env=BLINDRADIO_COMMIT_HASH={hash}");
 
+	// The updater's public key: the second line of the minisign public key beside the assets.
+	println!("cargo:rerun-if-changed=assets/minisign.pub");
+	let public =
+		std::fs::read_to_string("assets/minisign.pub").expect("assets/minisign.pub is missing");
+	let public = public.lines().nth(1).unwrap_or_default().trim();
+	println!("cargo:rustc-env=BLINDRADIO_MINISIGN_PUBLIC_KEY={public}");
+
 	// The user guide, converted once here and inflated at run time.
 	let out = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
 	let page = Page {

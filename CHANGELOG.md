@@ -7,6 +7,7 @@ Terse, newest first. Each release's section is its GitHub release note.
 - Browse has a Sort choice: Radio Browser station lists in any order the API offers (the
   API default, name, votes, clicks, click trend, bitrate, codec, country, state, language,
   tags and more), with Reverse for the other direction. Search carries the same order.
+- The Linux AppImage starts on a system that has no libjpeg installed.
 
 ## 0.2.0
 

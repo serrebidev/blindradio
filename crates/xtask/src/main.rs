@@ -43,6 +43,7 @@ fn main() {
 		"release" => release(&args[1..]),
 		"minisign-key" => minisign_key(&args[1..]),
 		"sign" => sign_assets(&args[1..]),
+		"update-check" => update_check(&args[1..]),
 		"version" => match package::crate_version(&root(), PKG) {
 			Ok(v) => {
 				println!("{v}");
@@ -139,7 +140,9 @@ fn release(args: &[String]) -> Result<(), String> {
 	}
 	// Every asset carries its signature, so the updater can verify the download.
 	for asset in &assets {
-		sign_file(asset)?;
+		if !sign_file(asset)? {
+			return Err("MINISIGN_KEY is not set, so nothing would be signed".to_string());
+		}
 	}
 	let mut upload: Vec<String> = vec![
 		"release".into(),
@@ -172,6 +175,9 @@ fn release(args: &[String]) -> Result<(), String> {
 		)?;
 		wait_for_macos(&tag)?;
 	}
+
+	// A leg that failed must not publish: every asset and signature has to be there.
+	verify_assets(&tag, windows_only)?;
 
 	run(
 		"gh",
@@ -216,6 +222,83 @@ pub(crate) fn sign_file(path: &Path) -> Result<bool, String> {
 	std::fs::write(&out, signature.into_string())
 		.map_err(|e| format!("{}: {e}", Path::new(&out).display()))?;
 	Ok(true)
+}
+
+/// Fails unless every asset and its `.minisig` reached the release.
+fn verify_assets(tag: &str, windows_only: bool) -> Result<(), String> {
+	let mut names = vec![format!("{APP}.zip"), format!("{APP}_setup.exe")];
+	if !windows_only {
+		names.push(format!("{APP}.AppImage"));
+		names.push(format!("{APP}.tar.gz"));
+		names.push(format!("{APP}.dmg"));
+	}
+	let listed = output(
+		"gh",
+		&[
+			"release",
+			"view",
+			tag,
+			"--json",
+			"assets",
+			"--jq",
+			".assets[].name",
+		],
+	)?;
+	let present: Vec<&str> = listed.lines().map(str::trim).collect();
+	for name in &names {
+		for wanted in [name.clone(), format!("{name}.minisig")] {
+			if !present.contains(&wanted.as_str()) {
+				return Err(format!("{wanted} is missing from release {tag}"));
+			}
+		}
+	}
+	println!("xtask: {} has all {} files", tag, present.len());
+	Ok(())
+}
+
+/// `cargo xtask update-check [version]`: asks GitHub what a copy running `version` would be
+/// offered, then downloads that asset and verifies it, exactly as the app does.
+fn update_check(args: &[String]) -> Result<(), String> {
+	let current = match args.first() {
+		Some(version) => version.trim_start_matches('v').to_string(),
+		None => package::crate_version(&root(), PKG).map_err(|e| format!("version: {e}"))?,
+	};
+	let config =
+		ship_shape::UpdaterConfig::new("serrebidev/blindradio", APP, APP, public_key()?, &current);
+	let outcome = ship_shape::check_for_updates(&config, ship_shape::UpdateChannel::Stable)
+		.map_err(|e| format!("check: {e}"))?;
+	let update = match outcome {
+		ship_shape::UpdateCheckOutcome::UpToDate(version) => {
+			println!("up to date at {version}");
+			return Ok(());
+		}
+		ship_shape::UpdateCheckOutcome::UpdateAvailable(update) => update,
+	};
+	println!(
+		"{current} would be offered {} from {}",
+		update.latest_version, update.download_url
+	);
+	let cancelled = std::sync::atomic::AtomicBool::new(false);
+	let path = ship_shape::download_update_file(
+		&config,
+		&update.download_url,
+		&update.signature_url,
+		&cancelled,
+		|_, _| {},
+	)
+	.map_err(|e| format!("download: {e}"))?;
+	println!("verified and saved to {}", path.display());
+	Ok(())
+}
+
+/// The updater's public key, from the file the app compiles in.
+fn public_key() -> Result<String, String> {
+	let path = root().join("crates/blindradio/assets/minisign.pub");
+	let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+	text.lines()
+		.nth(1)
+		.map(|line| line.trim().to_string())
+		.ok_or_else(|| format!("{} has no key line", path.display()))
 }
 
 /// `cargo xtask sign <file>…`: writes `<file>.minisig` beside each.

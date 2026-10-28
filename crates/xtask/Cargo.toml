@@ -6,6 +6,7 @@ version.workspace = true
 
 [dependencies]
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
+ship-shape = "0.5.0"
 minisign = "0.10.0"
 
 [dev-dependencies]

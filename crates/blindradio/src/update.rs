@@ -11,8 +11,8 @@ use ship_shape::ui::{self, CheckTrigger};
 use ship_shape::{InstallKind, UpdateChannel, UpdaterConfig};
 use wxdragon::prelude::WxWidget;
 
-/// The second line of `minisign.pub`.
-const PUBLIC_KEY: &str = "RWQ/pjmJi4QeFQf1jrQjt0KxMJgPAQo7rTMwLgyhNqdRjZtQnN9PLx3O";
+/// The second line of `assets/minisign.pub`, read in by `build.rs`.
+const PUBLIC_KEY: &str = env!("BLINDRADIO_MINISIGN_PUBLIC_KEY");
 const DAY: u64 = 24 * 60 * 60;
 
 /// Before the first show, so the relaunch after an update comes to the front.

@@ -62,5 +62,7 @@ fn library(name: &str) -> Result<PathBuf, String> {
 			return Ok(path);
 		}
 	}
-	Err(format!("{name} was not found; the AppImage needs it bundled"))
+	Err(format!(
+		"{name} was not found; the AppImage needs it bundled"
+	))
 }
