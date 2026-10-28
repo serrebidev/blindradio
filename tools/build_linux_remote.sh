@@ -4,7 +4,8 @@
 set -eu
 
 host="${BLINDRADIO_LINUX_HOST:-root@serrebiradio.com}"
-remote=/tmp/blindradio-build
+# The home directory, not /tmp: that is a tmpfs there and a wx build fills it.
+remote="$HOME/blindradio-build"
 here=$(cd "$(dirname "$0")/.." && pwd)
 dist="$here/target/dist"
 

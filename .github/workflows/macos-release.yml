@@ -21,8 +21,6 @@ jobs:
         run: test "$(uname -m)" = arm64
 
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
 

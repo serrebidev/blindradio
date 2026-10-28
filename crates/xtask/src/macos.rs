@@ -5,6 +5,8 @@ use std::path::Path;
 use shipfitter::macos::{MacApp, dmg, sign};
 
 pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
+	shipfitter::package::cargo_build_release(root, &["blindradio"])
+		.map_err(|e| format!("building: {e}"))?;
 	let exe = root.join("target/release/blindradio");
 	if !exe.is_file() {
 		return Err(format!("{} is missing: build first", exe.display()));
