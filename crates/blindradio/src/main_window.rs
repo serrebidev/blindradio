@@ -1,4 +1,5 @@
-//! The main window: now playing, the playback buttons, Volume and the message line.
+//! The main window: the Stations dial, now playing, the playback buttons, Volume and the message
+//! line.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -8,14 +9,18 @@ use wxdragon::prelude::*;
 
 use crate::action::{Action, app_key};
 use crate::app::App;
+use crate::dialogs;
 use crate::menus;
+use crate::station_list::{Hooks, StationList};
 use crate::strings as s;
 
 const POLL_MS: i32 = 50;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct MainWindow {
 	pub frame: Frame,
+	/// The dial: the SerrebiRadio collection, or the collection last played from.
+	pub stations: StationList,
 	/// `Stopped`, `<station>` or `<song> - <station>`.
 	pub now_playing: StaticText,
 	pub play: Button,
@@ -33,10 +38,12 @@ pub fn escape(text: &str) -> String {
 }
 
 pub fn build() -> MainWindow {
-	let frame = Frame::builder().with_title(s::APP_NAME).build();
+	let frame = Frame::builder()
+		.with_title(s::APP_NAME)
+		.with_size(Size::new(640, 520))
+		.build();
 	let panel = Panel::builder(&frame).build();
-	// TODO(Task 3): the `Stations` dial (StationList, SerrebiRadio collection) goes first, above
-	// Play; startup focus moves to it when it has stations.
+	let stations = StationList::new(&panel, s::STATIONS);
 	let now_playing = StaticText::builder(&panel).with_label(s::STOPPED).build();
 	let play = Button::builder(&panel).with_label(s::PLAY).build();
 	let stop = Button::builder(&panel).with_label(s::STOP).build();
@@ -57,6 +64,13 @@ pub fn build() -> MainWindow {
 		buttons.add(b, 0, SizerFlag::All, 5);
 	}
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
+	sizer.add(
+		&stations.label,
+		0,
+		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+		5,
+	);
+	sizer.add(&stations.list, 1, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add(&now_playing, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add_sizer(&buttons, 0, SizerFlag::All, 0);
 	sizer.add(&volume_label, 0, SizerFlag::All, 5);
@@ -65,6 +79,7 @@ pub fn build() -> MainWindow {
 	panel.set_sizer(sizer, true);
 	MainWindow {
 		frame,
+		stations,
 		now_playing,
 		play,
 		stop,
@@ -88,6 +103,11 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				.website(s::WEBSITE)
 				.show();
 		}
+		Action::OpenSearch => {
+			if let Some(next) = dialogs::search::show(app) {
+				dispatch(app, next);
+			}
+		}
 		a => app.borrow_mut().run(a),
 	}
 }
@@ -104,7 +124,16 @@ pub fn volume_step(code: i32) -> Option<i32> {
 }
 
 pub fn bind(app: &Rc<RefCell<App>>) {
-	let win = app.borrow().win;
+	let win = app.borrow().win.clone();
+
+	let a = app.clone();
+	win.stations.bind(
+		app,
+		Hooks {
+			on_delete: Some(Rc::new(move |i| a.borrow_mut().delete_from_dial(i))),
+			..Hooks::default()
+		},
+	);
 
 	let a = app.clone();
 	win.frame.on_menu_selected(move |e| {

@@ -12,7 +12,6 @@ pub enum SettingId {
 	PlayLastAtStartup,
 }
 
-#[expect(dead_code, reason = "station lists play through it (Task 3)")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
 	/// The station focused in the open list, else the playing one.

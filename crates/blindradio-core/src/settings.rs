@@ -45,6 +45,8 @@ pub struct Settings {
 	/// Action id to chord text; empty means defaults.
 	pub hotkeys: BTreeMap<String, String>,
 	pub last_station: Option<Station>,
+	/// Collection id the main window list shows; None is the SerrebiRadio collection.
+	pub main_list: Option<String>,
 }
 
 impl Default for Settings {
@@ -60,6 +62,7 @@ impl Default for Settings {
 			eq: EqSettings::default(),
 			hotkeys: BTreeMap::new(),
 			last_station: None,
+			main_list: None,
 		}
 	}
 }
@@ -102,6 +105,7 @@ mod tests {
 		);
 		assert!(s.hotkeys.is_empty());
 		assert_eq!(s.last_station, None);
+		assert_eq!(s.main_list, None);
 	}
 
 	#[test]
@@ -152,6 +156,7 @@ mod tests {
 			treble: 1,
 		};
 		s.hotkeys.insert("play".into(), "Ctrl+P".into());
+		s.main_list = Some("col:1".into());
 		s.save(d.path()).unwrap();
 		assert!(
 			std::fs::read_to_string(d.path().join("settings.json"))

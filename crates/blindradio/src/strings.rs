@@ -74,3 +74,36 @@ pub const SLEEP_OFF: &str = "&Off";
 pub const EQUALIZER: &str = "&Equalizer…";
 pub const USER_GUIDE: &str = "User &Guide";
 pub const ABOUT: &str = "&About BlindRadio";
+
+// Station lists.
+pub const STATIONS: &str = "Stations";
+pub const COLUMN_NAME: &str = "Name";
+pub const COLUMN_INFO: &str = "Info";
+pub const COLUMN_DIRECTORY: &str = "Directory";
+pub const NOTHING_TO_DO: &str = "Nothing to do here";
+
+// Context menu.
+pub const PLAY_ITEM: &str = "&Play";
+pub const ADD_TO_COLLECTION_SUB: &str = "Add to &Collection";
+pub const NEW_COLLECTION: &str = "&New Collection…";
+pub const NEW_COLLECTION_TITLE: &str = "New Collection";
+pub const COLLECTION_NAME: &str = "Collection name";
+pub const DELETE_CUSTOM: &str = "&Delete Custom Station";
+pub const RENAME_ITEM: &str = "&Rename";
+pub const DELETE_ITEM: &str = "&Delete";
+/// Prefix: `Added to <collection>`.
+pub const ADDED_TO: &str = "Added to ";
+/// Prefix: `Removed from <collection>`.
+pub const REMOVED_FROM: &str = "Removed from ";
+
+// Search.
+pub const SEARCH_TITLE: &str = "Search";
+pub const NAME: &str = "Name";
+pub const GENRE: &str = "Genre";
+pub const COUNTRY: &str = "Country";
+pub const LANGUAGE: &str = "Language";
+pub const SEARCH_BUTTON: &str = "&Search";
+pub const RESULTS: &str = "Results";
+pub const CLOSE: &str = "Close";
+pub const SEARCHING: &str = "Searching";
+pub const NO_RESULTS: &str = "No results";

@@ -7,11 +7,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use blindradio_core::history::SessionHistory;
-use blindradio_core::library::Library;
+use blindradio_core::library::{Collection, Library};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
 use blindradio_core::settings::Settings;
 use blindradio_core::sleep::SleepTimer;
-use blindradio_core::sources::{Endpoints, Sources};
+use blindradio_core::sources::{Endpoints, Filters, Sources};
 use blindradio_core::station::Station;
 use blindradio_core::tuner::{LiveFactory, Sink, Tuner, TunerEvent};
 use blindradio_core::{Engine, import, store};
@@ -55,6 +55,23 @@ pub fn play_pause<T>(playing: bool, remembered: Option<T>, selected: Option<T>) 
 	}
 }
 
+/// A station landed on in a list: Play/Pause after a stop plays it, not last session's station.
+fn landed<T: Clone>(selected: &mut Option<T>, remembered: &mut Option<T>, station: &T) {
+	*selected = Some(station.clone());
+	*remembered = Some(station.clone());
+}
+
+/// The main window list: the collection last played from, else SerrebiRadio.
+pub fn dial_collection<'a>(lib: &'a Library, main_list: Option<&str>) -> Option<&'a Collection> {
+	main_list
+		.and_then(|id| lib.collections.iter().find(|c| c.id == id))
+		.or_else(|| {
+			lib.collections
+				.iter()
+				.find(|c| c.name.eq_ignore_ascii_case(import::STARTER_COLLECTION))
+		})
+}
+
 /// `BLINDRADIO_DATA` (tests) overrides the data folder.
 pub fn data_dir() -> PathBuf {
 	match std::env::var_os("BLINDRADIO_DATA") {
@@ -71,8 +88,11 @@ pub struct App {
 	pub data: PathBuf,
 	pub settings: Settings,
 	pub library: Library,
-	#[expect(dead_code, reason = "Search and Browse use it (Tasks 3 and 4)")]
 	pub sources: Arc<Sources>,
+	/// Search's filter lists, fetched once per run.
+	pub filters: Option<Filters>,
+	/// A modal window is open.
+	pub dialog_open: bool,
 	pub bridge: Bridge<App>,
 	pub tuner: Tuner<LiveFactory, SharedOutput>,
 	output: Rc<RefCell<Output>>,
@@ -109,11 +129,14 @@ impl App {
 		let output = Rc::new(RefCell::new(output));
 		let (tx, events) = crossbeam_channel::unbounded();
 		let menus = menus::build(&win.frame, &settings, &output_devices());
+		let timer = Timer::new(&win.frame);
 		Ok(App {
 			sources: Arc::new(Sources::new(
 				engine.ctx.client.clone(),
 				Endpoints::default(),
 			)),
+			filters: None,
+			dialog_open: false,
 			bridge: Bridge::new(engine.ctx.rt.clone()),
 			tuner: Tuner::new(
 				LiveFactory(engine.ctx.clone()),
@@ -134,7 +157,7 @@ impl App {
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
-			timer: Some(Timer::new(&win.frame)),
+			timer: Some(timer),
 			engine,
 		})
 	}
@@ -145,10 +168,14 @@ impl App {
 		let first_run = store::first_run(&self.data);
 		// Play/Pause right after start plays the station from last time.
 		self.remembered = self.settings.last_station.clone();
-		if self.settings.play_last_at_startup
-			&& let Some(st) = self.remembered.clone()
-		{
-			self.play(st);
+		self.refresh_dial();
+		if !self.land_dial(self.settings.play_last_at_startup) {
+			self.win.play.set_focus();
+			if self.settings.play_last_at_startup
+				&& let Some(st) = self.remembered.clone()
+			{
+				self.play(st);
+			}
 		}
 		if first_run {
 			self.get_starter(true);
@@ -160,6 +187,11 @@ impl App {
 		self.win.message.set_label(&escape(text));
 	}
 
+	/// Empties the message line without a word.
+	pub fn clear_message(&mut self) {
+		self.win.message.set_label("");
+	}
+
 	pub fn selected_or_playing(&self) -> Option<Station> {
 		self.selected
 			.clone()
@@ -167,16 +199,12 @@ impl App {
 	}
 
 	/// Dial tuning: a user-driven focus move in a station list.
-	#[expect(
-		dead_code,
-		reason = "the main window dial and station lists tune (Task 3)"
-	)]
 	pub fn tune(&mut self, stations: &[Station], index: usize) {
 		let Some(station) = stations.get(index) else {
 			return;
 		};
 		self.dial = true;
-		self.selected = Some(station.clone());
+		landed(&mut self.selected, &mut self.remembered, station);
 		self.history.station_changed(&station.id);
 		// The window title follows focus at once; the song is added when known.
 		self.now_playing(Some(&station.name));
@@ -261,8 +289,7 @@ impl App {
 				self.win.frame.close(true);
 			}
 			// Windows, menus and the slider arrive in Tasks 2 to 7.
-			Action::OpenSearch
-			| Action::OpenBrowse
+			Action::OpenBrowse
 			| Action::OpenFavorites
 			| Action::OpenRecent
 			| Action::OpenCollections
@@ -275,8 +302,8 @@ impl App {
 			| Action::Equalizer
 			| Action::Help
 			| Action::Close => {}
-			// The main window shows it (`main_window::dispatch`): it is modal.
-			Action::About => {}
+			// The main window shows them (`main_window::dispatch`): they are modal.
+			Action::About | Action::OpenSearch => {}
 		}
 		self.refresh();
 	}
@@ -451,9 +478,12 @@ impl App {
 				Ok(body) => {
 					let report = import::import_starter(&mut app.library, &body);
 					app.save_library();
-					// TODO(Task 3): refresh the main window dial.
+					app.refresh_dial();
 					if !first_run {
 						app.say(&report.message());
+					} else if !app.dialog_open && app.tuner.playing().is_none() {
+						// What a normal start does, a second late.
+						app.land_dial(false);
 					}
 				}
 				Err(e) => {
@@ -485,7 +515,101 @@ impl App {
 		}
 	}
 
-	fn save_library(&mut self) {
+	/// Refills the main window list; focus stays on the same station, else the same place.
+	pub fn refresh_dial(&mut self) {
+		let stations = dial_collection(&self.library, self.settings.main_list.as_deref())
+			.map(|c| c.stations.clone())
+			.unwrap_or_default();
+		let list = &self.win.stations;
+		let current = list.current();
+		let focus = current
+			.and_then(|i| list.stations().get(i).map(|s| s.id.clone()))
+			.and_then(|id| stations.iter().position(|s| s.id == id))
+			.or(current)
+			.unwrap_or(0);
+		list.set_stations(stations, focus);
+	}
+
+	/// Focuses the main window list and plays from it (owner rule); false when it is empty.
+	/// `play_last`: the last station if the list has it, else that station with the list at the top.
+	fn land_dial(&mut self, play_last: bool) -> bool {
+		let list = self.win.stations.clone();
+		let stations = list.stations();
+		if stations.is_empty() {
+			return false;
+		}
+		list.list.set_focus();
+		match play_last
+			.then(|| self.settings.last_station.clone())
+			.flatten()
+		{
+			Some(last) => match stations.iter().position(|s| s.id == last.id) {
+				Some(i) => {
+					list.select(i, false);
+					self.tune(&stations, i);
+				}
+				None => self.play(last),
+			},
+			None => list.land(self),
+		}
+		true
+	}
+
+	/// Delete in the main window list: out of its collection; the playing station plays on.
+	pub fn delete_from_dial(&mut self, index: usize) {
+		let Some(c) = dial_collection(&self.library, self.settings.main_list.as_deref()) else {
+			return;
+		};
+		let id = c.id.clone();
+		let Some(st) = self.win.stations.stations().get(index).cloned() else {
+			return;
+		};
+		self.library.remove_from_collection(&id, &st.id);
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	/// Add to Collection: says which way it went.
+	pub fn toggle_in_collection(&mut self, id: &str, station: &Station) {
+		let Some(name) = self
+			.library
+			.collections
+			.iter()
+			.find(|c| c.id == id)
+			.map(|c| c.name.clone())
+		else {
+			return;
+		};
+		let added = self.library.toggle_in_collection(id, station);
+		let prefix = if added { s::ADDED_TO } else { s::REMOVED_FROM };
+		self.say(&format!("{prefix}{name}"));
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	/// New Collection: an existing name is that collection; the station is added, never removed.
+	pub fn add_to_new_collection(&mut self, name: &str, station: &Station) {
+		let id = self.library.create_collection(name);
+		if !self
+			.library
+			.collections_containing(&station.id)
+			.contains(&id)
+		{
+			self.library.toggle_in_collection(&id, station);
+		}
+		self.say(&format!("{}{name}", s::ADDED_TO));
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	/// The context menu's Delete Custom Station where the list has no delete of its own.
+	pub fn delete_custom(&mut self, id: &str) {
+		self.library.delete_custom(id);
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	pub fn save_library(&mut self) {
 		if let Err(e) = self.library.save(&self.data) {
 			eprintln!("library: {e}");
 			self.say(s::NOT_SAVED);
@@ -513,5 +637,32 @@ mod tests {
 		assert_eq!(play_pause(false, Some(1), Some(2)), PlayPause::Play(1));
 		assert_eq!(play_pause(false, None, Some(2)), PlayPause::Play(2));
 		assert_eq!(play_pause(false, None::<u8>, None), PlayPause::Nothing);
+	}
+
+	#[test]
+	fn landing_replaces_remembered() {
+		// Seeded from last session at start.
+		let (mut selected, mut remembered) = (None, Some("last"));
+		landed(&mut selected, &mut remembered, &"b");
+		assert_eq!(
+			play_pause(false, remembered, selected),
+			PlayPause::Play("b"),
+			"after a stop, Play/Pause plays the station the user is on"
+		);
+	}
+
+	#[test]
+	fn main_list_falls_back_to_starter() {
+		let mut lib = Library::default();
+		assert!(dial_collection(&lib, None).is_none());
+		let starter = lib.create_collection("SerrebiRadio");
+		let jazz = lib.create_collection("Jazz");
+		assert_eq!(dial_collection(&lib, None).unwrap().id, starter);
+		assert_eq!(dial_collection(&lib, Some(&jazz)).unwrap().id, jazz);
+		assert_eq!(
+			dial_collection(&lib, Some("col:gone")).unwrap().id,
+			starter,
+			"a deleted collection falls back"
+		);
 	}
 }

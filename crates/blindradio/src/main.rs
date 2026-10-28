@@ -4,8 +4,11 @@
 mod action;
 mod app;
 mod bridge;
+mod context_menu;
+mod dialogs;
 mod main_window;
 mod menus;
+mod station_list;
 mod strings;
 
 use std::cell::RefCell;
@@ -27,14 +30,15 @@ fn fail(frame: Frame, error: &dyn std::fmt::Display) {
 fn main() {
 	let _ = wxdragon::main(|_| {
 		let win = main_window::build();
+		let frame = win.frame;
 		let app = match App::new(win) {
 			Ok(a) => Rc::new(RefCell::new(a)),
-			Err(e) => return fail(win.frame, &e),
+			Err(e) => return fail(frame, &e),
 		};
 		main_window::bind(&app);
-		win.frame.show(true);
-		win.frame.centre();
-		win.play.set_focus();
+		frame.show(true);
+		frame.centre();
+		// Focuses the Stations list, else Play.
 		app.borrow_mut().start();
 	});
 }
