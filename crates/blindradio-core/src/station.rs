@@ -1,12 +1,16 @@
 use serde::{Deserialize, Serialize};
 
 /// Where a station came from. Ids follow the source: `rb:<uuid>`, `tunein:<guide_id>`,
-/// `iheart:<id>`, `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
+/// `iheart:<id>`, `icecast:<url>`, `shoutcast:<id>`, `internet-radio:<slug>`,
+/// `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Source {
 	RadioBrowser,
 	TuneIn,
 	IHeart,
+	Icecast,
+	Shoutcast,
+	InternetRadio,
 	/// A curated network; the string is its display name.
 	Network(String),
 	#[default]
@@ -19,6 +23,9 @@ impl Source {
 			Source::RadioBrowser => "Radio Browser",
 			Source::TuneIn => "TuneIn",
 			Source::IHeart => "iHeartRadio",
+			Source::Icecast => "Icecast",
+			Source::Shoutcast => "SHOUTcast",
+			Source::InternetRadio => "Internet-Radio",
 			Source::Network(name) => name,
 			Source::Custom => "Custom",
 		}
@@ -68,6 +75,9 @@ mod json_form_tests {
 			(Source::RadioBrowser, r#""RadioBrowser""#),
 			(Source::TuneIn, r#""TuneIn""#),
 			(Source::IHeart, r#""IHeart""#),
+			(Source::Icecast, r#""Icecast""#),
+			(Source::Shoutcast, r#""Shoutcast""#),
+			(Source::InternetRadio, r#""InternetRadio""#),
 			(Source::Network("BBC".into()), r#"{"Network":"BBC"}"#),
 			(Source::Custom, r#""Custom""#),
 		] {

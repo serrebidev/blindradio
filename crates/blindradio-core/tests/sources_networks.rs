@@ -16,7 +16,10 @@ fn networks_parse_and_order() {
 			"Radio France",
 			"Deutschlandfunk",
 			"SomaFM",
-			"Stream Madness"
+			"Stream Madness",
+			"Radio Paradise",
+			"NTS",
+			"WFMU"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -34,6 +37,63 @@ fn networks_parse_and_order() {
 				s.url
 			);
 		}
+	}
+}
+
+#[test]
+fn curated_network_channels_and_search() {
+	for (slug, expected) in [
+		(
+			"radio-paradise",
+			vec![
+				"main-mix",
+				"mellow-mix",
+				"rock-mix",
+				"global-mix",
+				"beyond",
+				"serenity",
+				"radio-2050",
+				"kfat",
+			],
+		),
+		("nts", vec!["nts-1", "nts-2"]),
+		(
+			"wfmu",
+			vec![
+				"wfmu",
+				"rock-n-soul",
+				"give-the-drummer",
+				"sheenas-jungle-room",
+			],
+		),
+	] {
+		let nodes = children(&format!("net/{slug}"));
+		let ids: Vec<_> = nodes
+			.iter()
+			.map(|node| {
+				let Node::Station(station) = node else {
+					panic!("not a station")
+				};
+				assert!(station.url.starts_with("https://"), "{}", station.url);
+				station.id.clone()
+			})
+			.collect();
+		let expected: Vec<_> = expected
+			.iter()
+			.map(|station| format!("net:{slug}:{station}"))
+			.collect();
+		assert_eq!(ids, expected);
+	}
+	for (name, id) in [
+		("Main Mix", "net:radio-paradise:main-mix"),
+		("NTS 2", "net:nts:nts-2"),
+		("Give the Drummer", "net:wfmu:give-the-drummer"),
+	] {
+		let found = search(&SearchQuery {
+			name: name.into(),
+			..Default::default()
+		});
+		assert!(found.iter().any(|station| station.id == id), "{found:?}");
 	}
 }
 

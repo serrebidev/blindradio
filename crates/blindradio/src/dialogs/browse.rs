@@ -1226,6 +1226,9 @@ mod tests {
 				"Radio Browser",
 				"TuneIn",
 				"iHeartRadio",
+				"Icecast",
+				"SHOUTcast",
+				"Internet-Radio",
 				"Networks",
 				"Collections",
 				"Custom Stations"

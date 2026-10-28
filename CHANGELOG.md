@@ -4,6 +4,9 @@ Terse, newest first. Each release's section is its GitHub release note.
 
 ## 0.2.2
 
+- Browse and search Icecast, SHOUTcast and Internet-Radio, with genre browsing and
+  Load More for station pages. Networks adds Radio Paradise, NTS and WFMU.
+
 - Streams whose server delivers slower than the bitrate (the TopRadio mounts are the known
   case) no longer stutter every few seconds: after a stream runs dry, it must refill a
   deeper cushion before it sounds again — three seconds, then nine, up to fifteen — so

@@ -830,7 +830,10 @@ mod tests {
 		assert_eq!(ring.len_ms(), 1000, "nothing taken while rebuffering");
 		ring.push(&vec![1.0; 2000 * 2]);
 		mixer.render(&mut out);
-		assert!(ring.len_ms() < 3000, "resumes once three seconds are buffered");
+		assert!(
+			ring.len_ms() < 3000,
+			"resumes once three seconds are buffered"
+		);
 	}
 
 	#[test]
@@ -851,10 +854,17 @@ mod tests {
 		let mut out = vec![0.0; 40];
 		ring.push(&vec![1.0; 14000 * 2]);
 		mixer.render(&mut out);
-		assert_eq!(ring.len_ms(), 14000, "fourteen seconds is not enough after three dry-outs");
+		assert_eq!(
+			ring.len_ms(),
+			14000,
+			"fourteen seconds is not enough after three dry-outs"
+		);
 		ring.push(&vec![1.0; 1000 * 2]);
 		mixer.render(&mut out);
-		assert!(ring.len_ms() < 15000, "fifteen seconds resumes, so the cap held");
+		assert!(
+			ring.len_ms() < 15000,
+			"fifteen seconds resumes, so the cap held"
+		);
 	}
 
 	#[test]
@@ -885,7 +895,10 @@ mod tests {
 		assert_eq!(ring.len_ms(), 1000, "one second is not enough");
 		ring.push(&vec![1.0; 2000 * 2]);
 		mixer.render(&mut out);
-		assert!(ring.len_ms() < 3000, "three seconds resumes: the count reset");
+		assert!(
+			ring.len_ms() < 3000,
+			"three seconds resumes: the count reset"
+		);
 	}
 
 	#[test]
@@ -908,7 +921,10 @@ mod tests {
 		other.push(&vec![1.0; 1000 * 2]);
 		let mut out = vec![0.0; 40];
 		mixer.render(&mut out);
-		assert!(other.len_ms() < 1000, "the new station starts on the base cushion");
+		assert!(
+			other.len_ms() < 1000,
+			"the new station starts on the base cushion"
+		);
 	}
 
 	#[test]

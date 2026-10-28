@@ -33,11 +33,24 @@ station and plays it.
 Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any. Enter in the
 Name box starts the search; the results replace the list and the first result plays.
 
+Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio
+and the curated networks. Genre, Country and Language filters apply to Radio Browser;
+Icecast also matches Genre when a Name is given. Other directories use the Name box.
+With Name empty, only Radio Browser searches the selected filters. A directory that
+fails or takes too long is skipped so the others can still return results.
+
 ## Browsing
 
-Ctrl+G opens Browse: Radio Browser, TuneIn, iHeartRadio, Networks, Collections and Custom
+Ctrl+G opens Browse: Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
+Networks, Collections and Custom
 Stations. Right opens a folder, Left closes it, and a folder that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
+
+Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
+minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
+Stations and By Genre. A listed station may be offline or unavailable in your region.
+
+Networks includes Radio Paradise, NTS and WFMU alongside the existing broadcasters.
 
 The `Sort` choice at the top orders Radio Browser station lists: the API default, name,
 votes, clicks, click trend, bitrate, codec, country, state, language, tags and more, with

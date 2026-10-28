@@ -1867,5 +1867,107 @@
         "info": "MP3 128k"
       }
     ]
+  },
+  {
+    "name": "Radio Paradise",
+    "slug": "radio-paradise",
+    "stations": [
+      {
+        "slug": "main-mix",
+        "name": "Main Mix",
+        "url": "https://stream.radioparadise.com/aac-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "mellow-mix",
+        "name": "Mellow Mix",
+        "url": "https://stream.radioparadise.com/mellow-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rock-mix",
+        "name": "Rock Mix",
+        "url": "https://stream.radioparadise.com/rock-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "global-mix",
+        "name": "Global Mix",
+        "url": "https://stream.radioparadise.com/global-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "beyond",
+        "name": "Beyond...",
+        "url": "https://stream.radioparadise.com/beyond-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "serenity",
+        "name": "Serenity",
+        "url": "https://stream.radioparadise.com/serenity",
+        "info": "AAC+ 64k"
+      },
+      {
+        "slug": "radio-2050",
+        "name": "Radio 2050",
+        "url": "https://stream.radioparadise.com/radio2050-128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "kfat",
+        "name": "KFAT",
+        "url": "https://stream.radioparadise.com/kfat-128",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "NTS",
+    "slug": "nts",
+    "stations": [
+      {
+        "slug": "nts-1",
+        "name": "NTS 1",
+        "url": "https://stream-relay-geo.ntslive.net/stream?client=direct",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "nts-2",
+        "name": "NTS 2",
+        "url": "https://stream-relay-geo.ntslive.net/stream2?client=direct",
+        "info": "MP3 256k"
+      }
+    ]
+  },
+  {
+    "name": "WFMU",
+    "slug": "wfmu",
+    "stations": [
+      {
+        "slug": "wfmu",
+        "name": "WFMU",
+        "url": "https://stream0.wfmu.org/freeform-high.aac",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "rock-n-soul",
+        "name": "Rock'n'Soul Radio",
+        "url": "https://stream2.wfmu.org/rocknsoul",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "give-the-drummer",
+        "name": "Give the Drummer Radio",
+        "url": "https://stream0.wfmu.org/drummer",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "sheenas-jungle-room",
+        "name": "Sheena's Jungle Room",
+        "url": "https://stream0.wfmu.org/sheena",
+        "info": "MP3 128k"
+      }
+    ]
   }
 ]

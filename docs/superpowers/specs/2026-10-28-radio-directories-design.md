@@ -39,7 +39,10 @@ network data, playlist resolver, favorites and collections. No separate interfac
 - Add Internet-Radio.com as an Internet-Radio root with Featured Stations and
   By Genre, plus combined name search. Parse its public HTML using a real HTML
   parser, follow its genre/search pagination through Load More, and use the
-  published playlist links with the existing resolver. Accept only same-site
+  published playlist targets with the existing resolver. The playlist generator
+  currently wraps its decoded `u` value unchanged as File1, verified against four
+  live playlists, so store that target directly to avoid an extra request.
+  Accept only same-site
   navigation paths and HTTP stream targets. Website changes are a maintenance risk.
 - Add Radio Paradise, NTS and WFMU under Networks, using only official published
   stream links that pass a live connection check. Include verified current
