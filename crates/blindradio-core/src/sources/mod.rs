@@ -161,6 +161,102 @@ impl Sort {
 	}
 }
 
+/// What a directory can order its stations by. A value the directory does not
+/// publish stays zero or empty.
+#[derive(Default)]
+pub struct Sortable {
+	pub name: String,
+	pub bitrate: u32,
+	pub codec: String,
+	pub tags: String,
+	pub url: String,
+	/// Plays or listeners, where the directory publishes one.
+	pub popularity: u64,
+}
+
+/// One row's value under the chosen field; `None` when the directory does not
+/// publish that field at all.
+enum Key {
+	Text(String),
+	Num(u64),
+}
+
+impl PartialEq for Key {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Key::Text(a), Key::Text(b)) => a == b,
+			(Key::Num(a), Key::Num(b)) => a == b,
+			_ => false,
+		}
+	}
+}
+
+impl Eq for Key {}
+
+impl PartialOrd for Key {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Key {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		match (self, other) {
+			(Key::Text(a), Key::Text(b)) => a.cmp(b),
+			(Key::Num(a), Key::Num(b)) => a.cmp(b),
+			(Key::Text(_), Key::Num(_)) => std::cmp::Ordering::Less,
+			(Key::Num(_), Key::Text(_)) => std::cmp::Ordering::Greater,
+		}
+	}
+}
+
+fn key_of(row: &Sortable, field: SortField) -> Option<Key> {
+	Some(match field {
+		SortField::Name => Key::Text(row.name.to_lowercase()),
+		SortField::Bitrate => Key::Num(row.bitrate.into()),
+		SortField::Codec => Key::Text(row.codec.to_lowercase()),
+		SortField::Tags => Key::Text(row.tags.to_lowercase()),
+		SortField::Url => Key::Text(row.url.to_lowercase()),
+		// The closest thing a directory other than Radio Browser publishes.
+		SortField::Votes | SortField::ClickCount | SortField::ClickTrend => {
+			Key::Num(row.popularity)
+		}
+		_ => return None,
+	})
+}
+
+/// Orders rows by the chosen field, in place. A field the directory does not publish,
+/// or one where every row is equal, leaves the provider's order alone, `Reverse`
+/// included. `Default` is the provider's own order.
+pub fn sort_rows(rows: &mut [(Sortable, Station)], sort: Sort) {
+	if sort.field == SortField::Random {
+		// A cheap pseudo-random key per row; the seed makes each request differ.
+		let mut seed = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.map_or(1, |d| d.as_nanos() as u64);
+		rows.sort_by_cached_key(|_| {
+			seed = seed
+				.wrapping_mul(6364136223846793005)
+				.wrapping_add(1442695040888963407);
+			seed >> 33
+		});
+		return;
+	}
+	let Some(first) = rows.first().and_then(|(row, _)| key_of(row, sort.field)) else {
+		return;
+	};
+	if !rows
+		.iter()
+		.any(|(row, _)| key_of(row, sort.field).is_some_and(|key| key != first))
+	{
+		return;
+	}
+	rows.sort_by_cached_key(|(row, _)| key_of(row, sort.field).unwrap_or(Key::Num(0)));
+	if sort.reverse {
+		rows.reverse();
+	}
+}
+
 /// One entry of a station's published track history.
 #[derive(Clone, Debug, PartialEq)]
 pub struct HistoryItem {
@@ -271,8 +367,8 @@ impl Sources {
 			"rb" => self.rb.children(&self.client, id, sort).await,
 			"tunein" => self.tunein.children(&self.client, id).await,
 			"iheart" => self.iheart.children(&self.client, id).await,
-			"icecast" => self.icecast.children(&self.client, id).await,
-			"shoutcast" => self.shoutcast.children(&self.client, id).await,
+			"icecast" => self.icecast.children(&self.client, id, sort).await,
+			"shoutcast" => self.shoutcast.children(&self.client, id, sort).await,
 			"internet-radio" => self.internet_radio.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
 			_ => Ok(vec![]),
@@ -442,5 +538,93 @@ mod tests {
 		}
 		assert_eq!(SortField::ClickCount.value(), "clickcount");
 		assert_eq!(SortField::Default.value(), "");
+	}
+
+	fn rows() -> Vec<(Sortable, Station)> {
+		[
+			("Charli", 64, "AAC", "Jazz", "https://x/c", 5),
+			("alpha", 192, "MP3", "Rock", "https://x/a", 900),
+			("Bravo", 128, "MP3", "Rock", "https://x/b", 50),
+		]
+		.into_iter()
+		.map(|(name, bitrate, codec, tags, url, popularity)| {
+			let station = Station {
+				id: name.into(),
+				name: name.into(),
+				url: url.into(),
+				source: Source::Custom,
+				info: None,
+			};
+			let key = Sortable {
+				name: name.into(),
+				bitrate,
+				codec: codec.into(),
+				tags: tags.into(),
+				url: url.into(),
+				popularity,
+			};
+			(key, station)
+		})
+		.collect()
+	}
+
+	/// The names in the order the sort left them, comma-joined for a readable assert.
+	fn sorted(field: SortField, reverse: bool) -> String {
+		let mut r = rows();
+		sort_rows(&mut r, Sort { field, reverse });
+		r.iter()
+			.map(|(_, s)| s.name.as_str())
+			.collect::<Vec<_>>()
+			.join(",")
+	}
+
+	#[test]
+	fn sort_rows_orders_every_published_field() {
+		assert_eq!(sorted(SortField::Name, false), "alpha,Bravo,Charli");
+		assert_eq!(sorted(SortField::Name, true), "Charli,Bravo,alpha");
+		assert_eq!(sorted(SortField::Bitrate, false), "Charli,Bravo,alpha");
+		assert_eq!(sorted(SortField::Bitrate, true), "alpha,Bravo,Charli");
+		assert_eq!(sorted(SortField::Codec, false), "Charli,alpha,Bravo");
+		assert_eq!(sorted(SortField::Codec, true), "Bravo,alpha,Charli");
+		assert_eq!(sorted(SortField::Tags, false), "Charli,alpha,Bravo");
+		assert_eq!(sorted(SortField::Tags, true), "Bravo,alpha,Charli");
+		assert_eq!(sorted(SortField::Url, false), "alpha,Bravo,Charli");
+		assert_eq!(sorted(SortField::ClickTrend, true), "alpha,Bravo,Charli");
+		assert_eq!(sorted(SortField::Votes, false), "Charli,Bravo,alpha");
+		assert_eq!(sorted(SortField::ClickCount, true), "alpha,Bravo,Charli");
+	}
+
+	#[test]
+	fn sort_rows_leaves_unpublished_fields_in_place() {
+		for field in [
+			SortField::Default,
+			SortField::Country,
+			SortField::State,
+			SortField::Language,
+			SortField::Homepage,
+			SortField::Favicon,
+			SortField::LastCheckOk,
+			SortField::LastCheckTime,
+			SortField::ClickTimestamp,
+			SortField::ChangeTimestamp,
+		] {
+			assert_eq!(sorted(field, false), "Charli,alpha,Bravo", "{field:?}");
+			assert_eq!(sorted(field, true), "Charli,alpha,Bravo", "{field:?}");
+		}
+	}
+
+	#[test]
+	fn random_keeps_every_row() {
+		let mut r = rows();
+		sort_rows(
+			&mut r,
+			Sort {
+				field: SortField::Random,
+				reverse: false,
+			},
+		);
+		let mut names: Vec<_> = r.iter().map(|(_, s)| s.name.as_str()).collect();
+		names.sort_unstable();
+		assert_eq!(names, ["Bravo", "Charli", "alpha"]);
 	}
 }

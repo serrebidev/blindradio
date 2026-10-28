@@ -1969,5 +1969,893 @@
         "info": "MP3 128k"
       }
     ]
+  },
+  {
+    "name": "181.fm",
+    "slug": "181fm",
+    "stations": [
+      {
+        "slug": "greatoldies",
+        "name": "Classic Hits 181",
+        "url": "https://listen.181fm.com/181-greatoldies_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "goodtime",
+        "name": "Good Time Oldies",
+        "url": "https://listen.181fm.com/181-goodtime_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "mellow",
+        "name": "Mellow Gold",
+        "url": "https://listen.181fm.com/181-mellow_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "soul",
+        "name": "Soul",
+        "url": "https://listen.181fm.com/181-soul_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "beatles",
+        "name": "Beatles",
+        "url": "https://listen.181fm.com/181-beatles_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "70s",
+        "name": "Super 70s",
+        "url": "https://listen.181fm.com/181-70s_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "awesome80s",
+        "name": "Awesome 80's",
+        "url": "https://listen.181fm.com/181-awesome80s_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "lite80s",
+        "name": "Lite 80's",
+        "url": "https://listen.181fm.com/181-lite80s_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80scountry",
+        "name": "80's Country",
+        "url": "https://listen.181fm.com/181-80scountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80srnb",
+        "name": "80's RnB",
+        "url": "https://listen.181fm.com/181-80srnb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80sliternb",
+        "name": "80's Lite RnB",
+        "url": "https://listen.181fm.com/181-80sliternb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "hairband",
+        "name": "80's Hairband",
+        "url": "https://listen.181fm.com/181-hairband_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "star90s",
+        "name": "Star 90's",
+        "url": "https://listen.181fm.com/181-star90s_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90scountry",
+        "name": "90's Country",
+        "url": "https://listen.181fm.com/181-90scountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "lite90s",
+        "name": "Lite 90's",
+        "url": "https://listen.181fm.com/181-lite90s_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90salt",
+        "name": "90's Alternative",
+        "url": "https://listen.181fm.com/181-90salt_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90sdance",
+        "name": "90's Dance",
+        "url": "https://listen.181fm.com/181-90sdance_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90sliternb",
+        "name": "90's Lite RnB",
+        "url": "https://listen.181fm.com/181-90sliternb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90srnb",
+        "name": "90's RnB",
+        "url": "https://listen.181fm.com/181-90srnb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "power",
+        "name": "Power 181 (Top 40)",
+        "url": "https://listen.181fm.com/181-power_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "powerexplicit",
+        "name": "Power 181 [E]",
+        "url": "https://listen.181fm.com/181-powerexplicit_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "office",
+        "name": "The Office",
+        "url": "https://listen.181fm.com/181-office_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "themix",
+        "name": "The Mix",
+        "url": "https://listen.181fm.com/181-themix_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "thepoint",
+        "name": "The Point",
+        "url": "https://listen.181fm.com/181-thepoint_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "oldschool",
+        "name": "Old School HipHop/RnB",
+        "url": "https://listen.181fm.com/181-oldschool_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smoothac",
+        "name": "Smooth AC",
+        "url": "https://listen.181fm.com/181-smoothac_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "uktop40",
+        "name": "UK top 40",
+        "url": "https://listen.181fm.com/181-uktop40_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "heart",
+        "name": "The Heart (Love Songs)",
+        "url": "https://listen.181fm.com/181-heart_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "vibe",
+        "name": "The Vibe of Vegas",
+        "url": "https://listen.181fm.com/181-vibe_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "buzz",
+        "name": "The Buzz (Alt. Rock)",
+        "url": "https://listen.181fm.com/181-buzz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classicbuzz",
+        "name": "Classic Buzz (Alt)",
+        "url": "https://listen.181fm.com/181-classicbuzz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "eagle",
+        "name": "The Eagle (Classic)",
+        "url": "https://listen.181fm.com/181-eagle_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "rock",
+        "name": "Rock 181",
+        "url": "https://listen.181fm.com/181-rock_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "rock40",
+        "name": "Rock 40 (Rock & Roll)",
+        "url": "https://listen.181fm.com/181-rock40_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "yachtrock",
+        "name": "Yacht Rock",
+        "url": "https://listen.181fm.com/181-yachtrock_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "chloe",
+        "name": "Chloe @181.FM",
+        "url": "https://listen.181fm.com/181-chloe_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "hardrock",
+        "name": "The Rock! (Hard Rock)",
+        "url": "https://listen.181fm.com/181-hardrock_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kickincountry",
+        "name": "Kickin' Country",
+        "url": "https://listen.181fm.com/181-kickincountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "realcountry",
+        "name": "Real Country",
+        "url": "https://listen.181fm.com/181-realcountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "highway",
+        "name": "Highway 181",
+        "url": "https://listen.181fm.com/181-highway_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "frontporch",
+        "name": "Front Porch (Bluegrass)",
+        "url": "https://listen.181fm.com/181-frontporch_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "beat",
+        "name": "The Beat (HipHop/R&B)",
+        "url": "https://listen.181fm.com/181-beat_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "thebox",
+        "name": "The Box (Urban)",
+        "url": "https://listen.181fm.com/181-thebox_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classicrnb",
+        "name": "Classic R&B",
+        "url": "https://listen.181fm.com/181-classicrnb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "rnb",
+        "name": "True R&B",
+        "url": "https://listen.181fm.com/181-rnb_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "party",
+        "name": "Party 181",
+        "url": "https://listen.181fm.com/181-party_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "jammin",
+        "name": "Jammin 181",
+        "url": "https://listen.181fm.com/181-jammin_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "energy98",
+        "name": "Energy 98",
+        "url": "https://listen.181fm.com/181-energy98_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "chilled",
+        "name": "Chilled Out",
+        "url": "https://listen.181fm.com/181-chilled_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classicenergy",
+        "name": "Classic Energy",
+        "url": "https://listen.181fm.com/181-classicenergy_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "energy93",
+        "name": "Energy 93",
+        "url": "https://listen.181fm.com/181-energy93_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ball",
+        "name": "Studio 181",
+        "url": "https://listen.181fm.com/181-ball_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "technoclub",
+        "name": "Techno Club",
+        "url": "https://listen.181fm.com/181-technoclub_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "breeze",
+        "name": "The Breeze",
+        "url": "https://listen.181fm.com/181-breeze_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "blues",
+        "name": "True Blues",
+        "url": "https://listen.181fm.com/181-blues_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "jazzmix",
+        "name": "Jazz Mix",
+        "url": "https://listen.181fm.com/181-jazzmix_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classicalguitar",
+        "name": "Classical Guitar",
+        "url": "https://listen.181fm.com/181-classicalguitar_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classicaljazz",
+        "name": "Classical Jazz",
+        "url": "https://listen.181fm.com/181-classicaljazz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "vocals",
+        "name": "Vocal Jazz",
+        "url": "https://listen.181fm.com/181-vocals_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "bebop",
+        "name": "BeBop Jazz",
+        "url": "https://listen.181fm.com/181-bebop_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "fusionjazz",
+        "name": "Fusion Jazz",
+        "url": "https://listen.181fm.com/181-fusionjazz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "trancejazz",
+        "name": "Trance Jazz",
+        "url": "https://listen.181fm.com/181-trancejazz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classical",
+        "name": "Classical Music",
+        "url": "https://listen.181fm.com/181-classical_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "acidjazz",
+        "name": "Acid Jazz",
+        "url": "https://listen.181fm.com/181-acidjazz_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "comedy",
+        "name": "Comedy Club",
+        "url": "https://listen.181fm.com/181-comedy_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xkkountry",
+        "name": "Christmas Kountry",
+        "url": "https://listen.181fm.com/181-xkkountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xtraditional",
+        "name": "Christmas Classics",
+        "url": "https://listen.181fm.com/181-xtraditional_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xoldies",
+        "name": "Christmas Oldies",
+        "url": "https://listen.181fm.com/181-xoldies_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xcountry",
+        "name": "Christmas Country",
+        "url": "https://listen.181fm.com/181-xcountry_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xpower",
+        "name": "Christmas Power",
+        "url": "https://listen.181fm.com/181-xpower_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xhighway",
+        "name": "Christmas Highway",
+        "url": "https://listen.181fm.com/181-xhighway_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xmix",
+        "name": "Christmas xmix",
+        "url": "https://listen.181fm.com/181-xmix_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xfun",
+        "name": "Christmas Fun",
+        "url": "https://listen.181fm.com/181-xfun_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xkids",
+        "name": "Christmas Kids",
+        "url": "https://listen.181fm.com/181-xkids_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xblender",
+        "name": "Christmas Blender",
+        "url": "https://listen.181fm.com/181-xblender_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xstandards",
+        "name": "Christmas Standards",
+        "url": "https://listen.181fm.com/181-xstandards_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xspirit",
+        "name": "Christmas Spirit",
+        "url": "https://listen.181fm.com/181-xspirit_128k.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": ".977",
+    "slug": "977",
+    "stations": [
+      {
+        "slug": "today-s-hits",
+        "name": ".977 Today's Hits",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_HITS_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80s",
+        "name": ".977 80s",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_80_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90s",
+        "name": ".977 90s",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_90_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "country",
+        "name": ".977 Country",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_COUNTRY_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "jamz",
+        "name": ".977 Jamz",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_JAMZ_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "oldies",
+        "name": ".977 Oldies",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_OLDIES_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smooth-jazz",
+        "name": ".977 Smooth Jazz",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_SMOOJAZZ_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-mix",
+        "name": ".977 The Mix",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_MIX_SC.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "comedy",
+        "name": ".977 Comedy",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/977_COMEDY_SC.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Big R Radio",
+    "slug": "bigr",
+    "stations": [
+      {
+        "slug": "latin",
+        "name": "Latin",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5181_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "70s-fm",
+        "name": "70s FM",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5182_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80s-and-90s-pop-mix",
+        "name": "80s and 90s Pop Mix",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5183_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80s-fm",
+        "name": "80s FM",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5184_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80s-lite",
+        "name": "80s Lite",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5185_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90s-fm",
+        "name": "90s FM",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5188_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "golden-oldies",
+        "name": "Golden Oldies",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5198_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "yacht-rock",
+        "name": "Yacht Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5256_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "100-3-the-rock-mix",
+        "name": "100.3 The Rock Mix",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5172_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "100-5-classic-rock",
+        "name": "100.5 Classic Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5171_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "80s-metal-fm",
+        "name": "80s Metal FM",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5186_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "90s-alternative-rock",
+        "name": "90s Alternative Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5187_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "alternative-rock",
+        "name": "Alternative Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5189_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "grunge-fm",
+        "name": "Grunge FM",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5200_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "post-grunge-rock",
+        "name": "Post Grunge Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5203_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "rock-top-40",
+        "name": "Rock Top 40",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5204_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "emo-pop-punk",
+        "name": "Emo + Pop Punk",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5257_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "100-7-the-mix",
+        "name": "100.7 The Mix",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5173_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "101-6-adult-warm-hits",
+        "name": "101.6 Adult Warm Hits",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5177_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "explicit-top-40",
+        "name": "Explicit Top 40",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5237_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-wave",
+        "name": "The Wave",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5208_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-love-channel",
+        "name": "The Love Channel",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5207_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "erins-chill",
+        "name": "Erins Chill",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5197_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "101-1-the-beat",
+        "name": "101.1 The Beat",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5176_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "108-1-jamz",
+        "name": "108.1 JAMZ",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5178_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classic-rnb",
+        "name": "Classic RnB",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5194_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "r-and-b",
+        "name": "R&B",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5202_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "100-9-star-country",
+        "name": "100.9 Star Country!",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5175_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "country-mix",
+        "name": "Country Mix",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5196_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "country-oldies",
+        "name": "Country Oldies",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5195_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "1faith-worship",
+        "name": "1Faith - Worship",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5179_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "one-faith-hits",
+        "name": "One Faith - Hits",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5180_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "gospel-channel",
+        "name": "Gospel Channel",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5199_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-halloween-channel",
+        "name": "The Halloween Channel",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5206_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-classics",
+        "name": "Christmas Classics",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5190_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-country",
+        "name": "Christmas Country",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5191_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-rock",
+        "name": "Christmas Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5192_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-top-40",
+        "name": "Christmas Top 40",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5193_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-pop",
+        "name": "Latin Pop",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5226_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-reggaeton",
+        "name": "Latin Reggaeton",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5228_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-bachata",
+        "name": "Latin Bachata",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5227_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-salsa",
+        "name": "Latin Salsa",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5231_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-merengue",
+        "name": "Latin Merengue",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5225_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-tropical",
+        "name": "Latin Tropical",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5233_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-regional-mexican",
+        "name": "Latin Regional Mexican",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5229_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-rock",
+        "name": "Latin Rock",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5230_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-hip-hop",
+        "name": "Latin Hip Hop",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5223_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-jazz",
+        "name": "Latin Jazz",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5224_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-tango",
+        "name": "Latin Tango",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5232_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-classics-traditional",
+        "name": "Latin Classics Traditional",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5222_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "latin-christian",
+        "name": "Latin Christian",
+        "url": "https://ais-edge82-bigr-dal03.cdnstream.com/5221_128",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Radio Swiss",
+    "slug": "radio-swiss",
+    "stations": [
+      {
+        "slug": "jazz",
+        "name": "Radio Swiss Jazz",
+        "url": "https://stream.srg-ssr.ch/m/rsj/mp3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classic",
+        "name": "Radio Swiss Classic",
+        "url": "https://stream.srg-ssr.ch/m/rsc_de/mp3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "pop",
+        "name": "Radio Swiss Pop",
+        "url": "https://stream.srg-ssr.ch/m/rsp/mp3_128",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "KEXP",
+    "slug": "kexp",
+    "stations": [
+      {
+        "slug": "kexp",
+        "name": "KEXP",
+        "url": "https://kexp-mp3-128.streamguys1.com/kexp128.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "WFUV",
+    "slug": "wfuv",
+    "stations": [
+      {
+        "slug": "wfuv",
+        "name": "WFUV",
+        "url": "https://wfuv-onair.streamguys.org/onair-hi",
+        "info": "MP3 128k"
+      }
+    ]
   }
 ]

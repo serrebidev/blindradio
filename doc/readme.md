@@ -50,12 +50,17 @@ Icecast offers All Stations and By Genre. Its live directory stays cached for fi
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
 Stations and By Genre. A listed station may be offline or unavailable in your region.
 
-Networks includes Radio Paradise, NTS and WFMU alongside the existing broadcasters.
+Networks includes 181.fm, .977, Big R Radio, Radio Swiss, KEXP, WFUV, Radio Paradise, NTS
+and WFMU alongside the existing broadcasters.
 
-The `Sort` choice at the top orders Radio Browser station lists: the API default, name,
-votes, clicks, click trend, bitrate, codec, country, state, language, tags and more, with
-`Reverse` for the other direction. Changing it loads the Radio Browser branches again in
-the new order. The other directories have no ordering.
+The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
+click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for
+the other direction. Changing it loads the Radio Browser branches again in the new order.
+
+Icecast and SHOUTcast order by name, bitrate, codec, genre and URL. SHOUTcast also orders
+by listeners, which is what Votes, Clicks and Click trend use for it. A field a directory
+does not publish, or a list where every station is equal, keeps that directory's own
+order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 ## Favorites and recently played
 

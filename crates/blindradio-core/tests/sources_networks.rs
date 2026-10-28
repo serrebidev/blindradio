@@ -19,7 +19,13 @@ fn networks_parse_and_order() {
 			"Stream Madness",
 			"Radio Paradise",
 			"NTS",
-			"WFMU"
+			"WFMU",
+			"181.fm",
+			".977",
+			"Big R Radio",
+			"Radio Swiss",
+			"KEXP",
+			"WFUV"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -88,12 +94,44 @@ fn curated_network_channels_and_search() {
 		("Main Mix", "net:radio-paradise:main-mix"),
 		("NTS 2", "net:nts:nts-2"),
 		("Give the Drummer", "net:wfmu:give-the-drummer"),
+		("Classic Hits 181", "net:181fm:greatoldies"),
+		(".977 Jamz", "net:977:jamz"),
+		("Grunge FM", "net:bigr:grunge-fm"),
+		("Radio Swiss Jazz", "net:radio-swiss:jazz"),
+		("KEXP", "net:kexp:kexp"),
+		("WFUV", "net:wfuv:wfuv"),
 	] {
 		let found = search(&SearchQuery {
 			name: name.into(),
 			..Default::default()
 		});
 		assert!(found.iter().any(|station| station.id == id), "{found:?}");
+	}
+}
+
+#[test]
+fn new_networks_are_complete() {
+	for (slug, count) in [
+		("181fm", 77),
+		("977", 9),
+		("bigr", 51),
+		("radio-swiss", 3),
+		("kexp", 1),
+		("wfuv", 1),
+	] {
+		let nodes = children(&format!("net/{slug}"));
+		assert_eq!(nodes.len(), count, "{slug}");
+		for node in nodes {
+			let Node::Station(station) = node else {
+				panic!("not a station in {slug}")
+			};
+			assert!(station.url.starts_with("https://"), "{}", station.url);
+			assert!(
+				station.info.as_deref().is_some_and(|info| !info.is_empty()),
+				"{} has no info",
+				station.id
+			);
+		}
 	}
 }
 

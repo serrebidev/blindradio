@@ -1,6 +1,6 @@
 //! Icecast's public XML directory, shared by browse and search.
 
-use super::{Node, SearchQuery};
+use super::{Node, SearchQuery, Sort, Sortable, sort_rows};
 use crate::station::{Source, Station};
 use crate::{CoreError, Result};
 use percent_encoding::{NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
@@ -22,6 +22,8 @@ pub struct Icecast {
 struct Entry {
 	station: Station,
 	genre: String,
+	bitrate: u32,
+	codec: String,
 }
 
 #[derive(Deserialize)]
@@ -81,14 +83,12 @@ fn to_entry(raw: RawEntry) -> Option<Entry> {
 		return None;
 	}
 	let genre = raw.genre.trim().to_owned();
-	let rate = raw
-		.bitrate
-		.trim()
-		.parse::<u32>()
-		.ok()
-		.filter(|b| *b > 0)
-		.map(|b| format!("{b}k"))
-		.unwrap_or_default();
+	let bitrate = raw.bitrate.trim().parse::<u32>().unwrap_or(0);
+	let rate = if bitrate > 0 {
+		format!("{bitrate}k")
+	} else {
+		String::new()
+	};
 	let info = [genre.as_str(), rate.as_str()]
 		.into_iter()
 		.filter(|s| !s.is_empty())
@@ -103,6 +103,8 @@ fn to_entry(raw: RawEntry) -> Option<Entry> {
 			info: (!info.is_empty()).then_some(info),
 		},
 		genre,
+		bitrate,
+		codec: kind,
 	})
 }
 
@@ -151,19 +153,46 @@ impl Icecast {
 		let directory: Directory = quick_xml::de::from_reader(body.as_slice())
 			.map_err(|_| CoreError::Decode("Invalid directory".into()))?;
 		let mut seen = HashSet::new();
-		let mut entries: Vec<_> = directory
+		let entries: Vec<_> = directory
 			.entry
 			.into_iter()
 			.filter_map(to_entry)
 			.filter(|e| seen.insert(e.station.url.clone()))
 			.collect();
-		entries.sort_by_cached_key(|e| e.station.name.to_lowercase());
 		let entries = Arc::new(entries);
 		*cache = Some((Instant::now(), entries.clone()));
 		Ok(entries)
 	}
 
-	pub async fn children(&self, client: &reqwest::Client, id: &str) -> Result<Vec<Node>> {
+	/// Rows in name order first, so a sort's ties are alphabetical and `Default` keeps
+	/// the alphabetical order this directory has always had.
+	fn rows(entries: &[&Entry]) -> Vec<(Sortable, Station)> {
+		let mut rows: Vec<_> = entries
+			.iter()
+			.map(|e| {
+				(
+					Sortable {
+						name: e.station.name.clone(),
+						bitrate: e.bitrate,
+						codec: e.codec.clone(),
+						tags: e.genre.clone(),
+						url: e.station.url.clone(),
+						popularity: 0,
+					},
+					e.station.clone(),
+				)
+			})
+			.collect();
+		rows.sort_by_cached_key(|(k, _)| k.name.to_lowercase());
+		rows
+	}
+
+	pub async fn children(
+		&self,
+		client: &reqwest::Client,
+		id: &str,
+		sort: Sort,
+	) -> Result<Vec<Node>> {
 		if id == "icecast" {
 			return Ok(vec![
 				folder("icecast/all", "All Stations"),
@@ -196,16 +225,19 @@ impl Icecast {
 		let genre = head
 			.strip_prefix("icecast/genre/")
 			.map(|g| percent_decode_str(g).decode_utf8_lossy());
-		let mut matching = entries
+		let matching: Vec<&Entry> = entries
 			.iter()
 			.filter(|e| genre.as_ref().is_none_or(|g| e.genre == *g))
-			.skip(offset);
-		let mut nodes: Vec<_> = matching
-			.by_ref()
-			.take(PAGE)
-			.map(|e| Node::Station(e.station.clone()))
 			.collect();
-		if matching.next().is_some() {
+		let mut rows = Self::rows(&matching);
+		sort_rows(&mut rows, sort);
+		let mut nodes: Vec<_> = rows
+			.into_iter()
+			.skip(offset)
+			.take(PAGE)
+			.map(|(_, station)| Node::Station(station))
+			.collect();
+		if matching.len() > offset + PAGE {
 			nodes.push(Node::LoadMore {
 				id: format!("{head}@{}", offset + PAGE),
 			});
@@ -220,16 +252,17 @@ impl Icecast {
 	) -> Result<Vec<Station>> {
 		let name = query.name.trim().to_lowercase();
 		let genre = query.genre.as_deref().unwrap_or("").trim().to_lowercase();
-		Ok(self
-			.entries(client)
-			.await?
+		let entries = self.entries(client).await?;
+		let matching: Vec<&Entry> = entries
 			.iter()
 			.filter(|e| {
 				e.station.name.to_lowercase().contains(&name)
 					&& e.genre.to_lowercase().contains(&genre)
 			})
-			.map(|e| e.station.clone())
-			.collect())
+			.collect();
+		let mut rows = Self::rows(&matching);
+		sort_rows(&mut rows, query.sort);
+		Ok(rows.into_iter().map(|(_, station)| station).collect())
 	}
 }
 

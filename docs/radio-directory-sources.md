@@ -43,10 +43,51 @@ All three side channels currently report MP3 128k. The
 [mobile information page](https://ftp.wfmu.org/mobile.shtml) also publishes the
 main MP3 alternative.
 
+## 181.fm
+
+The [legacy links page](https://www.181.fm/legacy.html) lists every channel as a
+numbered mount plus a named `181-<slug>_128k.mp3` endpoint. The named endpoints are
+used, which is why the channel slug is also the station slug. 77 channels, MP3 128k.
+The page repeats a few channels; each slug appears once here.
+
+## .977
+
+977music.com itself did not answer. The network's streams are served by StreamTheWorld,
+which publishes one redirect endpoint per channel:
+
+- `.977` Today's Hits, 80s, 90s, Country, Jamz, Oldies, Smooth Jazz, The Mix, Comedy.
+
+Each is `https://playerservices.streamtheworld.com/api/livestream-redirect/977_<CODE>_SC.mp3`,
+MP3 128k. The host is the one Radio Browser also lists the channels under, so it is
+the network's own delivery path rather than a borrowed mirror.
+
+## Big R Radio
+
+[bigrradio.com](https://bigrradio.com/) is a script-driven page, but its own
+`/assets/app.js` carries the station table: 51 channels, each with a name and an
+`ais-edge82-bigr-dal03.cdnstream.com/<id>_128` stream. Names come from that table,
+so they match the site. MP3 128k.
+
+## Radio Swiss, KEXP and WFUV
+
+- Radio Swiss Jazz, Classic and Pop: `stream.srg-ssr.ch/m/<rsj|rsc_de|rsp>/mp3_128`.
+- KEXP: `kexp-mp3-128.streamguys1.com/kexp128.mp3`.
+- WFUV: `wfuv-onair.streamguys.org/onair-hi`.
+
+KCRW's published stream refused the request at check time, so it was not added.
+
+## ooTunes
+
+Not added. `http://ootunes.com/stations` still serves its 38,008-station table, but a
+row carries only name, genre and comment: the stream URL and the per-station detail
+page are behind a session-gated app, and the search form posts opaque Tapestry state.
+There is no public URL to hand to a player, so a directory entry would browse but never
+play.
+
 ## Live verification
 
-Every one of the 14 added URLs returned HTTP 200 to a GET request, an audio
-content type (`audio/aac`, `audio/aacp`, or `audio/mpeg`), its expected `icy-br`
-bitrate, and 4096 bytes of stream data. Requests used `Blind-Radio/0.2` and closed
-after reading the sample. This verifies live stream delivery at the time checked;
-it does not guarantee future uptime or exercise playback through the desktop app.
+Every one of the 142 added URLs returned HTTP 200 to a GET request, an audio
+content type (`audio/aac`, `audio/aacp`, or `audio/mpeg`), and 4096 bytes of stream
+data. Requests used `Blind-Radio/0.2` and closed after reading the sample. This
+verifies live stream delivery at the time checked; it does not guarantee future uptime
+or exercise playback through the desktop app.

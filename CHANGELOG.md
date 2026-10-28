@@ -6,7 +6,11 @@ Terse, newest first. Each release's section is its GitHub release note.
 
 - Browse and search Icecast, SHOUTcast and Internet-Radio, with genre browsing and
   Load More for station pages. Networks adds Radio Paradise, NTS and WFMU.
-
+- Icecast and SHOUTcast honour the Sort choice: name, bitrate, codec, genre and URL,
+  and SHOUTcast also listeners for Votes, Clicks and Click trend. A field they cannot
+  provide keeps their own order.
+- Networks adds 181.fm (77 channels), .977 (9), Big R Radio (51), Radio Swiss (3),
+  KEXP and WFUV. Every added stream was checked live before shipping.
 - Streams whose server delivers slower than the bitrate (the TopRadio mounts are the known
   case) no longer stutter every few seconds: after a stream runs dry, it must refill a
   deeper cushion before it sounds again — three seconds, then nine, up to fifteen — so

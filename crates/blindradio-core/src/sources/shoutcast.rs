@@ -1,6 +1,6 @@
 //! SHOUTcast's public website endpoints and published PLS links.
 
-use super::{Node, SearchQuery};
+use super::{Node, SearchQuery, Sort, Sortable, sort_rows};
 use crate::net::http_err;
 use crate::station::{Source, Station};
 use crate::{CoreError, Result};
@@ -43,7 +43,7 @@ impl Shoutcast {
 		client: &reqwest::Client,
 		path: &str,
 		form: &[(&str, &str)],
-	) -> Result<Vec<Station>> {
+	) -> Result<Vec<(Sortable, Station)>> {
 		let text = client
 			.post(self.url(path))
 			.timeout(TIMEOUT)
@@ -80,13 +80,22 @@ impl Shoutcast {
 				}
 				info.push(format!("{codec} {}k", row.bitrate));
 				info.push(format!("{} listeners", row.listeners));
-				Some(Station {
+				let station = Station {
 					id: format!("shoutcast:{}", row.id),
 					name: name.into(),
 					url: url.into(),
 					source: Source::Shoutcast,
 					info: Some(info.join(", ")),
-				})
+				};
+				let sortable = Sortable {
+					name: station.name.clone(),
+					bitrate: u32::try_from(row.bitrate).unwrap_or(0),
+					codec: codec.into(),
+					tags: row.genre.trim().to_owned(),
+					url: station.url.clone(),
+					popularity: row.listeners,
+				};
+				Some((sortable, station))
 			})
 			.collect())
 	}
@@ -135,7 +144,12 @@ impl Shoutcast {
 			.collect())
 	}
 
-	pub async fn children(&self, client: &reqwest::Client, id: &str) -> Result<Vec<Node>> {
+	pub async fn children(
+		&self,
+		client: &reqwest::Client,
+		id: &str,
+		sort: Sort,
+	) -> Result<Vec<Node>> {
 		let (head, offset) = match id.rsplit_once('@') {
 			Some((head, offset)) => match offset.parse::<usize>() {
 				Ok(offset) => (head, offset),
@@ -143,7 +157,7 @@ impl Shoutcast {
 			},
 			None => (id, 0),
 		};
-		let stations = match head {
+		let mut stations = match head {
 			"shoutcast" => {
 				return Ok(vec![
 					Node::Folder {
@@ -169,12 +183,13 @@ impl Shoutcast {
 					.await?
 			}
 		};
+		sort_rows(&mut stations, sort);
 		let total = stations.len();
 		let mut nodes: Vec<_> = stations
 			.into_iter()
 			.skip(offset)
 			.take(PAGE)
-			.map(Node::Station)
+			.map(|(_, station)| Node::Station(station))
 			.collect();
 		if let Some(next) = offset.checked_add(PAGE).filter(|next| *next < total) {
 			nodes.push(Node::LoadMore {
@@ -189,7 +204,10 @@ impl Shoutcast {
 		if name.is_empty() {
 			return Ok(vec![]);
 		}
-		self.stations(client, "/Search/UpdateSearch", &[("query", name)])
-			.await
+		let mut stations = self
+			.stations(client, "/Search/UpdateSearch", &[("query", name)])
+			.await?;
+		sort_rows(&mut stations, q.sort);
+		Ok(stations.into_iter().map(|(_, station)| station).collect())
 	}
 }
