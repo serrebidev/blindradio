@@ -1,7 +1,6 @@
 //! Every user-visible string, in one place for translation later. Terse on purpose.
 
 pub const APP_NAME: &str = "BlindRadio";
-pub const STATIONS: &str = "Stations";
 /// Prefix: `Failed: <name>`.
 pub const FAILED: &str = "Failed: ";
 pub const RECONNECTING: &str = "Connection lost. Reconnecting.";
@@ -19,3 +18,59 @@ pub const DEVICE_LOST: &str = "Device lost. Using default.";
 pub const USING: &str = "Using ";
 pub const DEFAULT_DEVICE: &str = "Default";
 pub const NOT_SAVED: &str = "Not saved";
+pub const STARTER_NOT_LOADED: &str = "Starter stations not loaded";
+pub const ABOUT_DESCRIPTION: &str = "Screen-reader-first internet radio.";
+pub const WEBSITE: &str = "https://github.com/serrebidev/blindradio";
+
+// Main window. Its buttons carry no Alt keys (YARSP): their Ctrl keys work everywhere.
+pub const PLAY: &str = "Play";
+pub const PAUSE: &str = "Pause";
+pub const STOP: &str = "Stop";
+pub const MUTE: &str = "Mute";
+pub const UNMUTE: &str = "Unmute";
+pub const VOLUME: &str = "&Volume";
+
+// Menus. `&` marks the Alt letter; F is favorites everywhere.
+pub const MENU_FILE: &str = "&File";
+pub const MENU_STATIONS: &str = "&Stations";
+pub const MENU_PLAYBACK: &str = "&Playback";
+pub const MENU_HELP: &str = "&Help";
+pub const ANNOUNCE_TITLES: &str = "&Announce Song Titles";
+pub const ANNOUNCE_STATUS: &str = "Announce &Connection Status";
+pub const CLOSE_LISTS: &str = "C&lose Lists When Playing";
+pub const PLAY_LAST: &str = "Play Last Station at &Startup";
+pub const AUDIO_DEVICE: &str = "Audio &Device";
+pub const EXIT: &str = "E&xit";
+pub const SEARCH: &str = "&Search…";
+pub const BROWSE: &str = "&Browse…";
+pub const FAVORITES: &str = "&Favorites…";
+pub const RECENT: &str = "&Recently Played…";
+pub const COLLECTIONS: &str = "&Collections…";
+pub const ADD_CUSTOM: &str = "Add Cus&tom Station…";
+pub const IMPORT: &str = "&Import Playlist…";
+pub const IMPORT_AS_COLLECTION: &str = "Import Playlist as Coll&ection…";
+pub const COPY_URL: &str = "Copy Stream &URL";
+pub const GET_STARTER: &str = "&Get SerrebiRadio Stations";
+pub const PLAY_PAUSE: &str = "&Play/Pause";
+pub const STOP_MENU: &str = "&Stop";
+pub const MUTE_MENU: &str = "&Mute";
+pub const VOLUME_UP: &str = "Volume &Up";
+pub const VOLUME_DOWN: &str = "Volume &Down";
+pub const ADD_TO_FAVORITES: &str = "Add to &Favorites";
+pub const REMOVE_FROM_FAVORITES: &str = "Remove from &Favorites";
+pub const ADD_TO_COLLECTION: &str = "Add to &Collection…";
+pub const SONG_HISTORY: &str = "Song &History…";
+pub const SLEEP_TIMER: &str = "Sleep &Timer";
+/// In `SLEEP_MINUTES` order.
+pub const SLEEP_ITEMS: [&str; 6] = [
+	"&15 Minutes",
+	"&30 Minutes",
+	"&45 Minutes",
+	"1 &Hour",
+	"&90 Minutes",
+	"&2 Hours",
+];
+pub const SLEEP_OFF: &str = "&Off";
+pub const EQUALIZER: &str = "&Equalizer…";
+pub const USER_GUIDE: &str = "User &Guide";
+pub const ABOUT: &str = "&About BlindRadio";

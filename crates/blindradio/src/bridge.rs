@@ -1,10 +1,7 @@
 //! Runs async work on the engine runtime and hands each result back on the UI thread.
 #![cfg_attr(
 	not(test),
-	expect(
-		dead_code,
-		reason = "Search and Browse spawn through it (Tasks 3 and 4)"
-	)
+	expect(dead_code, reason = "dialogs close their tokens (Tasks 3 and 4)")
 )]
 
 use std::any::Any;

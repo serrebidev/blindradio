@@ -14,12 +14,15 @@ use blindradio_core::sleep::SleepTimer;
 use blindradio_core::sources::{Endpoints, Sources};
 use blindradio_core::station::Station;
 use blindradio_core::tuner::{LiveFactory, Sink, Tuner, TunerEvent};
-use blindradio_core::{Engine, store};
+use blindradio_core::{Engine, import, store};
 use crossbeam_channel::Receiver;
+use wx_utils::set_menu_item_label;
 use wxdragon::prelude::*;
 
 use crate::action::{Action, SettingId};
-use crate::bridge::Bridge;
+use crate::bridge::{Bridge, WindowToken};
+use crate::main_window::{MainWindow, escape};
+use crate::menus::{self, MenuIds};
 use crate::strings as s;
 
 const VOLUME_STEP: i32 = 5;
@@ -31,6 +34,24 @@ pub struct SharedOutput(Rc<RefCell<Output>>);
 impl Sink for SharedOutput {
 	fn send(&self, cmd: MixerCmd) {
 		self.0.borrow().send(cmd);
+	}
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum PlayPause<T> {
+	Stop,
+	Play(T),
+	Nothing,
+}
+
+/// Playing: stop. Stopped: the station stopped last, else the selected one.
+pub fn play_pause<T>(playing: bool, remembered: Option<T>, selected: Option<T>) -> PlayPause<T> {
+	if playing {
+		return PlayPause::Stop;
+	}
+	match remembered.or(selected) {
+		Some(st) => PlayPause::Play(st),
+		None => PlayPause::Nothing,
 	}
 }
 
@@ -63,9 +84,8 @@ pub struct App {
 	remembered: Option<Station>,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
 	dial: bool,
-	pub frame: Frame,
-	/// The main window's message line.
-	pub message: StaticText,
+	pub win: MainWindow,
+	pub menus: MenuIds,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -76,7 +96,7 @@ pub struct App {
 }
 
 impl App {
-	pub fn new(frame: Frame, message: StaticText) -> blindradio_core::Result<App> {
+	pub fn new(win: MainWindow) -> blindradio_core::Result<App> {
 		let data = data_dir();
 		let settings = Settings::load(&data);
 		let library = Library::load(&data);
@@ -88,6 +108,7 @@ impl App {
 		let rendered = output.rendered().clone();
 		let output = Rc::new(RefCell::new(output));
 		let (tx, events) = crossbeam_channel::unbounded();
+		let menus = menus::build(&win.frame, &settings, &output_devices());
 		Ok(App {
 			sources: Arc::new(Sources::new(
 				engine.ctx.client.clone(),
@@ -108,18 +129,35 @@ impl App {
 			selected: None,
 			remembered: None,
 			dial: false,
-			frame,
-			message,
+			win,
+			menus,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
-			timer: Some(Timer::new(&frame)),
+			timer: Some(Timer::new(&win.frame)),
 			engine,
 		})
 	}
 
+	/// Right after the window shows.
+	pub fn start(&mut self) {
+		// Before anything saves the library.
+		let first_run = store::first_run(&self.data);
+		// Play/Pause right after start plays the station from last time.
+		self.remembered = self.settings.last_station.clone();
+		if self.settings.play_last_at_startup
+			&& let Some(st) = self.remembered.clone()
+		{
+			self.play(st);
+		}
+		if first_run {
+			self.get_starter(true);
+		}
+		self.refresh();
+	}
+
 	pub fn say(&mut self, text: &str) {
-		self.message.set_label(text);
+		self.win.message.set_label(&escape(text));
 	}
 
 	pub fn selected_or_playing(&self) -> Option<Station> {
@@ -129,6 +167,10 @@ impl App {
 	}
 
 	/// Dial tuning: a user-driven focus move in a station list.
+	#[expect(
+		dead_code,
+		reason = "the main window dial and station lists tune (Task 3)"
+	)]
 	pub fn tune(&mut self, stations: &[Station], index: usize) {
 		let Some(station) = stations.get(index) else {
 			return;
@@ -137,7 +179,7 @@ impl App {
 		self.selected = Some(station.clone());
 		self.history.station_changed(&station.id);
 		// The window title follows focus at once; the song is added when known.
-		self.frame.set_title(&station.name);
+		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
 	}
 
@@ -147,16 +189,15 @@ impl App {
 				Some(st) => self.play(st),
 				None => self.say(s::NOTHING_TO_PLAY),
 			},
-			Action::PlayPause => {
-				if self.tuner.playing().is_some() {
-					self.stop(true);
-				} else {
-					match self.remembered.clone().or_else(|| self.selected.clone()) {
-						Some(st) => self.play(st),
-						None => self.say(s::NOTHING_TO_PLAY),
-					}
-				}
-			}
+			Action::PlayPause => match play_pause(
+				self.tuner.playing().is_some(),
+				self.remembered.clone(),
+				self.selected.clone(),
+			) {
+				PlayPause::Stop => self.stop(true),
+				PlayPause::Play(st) => self.play(st),
+				PlayPause::Nothing => self.say(s::NOTHING_TO_PLAY),
+			},
 			Action::Stop => self.stop(true),
 			Action::Mute => {
 				self.settings.muted = !self.settings.muted;
@@ -213,9 +254,11 @@ impl App {
 				*flag = !*flag;
 				self.save_settings();
 			}
+			Action::GetStarter => self.get_starter(false),
+			Action::FocusVolume => self.win.volume.set_focus(),
 			Action::Exit => {
 				self.shutdown();
-				self.frame.close(true);
+				self.win.frame.close(true);
 			}
 			// Windows, menus and the slider arrive in Tasks 2 to 7.
 			Action::OpenSearch
@@ -231,9 +274,11 @@ impl App {
 			| Action::ImportAsCollection
 			| Action::Equalizer
 			| Action::Help
-			| Action::FocusVolume
 			| Action::Close => {}
+			// The main window shows it (`main_window::dispatch`): it is modal.
+			Action::About => {}
 		}
+		self.refresh();
 	}
 
 	/// Every 50 ms.
@@ -262,12 +307,19 @@ impl App {
 				None => {}
 			}
 		}
+		self.refresh();
 	}
 
 	/// Before the main window closes: nothing may tick or play into a destroyed window.
 	pub fn shutdown(&mut self) {
 		if let Some(timer) = self.timer.take() {
 			timer.stop();
+		}
+		// Dial tuning does not save it on every focus move.
+		let last = self.tuner.playing().or(self.remembered.as_ref()).cloned();
+		if last.is_some() && last != self.settings.last_station {
+			self.settings.last_station = last;
+			self.save_settings();
 		}
 		self.tuner.stop();
 		// `Engine` saves it on drop too, but the app may never drop on exit.
@@ -290,8 +342,8 @@ impl App {
 					return;
 				};
 				match &title {
-					Some(song) => self.frame.set_title(&format!("{song} - {name}")),
-					None => self.frame.set_title(&name),
+					Some(song) => self.now_playing(Some(&format!("{song} - {name}"))),
+					None => self.now_playing(Some(&name)),
 				}
 				self.history.station_changed(&station_id);
 				self.history.title(title.as_deref(), SystemTime::now());
@@ -327,12 +379,16 @@ impl App {
 
 	fn play(&mut self, station: Station) {
 		self.dial = false;
-		self.frame.set_title(&station.name);
+		self.now_playing(Some(&station.name));
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
 		self.tuner.play(&station, Instant::now());
 		self.library.add_recent(&station);
 		self.save_library();
+		if self.settings.last_station.as_ref() != Some(&station) {
+			self.settings.last_station = Some(station);
+			self.save_settings();
+		}
 	}
 
 	fn stop(&mut self, announce: bool) {
@@ -340,10 +396,72 @@ impl App {
 			self.remembered = Some(playing.clone());
 		}
 		self.tuner.stop();
-		self.frame.set_title(s::APP_NAME);
+		self.now_playing(None);
 		if announce && self.settings.announce_status {
 			self.say(s::STOPPED);
 		}
+	}
+
+	/// The window title and the now playing line; `None` is stopped.
+	fn now_playing(&self, text: Option<&str>) {
+		let title = text.unwrap_or(s::APP_NAME);
+		if self.win.frame.get_title() != title {
+			self.win.frame.set_title(title);
+		}
+		let line = escape(text.unwrap_or(s::STOPPED));
+		if self.win.now_playing.get_label() != line {
+			self.win.now_playing.set_label(&line);
+		}
+	}
+
+	/// Button labels, the favorites menu item and the volume slider follow the state.
+	fn refresh(&self) {
+		let win = &self.win;
+		let playing = self.tuner.playing().is_some();
+		set_label(win.play, if playing { s::PAUSE } else { s::PLAY });
+		set_label(
+			win.mute,
+			if self.settings.muted {
+				s::UNMUTE
+			} else {
+				s::MUTE
+			},
+		);
+		let favorite = self
+			.selected_or_playing()
+			.is_some_and(|st| self.library.is_favorite(&st.id));
+		let label = menus::favorite_label(favorite);
+		if set_label(win.favorite, &menus::plain(label))
+			&& let Some(bar) = win.frame.get_menu_bar()
+		{
+			set_menu_item_label(&bar, self.menus.favorite, label, menus::FAVORITE_KEYS);
+		}
+		if win.volume.get_value() != self.volume() {
+			win.volume.set_value(self.volume());
+		}
+	}
+
+	/// The SerrebiRadio starter list into its collection. The first run says only a failure.
+	fn get_starter(&mut self, first_run: bool) {
+		let client = self.engine.ctx.client.clone();
+		self.bridge.spawn(
+			WindowToken::new(),
+			async move { import::fetch_starter(&client).await },
+			move |app: &mut App, body| match body {
+				Ok(body) => {
+					let report = import::import_starter(&mut app.library, &body);
+					app.save_library();
+					// TODO(Task 3): refresh the main window dial.
+					if !first_run {
+						app.say(&report.message());
+					}
+				}
+				Err(e) => {
+					eprintln!("starter: {e}");
+					app.say(s::STARTER_NOT_LOADED);
+				}
+			},
+		);
 	}
 
 	fn volume(&self) -> i32 {
@@ -372,5 +490,28 @@ impl App {
 			eprintln!("library: {e}");
 			self.say(s::NOT_SAVED);
 		}
+	}
+}
+
+/// True when the label changed.
+fn set_label(button: Button, label: &str) -> bool {
+	let changed = button.get_label() != label;
+	if changed {
+		button.set_label(label);
+	}
+	changed
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn play_pause_rules() {
+		assert_eq!(play_pause(true, Some(1), Some(2)), PlayPause::Stop);
+		assert_eq!(play_pause(true, None::<u8>, None), PlayPause::Stop);
+		assert_eq!(play_pause(false, Some(1), Some(2)), PlayPause::Play(1));
+		assert_eq!(play_pause(false, None, Some(2)), PlayPause::Play(2));
+		assert_eq!(play_pause(false, None::<u8>, None), PlayPause::Nothing);
 	}
 }

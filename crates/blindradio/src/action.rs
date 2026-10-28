@@ -4,7 +4,6 @@ use blindradio_core::sleep::SLEEP_MINUTES;
 use wxdragon::prelude::{WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_UP};
 
 /// The File menu's check items.
-#[expect(dead_code, reason = "the File menu builds them (Task 2)")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SettingId {
 	AnnounceTitles,
@@ -13,7 +12,7 @@ pub enum SettingId {
 	PlayLastAtStartup,
 }
 
-#[expect(dead_code, reason = "menus and buttons build the rest (Task 2)")]
+#[expect(dead_code, reason = "station lists play through it (Task 3)")]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
 	/// The station focused in the open list, else the playing one.
@@ -47,6 +46,9 @@ pub enum Action {
 	SetDevice(Option<String>),
 	ToggleSetting(SettingId),
 	Help,
+	About,
+	/// Fetch the SerrebiRadio starter list again.
+	GetStarter,
 	Exit,
 	/// Alt+V: focus the volume slider.
 	FocusVolume,
