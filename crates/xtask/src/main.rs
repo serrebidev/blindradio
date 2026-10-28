@@ -258,8 +258,17 @@ fn wait_for_macos(tag: &str) -> Result<(), String> {
 	Err("the macOS build did not finish in time".to_string())
 }
 
+/// `cargo` comes from the environment: it need not be on PATH.
+fn program(command: &str) -> String {
+	if command == "cargo" {
+		std::env::var("CARGO").unwrap_or_else(|_| command.to_string())
+	} else {
+		command.to_string()
+	}
+}
+
 fn run(command: &str, args: &[&str], what: &str) -> Result<(), String> {
-	let status = Command::new(command)
+	let status = Command::new(program(command))
 		.args(args)
 		.current_dir(root())
 		.status()
@@ -272,7 +281,7 @@ fn run(command: &str, args: &[&str], what: &str) -> Result<(), String> {
 }
 
 fn output(command: &str, args: &[&str]) -> Result<String, String> {
-	let out = Command::new(command)
+	let out = Command::new(program(command))
 		.args(args)
 		.current_dir(root())
 		.output()
