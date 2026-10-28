@@ -65,10 +65,9 @@ impl<C> Bridge<C> {
 	) {
 		let id = self.next.get();
 		self.next.set(id + 1);
-		let done: Done<C> = Box::new(move |c, any| {
-			if let Ok(t) = any.downcast::<T>() {
-				done(c, *t);
-			}
+		let done: Done<C> = Box::new(move |c, any| match any.downcast::<T>() {
+			Ok(t) => done(c, *t),
+			Err(_) => debug_assert!(false, "bridge result of the wrong type"),
 		});
 		self.waiting.borrow_mut().insert(id, (owner, done));
 		let tx = self.tx.clone();
@@ -78,13 +77,18 @@ impl<C> Bridge<C> {
 	}
 
 	/// The callbacks of every result that arrived for a window still open; the caller runs them.
+	/// Each re-checks its window when run: an earlier callback in the batch may have closed it.
 	pub fn ready(&self) -> Vec<impl FnOnce(&mut C) + use<C>> {
 		let mut waiting = self.waiting.borrow_mut();
 		self.rx
 			.try_iter()
 			.filter_map(|(id, value)| {
 				let (owner, done) = waiting.remove(&id)?;
-				owner.is_open().then_some(move |c: &mut C| done(c, value))
+				owner.is_open().then_some(move |c: &mut C| {
+					if owner.is_open() {
+						done(c, value);
+					}
+				})
 			})
 			.collect()
 	}
@@ -131,5 +135,37 @@ mod tests {
 		}
 		assert!(bridge.idle(), "both results arrived");
 		assert_eq!(got, ["x"], "only the open window's result is delivered");
+	}
+
+	#[test]
+	fn closed_by_earlier_result_in_batch_dropped() {
+		let rt = tokio::runtime::Builder::new_multi_thread()
+			.worker_threads(1)
+			.build()
+			.unwrap();
+		let bridge: Bridge<Vec<&str>> = Bridge::new(rt.handle().clone());
+		let first = WindowToken::new();
+		let second = WindowToken::new();
+		let closes = second.clone();
+		bridge.spawn(first, async {}, move |got, ()| {
+			got.push("first");
+			closes.close();
+		});
+		bridge.spawn(second, async {}, |got, ()| got.push("second"));
+		let deadline = Instant::now() + Duration::from_secs(5);
+		while bridge.rx.len() < 2 && Instant::now() < deadline {
+			std::thread::sleep(Duration::from_millis(5));
+		}
+		let ready = bridge.ready();
+		assert_eq!(ready.len(), 2, "both results in one batch");
+		let mut got = Vec::new();
+		for f in ready {
+			f(&mut got);
+		}
+		assert_eq!(
+			got,
+			["first"],
+			"the window closed by the first result gets nothing"
+		);
 	}
 }
