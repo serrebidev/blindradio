@@ -188,3 +188,4 @@ pub const HOTKEYS_UNAVAILABLE: &str = "Hotkeys unavailable";
 pub const EQ_ON: &str = "Equalizer on";
 pub const EQ_OFF: &str = "Equalizer off";
 pub const NO_FAVORITES: &str = "No favorites";
+pub const SHOW_WINDOW: &str = "&Show BlindRadio";

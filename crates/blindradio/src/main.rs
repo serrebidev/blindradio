@@ -13,6 +13,7 @@ mod menus;
 mod speech;
 mod station_list;
 mod strings;
+mod tray;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -39,6 +40,8 @@ fn main() {
 			Err(e) => return fail(frame, &e),
 		};
 		main_window::bind(&app);
+		let tray = tray::install(&app);
+		app.borrow_mut().tray = tray;
 		frame.show(true);
 		frame.centre();
 		// Focuses the Stations list, else Play.

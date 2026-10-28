@@ -118,6 +118,8 @@ pub struct App {
 	pub hotkeys: Hotkeys,
 	/// The song playing, for Announce Now Playing.
 	song: Option<String>,
+	/// The tray icon, once installed.
+	pub tray: Option<crate::tray::Tray>,
 	rendered: Receiver<(u64, Instant)>,
 	events: Receiver<TunerEvent>,
 	last_device_poll: Instant,
@@ -172,6 +174,7 @@ impl App {
 			speech,
 			hotkeys,
 			song: None,
+			tray: None,
 			rendered,
 			events,
 			last_device_poll: Instant::now(),
@@ -582,6 +585,9 @@ impl App {
 		}
 		if win.volume.get_value() != self.volume() {
 			win.volume.set_value(self.volume());
+		}
+		if let Some(tray) = &self.tray {
+			tray.update(self);
 		}
 	}
 
