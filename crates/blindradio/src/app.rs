@@ -326,9 +326,10 @@ impl App {
 				self.win.frame.close(true);
 			}
 			// Windows, menus and the slider arrive in later tasks.
-			Action::Help | Action::Close => {}
+			Action::Close => {}
 			// The main window shows them (`main_window::dispatch`): they are modal.
 			Action::About
+			| Action::Help
 			| Action::OpenSearch
 			| Action::OpenBrowse
 			| Action::OpenFavorites

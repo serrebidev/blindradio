@@ -189,3 +189,7 @@ pub const EQ_ON: &str = "Equalizer on";
 pub const EQ_OFF: &str = "Equalizer off";
 pub const NO_FAVORITES: &str = "No favorites";
 pub const SHOW_WINDOW: &str = "&Show BlindRadio";
+
+// Help.
+pub const ABOUT_TITLE: &str = "About BlindRadio";
+pub const LICENSES_BUTTON: &str = "&Licenses…";

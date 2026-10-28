@@ -13,6 +13,7 @@ crossbeam-channel = "*"
 tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
 live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }
+flate2 = "*"
 
 [target.'cfg(not(windows))'.dependencies]
 # Global hotkeys on macOS and X11; Windows uses wx-utils.
@@ -20,6 +21,7 @@ global-hotkey = "*"
 
 [build-dependencies]
 embed-manifest = "*"
+shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
 
 [dev-dependencies]
 tokio = { version = "*", features = ["rt-multi-thread", "time"] }

@@ -4,12 +4,12 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use wx_utils::AboutBoxBuilder;
 use wxdragon::prelude::*;
 
 use crate::action::{Action, app_key};
 use crate::app::App;
 use crate::dialogs;
+use crate::help;
 use crate::menus;
 use crate::station_list::{Hooks, StationList};
 use crate::strings as s;
@@ -96,12 +96,10 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 		// Modal: the poll timer borrows the app while it is open.
 		Action::About => {
 			let frame = app.borrow().win.frame;
-			AboutBoxBuilder::new(&frame)
-				.name(s::APP_NAME)
-				.version(env!("CARGO_PKG_VERSION"))
-				.description(s::ABOUT_DESCRIPTION)
-				.website(s::WEBSITE)
-				.show();
+			help::about(&frame);
+		}
+		Action::Help => {
+			help::open(&help::guide(), "readme.html");
 		}
 		Action::OpenSearch => {
 			if let Some(next) = dialogs::search::show(app) {
