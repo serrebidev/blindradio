@@ -34,9 +34,10 @@ Screen-reader-first internet radio player in Rust: core crate plus wxDragon desk
 - macOS builds on GitHub Actions (`macos-release.yml`, arm64 only), Linux over SSH on
   `root@serrebiradio.com` in a container (`tools/build_linux_remote.sh`).
 - The signing key: `cargo xtask minisign-key <dir>` writes `minisign.key` and `minisign.pub`.
-  The secret goes in the repository secret `MINISIGN_KEY` and in Vaultwarden, never in git. The
-  public half is `PUBLIC_KEY` in `crates/blindradio/src/update.rs`; changing it means the copies
-  already installed can no longer update, so it takes a new release.
+  The secret lives in the repository secret `MINISIGN_KEY`, never in git. GitHub secrets cannot
+  be read back, so keep the key file itself backed up: losing it means rotating the key, and a
+  copy already installed can then never verify a new release. The public half is
+  `crates/blindradio/assets/minisign.pub`; changing it takes a new release.
 - Every asset is published with a `.minisig` beside it. `cargo xtask sign <file>…` signs any file.
 - Never run a cloud release and a local one at the same time: both bump from the latest tag.
 - Notes come from the `CHANGELOG.md` section for the version.
