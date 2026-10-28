@@ -51,10 +51,27 @@ enum Flow {
 	Playing,
 }
 
+/// The most a stream that keeps running dry must refill before it may sound
+/// again. A server delivering just under its bitrate (TopRadio sends ~2/3 of
+/// its 192 kbps) stutters every few seconds against a 1 s cushion; a deep
+/// refill turns that into long plays between clean gaps. Healthy streams
+/// never run dry, so they never see this.
+const REBUFFER_MAX_MS: u32 = 15_000;
+/// Each dry-out in a row multiplies the required refill by this.
+const REBUFFER_GROWTH: u32 = 3;
+/// Seconds of uninterrupted play that earn the base cushion back.
+const HEALTHY_SECONDS: u64 = 60;
+
 pub struct MixerCore {
 	fade_frames: usize,
 	tail_frames: usize,
 	cushion_ms: u32,
+	/// The refill a fresh station needs; `cushion_ms` grows from here.
+	base_cushion_ms: u32,
+	/// Dry-outs in a row on the active ring; grows `cushion_ms`.
+	strikes: u32,
+	/// Output rate, for the healthy-play reset window.
+	rate: u32,
 	active: Option<Arc<PcmRing>>,
 	flow: Flow,
 	/// Frames the active ring has sounded since it (re)started; drives its fade-in.
@@ -84,6 +101,9 @@ impl MixerCore {
 			fade_frames: 0,
 			tail_frames: 0,
 			cushion_ms: CUSHION_MS,
+			base_cushion_ms: CUSHION_MS,
+			strikes: 0,
+			rate,
 			active: None,
 			flow: Flow::Buffering,
 			sounded: 0,
@@ -108,6 +128,7 @@ impl MixerCore {
 
 	/// Retimes fades and retunes the EQ; rings and settings stay.
 	fn set_rate(&mut self, rate: u32) {
+		self.rate = rate;
 		self.fade_frames = (rate as u64 * CROSSFADE_MS / 1000) as usize;
 		self.tail_frames = (rate as u64 * TAIL_MS / 1000) as usize;
 		self.hiss_step = 1.0 / self.fade_frames.max(1) as f32;
@@ -137,6 +158,10 @@ impl MixerCore {
 					self.active = ring;
 					self.flow = Flow::Buffering;
 					self.sounded = 0;
+					// A new station starts at the base cushion: its network
+					// has not earned a deeper refill yet.
+					self.cushion_ms = self.base_cushion_ms;
+					self.strikes = 0;
 				}
 				self.pending = Some(token);
 			}
@@ -176,6 +201,13 @@ impl MixerCore {
 						self.a[2 * f + 1] *= g;
 					}
 					self.flow = Flow::Buffering;
+					// This stream has proven it cannot sustain the base
+					// cushion: demand a deeper refill before it sounds again.
+					self.strikes += 1;
+					self.cushion_ms = self
+						.base_cushion_ms
+						.saturating_mul(REBUFFER_GROWTH.saturating_pow(self.strikes))
+						.min(REBUFFER_MAX_MS);
 				}
 			}
 		}
@@ -187,6 +219,14 @@ impl MixerCore {
 			self.a[2 * f + 1] *= g;
 		}
 		self.sounded += got;
+		// A long clean run earns the base cushion back.
+		if self.flow == Flow::Playing
+			&& self.cushion_ms > self.base_cushion_ms
+			&& self.sounded as u64 >= self.rate as u64 * HEALTHY_SECONDS
+		{
+			self.cushion_ms = self.base_cushion_ms;
+			self.strikes = 0;
+		}
 
 		// Each fading ring leaves as cos on its own clock, so a new step never cuts an old fade short.
 		for (ring, pos) in &mut self.fading {
@@ -617,6 +657,7 @@ mod tests {
 	fn mixer() -> MixerCore {
 		let mut m = MixerCore::new(RATE);
 		m.cushion_ms = 0;
+		m.base_cushion_ms = 0;
 		m.hiss_level = 0.0;
 		m
 	}
@@ -678,6 +719,7 @@ mod tests {
 	fn ran_dry_waits_for_cushion() {
 		let mut mixer = mixer();
 		mixer.cushion_ms = 100;
+		mixer.base_cushion_ms = 100;
 		let ring = Arc::new(PcmRing::new(RATE, 3.0));
 		mixer.handle(MixerCmd::SetActive {
 			ring: Some(ring.clone()),
@@ -685,11 +727,15 @@ mod tests {
 		});
 		ring.push(&vec![1.0; 150 * 2]);
 		render_frames(&mut mixer, 200);
-		// Ran dry; a trickle below the cushion stays queued instead of stuttering out.
+		// Ran dry; a trickle below the grown cushion (three times the base)
+		// stays queued instead of stuttering out.
 		ring.push(&[1.0; 20 * 2]);
 		assert_eq!(render_frames(&mut mixer, 10), [0.0; 20]);
 		assert_eq!(ring.len_ms(), 20);
 		ring.push(&vec![1.0; 100 * 2]);
+		assert_eq!(render_frames(&mut mixer, 10), [0.0; 20]);
+		assert_eq!(ring.len_ms(), 120);
+		ring.push(&vec![1.0; 200 * 2]);
 		let out = render_frames(&mut mixer, 10);
 		assert_eq!(out[0], 0.0, "resumes with a fade-in");
 		assert!(out[19] > 0.0);
@@ -760,6 +806,109 @@ mod tests {
 			Some(9),
 			"starts once CUSHION_MS is buffered"
 		);
+	}
+
+	#[test]
+	fn rebuffer_demands_a_deeper_refill() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		let mut out = vec![0.0; 40];
+		// Cold start still needs only the base cushion.
+		ring.push(&vec![1.0; 1000 * 2]);
+		assert_eq!(mixer.render(&mut out), Some(9));
+		// Drain it dry.
+		let mut big = vec![0.0; 4000 * 2];
+		mixer.render(&mut big);
+		assert_eq!(ring.len_ms(), 0);
+		// One base cushion is no longer enough to sound again.
+		ring.push(&vec![1.0; 1000 * 2]);
+		assert_eq!(mixer.render(&mut out), None);
+		assert_eq!(ring.len_ms(), 1000, "nothing taken while rebuffering");
+		ring.push(&vec![1.0; 2000 * 2]);
+		mixer.render(&mut out);
+		assert!(ring.len_ms() < 3000, "resumes once three seconds are buffered");
+	}
+
+	#[test]
+	fn rebuffer_refill_caps_at_fifteen_seconds() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		let mut big = vec![0.0; 20000 * 2];
+		// Three dry-outs in a row; each render both resumes and runs dry.
+		for refill in [1000usize, 3000, 9000] {
+			ring.push(&vec![1.0; refill * 2]);
+			mixer.render(&mut big);
+			assert_eq!(ring.len_ms(), 0);
+		}
+		let mut out = vec![0.0; 40];
+		ring.push(&vec![1.0; 14000 * 2]);
+		mixer.render(&mut out);
+		assert_eq!(ring.len_ms(), 14000, "fourteen seconds is not enough after three dry-outs");
+		ring.push(&vec![1.0; 1000 * 2]);
+		mixer.render(&mut out);
+		assert!(ring.len_ms() < 15000, "fifteen seconds resumes, so the cap held");
+	}
+
+	#[test]
+	fn clean_minute_earns_the_base_cushion_back() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		let mut big = vec![0.0; 4000 * 2];
+		ring.push(&vec![1.0; 1000 * 2]);
+		mixer.render(&mut big);
+		// Resume at the grown cushion, then play a clean minute in chunks.
+		ring.push(&vec![1.0; 3000 * 2]);
+		let mut chunk = vec![0.0; 1000 * 2];
+		mixer.render(&mut chunk);
+		for _ in 0..65 {
+			ring.push(&vec![1.0; 1000 * 2]);
+			mixer.render(&mut chunk);
+		}
+		// The next dry-out starts over at one strike, not two.
+		mixer.render(&mut big);
+		assert_eq!(ring.len_ms(), 0);
+		let mut out = vec![0.0; 40];
+		ring.push(&vec![1.0; 1000 * 2]);
+		mixer.render(&mut out);
+		assert_eq!(ring.len_ms(), 1000, "one second is not enough");
+		ring.push(&vec![1.0; 2000 * 2]);
+		mixer.render(&mut out);
+		assert!(ring.len_ms() < 3000, "three seconds resumes: the count reset");
+	}
+
+	#[test]
+	fn new_station_starts_at_the_base_cushion() {
+		let mut mixer = MixerCore::new(RATE);
+		let ring = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		let mut big = vec![0.0; 4000 * 2];
+		ring.push(&vec![1.0; 1000 * 2]);
+		mixer.render(&mut big);
+		assert_eq!(ring.len_ms(), 0, "drained dry: the refill demand grew");
+		let other = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(other.clone()),
+			token: 10,
+		});
+		other.push(&vec![1.0; 1000 * 2]);
+		let mut out = vec![0.0; 40];
+		mixer.render(&mut out);
+		assert!(other.len_ms() < 1000, "the new station starts on the base cushion");
 	}
 
 	#[test]

@@ -2,6 +2,15 @@
 
 Terse, newest first. Each release's section is its GitHub release note.
 
+## 0.2.2
+
+- Streams whose server delivers slower than the bitrate (the TopRadio mounts are the known
+  case) no longer stutter every few seconds: after a stream runs dry, it must refill a
+  deeper cushion before it sounds again — three seconds, then nine, up to fifteen — so
+  playback comes in long stretches between clean gaps. A clean minute earns the normal
+  one-second cushion back, changing station resets it, and streams that never run dry
+  behave exactly as before.
+
 ## 0.2.1
 
 - Browse has a Sort choice: Radio Browser station lists in any order the API offers (the

@@ -26,7 +26,10 @@ const CACHED_BUDGET: Duration = Duration::from_secs(2);
 const MIN_STATION_BUDGET: Duration = Duration::from_secs(3);
 /// A connection that sends nothing for this long is treated as lost.
 const STALL: Duration = Duration::from_secs(5);
-const RING_SECONDS: f32 = 3.0;
+/// Decoded-audio room per stream. Deliberately far above the mixer's starting
+/// cushion: a stream that keeps running dry earns a much bigger refill before
+/// it may sound again (see MixerCore), and the ring must be able to hold it.
+const RING_SECONDS: f32 = 20.0;
 /// End reason of an HLS playlist that finished (`#EXT-X-ENDLIST`).
 const ENDED: &str = "Ended";
 
