@@ -33,6 +33,11 @@ pub enum Item {
 	CopyUrl,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
+	/// The same collections alone, as top-level check items (Add to Collection).
+	Collections(Vec<(String, String, bool)>),
+	NewCollection,
+	/// Every other collection, id and name (Add All to Collection).
+	AddAllTo(Vec<(String, String)>),
 	DeleteCustom,
 	Rename,
 	Delete,
@@ -47,6 +52,8 @@ pub enum Choice {
 	/// Into or out of the collection with this id.
 	Toggle(String),
 	NewCollection,
+	/// Every station of the source collection into the collection with this id.
+	AddAllTo(String),
 	DeleteCustom,
 	Rename,
 	Delete,
@@ -149,6 +156,43 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				);
 				menu.append_submenu(sub, s::ADD_TO_COLLECTION_SUB, "");
 			}
+			Item::Collections(collections) => {
+				for (id, name, holds) in collections {
+					let item = menu.append(
+						add(Choice::Toggle(id.clone())),
+						&escape(name),
+						"",
+						ItemKind::Check,
+					);
+					if let Some(item) = item {
+						item.check(*holds);
+					}
+				}
+				if !collections.is_empty() {
+					menu.append_separator();
+				}
+			}
+			Item::NewCollection => {
+				menu.append(
+					add(Choice::NewCollection),
+					s::NEW_COLLECTION,
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::AddAllTo(collections) => {
+				let sub = Menu::builder().build();
+				catch(&sub);
+				for (id, name) in collections {
+					sub.append(
+						add(Choice::AddAllTo(id.clone())),
+						&escape(name),
+						"",
+						ItemKind::Normal,
+					);
+				}
+				menu.append_submenu(sub, s::ADD_ALL_SUB, "");
+			}
 			Item::DeleteCustom => {
 				menu.append(
 					add(Choice::DeleteCustom),
@@ -212,7 +256,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 			return;
 		}
 		// Collection owners handle their own.
-		Choice::Rename | Choice::Delete => return,
+		Choice::Rename | Choice::Delete | Choice::AddAllTo(_) => return,
 	};
 	app.borrow_mut().selected = Some(station.clone());
 	dispatch(app, action);

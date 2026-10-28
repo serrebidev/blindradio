@@ -294,13 +294,9 @@ impl App {
 				self.shutdown();
 				self.win.frame.close(true);
 			}
-			// Windows, menus and the slider arrive in Tasks 6 and 7.
-			Action::OpenCollections
-			| Action::CopyUrl
+			// Windows, menus and the slider arrive in Task 7.
+			Action::CopyUrl
 			| Action::SongHistory
-			| Action::AddToCollection
-			| Action::Import
-			| Action::ImportAsCollection
 			| Action::Equalizer
 			| Action::Help
 			| Action::Close => {}
@@ -310,7 +306,11 @@ impl App {
 			| Action::OpenBrowse
 			| Action::OpenFavorites
 			| Action::OpenRecent
-			| Action::NewCustomStation => {}
+			| Action::NewCustomStation
+			| Action::OpenCollections
+			| Action::AddToCollection
+			| Action::Import
+			| Action::ImportAsCollection => {}
 		}
 		self.refresh();
 	}
@@ -636,6 +636,20 @@ impl App {
 		let index = self.library.move_favorite(index, up);
 		self.save_library();
 		index
+	}
+
+	/// Add All to Collection: says how many arrived.
+	pub fn add_all(&mut self, from: &str, to: &str) {
+		let n = self.library.add_all_to_collection(from, to);
+		let name = self
+			.library
+			.collections
+			.iter()
+			.find(|c| c.id == to)
+			.map(|c| c.name.clone())
+			.unwrap_or_default();
+		self.save_library();
+		self.say(&format!("{}{n}{}{name}", s::ADDED, s::TO));
 	}
 
 	pub fn save_library(&mut self) {

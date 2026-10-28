@@ -128,6 +128,23 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::OpenCollections => {
+			if let Some(next) = dialogs::collections::show(app) {
+				dispatch(app, next);
+			}
+		}
+		Action::AddToCollection => {
+			let station = app.borrow().selected_or_playing();
+			match station {
+				Some(st) => {
+					let frame = app.borrow().win.frame;
+					dialogs::add_to_collection::choose(app, &frame, &st);
+				}
+				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+			}
+		}
+		Action::Import => dialogs::collections::import(app, false),
+		Action::ImportAsCollection => dialogs::collections::import(app, true),
 		a => app.borrow_mut().run(a),
 	}
 }

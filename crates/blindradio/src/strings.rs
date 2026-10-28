@@ -141,3 +141,15 @@ pub const NOT_A_STREAM_URL: &str = "Not a stream URL";
 pub const ADDED: &str = "Added ";
 pub const OK: &str = "OK";
 pub const CANCEL: &str = "Cancel";
+
+// Collections and Add to Collection.
+pub const COLLECTIONS_TITLE: &str = "Collections";
+pub const COLLECTIONS_LIST: &str = "Collections";
+pub const NEW_COLLECTION_BUTTON: &str = "&New";
+pub const REMOVE_STATION: &str = "Remove &Station";
+pub const ADD_ALL_SUB: &str = "Add &All to Collection";
+pub const CUSTOM_FIXED: &str = "Custom Stations cannot be changed";
+/// Joins `Added <n>` and the collection: ` to `.
+pub const TO: &str = " to ";
+pub const M3U_EXTENSION: &str = ".m3u";
+pub const IMPORT_TITLE: &str = "Import Playlist";

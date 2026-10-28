@@ -1,6 +1,8 @@
 //! Modal windows: one at a time, app keys inside them, and switching between them.
 
+pub mod add_to_collection;
 pub mod browse;
+pub mod collections;
 pub mod custom_station;
 pub mod favorites;
 pub mod recent;
