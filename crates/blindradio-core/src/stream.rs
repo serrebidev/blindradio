@@ -71,6 +71,7 @@ pub struct EngineCtx {
 pub enum StreamEvent {
 	FirstAudio,
 	Title(Option<String>),
+	Format(crate::decode::StreamFormat),
 	Reconnecting,
 	Reconnected,
 	Failed(String),
@@ -144,6 +145,8 @@ struct Conn {
 	source: Source,
 	first: Bytes,
 	hint: Option<&'static str>,
+	/// The bitrate the server declares (`icy-br`), when it sends one.
+	bitrate_kbps: Option<u32>,
 }
 
 enum Source {
@@ -272,6 +275,7 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 				hint: Some(hls_hint(&first)),
 				source: Source::Hls(hls),
 				first,
+				bitrate_kbps: None,
 			};
 			return Ok((conn, playlist_url));
 		}
@@ -290,11 +294,15 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 	let metaint = header("icy-metaint")
 		.and_then(|v| v.parse().ok())
 		.filter(|&m| m > 0);
+	let bitrate_kbps = header("icy-br")
+		.and_then(|v| v.split(',').next()?.trim().parse().ok())
+		.filter(|&b| b > 0);
 	let hint = header("content-type").and_then(|ct| ext_hint(&ct));
 	let conn = Conn {
 		source: Source::Http { response, metaint },
 		first,
 		hint,
+		bitrate_kbps,
 	};
 	Ok((conn, final_url))
 }
@@ -371,6 +379,7 @@ async fn play(
 	let (done_tx, done_rx) = oneshot::channel();
 	let (thread_ring, thread_shared) = (ring.clone(), shared.clone());
 	let (out_rate, hint) = (ctx.out_rate, conn.hint);
+	let bitrate_kbps = conn.bitrate_kbps;
 	let (thread_taps, thread_id) = (ctx.taps.clone(), station_id.to_string());
 	let produced = Arc::new(AtomicBool::new(false));
 	let thread_produced = produced.clone();
@@ -386,6 +395,7 @@ async fn play(
 				&thread_produced,
 				&thread_taps,
 				&thread_id,
+				bitrate_kbps,
 			);
 			let _ = done_tx.send(result);
 		});
@@ -404,6 +414,99 @@ async fn play(
 		(None, _) => "No data".into(),
 	};
 	(reason, produced.load(Ordering::Relaxed))
+}
+
+/// Some providers stuff a whole attribute record into the title frame
+/// (iHeart: `ARTIST - text="Song" song_spot="M" length="00:04:17" ...`).
+/// The `text` attribute is the real title: the result is `ARTIST - Song`.
+/// Any other trailing run of `name="value"` pairs is dropped. A title with
+/// no attribute pairs passes through untouched.
+pub fn clean_title(raw: &str) -> String {
+	let t = raw.trim();
+	if let Some(start) = attr_start(t, "text")
+		&& let Some(value) = attr_value(t, start)
+	{
+		let before = t[..start].trim();
+		return if before.is_empty() {
+			value.to_string()
+		} else {
+			format!("{before} {value}")
+		};
+	}
+	if let Some(cut) = attr_run_start(t) {
+		let head = t[..cut].trim();
+		if !head.is_empty() {
+			return head.to_string();
+		}
+	}
+	t.to_string()
+}
+
+/// Where the attribute `name="..."` starts: at the string's start or right
+/// after a space.
+fn attr_start(t: &str, name: &str) -> Option<usize> {
+	let needle = format!("{name}=\"");
+	t.find(&needle).filter(|&i| i == 0 || t.as_bytes()[i - 1] == b' ')
+}
+
+/// The quoted value of the attribute starting at `start`.
+fn attr_value(t: &str, start: usize) -> Option<&str> {
+	let rest = t[start..].split_once('=')?.1.strip_prefix('"')?;
+	rest.split_once('"').map(|(value, _)| value)
+}
+
+/// Where a trailing run of `name="value"` pairs begins, when the rest of
+/// the string is nothing but those pairs.
+fn attr_run_start(t: &str) -> Option<usize> {
+	let bytes = t.as_bytes();
+	let mut i = 0;
+	while i < bytes.len() {
+		if bytes[i] == b' ' {
+			let name_start = i + 1;
+			let mut j = name_start;
+			while j < bytes.len()
+				&& (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_' || bytes[j] == b'-')
+			{
+				j += 1;
+			}
+			if j > name_start && t[j..].starts_with("=\"") && parses_as_pairs(&t[name_start..])
+			{
+				return Some(i);
+			}
+		}
+		i += 1;
+	}
+	None
+}
+
+/// The whole string is `name="value"` pairs separated by single spaces.
+fn parses_as_pairs(mut rest: &str) -> bool {
+	while !rest.is_empty() {
+		let Some(eq) = rest.find('=') else {
+			return false;
+		};
+		if eq == 0
+			|| !rest[..eq]
+				.bytes()
+				.all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+		{
+			return false;
+		}
+		let Some(quoted) = rest[eq + 1..].strip_prefix('"') else {
+			return false;
+		};
+		let Some(end) = quoted.find('"') else {
+			return false;
+		};
+		rest = &quoted[end + 1..];
+		if !rest.is_empty() {
+			let Some(next) = rest.strip_prefix(' ') else {
+				return false;
+			};
+			rest = next;
+		}
+	}
+	true
 }
 
 /// Strips ICY metadata and feeds audio bytes to the decoder until the connection ends.
@@ -435,6 +538,7 @@ async fn pump(
 			titles.extend(hls.titles.try_iter());
 		}
 		for t in titles.drain(..) {
+			let t = t.map(|raw| clean_title(&raw));
 			if t != *title {
 				title.clone_from(&t);
 				shared.emit(StreamEvent::Title(t));
@@ -484,6 +588,7 @@ pub(crate) async fn send(tx: &Sender<Bytes>, mut bytes: Bytes) -> bool {
 	}
 }
 
+#[allow(clippy::too_many_arguments)]
 fn decode(
 	reader: ByteReader,
 	hint: Option<&str>,
@@ -493,16 +598,30 @@ fn decode(
 	produced: &AtomicBool,
 	taps: &TapMap,
 	station_id: &str,
+	bitrate_kbps: Option<u32>,
 ) -> Result<()> {
 	let mut decoder = Decoder::new(Box::new(reader), hint)?;
+	let format_of = |d: &Decoder| crate::decode::StreamFormat {
+		codec: d.codec().to_string(),
+		bitrate_kbps,
+		sample_rate: d.sample_rate(),
+		channels: d.channels(),
+	};
 	let mut rate = decoder.sample_rate();
 	let mut resampler = Resampler::new(rate, out_rate);
+	// The format is reported once per connection, and again only when it
+	// actually changes (a chained Ogg stream can switch rates mid-stream).
+	let mut reported: Option<crate::decode::StreamFormat> = None;
 	let (mut pcm, mut out) = (Vec::new(), Vec::new());
 	while decoder.next_stereo(&mut pcm)? {
-		// A chained Ogg stream can switch rates after a decoder reset.
 		if decoder.sample_rate() != rate {
 			rate = decoder.sample_rate();
 			resampler = Resampler::new(rate, out_rate);
+		}
+		let format = format_of(&decoder);
+		if reported.as_ref() != Some(&format) {
+			shared.emit(StreamEvent::Format(format.clone()));
+			reported = Some(format);
 		}
 		resampler.process(&pcm, &mut out);
 		pcm.clear();
@@ -629,6 +748,28 @@ fn starts_field(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn title_attribute_records_are_cleaned() {
+		// Brandon's iHeart example, verbatim.
+		assert_eq!(
+			clean_title(
+				"USHER / LIL' JON / LUDACRIS - text=\"Yeah!\" song_spot=\"M\" spotInstanceId=\"-1\" length=\"00:04:17\" MediaBaseId=\"1288752\" TAID=\"0\" TPID=\"1797442\" cartcutId=\"427412\" amgArtworkURL=\"https://i.iheart.com/v3/catalog/track/1797442?ops=fit(200,200),format(%22jpeg%22)\" spEventID=\"d81f5195-1cce-f111-83a5-0e9fc26228cf\""
+			),
+			"USHER / LIL' JON / LUDACRIS - Yeah!"
+		);
+		assert_eq!(clean_title("text=\"Yeah!\" song_spot=\"M\""), "Yeah!");
+		assert_eq!(
+			clean_title("Artist - Song length=\"00:03:00\" spot=\"M\""),
+			"Artist - Song"
+		);
+		assert_eq!(clean_title("A - One"), "A - One");
+		assert_eq!(
+			clean_title("Song \"Live\" at Wembley"),
+			"Song \"Live\" at Wembley",
+			"plain quotes are not attributes"
+		);
+	}
 
 	#[test]
 	fn title_runs_to_next_field_or_last_quote() {

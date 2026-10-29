@@ -24,12 +24,267 @@ pub struct Collection {
 	pub id: String,
 	pub name: String,
 	pub stations: Vec<Station>,
+	/// Named subfolders, each holding its own stations and folders.
+	#[serde(default)]
+	pub folders: Vec<Folder>,
+}
+
+/// A named folder inside a collection or the favorites: its own stations at
+/// its root, plus nested folders. Order is the user's order everywhere.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Folder {
+	pub name: String,
+	pub stations: Vec<Station>,
+	pub folders: Vec<Folder>,
+}
+
+impl Folder {
+	pub fn new(name: &str) -> Folder {
+		Folder {
+			name: name.into(),
+			stations: Vec::new(),
+			folders: Vec::new(),
+		}
+	}
+
+	/// The child folder with this name (any case), created empty if missing.
+	pub fn child_mut(&mut self, name: &str) -> &mut Folder {
+		let lower = name.to_lowercase();
+		let i = match self.folders.iter().position(|f| f.name.to_lowercase() == lower) {
+			Some(i) => i,
+			None => {
+				self.folders.push(Folder::new(name));
+				self.folders.len() - 1
+			}
+		};
+		&mut self.folders[i]
+	}
+
+	/// Every station below this folder, depth-first in folder order.
+	pub fn all_stations(&self) -> Vec<Station> {
+		let mut out = self.stations.clone();
+		for f in &self.folders {
+			out.extend(f.all_stations());
+		}
+		out
+	}
+
+	pub fn contains_id(&self, id: &str) -> bool {
+		self.stations.iter().any(|s| s.id == id)
+			|| self.folders.iter().any(|f| f.contains_id(id))
+	}
+
+	pub fn contains_url(&self, url: &str) -> bool {
+		self.stations.iter().any(|s| s.url == url)
+			|| self.folders.iter().any(|f| f.contains_url(url))
+	}
+
+	/// Removes the station with this id wherever it sits below here.
+	pub fn remove_id(&mut self, id: &str) -> bool {
+		let before = self.stations.len();
+		self.stations.retain(|s| s.id != id);
+		self.stations.len() != before || self.folders.iter_mut().any(|f| f.remove_id(id))
+	}
+
+	/// The folder at the end of `path` (indices into nested `folders`), if it exists.
+	pub fn at_mut(&mut self, path: &[usize]) -> Option<&mut Folder> {
+		match path.split_first() {
+			None => Some(self),
+			Some((&i, rest)) => self.folders.get_mut(i)?.at_mut(rest),
+		}
+	}
+}
+
+impl Collection {
+	/// Root stations plus every folder's, depth-first in folder order.
+	pub fn all_stations(&self) -> Vec<Station> {
+		let mut out = self.stations.clone();
+		for f in &self.folders {
+			out.extend(f.all_stations());
+		}
+		out
+	}
+
+	pub fn contains_url(&self, url: &str) -> bool {
+		self.stations.iter().any(|s| s.url == url)
+			|| self.folders.iter().any(|f| f.contains_url(url))
+	}
+
+	/// The root-level folder with this name (any case), created empty if missing.
+	pub fn child_mut(&mut self, name: &str) -> &mut Folder {
+		let lower = name.to_lowercase();
+		let i = match self
+			.folders
+			.iter()
+			.position(|f| f.name.to_lowercase() == lower)
+		{
+			Some(i) => i,
+			None => {
+				self.folders.push(Folder::new(name));
+				self.folders.len() - 1
+			}
+		};
+		&mut self.folders[i]
+	}
+
+	/// Removes the station with this id from the root or any folder.
+	pub fn remove_id(&mut self, id: &str) -> bool {
+		let before = self.stations.len();
+		self.stations.retain(|s| s.id != id);
+		self.stations.len() != before || self.folders.iter_mut().any(|f| f.remove_id(id))
+	}
+
+	pub fn contains_id(&self, id: &str) -> bool {
+		self.stations.iter().any(|s| s.id == id)
+			|| self.folders.iter().any(|f| f.contains_id(id))
+	}
+
+	/// The folder at `path` (indices into nested folder lists), if it exists.
+	pub fn folder_at_mut(&mut self, path: &[usize]) -> Option<&mut Folder> {
+		folder_in(&mut self.folders, path)
+	}
+
+	/// The station list at `path`: the root list for an empty path, else the
+	/// folder's own list.
+	pub fn stations_at_mut(&mut self, path: &[usize]) -> Option<&mut Vec<Station>> {
+		stations_in(&mut self.stations, &mut self.folders, path)
+	}
+
+	/// The folder at `path`, read-only.
+	pub fn folder_at(&self, path: &[usize]) -> Option<&Folder> {
+		folder_ref(&self.folders, path)
+	}
+
+	/// The station list at `path`, read-only.
+	pub fn stations_at(&self, path: &[usize]) -> Option<&[Station]> {
+		stations_ref(&self.stations, &self.folders, path)
+	}
+
+	/// The child-folder list at `parent` (empty is the root list).
+	pub fn folder_list_at_mut(&mut self, parent: &[usize]) -> Option<&mut Vec<Folder>> {
+		folder_list_in(&mut self.folders, parent)
+	}
+
+	/// Adds an empty folder under `parent` (empty is the root); its full path.
+	pub fn add_folder(&mut self, parent: &[usize], name: &str) -> Option<Vec<usize>> {
+		add_folder_in(&mut self.folders, parent, name)
+	}
+
+	/// Removes the folder at `path` and everything inside it.
+	pub fn remove_folder(&mut self, path: &[usize]) -> bool {
+		remove_folder_in(&mut self.folders, path)
+	}
+
+	pub fn rename_folder(&mut self, path: &[usize], name: &str) -> bool {
+		match self.folder_at_mut(path) {
+			Some(f) => {
+				f.name = name.to_string();
+				true
+			}
+			None => false,
+		}
+	}
+}
+
+/// The folder at `path` in a folder list: the first index picks from the
+/// list, the rest descend.
+pub fn folder_in<'a>(folders: &'a mut [Folder], path: &[usize]) -> Option<&'a mut Folder> {
+	match path.split_first() {
+		None => None,
+		Some((&i, rest)) => folders.get_mut(i)?.at_mut(rest),
+	}
+}
+
+/// The station list at `path` under a root list and its folders.
+pub fn stations_in<'a>(
+	root: &'a mut Vec<Station>,
+	folders: &'a mut Vec<Folder>,
+	path: &[usize],
+) -> Option<&'a mut Vec<Station>> {
+	if path.is_empty() {
+		return Some(root);
+	}
+	Some(&mut folder_in(folders, path)?.stations)
+}
+
+/// Adds an empty folder under `parent` in a folder list; its full path.
+pub fn add_folder_in(folders: &mut Vec<Folder>, parent: &[usize], name: &str) -> Option<Vec<usize>> {
+	let list = match parent.split_first() {
+		None => folders,
+		Some(_) => &mut folder_in(folders, parent)?.folders,
+	};
+	list.push(Folder::new(name));
+	let mut path = parent.to_vec();
+	path.push(list.len() - 1);
+	Some(path)
+}
+
+/// The folder at `path` in a folder list, read-only.
+pub fn folder_ref<'a>(folders: &'a [Folder], path: &[usize]) -> Option<&'a Folder> {
+	match path.split_first() {
+		None => None,
+		Some((&i, rest)) => {
+			let f = folders.get(i)?;
+			if rest.is_empty() {
+				Some(f)
+			} else {
+				folder_ref(&f.folders, rest)
+			}
+		}
+	}
+}
+
+/// The station list at `path` under a root list and its folders, read-only.
+pub fn stations_ref<'a>(
+	root: &'a [Station],
+	folders: &'a [Folder],
+	path: &[usize],
+) -> Option<&'a [Station]> {
+	if path.is_empty() {
+		return Some(root);
+	}
+	Some(&folder_ref(folders, path)?.stations)
+}
+
+/// The folder list at `parent`: the list itself for an empty path, else the
+/// folder's own child list.
+pub fn folder_list_in<'a>(
+	folders: &'a mut Vec<Folder>,
+	parent: &[usize],
+) -> Option<&'a mut Vec<Folder>> {
+	if parent.is_empty() {
+		return Some(folders);
+	}
+	Some(&mut folder_in(folders, parent)?.folders)
+}
+
+/// Removes the folder at `path` from a folder list, with everything inside.
+pub fn remove_folder_in(folders: &mut Vec<Folder>, path: &[usize]) -> bool {
+	let Some((&last, parent)) = path.split_last() else {
+		return false;
+	};
+	let list = match parent.split_first() {
+		None => folders,
+		Some(_) => match folder_in(folders, parent) {
+			Some(f) => &mut f.folders,
+			None => return false,
+		},
+	};
+	if last >= list.len() {
+		return false;
+	}
+	list.remove(last);
+	true
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Library {
 	pub favorites: Vec<Station>,
+	/// Favorites folders; `favorites` itself is the favorites root.
+	#[serde(default)]
+	pub fav_folders: Vec<Folder>,
 	pub recent: Vec<Station>,
 	pub collections: Vec<Collection>,
 }
@@ -38,6 +293,7 @@ impl Default for Library {
 	fn default() -> Self {
 		let mut lib = Library {
 			favorites: Vec::new(),
+			fav_folders: Vec::new(),
 			recent: Vec::new(),
 			collections: Vec::new(),
 		};
@@ -90,20 +346,31 @@ impl Library {
 					id: CUSTOM.into(),
 					name: CUSTOM_NAME.into(),
 					stations: Vec::new(),
+					folders: Vec::new(),
 				},
 			),
 		}
 	}
 
-	fn collection_mut(&mut self, id: &str) -> Option<&mut Collection> {
+	pub fn collection_mut(&mut self, id: &str) -> Option<&mut Collection> {
 		self.collections.iter_mut().find(|c| c.id == id)
 	}
 
 	pub fn is_favorite(&self, id: &str) -> bool {
 		self.favorites.iter().any(|s| s.id == id)
+			|| self.fav_folders.iter().any(|f| f.contains_id(id))
 	}
 
-	/// True when the station is now a favorite (added at the end).
+	/// Every favorite, root first then folders depth-first.
+	pub fn all_favorites(&self) -> Vec<Station> {
+		let mut out = self.favorites.clone();
+		for f in &self.fav_folders {
+			out.extend(f.all_stations());
+		}
+		out
+	}
+
+	/// True when the station is now a favorite (added at the end of the root).
 	pub fn toggle_favorite(&mut self, s: &Station) -> bool {
 		if self.is_favorite(&s.id) {
 			self.remove_favorite(&s.id);
@@ -114,12 +381,81 @@ impl Library {
 		}
 	}
 
+	/// Adds the station to the favorites folder at `path` (empty is the root).
+	/// False when it is already a favorite anywhere.
+	pub fn add_favorite_to(&mut self, path: &[usize], s: &Station) -> bool {
+		if self.is_favorite(&s.id) {
+			return false;
+		}
+		match path.split_first() {
+			None => self.favorites.push(s.clone()),
+			Some((&i, rest)) => {
+				let Some(f) = self.fav_folders.get_mut(i) else {
+					return false;
+				};
+				match f.at_mut(rest) {
+					Some(f) => f.stations.push(s.clone()),
+					None => return false,
+				}
+			}
+		}
+		true
+	}
+
 	pub fn remove_favorite(&mut self, id: &str) {
 		self.favorites.retain(|s| s.id != id);
+		for f in &mut self.fav_folders {
+			f.remove_id(id);
+		}
 	}
 
 	pub fn move_favorite(&mut self, index: usize, up: bool) -> usize {
 		step(&mut self.favorites, index, up)
+	}
+
+	/// The favorites folder at `path`, if it exists.
+	pub fn fav_folder_at_mut(&mut self, path: &[usize]) -> Option<&mut Folder> {
+		folder_in(&mut self.fav_folders, path)
+	}
+
+	/// The favorites folder at `path`, read-only.
+	pub fn fav_folder_at(&self, path: &[usize]) -> Option<&Folder> {
+		folder_ref(&self.fav_folders, path)
+	}
+
+	/// The favorites station list at `path`, read-only.
+	pub fn fav_stations_at(&self, path: &[usize]) -> Option<&[Station]> {
+		stations_ref(&self.favorites, &self.fav_folders, path)
+	}
+
+	/// The favorites child-folder list at `parent` (empty is the root list).
+	pub fn fav_folder_list_at_mut(&mut self, parent: &[usize]) -> Option<&mut Vec<Folder>> {
+		folder_list_in(&mut self.fav_folders, parent)
+	}
+
+	/// The favorites station list at `path`: the root list for an empty path.
+	pub fn fav_stations_at_mut(&mut self, path: &[usize]) -> Option<&mut Vec<Station>> {
+		stations_in(&mut self.favorites, &mut self.fav_folders, path)
+	}
+
+	/// Adds an empty favorites folder under `parent`; its full path.
+	pub fn add_fav_folder(&mut self, parent: &[usize], name: &str) -> Option<Vec<usize>> {
+		add_folder_in(&mut self.fav_folders, parent, name)
+	}
+
+	/// Removes the favorites folder at `path` and everything inside it.
+	pub fn remove_fav_folder(&mut self, path: &[usize]) -> bool {
+		remove_folder_in(&mut self.fav_folders, path)
+	}
+
+	pub fn rename_fav_folder(&mut self, path: &[usize], name: &str) -> bool {
+		match self.fav_folder_at_mut(path) {
+			Some(f) => {
+				f.name = name.to_string();
+				true
+			}
+			None => false,
+		}
 	}
 
 	pub fn add_recent(&mut self, s: &Station) {
@@ -145,6 +481,9 @@ impl Library {
 	pub fn delete_custom(&mut self, id: &str) {
 		if let Some(c) = self.collection_mut(CUSTOM) {
 			c.stations.retain(|s| s.id != id);
+			for f in &mut c.folders {
+				f.remove_id(id);
+			}
 		}
 	}
 
@@ -163,6 +502,7 @@ impl Library {
 			id: id.clone(),
 			name: name.into(),
 			stations: Vec::new(),
+			folders: Vec::new(),
 		});
 		id
 	}
@@ -202,14 +542,13 @@ impl Library {
 		self.collection_mut(id)
 	}
 
-	/// True when the station is now in the collection. False if removed, no such collection,
-	/// or Custom Stations.
+	/// True when the station is now in the collection (added at the root). False if
+	/// removed (from the root or any folder), no such collection, or Custom Stations.
 	pub fn toggle_in_collection(&mut self, id: &str, s: &Station) -> bool {
 		let Some(c) = self.editable_mut(id) else {
 			return false;
 		};
-		if let Some(i) = c.stations.iter().position(|x| x.id == s.id) {
-			c.stations.remove(i);
+		if c.remove_id(&s.id) {
 			false
 		} else {
 			c.stations.push(s.clone());
@@ -222,7 +561,7 @@ impl Library {
 			return self.delete_custom(station_id);
 		}
 		if let Some(c) = self.collection_mut(id) {
-			c.stations.retain(|s| s.id != station_id);
+			c.remove_id(station_id);
 		}
 	}
 
@@ -244,17 +583,18 @@ impl Library {
 	}
 
 	/// Count added; stations already in `to` stay as they are. Never into Custom Stations.
+	/// Copies the source's stations flat into the target's root; folders are not copied.
 	pub fn add_all_to_collection(&mut self, from: &str, to: &str) -> usize {
 		let Some(src) = self.collections.iter().find(|c| c.id == from) else {
 			return 0;
 		};
-		let src = src.stations.clone();
+		let src = src.all_stations();
 		let Some(dst) = self.editable_mut(to) else {
 			return 0;
 		};
 		let mut added = 0;
 		for s in src {
-			if !dst.stations.iter().any(|x| x.id == s.id) {
+			if !dst.all_stations().iter().any(|x| x.id == s.id) {
 				dst.stations.push(s);
 				added += 1;
 			}
@@ -265,7 +605,7 @@ impl Library {
 	pub fn collections_containing(&self, station_id: &str) -> Vec<String> {
 		self.collections
 			.iter()
-			.filter(|c| c.stations.iter().any(|s| s.id == station_id))
+			.filter(|c| c.all_stations().iter().any(|s| s.id == station_id))
 			.map(|c| c.id.clone())
 			.collect()
 	}

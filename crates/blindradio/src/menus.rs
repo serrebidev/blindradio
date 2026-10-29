@@ -5,7 +5,7 @@ use blindradio_core::sleep::SLEEP_MINUTES;
 use wx_utils::menu_label;
 use wxdragon::prelude::*;
 
-use crate::action::{Action, SettingId};
+use crate::action::Action;
 use crate::strings as s;
 
 pub const FAVORITE_KEYS: &str = "Ctrl+D";
@@ -13,7 +13,6 @@ pub const FAVORITE_KEYS: &str = "Ctrl+D";
 pub enum Entry {
 	/// Label, shortcut (`""` for none), action.
 	Item(&'static str, &'static str, Action),
-	Check(&'static str, SettingId),
 	/// The Audio Device submenu: `Default`, then every output device.
 	Devices,
 	Sub(&'static str, Vec<Entry>),
@@ -23,7 +22,7 @@ pub enum Entry {
 /// Global Hotkeys… (plan 5) and Check for Updates (plan 6) join when they work.
 pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 	use Action as A;
-	use Entry::{Check, Item, Separator, Sub};
+	use Entry::{Item, Separator, Sub};
 	let mut sleep: Vec<Entry> = s::SLEEP_ITEMS
 		.iter()
 		.zip(SLEEP_MINUTES)
@@ -35,11 +34,6 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 		(
 			s::MENU_FILE,
 			vec![
-				Check(s::ANNOUNCE_TITLES, SettingId::AnnounceTitles),
-				Check(s::ANNOUNCE_STATUS, SettingId::AnnounceStatus),
-				Check(s::CLOSE_LISTS, SettingId::CloseListsWhenPlaying),
-				Check(s::PLAY_LAST, SettingId::PlayLastAtStartup),
-				Separator,
 				Entry::Devices,
 				Separator,
 				Item(s::GLOBAL_HOTKEYS, "", A::GlobalHotkeys),
@@ -162,12 +156,6 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 				}
 				menu.append(id, &menu_label(label, keys), "", ItemKind::Normal);
 			}
-			Entry::Check(label, setting) => {
-				let id = ids.add(Action::ToggleSetting(*setting));
-				if let Some(item) = menu.append(id, label, "", ItemKind::Check) {
-					item.check(is_on(settings, *setting));
-				}
-			}
 			Entry::Devices => {
 				let sub = Menu::builder().build();
 				// A chosen device that is gone plays through the default.
@@ -196,15 +184,6 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 		}
 	}
 	menu
-}
-
-fn is_on(settings: &Settings, id: SettingId) -> bool {
-	match id {
-		SettingId::AnnounceTitles => settings.announce_titles,
-		SettingId::AnnounceStatus => settings.announce_status,
-		SettingId::CloseListsWhenPlaying => settings.close_lists_when_playing,
-		SettingId::PlayLastAtStartup => settings.play_last_at_startup,
-	}
 }
 
 #[cfg(test)]
@@ -287,7 +266,7 @@ mod tests {
 			("2 Hours", "Ctrl+6"),
 			("Off", "Ctrl+0"),
 			("Equalizer…", "Ctrl+E"),
-			("Feature Settings…", "Ctrl+T"),
+			("Settings…", "Ctrl+T"),
 			("User Guide", "F1"),
 			("About BlindRadio", ""),
 			("Exit", ""),
@@ -324,37 +303,24 @@ mod tests {
 	}
 
 	#[test]
-	fn file_menu_settings() {
+	fn file_menu_has_no_checks() {
 		let (_, file) = &menus()[0];
-		let checks: Vec<_> = file
+		assert!(file.iter().any(|e| matches!(e, Entry::Devices)));
+		let labels: Vec<String> = file
 			.iter()
 			.filter_map(|e| match e {
-				Entry::Check(label, id) => Some((label.replace('&', ""), *id)),
+				Entry::Item(l, ..) => Some(plain(l)),
 				_ => None,
 			})
 			.collect();
-		assert_eq!(
-			checks,
-			[
-				(
-					"Announce Song Titles".to_string(),
-					SettingId::AnnounceTitles
-				),
-				(
-					"Announce Connection Status".to_string(),
-					SettingId::AnnounceStatus
-				),
-				(
-					"Close Lists When Playing".to_string(),
-					SettingId::CloseListsWhenPlaying
-				),
-				(
-					"Play Last Station at Startup".to_string(),
-					SettingId::PlayLastAtStartup
-				),
-			]
-		);
-		assert!(file.iter().any(|e| matches!(e, Entry::Devices)));
+		for gone in [
+			"Announce Song Titles",
+			"Announce Connection Status",
+			"Close Lists When Playing",
+			"Play Last Station at Startup",
+		] {
+			assert!(!labels.iter().any(|l| l == gone), "{gone} moved to Settings");
+		}
 	}
 
 	#[test]
@@ -363,7 +329,7 @@ mod tests {
 			let mut seen = Vec::new();
 			for e in entries {
 				let label = match e {
-					Entry::Item(l, ..) | Entry::Check(l, _) | Entry::Sub(l, _) => *l,
+					Entry::Item(l, ..) | Entry::Sub(l, _) => *l,
 					Entry::Devices => crate::strings::AUDIO_DEVICE,
 					Entry::Separator => continue,
 				};

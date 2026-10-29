@@ -5,6 +5,30 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.7
+
+- Playlist imports keep their structure: an imported file becomes a folder named
+  after the playlist under Custom Stations, the playlist's groups become
+  subfolders, and stations stay in the playlist's order instead of landing in
+  one flat A-to-Z list. Exporting writes the folders back as playlist groups.
+- Collections are folder trees now: create, rename, delete and reorder folders,
+  and move stations between folders from the context menu. Browse shows the
+  same folders.
+- Favorites are folders too: make folders such as News, Music or BBC, move
+  stations between them, and add a station straight into a favorites folder
+  from its context menu.
+- A real Settings window (Ctrl+T): the File menu's check items moved here,
+  joined by Play a station as I move to it, Hide to the system tray when
+  closed, and Maximize the window at startup.
+- Closing the window really exits now; with Hide to the system tray on, it
+  hides to the tray instead and playback continues.
+- The window title is the playing station's name alone — no song, no stream
+  details — so a screen reader's title command reads the station first. The
+  now-playing line is station first too, then the song.
+- Provider metadata dumps are cleaned out of song titles: an iHeart title
+  that arrived as a record of attributes now reads as the song's name.
+- The status line now also shows the stream's codec, bitrate and sample rate.
+
 ## 0.2.6
 
 - Time-shift playback: pause now holds the stream and resumes where you paused, and

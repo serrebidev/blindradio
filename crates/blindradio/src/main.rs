@@ -48,6 +48,9 @@ fn main() {
 		main_window::bind(&app);
 		let tray = tray::install(&app);
 		app.borrow_mut().tray = tray;
+		if app.borrow().settings.maximize_on_start {
+			frame.maximize(true);
+		}
 		frame.show(true);
 		frame.centre();
 		// A copy the updater just relaunched takes the foreground on Windows.

@@ -267,13 +267,20 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 
 	let a = app.clone();
 	win.frame.on_close(move |e| {
-		// Exit already shut down and still holds the app.
+		let WindowEventData::General(e) = e else {
+			return;
+		};
+		// Hide to the tray instead of closing, when that setting is on.
+		if a.borrow().settings.close_to_tray {
+			e.skip(false);
+			a.borrow().win.frame.hide();
+			return;
+		}
+		// Exit already prepared the quit and still holds the app.
 		if let Ok(mut app) = a.try_borrow_mut() {
-			app.shutdown();
+			app.prepare_exit();
 		}
-		if let WindowEventData::General(e) = e {
-			e.skip(true);
-		}
+		e.skip(true);
 	});
 
 	let a = app.clone();

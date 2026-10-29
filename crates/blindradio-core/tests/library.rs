@@ -202,3 +202,98 @@ fn library_round_trip_and_custom_readded() {
 	let d3 = tempfile::tempdir().unwrap();
 	assert_eq!(Library::load(d3.path()).collections.len(), 1);
 }
+
+#[test]
+fn favorites_folders_hold_stations() {
+	use blindradio_core::library::Folder;
+	let mut l = Library::default();
+	l.fav_folders.push(Folder::new("News"));
+	l.fav_folders.push(Folder::new("Music"));
+	// Add into the Music folder (index 1) and the root.
+	assert!(l.add_favorite_to(&[1], &st("song")));
+	assert!(l.add_favorite_to(&[], &st("rooted")));
+	// Already a favorite anywhere: a second add fails wherever it points.
+	assert!(!l.add_favorite_to(&[0], &st("song")));
+	assert!(!l.add_favorite_to(&[], &st("song")));
+	assert!(l.is_favorite("song"));
+	assert_eq!(
+		l.all_favorites().iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+		["rooted", "song"]
+	);
+	// Toggle removes from inside a folder too.
+	assert!(!l.toggle_favorite(&st("song")));
+	assert!(!l.is_favorite("song"));
+	assert_eq!(l.all_favorites().len(), 1);
+	// Nested folders work through paths.
+	l.fav_folders[0].folders.push(Folder::new("World"));
+	assert!(l.add_favorite_to(&[0, 0], &st("world")));
+	assert!(l.is_favorite("world"));
+	l.remove_favorite("world");
+	assert!(!l.is_favorite("world"));
+}
+
+#[test]
+fn collection_folders_and_removal() {
+	let mut l = Library::default();
+	let id = l.create_collection("C");
+	let a = l.add_custom("A", "http://a");
+	l.toggle_in_collection(&id, &a);
+	{
+		let c = l.collections.iter_mut().find(|c| c.id == id).unwrap();
+		let st = c.stations.remove(0);
+		c.child_mut("Sub").stations.push(st);
+	}
+	let cid = l
+		.collections
+		.iter()
+		.find(|c| c.id == id)
+		.unwrap()
+		.all_stations()[0]
+		.id
+		.clone();
+	// It lives in Custom Stations (add_custom) and in C's folder.
+	assert_eq!(
+		l.collections_containing(&cid),
+		[blindradio_core::library::CUSTOM.to_string(), id.clone()]
+	);
+	// Toggling a station that lives in a folder removes it.
+	let st = l
+		.collections
+		.iter()
+		.find(|c| c.id == id)
+		.unwrap()
+		.all_stations()[0]
+		.clone();
+	assert!(!l.toggle_in_collection(&id, &st));
+	let c = l.collections.iter().find(|c| c.id == id).unwrap();
+	assert!(c.all_stations().is_empty());
+}
+
+#[test]
+fn folder_paths_add_rename_remove() {
+	let mut lib = Library::default();
+	let id = lib.create_collection("Mix");
+	let c = lib.collections.iter_mut().find(|c| c.id == id).unwrap();
+	let news = c.add_folder(&[], "News").unwrap();
+	assert_eq!(news, vec![0]);
+	let world = c.add_folder(&news, "World").unwrap();
+	assert_eq!(world, vec![0, 0]);
+	c.stations_at_mut(&world).unwrap().push(st("w1"));
+	assert!(c.rename_folder(&news, "News 2"));
+	assert_eq!(c.folder_at_mut(&world).unwrap().name, "World");
+	assert_eq!(c.all_stations().len(), 1);
+	assert!(c.remove_folder(&news), "removes the subtree");
+	assert!(c.all_stations().is_empty());
+	assert!(!c.remove_folder(&[9]));
+
+	// Favorites share the same path rules, rooted at the favorites list.
+	let music = lib.add_fav_folder(&[], "Music").unwrap();
+	lib.fav_stations_at_mut(&music)
+		.unwrap()
+		.push(st("f1"));
+	lib.fav_stations_at_mut(&[]).unwrap().push(st("f0"));
+	assert_eq!(lib.all_favorites().len(), 2);
+	assert!(lib.rename_fav_folder(&music, "Tunes"));
+	assert!(lib.remove_fav_folder(&music));
+	assert_eq!(lib.all_favorites().len(), 1, "the root station stays");
+}

@@ -103,6 +103,11 @@ pub const NOTHING_TO_DO: &str = "Nothing to do here";
 pub const PLAY_ITEM: &str = "&Play";
 pub const ADD_TO_COLLECTION_SUB: &str = "Add to &Collection";
 pub const NEW_COLLECTION: &str = "&New Collection…";
+pub const ADD_TO_FAV_FOLDER: &str = "Add to Favorites &Folder";
+pub const MOVE_TO_FOLDER: &str = "Move to &Folder";
+pub const NEW_FOLDER: &str = "New &Folder…";
+pub const NEW_FOLDER_TITLE: &str = "New Folder";
+pub const FOLDER_NAME: &str = "Folder name";
 pub const NEW_COLLECTION_TITLE: &str = "New Collection";
 pub const COLLECTION_NAME: &str = "Collection name";
 pub const DELETE_CUSTOM: &str = "&Delete Custom Station";
@@ -190,10 +195,13 @@ pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
 
 // Feature settings (global and per station).
-pub const FEATURE_SETTINGS: &str = "&Feature Settings…";
-pub const FEATURES_TITLE: &str = "Playback Features";
+pub const FEATURE_SETTINGS: &str = "&Settings…";
+pub const FEATURES_TITLE: &str = "Settings";
 pub const STATION_SETTINGS_ITEM: &str = "&Station Settings…";
 pub const STATION_SETTINGS_TITLE: &str = "Station Settings";
+pub const PLAY_ON_MOVE: &str = "Play a station as I mo&ve to it";
+pub const CLOSE_TO_TRAY: &str = "&Hide to the system tray when closed";
+pub const MAXIMIZE_START: &str = "Ma&ximize the window at startup";
 pub const TS_ENABLE: &str = "&Time-Shift Playback";
 pub const TS_MINUTES: &str = "&Buffer Minutes";
 pub const SEEK_STEP: &str = "&Seek Step (Seconds)";

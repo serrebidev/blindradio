@@ -105,6 +105,11 @@ pub enum TunerEvent {
 		station_id: String,
 		title: Option<String>,
 	},
+	/// The playing stream's format became known (codec, bitrate, rate).
+	Format {
+		station_id: String,
+		format: crate::decode::StreamFormat,
+	},
 	Announce(String),
 	Reconnecting {
 		station_id: String,
@@ -228,6 +233,7 @@ struct Open {
 	serial: u64,
 	ring: Arc<PcmRing>,
 	title: Option<String>,
+	format: Option<crate::decode::StreamFormat>,
 	/// Said `Reconnecting` and has not said `Reconnected` since.
 	reconnecting: bool,
 	_guard: Box<dyn Send>,
@@ -434,6 +440,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.playing.as_ref()
 	}
 
+	/// The playing stream's format, once its decoder has reported it.
+	pub fn format(&self) -> Option<&crate::decode::StreamFormat> {
+		let playing = self.playing.as_ref()?;
+		self.open
+			.iter()
+			.find(|o| o.station.id == playing.id)
+			.and_then(|o| o.format.as_ref())
+	}
+
 	/// The output reopened at a new rate: everything open closes, so the restart after it
 	/// decodes to that rate.
 	pub fn set_rate(&mut self, rate: u32) {
@@ -520,6 +535,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			serial,
 			ring: ring.clone(),
 			title: None,
+			format: None,
 			reconnecting: false,
 			_guard: guard,
 		});
@@ -806,6 +822,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				self.open[i].reconnecting = false;
 				if playing {
 					self.emit(TunerEvent::Reconnected { station_id });
+				}
+			}
+			StreamEvent::Format(format) => {
+				self.open[i].format = Some(format.clone());
+				if playing {
+					self.emit(TunerEvent::Format {
+						station_id,
+						format,
+					});
 				}
 			}
 			StreamEvent::FirstAudio => {}

@@ -484,22 +484,37 @@ impl BrowseModel {
 		let mut kids = Vec::new();
 		for c in lib.collections.iter().filter(|c| c.id != CUSTOM) {
 			let i = self.keep(self.collections, &old, Kind::local(&c.id, &c.name));
-			self.set_stations(i, &c.stations);
+			self.set_contents(i, &c.stations, &c.folders, &c.id);
 			kids.push(i);
 		}
 		self.set_children(self.collections, kids);
 		if let Some(c) = lib.collections.iter().find(|c| c.id == CUSTOM) {
-			self.set_stations(self.custom, &c.stations);
+			self.set_contents(self.custom, &c.stations, &c.folders, &c.id);
 		}
 		self.refocus(&chain);
 	}
 
-	fn set_stations(&mut self, folder: usize, stations: &[Station]) {
+	/// A collection's own stations, then its folders, each folder recursed.
+	/// Folder keys carry the path under the collection id, so a rebuilt
+	/// level finds its old nodes again.
+	fn set_contents(
+		&mut self,
+		folder: usize,
+		stations: &[Station],
+		folders: &[blindradio_core::library::Folder],
+		prefix: &str,
+	) {
 		let old = self.children(Some(folder)).to_vec();
-		let kids = stations
+		let mut kids: Vec<usize> = stations
 			.iter()
 			.map(|st| self.keep(folder, &old, Kind::Station(st.clone())))
 			.collect();
+		for (fi, f) in folders.iter().enumerate() {
+			let key = format!("{prefix}/f{fi}");
+			let i = self.keep(folder, &old, Kind::local(&key, &f.name));
+			self.set_contents(i, &f.stations, &f.folders, &key);
+			kids.push(i);
+		}
 		self.set_children(folder, kids);
 	}
 
@@ -608,13 +623,19 @@ impl BrowseModel {
 	}
 
 	pub fn delete_target(&self, i: usize) -> Delete {
-		if let (Some(st), Some(p)) = (self.station(i), self.items[i].parent)
-			&& (p == self.custom || self.items[p].parent == Some(self.collections))
-		{
-			return Delete::Remove {
-				collection: self.key(p).unwrap_or_default().to_owned(),
-				station: st.id.clone(),
-			};
+		// A station in a folder belongs to the collection above the folder.
+		let Some(st) = self.station(i) else {
+			return Delete::NotOwn;
+		};
+		let mut at = self.items[i].parent;
+		while let Some(p) = at {
+			if p == self.custom || self.items[p].parent == Some(self.collections) {
+				return Delete::Remove {
+					collection: self.key(p).unwrap_or_default().to_owned(),
+					station: st.id.clone(),
+				};
+			}
+			at = self.items[p].parent;
 		}
 		Delete::NotOwn
 	}
@@ -789,7 +810,7 @@ impl View {
 		};
 		let mut a = app.borrow_mut();
 		match dial {
-			Some((stations, k)) => a.tune(&stations, k),
+			Some((stations, k)) => a.focus_station(&stations, k),
 			None => a.selected = None,
 		}
 	}

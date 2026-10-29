@@ -64,12 +64,63 @@ fn decode_err(e: Error) -> CoreError {
 	CoreError::Decode(e.to_string())
 }
 
+/// What the playing stream is, for the status bar: codec, the bitrate the
+/// server declares (ICY `icy-br`; often absent), sample rate and channels.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StreamFormat {
+	pub codec: String,
+	pub bitrate_kbps: Option<u32>,
+	pub sample_rate: u32,
+	pub channels: u32,
+}
+
+impl StreamFormat {
+	/// "MP3, 128 kbps, 44.1 kHz, stereo" — parts drop out when unknown.
+	pub fn describe(&self) -> String {
+		let mut out = self.codec.clone();
+		if let Some(k) = self.bitrate_kbps {
+			out += &format!(", {k} kbps");
+		}
+		if self.sample_rate > 0 {
+			out += &format!(", {} kHz", trim_rate(self.sample_rate));
+		}
+		match self.channels {
+			1 => out += ", mono",
+			2 => out += ", stereo",
+			n if n > 2 => out += &format!(", {n} channels"),
+			_ => {}
+		}
+		out
+	}
+}
+
+fn trim_rate(rate: u32) -> String {
+	let s = format!("{:.1}", rate as f64 / 1000.0);
+	s.strip_suffix(".0").map(str::to_string).unwrap_or(s)
+}
+
+/// The status-bar label for a codec id; unknown ids read as "Audio".
+fn codec_label(id: symphonia::core::codecs::audio::AudioCodecId) -> &'static str {
+	use symphonia::core::codecs::audio::well_known::*;
+	match id {
+		CODEC_ID_MP3 => "MP3",
+		CODEC_ID_AAC => "AAC",
+		CODEC_ID_VORBIS => "Vorbis",
+		CODEC_ID_OPUS => "Opus",
+		CODEC_ID_FLAC => "FLAC",
+		CODEC_ID_ALAC => "ALAC",
+		_ => "Audio",
+	}
+}
+
 pub struct Decoder {
 	format: Box<dyn FormatReader>,
 	codecs: CodecRegistry,
 	decoder: Box<dyn AudioDecoder>,
 	track_id: u32,
 	rate: u32,
+	codec: &'static str,
+	channels: u32,
 	scratch: Vec<f32>,
 	first: Vec<f32>,
 }
@@ -96,13 +147,15 @@ impl Decoder {
 			)
 			.map_err(|_| CoreError::Decode("Unsupported format".into()))?;
 		let codecs = codecs();
-		let (decoder, track_id) = open_track(format.as_ref(), &codecs)?;
+		let (decoder, track_id, codec) = open_track(format.as_ref(), &codecs)?;
 		let mut dec = Decoder {
 			format,
 			codecs,
 			decoder,
 			track_id,
 			rate: 0,
+			codec,
+			channels: 0,
 			scratch: Vec::new(),
 			first: Vec::new(),
 		};
@@ -121,6 +174,16 @@ impl Decoder {
 		self.rate
 	}
 
+	/// The codec label ("MP3", "AAC", …) of the track being decoded.
+	pub fn codec(&self) -> &'static str {
+		self.codec
+	}
+
+	/// Channel count of the audio last produced; 0 before the first buffer.
+	pub fn channels(&self) -> u32 {
+		self.channels
+	}
+
 	/// Appends one packet as interleaved stereo at `sample_rate()`; `false` at end of stream.
 	pub fn next_stereo(&mut self, out: &mut Vec<f32>) -> Result<bool> {
 		if !self.first.is_empty() {
@@ -137,7 +200,8 @@ impl Decoder {
 				}
 				// Chained Ogg (a new logical stream per song on Icecast) needs a fresh decoder.
 				Err(Error::ResetRequired) => {
-					(self.decoder, self.track_id) = open_track(self.format.as_ref(), &self.codecs)?;
+					(self.decoder, self.track_id, self.codec) =
+						open_track(self.format.as_ref(), &self.codecs)?;
 					continue;
 				}
 				// Corrupt live data: the demuxer drops the bad header bytes and resyncs.
@@ -166,6 +230,7 @@ impl Decoder {
 			}
 			self.rate = buf.spec().rate();
 			let channels = buf.spec().channels().count();
+			self.channels = channels as u32;
 			buf.copy_to_vec_interleaved(&mut self.scratch);
 			match channels {
 				1 => out.extend(self.scratch.iter().flat_map(|&s| [s, s])),
@@ -181,7 +246,7 @@ impl Decoder {
 fn open_track(
 	format: &dyn FormatReader,
 	codecs: &CodecRegistry,
-) -> Result<(Box<dyn AudioDecoder>, u32)> {
+) -> Result<(Box<dyn AudioDecoder>, u32, &'static str)> {
 	let track = format
 		.default_track(TrackType::Audio)
 		.ok_or_else(|| CoreError::Decode("no audio track".into()))?;
@@ -190,10 +255,11 @@ fn open_track(
 		.as_ref()
 		.and_then(|p| p.audio())
 		.ok_or_else(|| CoreError::Decode("no audio codec parameters".into()))?;
+	let codec = codec_label(params.codec);
 	let decoder = codecs
 		.make_audio_decoder(params, &AudioDecoderOptions::default())
 		.map_err(decode_err)?;
-	Ok((decoder, track.id))
+	Ok((decoder, track.id, codec))
 }
 
 #[cfg(test)]
@@ -284,6 +350,43 @@ mod tests {
 		}
 		let (_, out) = decode_all(Box::new(std::io::Cursor::new(data)), "aac");
 		assert!(out.len() / 2 > 4 * 44100, "{} frames", out.len() / 2);
+	}
+
+	#[test]
+	fn decoder_reports_codec_channels_and_rate() {
+		let dec = Decoder::new(Box::new(fixture("tone.mp3")), Some("mp3")).unwrap();
+		assert_eq!(dec.codec(), "MP3");
+		assert_eq!(dec.sample_rate(), 44100);
+		assert_eq!(dec.channels(), 2);
+		let dec = Decoder::new(Box::new(fixture("tone.opus")), Some("opus")).unwrap();
+		assert_eq!(dec.codec(), "Opus");
+		let dec = Decoder::new(Box::new(fixture("mono22k.mp3")), Some("mp3")).unwrap();
+		assert_eq!(dec.channels(), 1);
+	}
+
+	#[test]
+	fn format_describe_drops_unknown_parts() {
+		let f = StreamFormat {
+			codec: "MP3".into(),
+			bitrate_kbps: Some(128),
+			sample_rate: 44100,
+			channels: 2,
+		};
+		assert_eq!(f.describe(), "MP3, 128 kbps, 44.1 kHz, stereo");
+		let f = StreamFormat {
+			codec: "AAC".into(),
+			bitrate_kbps: None,
+			sample_rate: 48000,
+			channels: 1,
+		};
+		assert_eq!(f.describe(), "AAC, 48 kHz, mono");
+		let f = StreamFormat {
+			codec: "Audio".into(),
+			bitrate_kbps: None,
+			sample_rate: 0,
+			channels: 0,
+		};
+		assert_eq!(f.describe(), "Audio");
 	}
 
 	fn open_piped(data: &'static [u8]) -> Result<Decoder> {

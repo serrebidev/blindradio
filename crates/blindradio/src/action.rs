@@ -3,15 +3,6 @@
 use blindradio_core::sleep::SLEEP_MINUTES;
 use wxdragon::prelude::{WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_LEFT, WXK_RIGHT, WXK_UP};
 
-/// The File menu's check items.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SettingId {
-	AnnounceTitles,
-	AnnounceStatus,
-	CloseListsWhenPlaying,
-	PlayLastAtStartup,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
 	/// The station focused in the open list, else the playing one.
@@ -51,7 +42,6 @@ pub enum Action {
 	PlayFavorite(usize),
 	/// `None` is the default device.
 	SetDevice(Option<String>),
-	ToggleSetting(SettingId),
 	/// File > Global Hotkeys…: the chord editor.
 	GlobalHotkeys,
 	/// Playback feature settings dialog.

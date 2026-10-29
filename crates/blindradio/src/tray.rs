@@ -94,6 +94,11 @@ pub struct Tray {
 }
 
 impl Tray {
+	/// Takes the icon out of the tray; dropping the handle alone does not.
+	pub fn remove(&self) {
+		self.icon.remove_icon();
+	}
+
 	/// Follows the playing state, the favorites and the now-playing line.
 	pub fn update(&self, app: &App) {
 		let now = (

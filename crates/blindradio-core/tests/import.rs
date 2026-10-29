@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 
 use blindradio_core::import::{
 	ImportReport, ImportTarget, STARTER_COLLECTION, STARTER_PLAYLIST_URL, export_m3u,
-	fetch_playlist, import_playlist, import_starter,
+	export_m3u_tree, fetch_playlist, import_playlist, import_playlist_text, import_starter,
 };
+use blindradio_core::playlist::PlaylistKind;
 use blindradio_core::library::{CUSTOM, Library};
 use blindradio_core::net::client;
 use blindradio_core::store;
@@ -21,8 +22,8 @@ fn fixture(name: &str) -> PathBuf {
 		.join(name)
 }
 
-fn custom(lib: &Library) -> &[blindradio_core::station::Station] {
-	&lib.collections[0].stations
+fn custom(lib: &Library) -> Vec<blindradio_core::station::Station> {
+	lib.collections[0].all_stations()
 }
 
 #[test]
@@ -30,6 +31,10 @@ fn import_custom_reports_counts() {
 	let mut lib = Library::default();
 	let r = import_playlist(&mut lib, &fixture("mixed.m3u"), ImportTarget::Custom).unwrap();
 	assert_eq!(r.message(), "Added 2. Had 0. Skipped 1.");
+	// A file import keeps its name: a "mixed" folder inside Custom Stations.
+	assert!(lib.collections[0].stations.is_empty());
+	assert_eq!(lib.collections[0].folders.len(), 1);
+	assert_eq!(lib.collections[0].folders[0].name, "mixed");
 	let c = custom(&lib);
 	assert_eq!(c.len(), 2);
 	assert_eq!(
@@ -59,6 +64,7 @@ fn import_into_existing_collection_counts_had() {
 	let s = lib.add_custom("Mine", "http://a.example/jazz");
 	lib.toggle_in_collection(&id, &s);
 	let r = import_playlist(&mut lib, &fixture("mixed.m3u"), collection("mixed")).unwrap();
+	// (the Custom copy of Jazz FM sits in its own file folder, not the root list)
 	assert_eq!(r.message(), "Added 1. Had 1. Skipped 1.");
 	assert_eq!(lib.collections.iter().filter(|c| c.id != CUSTOM).count(), 1);
 	let c = lib.collections.iter().find(|c| c.id == id).unwrap();
@@ -74,7 +80,8 @@ fn import_counts_duplicates_and_encodings() {
 	assert_eq!((r.added, r.had, r.skipped), (1, 1, 0));
 	import_playlist(&mut lib, &fixture("bom.m3u8"), ImportTarget::Custom).unwrap();
 	import_playlist(&mut lib, &fixture("latin1.pls"), ImportTarget::Custom).unwrap();
-	let names: Vec<_> = custom(&lib).iter().map(|s| s.name.as_str()).collect();
+	let all = custom(&lib);
+	let names: Vec<_> = all.iter().map(|s| s.name.as_str()).collect();
 	assert_eq!(names, ["One", "Caf\u{e9} Radio", "Radio \u{c9}t\u{e9}"]);
 }
 
@@ -92,7 +99,7 @@ fn export_then_import_round_trip() {
 	lib.add_custom("Caf\u{e9} Radio", "https://b.example/cafe");
 	let dir = tempfile::tempdir().unwrap();
 	let p = dir.path().join("out.m3u");
-	export_m3u(custom(&lib), &p).unwrap();
+	export_m3u(&custom(&lib), &p).unwrap();
 	assert_eq!(
 		std::fs::read_to_string(&p).unwrap(),
 		"#EXTM3U\n#EXTINF:-1,Jazz FM\nhttp://a.example/jazz\n#EXTINF:-1,Caf\u{e9} Radio\nhttps://b.example/cafe\n"
@@ -100,9 +107,126 @@ fn export_then_import_round_trip() {
 	let mut other = Library::default();
 	let r = import_playlist(&mut other, &p, ImportTarget::Custom).unwrap();
 	assert_eq!((r.added, r.had, r.skipped), (2, 0, 0));
-	let a: Vec<_> = custom(&lib).iter().map(|s| (&s.name, &s.url)).collect();
-	let b: Vec<_> = custom(&other).iter().map(|s| (&s.name, &s.url)).collect();
+	let la = custom(&lib);
+	let lb = custom(&other);
+	let a: Vec<_> = la.iter().map(|s| (&s.name, &s.url)).collect();
+	let b: Vec<_> = lb.iter().map(|s| (&s.name, &s.url)).collect();
 	assert_eq!(a, b);
+}
+
+#[test]
+fn import_groups_become_folders_with_carry_forward() {
+	// Brandon's Public Radio shape: group-title only on the first entry of a block;
+	// the block runs until the next tag. Entries before any tag stay at the root.
+	let body = "#EXTM3U\n\
+		#EXTINF:-1,Loose One\nhttp://x.example/loose\n\
+		#EXTINF:-1 group-title=\"AZPM\",AZPM\nhttp://x.example/azpm\n\
+		#EXTINF:-1,AZPM Classical\nhttp://x.example/azpm-classical\n\
+		#EXTINF:-1,AZPM Jazz\nhttp://x.example/azpm-jazz\n\
+		#EXTINF:-1 group-title=\"KCRW\",KCRW\nhttp://x.example/kcrw\n\
+		#EXTINF:-1,News 24\nhttp://x.example/news24\n";
+	let mut lib = Library::default();
+	let r = import_playlist_text(
+		&mut lib,
+		body,
+		Some(PlaylistKind::M3u),
+		collection("Public Radio"),
+	);
+	assert_eq!((r.added, r.had, r.skipped), (6, 0, 0));
+	let c = lib
+		.collections
+		.iter()
+		.find(|c| c.name == "Public Radio")
+		.unwrap();
+	assert_eq!(
+		c.stations.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
+		["Loose One"]
+	);
+	assert_eq!(c.folders.len(), 2);
+	assert_eq!(c.folders[0].name, "AZPM");
+	assert_eq!(
+		c.folders[0]
+			.stations
+			.iter()
+			.map(|s| s.name.as_str())
+			.collect::<Vec<_>>(),
+		["AZPM", "AZPM Classical", "AZPM Jazz"]
+	);
+	assert_eq!(c.folders[1].name, "KCRW");
+	assert_eq!(
+		c.folders[1]
+			.stations
+			.iter()
+			.map(|s| s.name.as_str())
+			.collect::<Vec<_>>(),
+		["KCRW", "News 24"]
+	);
+	// Re-import: everything counts as had, folders are not duplicated.
+	let r = import_playlist_text(
+		&mut lib,
+		body,
+		Some(PlaylistKind::M3u),
+		collection("Public Radio"),
+	);
+	assert_eq!((r.added, r.had), (0, 6));
+	let c = lib
+		.collections
+		.iter()
+		.find(|c| c.name == "Public Radio")
+		.unwrap();
+	assert_eq!(c.folders.len(), 2);
+}
+
+#[test]
+fn custom_folder_import_keeps_playlist_name_and_groups() {
+	let body = "#EXTM3U\n\
+		#EXTINF:-1 group-title=\"News\",World News\nhttp://x.example/news\n\
+		#EXTINF:-1,Sport\nhttp://x.example/sport\n";
+	let mut lib = Library::default();
+	let r = import_playlist_text(
+		&mut lib,
+		body,
+		Some(PlaylistKind::M3u),
+		ImportTarget::CustomFolder("My List".into()),
+	);
+	assert_eq!(r.added, 2);
+	let c = &lib.collections[0];
+	assert!(c.stations.is_empty());
+	assert_eq!(c.folders.len(), 1);
+	let wrap = &c.folders[0];
+	assert_eq!(wrap.name, "My List");
+	assert_eq!(wrap.folders.len(), 1);
+	assert_eq!(wrap.folders[0].name, "News");
+	// "Sport" has no tag of its own: it runs on in the News block.
+	assert_eq!(wrap.folders[0].stations.len(), 2);
+}
+
+#[test]
+fn export_tree_round_trip_rebuilds_folders() {
+	let mut lib = Library::default();
+	let id = lib.create_collection("Mix");
+	let a = lib.add_custom("A", "http://x.example/a");
+	let b = lib.add_custom("B", "http://x.example/b");
+	lib.toggle_in_collection(&id, &a);
+	lib.toggle_in_collection(&id, &b);
+	{
+		let c = lib.collections.iter_mut().find(|c| c.id == id).unwrap();
+		let st = c.stations.remove(1);
+		c.child_mut("News").stations.push(st);
+	}
+	let dir = tempfile::tempdir().unwrap();
+	let p = dir.path().join("tree.m3u");
+	{
+		let c = lib.collections.iter().find(|c| c.id == id).unwrap();
+		export_m3u_tree(&c.stations, &c.folders, &p).unwrap();
+	}
+	let mut other = Library::default();
+	let r = import_playlist(&mut other, &p, collection("Copy")).unwrap();
+	assert_eq!(r.added, 2);
+	let c = other.collections.iter().find(|c| c.name == "Copy").unwrap();
+	assert_eq!(c.stations.len(), 1);
+	assert_eq!(c.folders.len(), 1);
+	assert_eq!(c.folders[0].stations[0].name, "B");
 }
 
 #[test]
@@ -145,8 +269,11 @@ fn starter_imports_all_into_serrebiradio_collection() {
 		.iter()
 		.find(|c| c.name == "SerrebiRadio")
 		.unwrap();
-	assert_eq!(c.stations.len(), 175);
-	let first = &c.stations[0];
+	// Every starter entry carries a group: groups became folders holding all 175.
+	assert_eq!(c.all_stations().len(), 175);
+	assert!(c.stations.is_empty());
+	assert_eq!(c.folders[0].name, "electronic");
+	let first = &c.folders[0].stations[0];
 	assert_eq!(first.name, "SerrebiRadio");
 	assert_eq!(first.url, "http://radio.serrebiradio.com:8000/SerrebiRadio");
 	assert_eq!(first.info.as_deref(), Some("electronic"));

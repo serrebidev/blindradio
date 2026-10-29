@@ -118,10 +118,15 @@ impl StationList {
 		self.quiet.set(false);
 	}
 
-	/// Opening a list or a search landing on it: the focused station plays at once.
+	/// Opening a list or a search landing on it: the focused station plays at
+	/// once, unless Play On Move is off — then it is only the selection.
 	pub fn land(&self, app: &mut App) {
 		if let Some(i) = self.current() {
-			app.tune(&self.stations(), i);
+			if app.settings.play_on_move {
+				app.tune(&self.stations(), i);
+			} else if let Some(station) = self.stations().get(i) {
+				app.selected = Some(station.clone());
+			}
 		}
 	}
 
@@ -136,7 +141,13 @@ impl StationList {
 			}
 			if let Ok(i) = usize::try_from(e.get_item_index()) {
 				let stations = me.stations();
-				a.borrow_mut().tune(&stations, i);
+				let mut app = a.borrow_mut();
+				if app.settings.play_on_move {
+					app.tune(&stations, i);
+				} else if let Some(station) = stations.get(i) {
+					app.selected = Some(station.clone());
+				}
+				drop(app);
 				if let Some(hook) = &on_focus {
 					hook(i);
 				}

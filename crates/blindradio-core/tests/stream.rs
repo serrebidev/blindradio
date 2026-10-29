@@ -70,7 +70,9 @@ fn play(url: &str, ctx: &EngineCtx) -> (StationStream, mpsc::Receiver<StreamEven
 	(s, rx)
 }
 
-/// Collects events until `want` matches or `within` passes; returns everything seen.
+/// Collects events until `want` matches or `within` passes; returns everything
+/// seen. Format reports ride along on every connection and are skipped: no
+/// test here is about them.
 fn events_until(
 	rx: &mpsc::Receiver<StreamEvent>,
 	within: Duration,
@@ -81,6 +83,9 @@ fn events_until(
 	while let Some(left) = end.checked_duration_since(Instant::now()) {
 		match rx.recv_timeout(left) {
 			Ok(e) => {
+				if matches!(e, StreamEvent::Format(_)) {
+					continue;
+				}
 				let done = want(&e);
 				seen.push(e);
 				if done {
@@ -193,7 +198,12 @@ fn stream_reconnects_silently() {
 	std::thread::sleep(Duration::from_secs(7));
 	stop.store(true, Ordering::Relaxed);
 	let longest_dry = consumer.join().unwrap();
-	let events: Vec<_> = rx.try_iter().collect();
+	// Format reports ride along on every connection; they are not noise
+	// this test is about, so they are filtered out like in events_until.
+	let events: Vec<_> = rx
+		.try_iter()
+		.filter(|e| !matches!(e, StreamEvent::Format(_)))
+		.collect();
 	assert!(events.is_empty(), "unexpected events: {events:?}");
 	assert!(
 		longest_dry <= Duration::from_millis(300),
@@ -293,7 +303,10 @@ fn reconnected_fires_once_after_audio_returns() {
 	std::thread::sleep(Duration::from_secs(1));
 	stop.store(true, Ordering::Relaxed);
 	consumer.join().unwrap();
-	seen.extend(rx.try_iter());
+	seen.extend(
+		rx.try_iter()
+			.filter(|e| !matches!(e, StreamEvent::Format(_))),
+	);
 	assert_eq!(seen, [StreamEvent::Reconnecting, StreamEvent::Reconnected]);
 }
 

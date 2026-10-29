@@ -145,6 +145,12 @@ pub struct Settings {
 	pub announce_status: bool,
 	pub close_lists_when_playing: bool,
 	pub play_last_at_startup: bool,
+	/// Moving to a station in a list plays it (dial tuning). Off: only Enter plays.
+	pub play_on_move: bool,
+	/// Closing the window hides it to the tray instead of quitting.
+	pub close_to_tray: bool,
+	/// Start with the main window maximized.
+	pub maximize_on_start: bool,
 	/// None is the default device.
 	pub audio_device: Option<String>,
 	pub volume: f32,
@@ -172,6 +178,9 @@ impl Default for Settings {
 			announce_status: true,
 			close_lists_when_playing: false,
 			play_last_at_startup: false,
+			play_on_move: true,
+			close_to_tray: false,
+			maximize_on_start: false,
 			audio_device: None,
 			volume: 0.8,
 			muted: false,
@@ -249,6 +258,7 @@ mod tests {
 		let s = Settings::default();
 		assert!(s.announce_titles && s.announce_status);
 		assert!(!s.close_lists_when_playing && !s.play_last_at_startup && !s.muted);
+		assert!(s.play_on_move && !s.close_to_tray && !s.maximize_on_start);
 		assert_eq!(s.audio_device, None);
 		assert_eq!(s.volume, 0.8);
 		assert_eq!(

@@ -98,6 +98,18 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let dialog = Dialog::builder(&frame, s::FEATURES_TITLE).build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
+	let ann_titles = check(&dialog, &sizer, s::ANNOUNCE_TITLES, current.announce_titles);
+	let ann_status = check(&dialog, &sizer, s::ANNOUNCE_STATUS, current.announce_status);
+	let close_lists = check(
+		&dialog,
+		&sizer,
+		s::CLOSE_LISTS,
+		current.close_lists_when_playing,
+	);
+	let play_last = check(&dialog, &sizer, s::PLAY_LAST, current.play_last_at_startup);
+	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
+	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
+	let max_start = check(&dialog, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
 	let ts_on = check(&dialog, &sizer, s::TS_ENABLE, current.timeshift.enabled);
 	let ts_minutes = field(
 		&dialog,
@@ -204,6 +216,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		ok.on_click(move |_| {
 			let mut app = a.borrow_mut();
 			let st = &mut app.settings;
+			st.announce_titles = ann_titles.get_value();
+			st.announce_status = ann_status.get_value();
+			st.close_lists_when_playing = close_lists.get_value();
+			st.play_last_at_startup = play_last.get_value();
+			st.play_on_move = play_move.get_value();
+			st.close_to_tray = tray.get_value();
+			st.maximize_on_start = max_start.get_value();
 			st.timeshift.enabled = ts_on.get_value();
 			st.timeshift.minutes = parse_or(&ts_minutes.get_value(), st.timeshift.minutes);
 			st.timeshift.seek_step_seconds =
@@ -236,8 +255,8 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		});
 	}
 
-	ts_on.set_focus();
-	crate::dialogs::run(app, dialog, Action::FeatureSettings, ts_on, &token)
+	ann_titles.set_focus();
+	crate::dialogs::run(app, dialog, Action::FeatureSettings, ann_titles, &token)
 }
 
 /// A tri-state override as a choice index: 0 global, 1 on, 2 off.

@@ -70,13 +70,16 @@ own order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 ## Favorites and recently played
 
-Ctrl+B lists Favorites with Remove, Move Up, Move Down and Export. Ctrl+H lists Recently Played.
+Ctrl+B lists Favorites as a tree: the root list plus folders you make with New Folder, such as
+News, Music or BBC. Remove, Move Up, Move Down and Export work on stations and folders alike,
+and a station's context menu moves it into another folder. Ctrl+H lists Recently Played.
 On the main window, Alt+1 to Alt+0 play favorites one to ten.
 
 ## Importing
 
-Ctrl+I imports a playlist into Custom Stations; Ctrl+Shift+I imports it as a collection named
-after the file. M3U, M3U8 and PLS files are read.
+Ctrl+I imports a playlist into Custom Stations as a folder named after the file; Ctrl+Shift+I
+imports it as a collection named after the file. The playlist's groups become subfolders and
+its order is kept. M3U, M3U8 and PLS files are read.
 
 ## Exporting
 
@@ -90,7 +93,8 @@ with `Not a stream URL` and the window stays open.
 ## Context menu
 
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
-Collection and, for your own station, Delete Custom Station. On a category it says
+Collection, Station Settings and, when you have favorites folders, Add to Favorites Folder.
+For your own station it also offers Delete Custom Station. On a category it says
 `Nothing to do here`.
 
 ## Sound card
@@ -107,10 +111,11 @@ PageUp and PageDown by five. Moving a band by hand makes the preset Custom.
 
 ## Collections
 
-Ctrl+L lists Custom Stations and every collection with its stations. F2 renames a collection,
-Delete deletes it after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, and
-the Applications key adds every station of one collection to another. Ctrl+Shift+L adds the
-playing station to a collection.
+Ctrl+L lists Custom Stations and every collection as a tree, folders included. New Folder
+makes a folder inside the focused one. F2 renames a collection or a folder, Delete deletes it
+after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, a station's context
+menu moves it between folders, and the Applications key on a collection adds every station of
+one collection to another. Ctrl+Shift+L adds the playing station to a collection.
 
 ## Song history
 
@@ -124,8 +129,11 @@ due, playback stops.
 
 ## Settings
 
-File holds Announce Song Titles, Announce Connection Status, Close Lists When Playing and Play
-Last Station at Startup. Each one applies and is saved the moment you toggle it.
+Ctrl+T opens Settings. The General checkboxes are Announce Song Titles, Announce Connection
+Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as I Move to It,
+Hide to the System Tray When Closed, and Maximize the Window at Startup. With Play a Station
+as I Move to It off, moving through a list only selects the station; Enter plays it. The
+time-shift, recording, recognition and scrobbling options live in the same window.
 
 ## When a stream drops
 
@@ -142,12 +150,16 @@ data folder, and an installed copy runs the new installer. BlindRadio restarts b
 ## Tray icon
 
 The app keeps running in the tray. Ctrl+Alt+Shift+Y hides it and shows it again. The tray menu
-plays or stops, plays any favorite, shows the window and exits. Closing the window exits.
+plays or stops, plays any favorite, shows the window and exits. Closing the window exits,
+unless Hide to the System Tray When Closed is set in Settings: then closing hides the window
+and playback continues.
 
 ## Now playing
 
-The title and the now-playing line show `Station` or `Song - Station`. Ctrl+Alt+Shift+N says it
-whatever your announcement settings are.
+The window title is the playing station's name alone. The now-playing line shows `Station` or
+`Station - Song`, with how long it has played and the stream's format, such as
+`MP3, 128 kbps, 44.1 kHz, stereo`. Ctrl+Alt+Shift+N says it whatever your announcement
+settings are.
 
 ## Keyboard shortcuts
 

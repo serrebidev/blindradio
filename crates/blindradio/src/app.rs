@@ -20,7 +20,7 @@ use ship_shape::ui::CheckTrigger;
 use wx_utils::set_menu_item_label;
 use wxdragon::prelude::*;
 
-use crate::action::{Action, SettingId};
+use crate::action::Action;
 use crate::bridge::{Bridge, WindowToken};
 use crate::clipboard;
 use crate::dialogs::browse;
@@ -400,20 +400,10 @@ impl App {
 					}
 				}
 			}
-			Action::ToggleSetting(id) => {
-				let flag = match id {
-					SettingId::AnnounceTitles => &mut self.settings.announce_titles,
-					SettingId::AnnounceStatus => &mut self.settings.announce_status,
-					SettingId::CloseListsWhenPlaying => &mut self.settings.close_lists_when_playing,
-					SettingId::PlayLastAtStartup => &mut self.settings.play_last_at_startup,
-				};
-				*flag = !*flag;
-				self.save_settings();
-			}
 			Action::GetStarter => self.get_starter(false),
 			Action::FocusVolume => self.win.volume.set_focus(),
 			Action::Exit => {
-				self.shutdown();
+				self.prepare_exit();
 				self.win.frame.close(true);
 			}
 			// Windows, menus and the slider arrive in later tasks.
@@ -596,6 +586,19 @@ impl App {
 		let _ = self.engine.ctx.cache.lock().save();
 	}
 
+	/// A real quit: stop everything, remove the tray icon and end the main
+	/// loop once the current event unwinds. Closing the frame alone leaves
+	/// the process in the tray, because the icon outlives its handle.
+	pub fn prepare_exit(&mut self) {
+		self.shutdown();
+		if let Some(tray) = self.tray.take() {
+			tray.remove();
+		}
+		if let Some(wx) = get_app_instance() {
+			wx.exit_main_loop();
+		}
+	}
+
 	fn tuner_event(&mut self, event: TunerEvent) {
 		match event {
 			TunerEvent::Playing { station_id } => {
@@ -612,7 +615,7 @@ impl App {
 				};
 				self.song = title.clone();
 				match &title {
-					Some(song) => self.now_playing(Some(&format!("{song} - {name}"))),
+					Some(song) => self.now_playing(Some(&format!("{name} - {song}"))),
 					None => self.now_playing(Some(&name)),
 				}
 				self.history.station_changed(&station_id);
@@ -624,6 +627,8 @@ impl App {
 			TunerEvent::Failed { name, .. } => {
 				self.say_kind(Kind::Failure, &format!("{}{name}", s::FAILED));
 			}
+			// The status line's per-second tick picks the format up.
+			TunerEvent::Format { .. } => {}
 			// Spec: measure and log warm and cold latency in debug builds.
 			TunerEvent::Latency {
 				station_id,
@@ -697,7 +702,13 @@ impl App {
 	}
 
 	fn show_line(&self, text: &str) {
-		let title = if text.is_empty() { s::APP_NAME } else { text };
+		// The frame title is what a screen reader's title command reads: the
+		// playing station's name alone, never the song or status suffixes.
+		let title = self
+			.tuner
+			.playing()
+			.map(|p| p.name.as_str())
+			.unwrap_or(s::APP_NAME);
 		if self.win.frame.get_title() != title {
 			self.win.frame.set_title(title);
 		}
@@ -733,6 +744,12 @@ impl App {
 		}
 		if self.tuner.is_recording() {
 			line += s::STATUS_RECORDING;
+		}
+		if let Some(format) = self.tuner.format() {
+			let described = format.describe();
+			if !described.is_empty() {
+				line += &format!(" - {described}");
+			}
 		}
 		self.show_line(&line);
 	}
@@ -826,7 +843,7 @@ impl App {
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
 		let stations = dial_collection(&self.library, self.settings.main_list.as_deref())
-			.map(|c| c.stations.clone())
+			.map(|c| c.all_stations())
 			.unwrap_or_default();
 		let list = &self.win.stations;
 		let current = list.current();
@@ -901,6 +918,24 @@ impl App {
 	}
 
 	/// New Collection: an existing name is that collection; the station is added, never removed.
+	/// Focus landed on a station in a list or tree: it plays when Play On
+	/// Move is on, and is only the selection when it is off.
+	pub fn focus_station(&mut self, stations: &[Station], index: usize) {
+		if self.settings.play_on_move {
+			self.tune(stations, index);
+		} else if let Some(station) = stations.get(index) {
+			self.selected = Some(station.clone());
+		}
+	}
+
+	/// Into a favorites folder; says so when it lands.
+	pub fn add_favorite_to(&mut self, path: &[usize], station: &Station) {
+		if self.library.add_favorite_to(path, station) {
+			self.say(s::ADDED_TO_FAVORITES);
+			self.save_library();
+		}
+	}
+
 	pub fn add_to_new_collection(&mut self, name: &str, station: &Station) {
 		let id = self.library.create_collection(name);
 		if !self
@@ -923,22 +958,6 @@ impl App {
 	}
 
 	/// Out of Favorites; the playing station plays on.
-	pub fn remove_favorite(&mut self, index: usize) {
-		let Some(st) = self.library.favorites.get(index).cloned() else {
-			return;
-		};
-		self.library.remove_favorite(&st.id);
-		self.save_library();
-		self.say(s::REMOVED_FROM_FAVORITES);
-	}
-
-	/// Reorders Favorites; the station's new index.
-	pub fn move_favorite(&mut self, index: usize, up: bool) -> usize {
-		let index = self.library.move_favorite(index, up);
-		self.save_library();
-		index
-	}
-
 	/// Add All to Collection: says how many arrived.
 	pub fn add_all(&mut self, from: &str, to: &str) {
 		let n = self.library.add_all_to_collection(from, to);

@@ -39,6 +39,10 @@ pub enum Item {
 	NewCollection,
 	/// Every other collection, id and name (Add All to Collection).
 	AddAllTo(Vec<(String, String)>),
+	/// Every favorites folder: its path and its display name.
+	AddToFavoriteFolder(Vec<(Vec<usize>, String)>),
+	/// Every folder of one collection: its path and its display name.
+	MoveToFolder(Vec<(Vec<usize>, String)>),
 	DeleteCustom,
 	Rename,
 	Delete,
@@ -56,6 +60,10 @@ pub enum Choice {
 	NewCollection,
 	/// Every station of the source collection into the collection with this id.
 	AddAllTo(String),
+	/// Into the favorites folder at this path.
+	AddToFavoriteFolder(Vec<usize>),
+	/// Into the folder at this path of the station's own collection.
+	MoveToFolder(Vec<usize>),
 	DeleteCustom,
 	Rename,
 	Delete,
@@ -74,19 +82,19 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 					lib.collections
 						.iter()
 						.filter(|c| c.id != CUSTOM)
-						.map(|c| {
-							let holds = c.stations.iter().any(|x| x.id == st.id);
-							(c.id.clone(), c.name.clone(), holds)
-						})
+						.map(|c| (c.id.clone(), c.name.clone(), c.contains_id(&st.id)))
 						.collect(),
 				),
 			];
+			if !lib.fav_folders.is_empty() {
+				items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
+			}
 			// Imported stations get `custom:` ids too, so only Custom Stations membership counts.
 			let custom = lib
 				.collections
 				.iter()
 				.find(|c| c.id == CUSTOM)
-				.is_some_and(|c| c.stations.iter().any(|x| x.id == st.id));
+				.is_some_and(|c| c.contains_id(&st.id));
 			if custom {
 				items.push(Item::DeleteCustom);
 			}
@@ -96,6 +104,31 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 		// Add All to Collection joins with the Collections window (Task 6).
 		Target::Collection { custom: true } | Target::Other => Err(s::NOTHING_TO_DO),
 	}
+}
+
+/// Every favorites folder with its path, parents first, names joined.
+pub fn fav_folder_list(lib: &Library) -> Vec<(Vec<usize>, String)> {
+	fn walk(
+		folders: &[blindradio_core::library::Folder],
+		base: &[usize],
+		names: &str,
+		out: &mut Vec<(Vec<usize>, String)>,
+	) {
+		for (i, f) in folders.iter().enumerate() {
+			let mut path = base.to_vec();
+			path.push(i);
+			let label = if names.is_empty() {
+				f.name.clone()
+			} else {
+				format!("{names} / {}", f.name)
+			};
+			out.push((path.clone(), label.clone()));
+			walk(&f.folders, &path, &label, out);
+		}
+	}
+	let mut out = Vec::new();
+	walk(&lib.fav_folders, &[], "", &mut out);
+	out
 }
 
 const FIRST_ID: Id = ID_HIGHEST + 5000;
@@ -204,6 +237,32 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				}
 				menu.append_submenu(sub, s::ADD_ALL_SUB, "");
 			}
+			Item::AddToFavoriteFolder(folders) => {
+				let sub = Menu::builder().build();
+				catch(&sub);
+				for (path, name) in folders {
+					sub.append(
+						add(Choice::AddToFavoriteFolder(path.clone())),
+						&escape(name),
+						"",
+						ItemKind::Normal,
+					);
+				}
+				menu.append_submenu(sub, s::ADD_TO_FAV_FOLDER, "");
+			}
+			Item::MoveToFolder(folders) => {
+				let sub = Menu::builder().build();
+				catch(&sub);
+				for (path, name) in folders {
+					sub.append(
+						add(Choice::MoveToFolder(path.clone())),
+						&escape(name),
+						"",
+						ItemKind::Normal,
+					);
+				}
+				menu.append_submenu(sub, s::MOVE_TO_FOLDER, "");
+			}
 			Item::DeleteCustom => {
 				menu.append(
 					add(Choice::DeleteCustom),
@@ -267,8 +326,11 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 			app.borrow_mut().delete_custom(&station.id);
 			return;
 		}
+		Choice::AddToFavoriteFolder(path) => {
+			return app.borrow_mut().add_favorite_to(&path, station);
+		}
 		// Collection owners handle their own.
-		Choice::Rename | Choice::Delete | Choice::AddAllTo(_) => return,
+		Choice::Rename | Choice::Delete | Choice::AddAllTo(_) | Choice::MoveToFolder(_) => return,
 	};
 	app.borrow_mut().selected = Some(station.clone());
 	dispatch(app, action);
@@ -305,6 +367,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(true),
 				Item::CopyUrl,
+				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), true),
@@ -322,6 +385,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
+				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), false),
@@ -335,6 +399,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
+				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz, "Jazz".into(), false),
 					(news, "News".into(), false),
