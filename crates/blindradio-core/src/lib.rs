@@ -1,4 +1,5 @@
 pub mod decode;
+pub mod encoded_ring;
 pub mod eq;
 pub mod error;
 pub mod history;

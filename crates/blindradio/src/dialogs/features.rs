@@ -117,6 +117,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		s::TS_MINUTES,
 		&current.timeshift.minutes.to_string(),
 	);
+	let ts_ring = check(&dialog, &sizer, s::TS_RING, current.timeshift.encoded_ring);
+	let ts_max_mb = field(
+		&dialog,
+		&sizer,
+		s::TS_MAX_MB,
+		&current.timeshift.max_mb.to_string(),
+	);
 	let seek_step = field(
 		&dialog,
 		&sizer,
@@ -225,6 +232,8 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.maximize_on_start = max_start.get_value();
 			st.timeshift.enabled = ts_on.get_value();
 			st.timeshift.minutes = parse_or(&ts_minutes.get_value(), st.timeshift.minutes);
+			st.timeshift.encoded_ring = ts_ring.get_value();
+			st.timeshift.max_mb = parse_or(&ts_max_mb.get_value(), st.timeshift.max_mb);
 			st.timeshift.seek_step_seconds =
 				parse_or(&seek_step.get_value(), st.timeshift.seek_step_seconds);
 			st.recording.format = FORMATS
