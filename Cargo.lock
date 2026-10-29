@@ -157,7 +157,7 @@ checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
 name = "blindradio"
-version = "0.2.5"
+version = "0.2.8"
 dependencies = [
  "blindradio-core",
  "crossbeam-channel",
@@ -177,7 +177,7 @@ dependencies = [
 
 [[package]]
 name = "blindradio-core"
-version = "0.2.5"
+version = "0.2.8"
 dependencies = [
  "bytes",
  "cpal",
@@ -4007,7 +4007,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.2.5"
+version = "0.2.8"
 dependencies = [
  "minisign",
  "minisign-verify",
