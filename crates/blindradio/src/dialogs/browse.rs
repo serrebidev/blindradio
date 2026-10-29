@@ -1443,8 +1443,10 @@ mod tests {
 		assert_eq!(m.focus(), Some(find(&m, Some(collections), &jazz)));
 		assert!(m.expanded(collections));
 
-		// Closed while a folder was loading: that folder.
-		let dir = open_dir(&mut m);
+		// Closed while a folder was loading: that folder. The Directories
+		// listing is in the carried cache, so opening it fetches nothing.
+		let dir = find(&m, None, "dir");
+		assert_eq!(m.open(dir), None, "directories come from the cache");
 		let rb = load(&mut m, Some(dir), "rb", vec![folder("rb/genre")]);
 		let genre = find(&m, Some(rb), "rb/genre");
 		m.open(genre);
