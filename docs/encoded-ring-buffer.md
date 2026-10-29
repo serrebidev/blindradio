@@ -40,11 +40,15 @@ window next to Buffer Minutes.
   a seek or resume landing before the window, or going live,
   re-primes the window at the target and re-attaches. Reaching the
   window's edge hands back to the live path, as before.
-- Recording from the buffer (last piece, designed): recording while
-  time-shifted starts at the playhead. WAV/MP3/FLAC take the mixer's
-  own shifted frames (what the listener hears), the decode-loop tap
-  yielding while `ShiftStatus` shows a shifted playhead; Original
-  appends ring spans as the cursor passes them, paced by the feed.
+- Recording from the buffer (done): recording while time-shifted
+  starts at the playhead. WAV/MP3/FLAC take the mixer's own shifted
+  frames — what the listener hears, silence while paused — through
+  `MixerCmd::RecordSlot`; Original appends finished ring chunks as
+  the cursor passes them, paced by the feed
+  (`chunks_ended_after_seq`). The stream-side taps yield while
+  `ShiftStatus` shows a shifted playhead, and the `Recorder` itself
+  ignores the wrong write kind, so the paths never mix. Seams at the
+  shifted/live boundary can repeat or drop a fraction of a second.
 
 ## Risks
 

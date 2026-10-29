@@ -12,6 +12,7 @@ use parking_lot::Mutex;
 
 use crate::Result;
 use crate::eq::Eq;
+use crate::record::Recorder;
 use crate::error::CoreError;
 use crate::ring::{CUSHION_MS, PcmRing};
 use crate::settings::EqSettings;
@@ -53,6 +54,10 @@ pub enum MixerCmd {
 	ShiftSeek(i32),
 	/// Returns to the live edge.
 	ShiftLive,
+	/// The active station's recorder slot, in encoded-ring mode: while
+	/// the listener is time-shifted the mixer taps what they hear into
+	/// it, and the stream-side taps yield.
+	RecordSlot(Option<Arc<Mutex<Option<Recorder>>>>),
 }
 
 /// Where the playing ring stands.
@@ -111,6 +116,8 @@ pub struct MixerCore {
 	/// Absolute frame the shifted playback reads next; None is live.
 	shift_cursor: Option<u64>,
 	shift_paused: bool,
+	/// Recorder slot for the ring mode's as-heard tap; see RecordSlot.
+	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 }
 
 impl MixerCore {
@@ -142,6 +149,7 @@ impl MixerCore {
 			shift: None,
 			shift_cursor: None,
 			shift_paused: false,
+			record_slot: None,
 		};
 		m.set_rate(rate);
 		m
@@ -232,6 +240,7 @@ impl MixerCore {
 					status.paused.store(false, Ordering::Relaxed);
 				}
 			}
+			MixerCmd::RecordSlot(slot) => self.record_slot = slot,
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
 			MixerCmd::Mute(muted) => self.muted = muted,
 			MixerCmd::Eq(s) => {
@@ -301,6 +310,17 @@ impl MixerCore {
 						.min(REBUFFER_MAX_MS);
 				}
 			}
+		}
+		// Ring mode records what the listener hears: while shifted, the
+		// shifted audio (silence while paused, so the file's timeline
+		// matches the listening) goes to the recorder; an Original
+		// recorder ignores PCM, and the stream-side taps yield.
+		if shifted
+			&& let Some(slot) = &self.record_slot
+			&& let Some(rec) = slot.lock().as_mut()
+		{
+			let frames = if self.shift_paused { out.len() / 2 } else { got };
+			let _ = rec.write_pcm(&self.a[..frames * 2]);
 		}
 		// Equal-power: the active ring enters as sin, from silence or across a crossfade.
 		for f in 0..got {

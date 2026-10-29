@@ -137,6 +137,41 @@ impl EncodedRing {
 		(out, last)
 	}
 
+	/// The sequence number of the chunk containing `time_ms`.
+	pub fn seq_at(&self, time_ms: u64) -> Option<u64> {
+		let inner = self.inner.lock();
+		inner
+			.chunks
+			.iter()
+			.rev()
+			.find(|c| c.start_ms <= time_ms)
+			.map(|c| c.seq)
+	}
+
+	/// Whole chunks after `seq` that have ENDED by `time_ms` — a chunk
+	/// ends where the next one begins, so the newest chunk never
+	/// qualifies. Returns the bytes and the last sequence included.
+	/// Paces an Original recording to a playhead: finished chunks are
+	/// written exactly once, in order.
+	pub fn chunks_ended_after_seq(&self, seq: u64, time_ms: u64) -> (Vec<u8>, u64) {
+		let inner = self.inner.lock();
+		let mut out = Vec::new();
+		let mut last = seq;
+		let n = inner.chunks.len();
+		for (i, c) in inner.chunks.iter().enumerate() {
+			if c.seq <= seq || i + 1 >= n {
+				continue;
+			}
+			if inner.chunks[i + 1].start_ms <= time_ms {
+				out.extend_from_slice(&c.data);
+				last = c.seq;
+			} else {
+				break;
+			}
+		}
+		(out, last)
+	}
+
 	/// The encoded bytes covering `[from_ms, to_ms)`, whole chunks
 	/// only: every chunk intersecting the range, so the chunk holding
 	/// the end comes along whole. `to_ms` of `u64::MAX` runs to the
@@ -221,6 +256,25 @@ mod tests {
 		let r2 = ring(1000);
 		r2.push(5000, &[1u8; 10]);
 		assert_eq!(r2.serve_from(100), None);
+	}
+
+	#[test]
+	fn chunks_end_only_when_the_next_begins() {
+		let r = ring(1000);
+		r.push(0, &[1u8; 10]);
+		r.push(1000, &[2u8; 10]);
+		r.push(2000, &[3u8; 10]);
+		assert_eq!(r.seq_at(1500), Some(1));
+		assert_eq!(r.seq_at(0), Some(0));
+		// After chunk 0, only chunk 1 has ended by 2500 — chunk 2 is
+		// the newest and never ends.
+		let (bytes, last) = r.chunks_ended_after_seq(0, 2500);
+		assert_eq!(bytes, vec![2u8; 10]);
+		assert_eq!(last, 1);
+		// Nothing new ends by 1500 on a second call.
+		let (bytes, last) = r.chunks_ended_after_seq(last, 1500);
+		assert!(bytes.is_empty());
+		assert_eq!(last, 1);
 	}
 
 	#[test]

@@ -21,7 +21,7 @@ use crate::record::Recorder;
 use crate::resample::Resampler;
 use crate::ring::PcmRing;
 use crate::station::Station;
-use crate::timeshift::ShiftBuffer;
+use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
 /// Side channels on a playing station's audio, registered by station id.
 /// The stream loops re-read their entry per chunk, so attaching or removing
@@ -39,6 +39,18 @@ pub struct Taps {
 	/// the optional encoded ring: the byte pump pushes every clean
 	/// encoded chunk here.
 	pub ring: Option<Arc<RingTap>>,
+	/// The ring mode's shift status, so the recording taps can yield
+	/// to the playhead-paced writers (mixer and replay feed) while the
+	/// listener is time-shifted.
+	pub shift_status: Option<Arc<ShiftStatus>>,
+}
+
+/// True while the listener is time-shifted (cursor in the buffer or
+/// paused), from the status the mixer keeps current.
+fn shifted(status: &Option<Arc<ShiftStatus>>) -> bool {
+	status.as_ref().is_some_and(|s| {
+		s.cursor.load(Ordering::Relaxed) != u64::MAX || s.paused.load(Ordering::Relaxed)
+	})
 }
 
 /// Feeds the encoded ring from the byte pump. Chunks arrive paced by
@@ -582,7 +594,10 @@ async fn pump(
 		for bytes in audio.drain(..) {
 			let t = taps_for(taps, station_id);
 			// An Original-format recording taps the clean encoded bytes here.
+			// In ring mode the replay feed paces those bytes to the
+			// playhead while the listener is shifted; yield then.
 			if let Some(slot) = &t.record
+				&& !shifted(&t.shift_status)
 				&& let Some(rec) = slot.lock().as_mut()
 			{
 				let _ = rec.write_bytes(&bytes);
@@ -677,7 +692,10 @@ fn decode(
 		if let Some(b) = &t.capture {
 			b.push(&out);
 		}
+		// In ring mode the mixer taps the shifted audio while the
+		// listener is time-shifted; yield then.
 		if let Some(slot) = &t.record
+			&& !shifted(&t.shift_status)
 			&& let Some(rec) = slot.lock().as_mut()
 		{
 			let _ = rec.write_pcm(&out);

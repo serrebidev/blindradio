@@ -15,6 +15,7 @@ use parking_lot::Mutex;
 
 use crate::decode::Decoder;
 use crate::encoded_ring::EncodedRing;
+use crate::record::Recorder;
 use crate::resample::Resampler;
 use crate::stream::RingTap;
 use crate::timeshift::{ShiftBuffer, ShiftStatus};
@@ -50,6 +51,7 @@ struct FeedCore {
 	ring: Arc<EncodedRing>,
 	tap: Arc<RingTap>,
 	status: Arc<ShiftStatus>,
+	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 	rate: u32,
 	map: Mutex<WindowMap>,
 	window: Mutex<Arc<ShiftBuffer>>,
@@ -67,6 +69,7 @@ impl RingFeed {
 		ring: Arc<EncodedRing>,
 		tap: Arc<RingTap>,
 		status: Arc<ShiftStatus>,
+		record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 		rate: u32,
 	) -> RingFeed {
 		let feed = RingFeed {
@@ -74,6 +77,7 @@ impl RingFeed {
 				ring,
 				tap,
 				status,
+				record_slot,
 				rate,
 				map: Mutex::new(WindowMap { start_ms: 0, rate }),
 				window: Mutex::new(Arc::new(ShiftBuffer::with_seconds(
@@ -242,9 +246,45 @@ fn feed_loop(core: Arc<FeedCore>, dead: Arc<AtomicBool>, from_ms: u64, window: A
 	let mut resampler = Resampler::new(rate, core.rate);
 	let capacity = WINDOW_SECONDS * core.rate as u64;
 	let (mut pcm, mut out) = (Vec::new(), Vec::new());
+	// Original recordings follow the playhead: the last ring chunk
+	// written to the recorder. None while not recording shifted audio.
+	let mut rec_after: Option<u64> = None;
 	loop {
 		if dead.load(Ordering::Relaxed) {
 			return;
+		}
+		// An Original recording takes the ring chunks the cursor has
+		// passed, finished chunks only, each exactly once. (PCM
+		// formats are tapped in the mixer; their recorders ignore
+		// write_bytes, and an Original recorder ignores the mixer's
+		// PCM, so the two never mix.)
+		if let Some(slot) = &core.record_slot {
+			let cursor = core.status.cursor.load(Ordering::Relaxed);
+			let mut guard = slot.lock();
+			if let Some(rec) = guard.as_mut()
+				&& cursor != u64::MAX
+			{
+				let t = core.map.lock().time_at(cursor);
+				let after = match rec_after {
+					Some(a) => a,
+					None => {
+						// Start at the chunk the playhead sits in; the
+						// sub(1) lets that chunk be written once it
+						// ends (the session's very first chunk is the
+						// one exception — it is skipped).
+						let a = core.ring.seq_at(t).map_or(0, |s| s.saturating_sub(1));
+						rec_after = Some(a);
+						a
+					}
+				};
+				let (bytes, last) = core.ring.chunks_ended_after_seq(after, t);
+				if !bytes.is_empty() {
+					let _ = rec.write_bytes(&bytes);
+					rec_after = Some(last);
+				}
+			} else {
+				rec_after = None;
+			}
 		}
 		// Throttle: never decode far ahead of the mixer's cursor — the
 		// window would slide out from under it. While live (cursor at

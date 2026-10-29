@@ -581,6 +581,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let settings = settings.lock().clone();
 		let rate = self.factory.rate();
 		let mut taps = Taps::default();
+		let slot = Arc::new(Mutex::new(None));
 		let minutes = settings.timeshift_minutes_for(&station.id);
 		let ring_bytes = settings.timeshift_ring_bytes();
 		if minutes > 0 && ring_bytes > 0 {
@@ -591,12 +592,14 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			let tap = Arc::new(crate::stream::RingTap::new(ring.clone()));
 			taps.ring = Some(tap.clone());
 			let status = Arc::new(ShiftStatus::new());
-			let feed = RingFeed::new(ring, tap, status.clone(), rate);
+			let feed = RingFeed::new(ring, tap, status.clone(), Some(slot.clone()), rate);
 			let buffer = feed.window();
 			self.sink.send(MixerCmd::ShiftAttach {
 				buffer: buffer.clone(),
 				status: status.clone(),
 			});
+			self.sink.send(MixerCmd::RecordSlot(Some(slot.clone())));
+			taps.shift_status = Some(status.clone());
 			self.shift = Some((buffer, status));
 			self.ring_feed = Some(feed);
 			self.ring_paused_at = None;
@@ -615,7 +618,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			taps.capture = Some(capture.clone());
 			self.capture = Some(capture);
 		}
-		let slot = Arc::new(Mutex::new(None));
 		taps.record = Some(slot.clone());
 		self.record_slot = Some(slot);
 		self.tap_station = Some(station.id.clone());
@@ -634,6 +636,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			self.factory.clear_taps(&id);
 		}
 		if let Some(feed) = self.ring_feed.take() {
+			self.sink.send(MixerCmd::RecordSlot(None));
 			feed.stop();
 		}
 		self.ring_paused_at = None;
