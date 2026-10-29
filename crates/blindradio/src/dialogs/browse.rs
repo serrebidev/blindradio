@@ -1229,6 +1229,7 @@ mod tests {
 				"Icecast",
 				"SHOUTcast",
 				"Internet-Radio",
+				"laut.fm",
 				"Networks",
 				"Collections",
 				"Custom Stations"

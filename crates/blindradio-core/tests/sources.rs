@@ -35,6 +35,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		icecast: s.base.clone(),
 		shoutcast: s.base.clone(),
 		internet_radio: s.base.clone(),
+		lautfm: s.base.clone(),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -65,6 +66,7 @@ fn roots_in_order() {
 			folder("icecast", "Icecast"),
 			folder("shoutcast", "SHOUTcast"),
 			folder("internet-radio", "Internet-Radio"),
+			folder("lautfm", "laut.fm"),
 			folder("net", "Networks"),
 		]
 	);
@@ -136,6 +138,10 @@ async fn search_includes_new_directories_in_order() {
 			content_type: "text/html".into(),
 			body: br#"<h1>Search results</h1><table><tr><td><a href="/servers/tools/playlistgenerator/?u=https%3A%2F%2Fir.test%2Flive&amp;t=.pls">PLS</a></td><td><h4><a href="/station/new-directory/">New directory Internet-Radio</a></h4><a href="/stations/jazz/">jazz</a></td></tr></table>"#.to_vec(),
 		},
+		json(
+			"/search/stations",
+			r#"{"results":[{"items":[{"station":{"name":"nd","display_name":"New directory laut.fm","stream_url":"https://laut.test/nd","genres":["Pop"],"active":true}}]}]}"#,
+		),
 	]);
 	let found = src.search(&q("New directory")).await;
 	let labels: Vec<_> = found.iter().map(|s| s.source.label()).collect();
@@ -147,7 +153,8 @@ async fn search_includes_new_directories_in_order() {
 			"iHeartRadio",
 			"Icecast",
 			"SHOUTcast",
-			"Internet-Radio"
+			"Internet-Radio",
+			"laut.fm"
 		]
 	);
 }
@@ -192,6 +199,7 @@ async fn filter_only_search_uses_radio_browser() {
 	assert_eq!(s.hits("/yp.xml"), 0);
 	assert_eq!(s.hits("/Search/UpdateSearch"), 0);
 	assert_eq!(s.hits("/search/"), 0);
+	assert_eq!(s.hits("/search/stations"), 0);
 	let sent = s.last_query("/json/stations/search").unwrap();
 	assert!(
 		sent.contains("tag=jazz") && sent.contains("country=France"),

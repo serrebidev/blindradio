@@ -46,3 +46,9 @@ async fn internet_radio_live_browse_and_search() {
 	)
 	.await;
 }
+
+#[tokio::test]
+#[ignore = "network"]
+async fn laut_fm_live_browse_and_search() {
+	check("lautfm", "lautfm/genre/Pop", "jazz", Source::LautFm).await;
+}

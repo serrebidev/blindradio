@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Where a station came from. Ids follow the source: `rb:<uuid>`, `tunein:<guide_id>`,
 /// `iheart:<id>`, `icecast:<url>`, `shoutcast:<id>`, `internet-radio:<slug>`,
-/// `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
+/// `lautfm:<slug>`, `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Source {
 	RadioBrowser,
@@ -11,6 +11,7 @@ pub enum Source {
 	Icecast,
 	Shoutcast,
 	InternetRadio,
+	LautFm,
 	/// A curated network; the string is its display name.
 	Network(String),
 	#[default]
@@ -26,6 +27,7 @@ impl Source {
 			Source::Icecast => "Icecast",
 			Source::Shoutcast => "SHOUTcast",
 			Source::InternetRadio => "Internet-Radio",
+			Source::LautFm => "laut.fm",
 			Source::Network(name) => name,
 			Source::Custom => "Custom",
 		}
@@ -60,6 +62,7 @@ mod tests {
 		assert_eq!(Source::RadioBrowser.label(), "Radio Browser");
 		assert_eq!(Source::TuneIn.label(), "TuneIn");
 		assert_eq!(Source::IHeart.label(), "iHeartRadio");
+		assert_eq!(Source::LautFm.label(), "laut.fm");
 		assert_eq!(Source::Network("BBC".into()).label(), "BBC");
 		assert_eq!(Source::Custom.label(), "Custom");
 	}
@@ -78,6 +81,7 @@ mod json_form_tests {
 			(Source::Icecast, r#""Icecast""#),
 			(Source::Shoutcast, r#""Shoutcast""#),
 			(Source::InternetRadio, r#""InternetRadio""#),
+			(Source::LautFm, r#""LautFm""#),
 			(Source::Network("BBC".into()), r#"{"Network":"BBC"}"#),
 			(Source::Custom, r#""Custom""#),
 		] {

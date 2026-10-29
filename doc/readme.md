@@ -33,37 +33,39 @@ station and plays it.
 Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any. Enter in the
 Name box starts the search; the results replace the list and the first result plays.
 
-Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio
-and the curated networks. Genre, Country and Language filters apply to Radio Browser;
-Icecast also matches Genre when a Name is given. Other directories use the Name box.
-With Name empty, only Radio Browser searches the selected filters. A directory that
+Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
+laut.fm and the curated networks. Genre, Country and Language filters apply to Radio
+Browser; Icecast also matches Genre when a Name is given. Other directories use the Name
+box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
 
 ## Browsing
 
 Ctrl+G opens Browse: Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
-Networks, Collections and Custom
+laut.fm, Networks, Collections and Custom
 Stations. Right opens a folder, Left closes it, and a folder that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
-Stations and By Genre. A listed station may be offline or unavailable in your region.
+Stations and By Genre. laut.fm offers its sixty most popular genres, each listing up to
+250 stations. A listed station may be offline or unavailable in your region.
 
-Networks carries the broadcasters and internet networks, among them 181.fm, .977,
-Big R Radio, Radio Swiss, Sunshine Live, Radio 538, SLAM!, Capital, Heart, Smooth,
-Classic FM, Gold, LBC, Radio X, Planet Radio, Power Hit Radio in Estonia and Lithuania,
-Dance Wave!, PulsRadio, Nightride FM, FRISKY, XLtrax, Radio FG, Power Hitz, WHFF,
-Radio Record, KEXP, WFUV, Radio Paradise, NTS and WFMU.
+Networks carries the broadcasters and internet networks, among them RTÉ, RNZ, Deutsche
+Welle, RFI, ORF, SRF, RAI, RTVE, NPO, NRK, DR, Sveriges Radio, Yle, KCRW, WNYC, MPR,
+181.fm, .977, Big R Radio, Radio Swiss, 1.FM, 101.ru, Sunshine Live, Radio 538, SLAM!,
+Capital, Heart, Smooth, Classic FM, Gold, LBC, Radio X, Planet Radio, Power Hit Radio in
+Estonia and Lithuania, Dance Wave!, PulsRadio, Nightride FM, FRISKY, XLtrax, Radio FG,
+Power Hitz, WHFF, Radio Record, KEXP, WFUV, Radio Paradise, NTS and WFMU.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for
 the other direction. Changing it loads the Radio Browser branches again in the new order.
 
-Icecast and SHOUTcast order by name, bitrate, codec, genre and URL. SHOUTcast also orders
-by listeners, which is what Votes, Clicks and Click trend use for it. A field a directory
-does not publish, or a list where every station is equal, keeps that directory's own
-order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
+Icecast, SHOUTcast and laut.fm order by name, bitrate, codec, genre and URL. SHOUTcast also
+orders by listeners, which is what Votes, Clicks and Click trend use for it. A field a
+directory does not publish, or a list where every station is equal, keeps that directory's
+own order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 ## Favorites and recently played
 

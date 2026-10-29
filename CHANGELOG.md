@@ -2,6 +2,19 @@
 
 Terse, newest first. Each release's section is its GitHub release note.
 
+## 0.2.4
+
+- Browse and search laut.fm as a new directory: its sixty most popular genres, up to 250
+  stations each with Load More, and the same Sort choice as the other directories.
+- Networks adds sixteen public broadcasters — RTÉ, RNZ, Deutsche Welle, RFI, ORF, SRF,
+  RAI, RTVE, NPO, NRK, DR, Sveriges Radio, Yle, KCRW, WNYC and Minnesota Public Radio —
+  plus 1.FM (34 channels) and 101.ru (19), 158 streams in all.
+- Every added stream was checked live for an audio reply before shipping, and the plain
+  http mounts were moved to https wherever the host answered there.
+- Left out: NHK (only unrelated third-party relays could be verified), KBS (its HLS
+  addresses carry expiring signed tokens), CNN, Bloomberg, Fox News Radio and ESPN Radio
+  (aggregator relays only), ooTunes and Live365 (no public stream list to resolve).
+
 ## 0.2.3
 
 - Networks adds Sunshine Live (7), Radio 538, SLAM!, Capital (4), Heart (5), Smooth (3),

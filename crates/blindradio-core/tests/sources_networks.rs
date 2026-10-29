@@ -15,6 +15,22 @@ fn networks_parse_and_order() {
 			"ABC Australia",
 			"Radio France",
 			"Deutschlandfunk",
+			"RTÉ",
+			"RNZ",
+			"Deutsche Welle",
+			"RFI",
+			"ORF",
+			"SRF",
+			"RAI",
+			"RTVE",
+			"NPO",
+			"NRK",
+			"DR",
+			"Sveriges Radio",
+			"Yle",
+			"KCRW",
+			"WNYC",
+			"Minnesota Public Radio",
 			"SomaFM",
 			"Stream Madness",
 			"Radio Paradise",
@@ -47,7 +63,9 @@ fn networks_parse_and_order() {
 			"Nightride FM",
 			"FRISKY",
 			"XLtrax",
-			"Radio FG"
+			"Radio FG",
+			"1.FM",
+			"101.ru"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -122,6 +140,22 @@ fn curated_network_channels_and_search() {
 		("Radio Swiss Jazz", "net:radio-swiss:jazz"),
 		("KEXP", "net:kexp:kexp"),
 		("WFUV", "net:wfuv:wfuv"),
+		("RTÉ Radio 1", "net:rte:radio-1"),
+		("RNZ Concert", "net:rnz:concert"),
+		("RFI Monde", "net:rfi:monde"),
+		("Ö1", "net:orf:oe1"),
+		("SRF 3", "net:srf:3"),
+		("Rai Radio 3", "net:rai:radio-3"),
+		("NPO 3FM", "net:npo:3fm"),
+		("NRK P3", "net:nrk:p3"),
+		("DR P1", "net:dr:p1"),
+		("Sveriges Radio P1", "net:sveriges-radio:p1"),
+		("YleX", "net:yle:ylex"),
+		("KCRW News 24", "net:kcrw:news-24"),
+		("WNYC FM", "net:wnyc:fm"),
+		("MPR News", "net:mpr:news"),
+		("Amsterdam Trance", "net:1fm:amsterdam-trance"),
+		("Smooth Jazz", "net:101ru:ch-31"),
 	] {
 		let found = search(&SearchQuery {
 			name: name.into(),
@@ -162,6 +196,24 @@ fn new_networks_are_complete() {
 		("frisky", 1),
 		("xltrax", 1),
 		("radio-fg", 1),
+		("rte", 4),
+		("rnz", 3),
+		("deutsche-welle", 1),
+		("rfi", 10),
+		("orf", 14),
+		("srf", 6),
+		("rai", 6),
+		("rtve", 2),
+		("npo", 11),
+		("nrk", 10),
+		("dr", 7),
+		("sveriges-radio", 5),
+		("yle", 6),
+		("kcrw", 3),
+		("wnyc", 3),
+		("mpr", 1),
+		("1fm", 34),
+		("101ru", 19),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");
@@ -169,7 +221,12 @@ fn new_networks_are_complete() {
 			let Node::Station(station) = node else {
 				panic!("not a station in {slug}")
 			};
-			assert!(station.url.starts_with("https://"), "{}", station.url);
+			assert!(
+				station.url.starts_with("http://") || station.url.starts_with("https://"),
+				"{}: {}",
+				station.id,
+				station.url
+			);
 			assert!(
 				station.info.as_deref().is_some_and(|info| !info.is_empty()),
 				"{} has no info",

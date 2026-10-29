@@ -1470,6 +1470,654 @@
     ]
   },
   {
+    "name": "RTÉ",
+    "slug": "rte",
+    "stations": [
+      {
+        "slug": "radio-1",
+        "name": "RTÉ Radio 1",
+        "url": "https://icecast.rte.ie/radio1",
+        "info": "MP3 160k"
+      },
+      {
+        "slug": "2fm",
+        "name": "RTÉ 2FM",
+        "url": "https://icecast.rte.ie/2fm",
+        "info": "MP3 160k"
+      },
+      {
+        "slug": "lyric-fm",
+        "name": "RTÉ lyric fm",
+        "url": "https://icecast.rte.ie/lyric",
+        "info": "MP3 160k"
+      },
+      {
+        "slug": "raidio-na-gaeltachta",
+        "name": "RTÉ Raidió na Gaeltachta",
+        "url": "https://icecast.rte.ie/rnag",
+        "info": "MP3 160k"
+      }
+    ]
+  },
+  {
+    "name": "RNZ",
+    "slug": "rnz",
+    "stations": [
+      {
+        "slug": "national",
+        "name": "RNZ National",
+        "url": "http://radionz-ice.streamguys.com/national.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "concert",
+        "name": "RNZ Concert",
+        "url": "http://radionz-ice.streamguys.com/concert.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "pacific",
+        "name": "RNZ Pacific",
+        "url": "http://radionz-ice.streamguys.com/international.mp3",
+        "info": "MP3 64k"
+      }
+    ]
+  },
+  {
+    "name": "Deutsche Welle",
+    "slug": "deutsche-welle",
+    "stations": [
+      {
+        "slug": "radio",
+        "name": "Deutsche Welle Radio",
+        "url": "https://dw.audiostream.io/dw/1027/mp3/64/dw08",
+        "info": "MP3 64k"
+      }
+    ]
+  },
+  {
+    "name": "RFI",
+    "slug": "rfi",
+    "stations": [
+      {
+        "slug": "monde",
+        "name": "RFI Monde",
+        "url": "http://live02.rfi.fr/rfimonde-64.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "afrique",
+        "name": "RFI Afrique",
+        "url": "http://live02.rfi.fr/rfiafrique-64.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "anglais",
+        "name": "RFI English",
+        "url": "http://live02.rfi.fr/rfienanglais-64.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "musique",
+        "name": "RFI Musique",
+        "url": "http://live02.rfi.fr/rfimusiquemonde-96k.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "portugais",
+        "name": "RFI Português",
+        "url": "https://rfienportugais64k.ice.infomaniak.ch/rfienportugais-64.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "russe",
+        "name": "RFI Russe",
+        "url": "http://live02.rfi.fr/rfienrusse-64.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "chinese",
+        "name": "RFI Chinois",
+        "url": "https://rfienchinois64k.ice.infomaniak.ch/rfienchinois-64.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "persian",
+        "name": "RFI Persian",
+        "url": "http://live02.rfi.fr/rfienpersan-64k.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "vietnamien",
+        "name": "RFI Tiếng Việt",
+        "url": "http://live02.rfi.fr/rfivietnamien-96k.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "kiswahili",
+        "name": "RFI Kiswahili",
+        "url": "https://rfiswahili96k.ice.infomaniak.ch/rfiswahili-96k.mp3",
+        "info": "MP3 96k"
+      }
+    ]
+  },
+  {
+    "name": "ORF",
+    "slug": "orf",
+    "stations": [
+      {
+        "slug": "oe1",
+        "name": "Ö1",
+        "url": "https://orf-live.ors-shoutcast.at/oe1-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "oe3",
+        "name": "Hitradio Ö3",
+        "url": "https://orf-live.ors-shoutcast.at/oe3-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "fm4",
+        "name": "FM4",
+        "url": "https://orf-live.ors-shoutcast.at/fm4-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "radio-wien",
+        "name": "Radio Wien",
+        "url": "https://orf-live.ors-shoutcast.at/wie-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "niederoesterreich",
+        "name": "Radio Niederösterreich",
+        "url": "https://orf-live.ors-shoutcast.at/noe-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "oberoesterreich",
+        "name": "Radio Oberösterreich",
+        "url": "https://orf-live.ors-shoutcast.at/ooe-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "salzburg",
+        "name": "Radio Salzburg",
+        "url": "https://orf-live.ors-shoutcast.at/sbg-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "steiermark",
+        "name": "Radio Steiermark",
+        "url": "https://orf-live.ors-shoutcast.at/stm-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "kaernten",
+        "name": "Radio Kärnten",
+        "url": "https://orf-live.ors-shoutcast.at/ktn-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "tirol",
+        "name": "Radio Tirol",
+        "url": "https://orf-live.ors-shoutcast.at/tir-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "vorarlberg",
+        "name": "Radio Vorarlberg",
+        "url": "https://orf-live.ors-shoutcast.at/vbg-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "burgenland",
+        "name": "Radio Burgenland",
+        "url": "https://orf-live.ors-shoutcast.at/bgl-q1a",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "slovenski",
+        "name": "ORF Slovenski spored",
+        "url": "https://ors-sn03.ors-shoutcast.at/slo-q2a",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "oe1-campus",
+        "name": "Ö1 Campus",
+        "url": "https://orf-live.ors-shoutcast.at/campus-q2a",
+        "info": "MP3 192k"
+      }
+    ]
+  },
+  {
+    "name": "SRF",
+    "slug": "srf",
+    "stations": [
+      {
+        "slug": "1",
+        "name": "SRF 1",
+        "url": "https://stream.srg-ssr.ch/m/drs1/mp3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "2-kultur",
+        "name": "SRF 2 Kultur",
+        "url": "https://stream.srg-ssr.ch/srgssr/srf2/mp3/128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "3",
+        "name": "SRF 3",
+        "url": "https://stream.srg-ssr.ch/m/drs3/mp3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "4-news",
+        "name": "SRF 4 News",
+        "url": "https://stream.srg-ssr.ch/m/drs4news/mp3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "virus",
+        "name": "SRF Virus",
+        "url": "https://stream.srg-ssr.ch/srgssr/srfvirus/mp3/128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "musikwelle",
+        "name": "SRF Musikwelle",
+        "url": "https://stream.srg-ssr.ch/srgssr/srfmw/mp3/128",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "RAI",
+    "slug": "rai",
+    "stations": [
+      {
+        "slug": "radio-1",
+        "name": "Rai Radio 1",
+        "url": "https://icestreaming.rai.it/1.mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "radio-2",
+        "name": "Rai Radio 2",
+        "url": "https://icestreaming.rai.it/2.mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "radio-3",
+        "name": "Rai Radio 3",
+        "url": "https://icestreaming.rai.it/3.mp3",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "techete",
+        "name": "Rai Radio Techetè",
+        "url": "https://icestreaming.rai.it/9.mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "kids",
+        "name": "Rai Radio Kids",
+        "url": "https://icestreaming.rai.it/11.mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "live",
+        "name": "Rai Radio Live",
+        "url": "https://icestreaming.rai.it/10.mp3",
+        "info": "MP3 256k"
+      }
+    ]
+  },
+  {
+    "name": "RTVE",
+    "slug": "rtve",
+    "stations": [
+      {
+        "slug": "radio-nacional",
+        "name": "Radio Nacional de España",
+        "url": "https://dispatcher.rndfnk.com/crtve/rne1/mad/mp3/high",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-5",
+        "name": "Radio 5",
+        "url": "https://dispatcher.rndfnk.com/crtve/rne5/mad/mp3/high",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "NPO",
+    "slug": "npo",
+    "stations": [
+      {
+        "slug": "radio-1",
+        "name": "NPO Radio 1",
+        "url": "https://icecast.omroep.nl/radio1-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "radio-2",
+        "name": "NPO Radio 2",
+        "url": "https://icecast.omroep.nl/radio2-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "3fm",
+        "name": "NPO 3FM",
+        "url": "https://icecast.omroep.nl/3fm-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "radio-4",
+        "name": "NPO Radio 4",
+        "url": "https://icecast.omroep.nl/radio4-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "radio-5",
+        "name": "NPO Radio 5",
+        "url": "https://icecast.omroep.nl/radio5-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "blend",
+        "name": "NPO Blend",
+        "url": "https://icecast.omroep.nl/npoblend-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "funx",
+        "name": "NPO FunX",
+        "url": "https://icecast.omroep.nl/funx-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "funx-dance",
+        "name": "NPO FunX Dance",
+        "url": "https://icecast.omroep.nl/funx-dancefb-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "funx-hip-hop",
+        "name": "NPO FunX Hip Hop",
+        "url": "https://icecast.omroep.nl/funx-hiphopfb-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "funx-latin",
+        "name": "NPO FunX Latin",
+        "url": "https://icecast.omroep.nl/funx-latinfb-bb-mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "funx-reggae",
+        "name": "NPO FunX Reggae",
+        "url": "https://icecast.omroep.nl/funx-reggaefb-bb-mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "NRK",
+    "slug": "nrk",
+    "stations": [
+      {
+        "slug": "p1",
+        "name": "NRK P1",
+        "url": "https://cdn0-47115-liveicecast0.dna.contentdelivery.net/p1_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "p2",
+        "name": "NRK P2",
+        "url": "https://lyd.nrk.no/nrk_radio_p2_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "p3",
+        "name": "NRK P3",
+        "url": "https://lyd.nrk.no/nrk_radio_p3_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "p1-plus",
+        "name": "NRK P1+",
+        "url": "https://lyd.nrk.no/nrk_radio_p1pluss_mp3_h?_hdr=0",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "klassisk",
+        "name": "NRK Klassisk",
+        "url": "https://lyd.nrk.no/nrk_radio_klassisk_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "nyheter",
+        "name": "NRK Nyheter",
+        "url": "https://cdn0-47115-liveicecast0.dna.contentdelivery.net/nyheter_aac_h",
+        "info": "AAC 159k"
+      },
+      {
+        "slug": "sport",
+        "name": "NRK Sport",
+        "url": "https://lyd.nrk.no/nrk_radio_sport_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "sapmi",
+        "name": "NRK Sápmi",
+        "url": "https://cdn0-47115-liveicecast0.dna.contentdelivery.net/sapmi_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "folkemusikk",
+        "name": "NRK Folkemusikk",
+        "url": "https://lyd.nrk.no/nrk_radio_folkemusikk_mp3_h",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "jazz",
+        "name": "NRK Jazz",
+        "url": "https://lyd.nrk.no/nrk_radio_jazz_mp3_h",
+        "info": "MP3 192k"
+      }
+    ]
+  },
+  {
+    "name": "DR",
+    "slug": "dr",
+    "stations": [
+      {
+        "slug": "p1",
+        "name": "DR P1",
+        "url": "https://live-icy.gss.dr.dk/A/A03H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p2",
+        "name": "DR P2",
+        "url": "https://live-icy.dr.dk/A/A04H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p3",
+        "name": "DR P3",
+        "url": "https://live-icy.dr.dk/A/A05H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p4-koebenhavn",
+        "name": "DR P4 København",
+        "url": "https://live-icy.dr.dk/A/A08H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p5",
+        "name": "DR P5",
+        "url": "https://live-icy.dr.dk/A/A25H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p6-beat",
+        "name": "DR P6 Beat",
+        "url": "https://live-icy.dr.dk/A/A29H.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "p8-jazz",
+        "name": "DR P8 Jazz",
+        "url": "https://live-icy.dr.dk/A/A22H.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Sveriges Radio",
+    "slug": "sveriges-radio",
+    "stations": [
+      {
+        "slug": "p1",
+        "name": "Sveriges Radio P1",
+        "url": "https://live1.sr.se/p1-aac-320",
+        "info": "AAC 320k"
+      },
+      {
+        "slug": "p2",
+        "name": "Sveriges Radio P2",
+        "url": "https://live1.sr.se/p2-aac-320",
+        "info": "AAC 312k"
+      },
+      {
+        "slug": "p3",
+        "name": "Sveriges Radio P3",
+        "url": "https://live1.sr.se/p3-aac-320",
+        "info": "AAC 312k"
+      },
+      {
+        "slug": "p4-plus",
+        "name": "Sveriges Radio P4 Plus",
+        "url": "https://live1.sr.se/p4plus-aac-320",
+        "info": "AAC 304k"
+      },
+      {
+        "slug": "p6",
+        "name": "Sveriges Radio P6",
+        "url": "https://live1.sr.se/p6-aac-320",
+        "info": "AAC 312k"
+      }
+    ]
+  },
+  {
+    "name": "Yle",
+    "slug": "yle",
+    "stations": [
+      {
+        "slug": "radio-1",
+        "name": "Yle Radio 1",
+        "url": "https://icecast.live.yle.fi/radio/YleRadio1Hifi/icecast.audio",
+        "info": "AAC"
+      },
+      {
+        "slug": "ylex",
+        "name": "YleX",
+        "url": "https://icecast.live.yle.fi/radio/YleX/icecast.audio",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-suomi",
+        "name": "Yle Radio Suomi",
+        "url": "https://icecast.live.yle.fi/radio/YleRS/icecast.audio",
+        "info": "AAC"
+      },
+      {
+        "slug": "klassinen",
+        "name": "Yle Klassinen",
+        "url": "https://icecast.live.yle.fi/radio/YleKlassinen/icecast.audio",
+        "info": "AAC"
+      },
+      {
+        "slug": "x3m",
+        "name": "YLE X3M",
+        "url": "https://icecast.live.yle.fi/radio/YleX3M/icecast.audio",
+        "info": "AAC"
+      },
+      {
+        "slug": "sami",
+        "name": "Yle Sámi Radio",
+        "url": "https://icecast.live.yle.fi/radio/YleSami/icecast.audio",
+        "info": "AAC"
+      }
+    ]
+  },
+  {
+    "name": "KCRW",
+    "slug": "kcrw",
+    "stations": [
+      {
+        "slug": "live",
+        "name": "KCRW 89.9 FM",
+        "url": "https://streams.kcrw.com/kcrw_mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "eclectic-24",
+        "name": "KCRW Eclectic 24",
+        "url": "https://streams.kcrw.com/e24_mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "news-24",
+        "name": "KCRW News 24",
+        "url": "https://streams.kcrw.com/news24_mp3",
+        "info": "MP3 192k"
+      }
+    ]
+  },
+  {
+    "name": "WNYC",
+    "slug": "wnyc",
+    "stations": [
+      {
+        "slug": "fm",
+        "name": "WNYC FM",
+        "url": "https://fm939.wnyc.org/wnycfm-web",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "wqxr",
+        "name": "WQXR",
+        "url": "https://stream.wqxr.org/wqxr",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "operavore",
+        "name": "WNYC Operavore",
+        "url": "https://opera-stream.wqxr.org/operavore.aac",
+        "info": "AAC 47k"
+      }
+    ]
+  },
+  {
+    "name": "Minnesota Public Radio",
+    "slug": "mpr",
+    "stations": [
+      {
+        "slug": "news",
+        "name": "MPR News",
+        "url": "https://nis.stream.publicradio.org/nis.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
     "name": "SomaFM",
     "slug": "somafm",
     "stations": [
@@ -4223,6 +4871,336 @@
         "name": "Radio FG",
         "url": "https://radiofg.impek.com/fg",
         "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "1.FM",
+    "slug": "1fm",
+    "stations": [
+      {
+        "slug": "a-list-80s",
+        "name": "A List 80s",
+        "url": "https://strm112.1.fm/back280s_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "absolute-country-hits",
+        "name": "Absolute Country Hits",
+        "url": "https://strm112.1.fm/acountry_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "absolute-pop-latino",
+        "name": "Absolute Pop Latino",
+        "url": "https://strm112.1.fm/latino_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "absolute-top-40",
+        "name": "Absolute TOP 40",
+        "url": "https://strm112.1.fm/top40_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "absolute-trance-euro",
+        "name": "Absolute Trance (Euro)",
+        "url": "https://strm112.1.fm/trance_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "adore-jazz",
+        "name": "Adore Jazz",
+        "url": "https://strm112.1.fm/ajazz_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "alternative-rock-x-hits",
+        "name": "Alternative Rock X Hits",
+        "url": "https://strm112.1.fm/x_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "ambient-psychill",
+        "name": "Ambient Psychill",
+        "url": "https://strm112.1.fm/ambientpsy_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "americas-best-ballads",
+        "name": "America's Best Ballads",
+        "url": "https://strm112.1.fm/onelive_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "amsterdam-trance",
+        "name": "Amsterdam Trance",
+        "url": "https://strm112.1.fm/atr_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "bom-psytrance",
+        "name": "BOM Psytrance",
+        "url": "https://strm112.1.fm/psytrance_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "back-to-the-50s-and-60s",
+        "name": "Back To The 50's & 60's",
+        "url": "https://strm112.1.fm/60s_70s_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "bay-smooth-jazz",
+        "name": "Bay Smooth Jazz",
+        "url": "https://strm112.1.fm/smoothjazz_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "blues",
+        "name": "Blues",
+        "url": "https://strm112.1.fm/blues_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "bombay-beats-india",
+        "name": "Bombay Beats India",
+        "url": "https://strm112.1.fm/bombaybeats_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "bossa-nova-hits",
+        "name": "Bossa Nova Hits",
+        "url": "https://strm112.1.fm/bossanova_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "cafe",
+        "name": "Cafe",
+        "url": "https://strm112.1.fm/caferadio_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "chillout-lounge",
+        "name": "Chillout Lounge",
+        "url": "https://strm112.1.fm/chilloutlounge_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "classic-country",
+        "name": "Classic Country",
+        "url": "https://strm112.1.fm/ccountry_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "classic-rock-replay",
+        "name": "Classic Rock Replay",
+        "url": "https://strm112.1.fm/crock_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "country-one",
+        "name": "Country One",
+        "url": "https://strm112.1.fm/country_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "dance-one",
+        "name": "Dance One",
+        "url": "https://strm112.1.fm/dance_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "deep-house",
+        "name": "Deep House",
+        "url": "https://strm112.1.fm/deephouse_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "deep-techno-and-deep-house",
+        "name": "Deep Techno & Deep House",
+        "url": "https://strm112.1.fm/deeptech_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "disco-ball-70s-80s",
+        "name": "Disco Ball 70's-80's",
+        "url": "https://strm112.1.fm/disco_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "gorilla-fm",
+        "name": "Gorilla FM",
+        "url": "https://strm112.1.fm/gorillafm_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "high-voltage",
+        "name": "High Voltage",
+        "url": "https://strm112.1.fm/highvoltage_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "ibiza-chill-tropical",
+        "name": "Ibiza Chill Tropical",
+        "url": "https://strm112.1.fm/ibizachill_mobile_mp3?aw_0_req.gdpr=true",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "love-classics",
+        "name": "Love Classics",
+        "url": "https://strm112.1.fm/loveclassics_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "movie-soundtrack",
+        "name": "Movie Soundtrack",
+        "url": "https://strm112.1.fm/moviesoundtracks_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "ottos-baroque-music",
+        "name": "Otto's Baroque Music",
+        "url": "https://strm112.1.fm/baroque_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "ottos-opera-house-music",
+        "name": "Otto's Opera House Music",
+        "url": "https://strm112.1.fm/opera_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "reggaetrade",
+        "name": "ReggaeTrade",
+        "url": "https://strm112.1.fm/reggae_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "rock-classics",
+        "name": "Rock Classics",
+        "url": "https://strm112.1.fm/rockclassics_mobile_mp3",
+        "info": "MP3 256k"
+      }
+    ]
+  },
+  {
+    "name": "101.ru",
+    "slug": "101ru",
+    "stations": [
+      {
+        "slug": "ch-24",
+        "name": "Chillout",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/24",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-173",
+        "name": "Deep House",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/173",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-13",
+        "name": "Progressive House",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/13",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-196",
+        "name": "Romantika. Прикосновение",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/196",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-17",
+        "name": "Russian Dance",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/17",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-31",
+        "name": "Smooth Jazz",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/31",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-19",
+        "name": "Trance",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/19",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-20",
+        "name": "Анекдоты",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/20",
+        "info": "MP3"
+      },
+      {
+        "slug": "ch-475",
+        "name": "Музыка для автомобиля",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/475",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-470",
+        "name": "Музыка для вечера",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/470",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-265",
+        "name": "Музыка для выходного дня",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/265",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-264",
+        "name": "Музыка для дома",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/264",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-462",
+        "name": "Музыка для малышей",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/462",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-461",
+        "name": "Музыка для медитации",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/461",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-267",
+        "name": "Музыка для офиса",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/267",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-266",
+        "name": "Музыка для прогулок",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/266",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-263",
+        "name": "Наедине с природой",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/263",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ch-788",
+        "name": "Релакс-Каверы",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/788",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "ch-791",
+        "name": "Релакс-Лаунж",
+        "url": "https://srv01.gpmradio.ru/stream/trust/mp3/128/791",
+        "info": "MP3 128k"
       }
     ]
   }

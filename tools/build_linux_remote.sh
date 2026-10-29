@@ -32,6 +32,9 @@ ssh "$host" "cd $remote/src/blindradio && timeout 15 xvfb-run -a ./target/dist/B
 	code=\$?; if [ \$code -ne 124 ]; then echo \"AppImage exited with \$code\"; exit 1; fi"
 
 echo "copying the assets back"
-scp -q "$host:$remote/src/blindradio/target/dist/BlindRadio.AppImage" "$dist/"
-scp -q "$host:$remote/src/blindradio/target/dist/BlindRadio.tar.gz" "$dist/"
+(
+	cd "$dist"
+	scp -q "$host:$remote/src/blindradio/target/dist/BlindRadio.AppImage" .
+	scp -q "$host:$remote/src/blindradio/target/dist/BlindRadio.tar.gz" .
+)
 echo "Linux assets are in $dist"
