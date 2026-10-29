@@ -143,15 +143,34 @@ jobs:
       - name: Find the VC++ runtime redist
         shell: pwsh
         run: |
-          $found = foreach ($root in Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\2022" -Directory -ErrorAction SilentlyContinue) {
-            foreach ($ver in Get-ChildItem (Join-Path $root.FullName "VC\Redist\MSVC") -Directory -ErrorAction SilentlyContinue) {
-              $dll = Join-Path $ver.FullName "x64\Microsoft.VC143.CRT\msvcp140.dll"
-              if (Test-Path $dll) { Get-Item $dll }
-            }
+          $need = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+          function Test-CrtDir($dir) {
+            if (-not $dir) { return $false }
+            foreach ($dll in $need) { if (-not (Test-Path (Join-Path $dir $dll))) { return $false } }
+            return $true
           }
-          $crt = $found | Sort-Object FullName | Select-Object -Last 1
-          if (-not $crt) { throw "VC++ runtime redist not found on this runner" }
-          "VC_REDIST_DIR=$($crt.DirectoryName)" >> $env:GITHUB_ENV
+          $dir = $null
+          # Route 1: the newest VS install's redist tree, any version year.
+          $roots = @()
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $roots += & $vswhere -latest -products * -property installationPath
+          }
+          foreach ($base in @("C:\Program Files\Microsoft Visual Studio", "C:\Program Files (x86)\Microsoft Visual Studio")) {
+            if (Test-Path $base) { $roots += Get-ChildItem $base -Directory | ForEach-Object { Get-ChildItem $_.FullName -Directory -ErrorAction SilentlyContinue } | ForEach-Object { $_.FullName } }
+          }
+          foreach ($root in ($roots | Select-Object -Unique)) {
+            $redist = Join-Path $root "VC\Redist\MSVC"
+            if (-not (Test-Path $redist)) { continue }
+            $hit = Get-ChildItem $redist -Recurse -Filter "msvcp140.dll" -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match "x64" } | Sort-Object FullName | Select-Object -Last 1
+            if ($hit -and (Test-CrtDir $hit.DirectoryName)) { $dir = $hit.DirectoryName; break }
+          }
+          # Route 2: the installed redistributable in System32.
+          if (-not $dir -and (Test-CrtDir "C:\Windows\System32")) { $dir = "C:\Windows\System32" }
+          if (-not $dir) { throw "VC++ runtime redist not found on this runner" }
+          Write-Host "VC_REDIST_DIR=$dir"
+          "VC_REDIST_DIR=$dir" >> $env:GITHUB_ENV
 
       - name: Make sure Inno Setup is available
         shell: pwsh
