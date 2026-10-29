@@ -195,7 +195,7 @@ pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
 
 // Feature settings (global and per station).
-pub const FEATURE_SETTINGS: &str = "&Settings…";
+pub const FEATURE_SETTINGS: &str = "Settin&gs…";
 pub const FEATURES_TITLE: &str = "Settings";
 pub const STATION_SETTINGS_ITEM: &str = "&Station Settings…";
 pub const STATION_SETTINGS_TITLE: &str = "Station Settings";
