@@ -8,7 +8,10 @@ pub mod library;
 pub mod net;
 pub mod output;
 pub mod playlist;
+pub mod recognize;
+pub mod record;
 pub mod resample;
+pub mod scrobble;
 pub mod ring;
 pub mod settings;
 pub mod sleep;
@@ -16,6 +19,7 @@ pub mod sources;
 pub mod station;
 pub mod store;
 pub mod stream;
+pub mod timeshift;
 pub mod tuner;
 
 pub use error::{CoreError, Result};
@@ -54,6 +58,7 @@ impl Engine {
 			rt: rt.handle().clone(),
 			client: net::client(),
 			cache: Arc::new(parking_lot::Mutex::new(net::ResolveCache::load(cache_path))),
+			taps: Default::default(),
 			out_rate,
 			retry_window: Duration::from_secs(60),
 		};

@@ -32,6 +32,114 @@ pub struct EqSettings {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
+pub struct TimeshiftSettings {
+	pub enabled: bool,
+	/// How much audio to keep behind live, per station unless overridden.
+	pub minutes: u32,
+	/// Seconds one seek action moves.
+	pub seek_step_seconds: u32,
+}
+
+impl Default for TimeshiftSettings {
+	fn default() -> Self {
+		TimeshiftSettings {
+			enabled: true,
+			minutes: 30,
+			seek_step_seconds: 15,
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecordFormat {
+	/// The stream's own encoded bytes, untouched.
+	#[default]
+	Original,
+	Wav,
+	Mp3,
+	Flac,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RecordSettings {
+	pub format: RecordFormat,
+	/// Constant bitrate for MP3 recording when vbr is off.
+	pub mp3_bitrate_kbps: u32,
+	pub mp3_vbr: bool,
+	/// None is the app's default recordings folder.
+	pub dir: Option<String>,
+}
+
+impl Default for RecordSettings {
+	fn default() -> Self {
+		RecordSettings {
+			format: RecordFormat::Original,
+			mp3_bitrate_kbps: 192,
+			mp3_vbr: false,
+			dir: None,
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecognitionProvider {
+	/// Stream metadata only (ICY / ID3); no network calls.
+	#[default]
+	Metadata,
+	/// AudD song recognition; needs audd_token.
+	Audd,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RecognitionSettings {
+	pub enabled: bool,
+	pub provider: RecognitionProvider,
+	pub audd_token: Option<String>,
+	/// Skip recognition while the stream itself supplies titles.
+	pub only_when_no_metadata: bool,
+	/// Speak each newly recognized song.
+	pub announce: bool,
+}
+
+impl Default for RecognitionSettings {
+	fn default() -> Self {
+		RecognitionSettings {
+			enabled: false,
+			provider: RecognitionProvider::Metadata,
+			audd_token: None,
+			only_when_no_metadata: true,
+			announce: true,
+		}
+	}
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScrobbleSettings {
+	pub enabled: bool,
+	pub listenbrainz_token: Option<String>,
+	pub lastfm_api_key: Option<String>,
+	pub lastfm_secret: Option<String>,
+	pub lastfm_session_key: Option<String>,
+	/// None is last.fm itself; set to a Libre.fm URL to scrobble there.
+	pub lastfm_base: Option<String>,
+}
+
+/// Per-station overrides; a None field inherits the global setting.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StationSettings {
+	pub timeshift_minutes: Option<u32>,
+	pub recognition: Option<bool>,
+	pub scrobble: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
 	pub announce_titles: bool,
 	pub announce_status: bool,
@@ -49,6 +157,12 @@ pub struct Settings {
 	pub main_list: Option<String>,
 	/// When the daily update check last ran, in seconds since the Unix epoch.
 	pub last_update_check: Option<u64>,
+	pub timeshift: TimeshiftSettings,
+	pub recording: RecordSettings,
+	pub recognition: RecognitionSettings,
+	pub scrobble: ScrobbleSettings,
+	/// Keyed by station id.
+	pub station_overrides: BTreeMap<String, StationSettings>,
 }
 
 impl Default for Settings {
@@ -66,6 +180,11 @@ impl Default for Settings {
 			last_station: None,
 			main_list: None,
 			last_update_check: None,
+			timeshift: TimeshiftSettings::default(),
+			recording: RecordSettings::default(),
+			recognition: RecognitionSettings::default(),
+			scrobble: ScrobbleSettings::default(),
+			station_overrides: BTreeMap::new(),
 		}
 	}
 }
@@ -77,7 +196,43 @@ impl Settings {
 		for band in [&mut s.eq.bass, &mut s.eq.mid, &mut s.eq.treble] {
 			*band = (*band).clamp(-MAX_DB, MAX_DB);
 		}
+		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
+		s.timeshift.seek_step_seconds = s.timeshift.seek_step_seconds.clamp(5, 60);
+		s.recording.mp3_bitrate_kbps = s.recording.mp3_bitrate_kbps.clamp(32, 320);
+		for o in s.station_overrides.values_mut() {
+			if let Some(m) = o.timeshift_minutes {
+				o.timeshift_minutes = Some(m.clamp(1, 240));
+			}
+		}
 		s
+	}
+
+	/// Buffered minutes for a station: its override, else the global value;
+	/// zero when timeshift is off.
+	pub fn timeshift_minutes_for(&self, station_id: &str) -> u32 {
+		if !self.timeshift.enabled {
+			return 0;
+		}
+		self.station_overrides
+			.get(station_id)
+			.and_then(|o| o.timeshift_minutes)
+			.unwrap_or(self.timeshift.minutes)
+	}
+
+	pub fn recognition_enabled_for(&self, station_id: &str) -> bool {
+		self.station_overrides
+			.get(station_id)
+			.and_then(|o| o.recognition)
+			.unwrap_or(self.recognition.enabled)
+	}
+
+	pub fn scrobble_enabled_for(&self, station_id: &str) -> bool {
+		self.scrobble.enabled
+			&& self
+				.station_overrides
+				.get(station_id)
+				.and_then(|o| o.scrobble)
+				.unwrap_or(true)
 	}
 
 	pub fn save(&self, dir: &Path) -> Result<()> {
@@ -141,6 +296,29 @@ mod tests {
 		.unwrap();
 		let eq = Settings::load(d.path()).eq;
 		assert_eq!((eq.bass, eq.mid, eq.treble), (12, -12, 5));
+	}
+
+	#[test]
+	fn feature_defaults_and_overrides() {
+		let mut s = Settings::default();
+		assert!(s.timeshift.enabled);
+		assert_eq!((s.timeshift.minutes, s.timeshift.seek_step_seconds), (30, 15));
+		assert_eq!(s.recording.format, RecordFormat::Original);
+		assert!(!s.recognition.enabled && !s.scrobble.enabled);
+		assert_eq!(s.timeshift_minutes_for("any"), 30);
+		s.station_overrides.insert(
+			"st:1".into(),
+			StationSettings {
+				timeshift_minutes: Some(5),
+				recognition: Some(true),
+				scrobble: None,
+			},
+		);
+		assert_eq!(s.timeshift_minutes_for("st:1"), 5);
+		assert!(s.recognition_enabled_for("st:1"));
+		assert!(!s.recognition_enabled_for("st:2"));
+		s.timeshift.enabled = false;
+		assert_eq!(s.timeshift_minutes_for("st:1"), 0);
 	}
 
 	#[test]

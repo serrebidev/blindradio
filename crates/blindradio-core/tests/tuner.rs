@@ -186,6 +186,10 @@ impl Sink for RecSink {
 			MixerCmd::Mute(m) => RecCmd::Mute(m),
 			MixerCmd::Tune => RecCmd::Tune,
 			MixerCmd::Eq(_) => return,
+			MixerCmd::ShiftAttach { .. }
+			| MixerCmd::ShiftPause(_)
+			| MixerCmd::ShiftSeek(_)
+			| MixerCmd::ShiftLive => return,
 		};
 		self.cmds.lock().push(rec);
 	}

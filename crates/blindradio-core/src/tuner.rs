@@ -5,11 +5,19 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::{Receiver, Sender};
 use parking_lot::Mutex;
 
+use std::path::PathBuf;
+
 use crate::net;
 use crate::output::{MixerCmd, Output};
+use crate::recognize::{SongId, identify_audd, wav_bytes};
+use crate::record::Recorder;
 use crate::ring::{CUSHION_MS, PcmRing};
+use crate::scrobble;
+use crate::settings::{RecognitionProvider, Settings};
 use crate::station::Station;
-use crate::stream::{EngineCtx, StreamEvent};
+use crate::stream::{EngineCtx, StreamEvent, Taps};
+use crate::timeshift::{ShiftBuffer, ShiftStatus};
+use crate::{CoreError, Result};
 
 /// Focus calls closer than this are key repeat: new connections wait until the key rests.
 const REPEAT: Duration = Duration::from_millis(100);
@@ -128,6 +136,21 @@ pub trait StreamFactory {
 
 	/// The output reopened at a new rate: streams started from now decode to it.
 	fn set_rate(&mut self, _rate: u32) {}
+
+	/// Registers the audio taps for a station (time-shift, capture, recording).
+	fn set_taps(&mut self, _station_id: &str, _taps: Taps) {}
+
+	fn clear_taps(&mut self, _station_id: &str) {}
+
+	/// The rate streams decode to.
+	fn rate(&self) -> u32 {
+		48_000
+	}
+
+	/// A runtime for background work (recognition, scrobbling).
+	fn rt(&self) -> Option<tokio::runtime::Handle> {
+		None
+	}
 }
 
 /// When each hostname was last warmed; warming is only an OS resolver hint.
@@ -171,6 +194,22 @@ impl StreamFactory for LiveFactory {
 	fn set_rate(&mut self, rate: u32) {
 		self.0.out_rate = rate;
 	}
+
+	fn set_taps(&mut self, station_id: &str, taps: Taps) {
+		self.0.taps.lock().insert(station_id.to_string(), taps);
+	}
+
+	fn clear_taps(&mut self, station_id: &str) {
+		self.0.taps.lock().remove(station_id);
+	}
+
+	fn rate(&self) -> u32 {
+		self.0.out_rate
+	}
+
+	fn rt(&self) -> Option<tokio::runtime::Handle> {
+		Some(self.0.rt.clone())
+	}
 }
 
 pub trait Sink {
@@ -209,6 +248,13 @@ struct Pending {
 	warm: bool,
 }
 
+/// How long a song must play before it is scrobbled.
+const SCROBBLE_MIN: Duration = Duration::from_secs(60);
+/// Recognition attempts on one station are at most this frequent.
+const RECOG_GAP: Duration = Duration::from_secs(45);
+/// Seconds of captured audio sent to the recognition service.
+const RECOG_SAMPLE_SECONDS: f32 = 12.0;
+
 pub struct Tuner<F: StreamFactory, S: Sink> {
 	factory: F,
 	sink: S,
@@ -223,11 +269,24 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	settle: Settle,
 	/// Source of stream serials and mixer tokens; 0 is never issued.
 	next_id: u64,
+	settings: Option<Arc<Mutex<Settings>>>,
+	/// Station the taps below belong to; they reset when it changes.
+	tap_station: Option<String>,
+	shift: Option<(Arc<ShiftBuffer>, Arc<ShiftStatus>)>,
+	capture: Option<Arc<ShiftBuffer>>,
+	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// The playing station's current song title and when it started.
+	song: Option<(String, Instant)>,
+	last_recog: Option<Instant>,
+	recog_in_flight: bool,
+	recog_tx: Sender<(String, Option<SongId>)>,
+	recog_rx: Receiver<(String, Option<SongId>)>,
 }
 
 impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	pub fn new(factory: F, sink: S, events: Sender<TunerEvent>) -> Tuner<F, S> {
 		let (stream_tx, stream_rx) = crossbeam_channel::unbounded();
+		let (recog_tx, recog_rx) = crossbeam_channel::unbounded();
 		Tuner {
 			factory,
 			sink,
@@ -241,7 +300,23 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			last_focus: None,
 			settle: Settle::new(),
 			next_id: 0,
+			settings: None,
+			tap_station: None,
+			shift: None,
+			capture: None,
+			record_slot: None,
+			song: None,
+			last_recog: None,
+			recog_in_flight: false,
+			recog_tx,
+			recog_rx,
 		}
+	}
+
+	/// Gives the tuner the live settings, enabling time-shift buffers,
+	/// recording, recognition and scrobbling for the playing station.
+	pub fn set_settings(&mut self, settings: Arc<Mutex<Settings>>) {
+		self.settings = Some(settings);
 	}
 
 	pub fn focus(&mut self, stations: &[Station], index: usize, now: Instant) {
@@ -273,6 +348,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn stop(&mut self) {
+		self.detach_taps();
 		self.silence();
 		self.open.clear();
 		self.playing = None;
@@ -284,6 +360,32 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		while let Ok((serial, event)) = self.stream_rx.try_recv() {
 			self.stream_event(serial, event, now);
 		}
+
+		while let Ok((station_id, song)) = self.recog_rx.try_recv() {
+			self.recog_in_flight = false;
+			if let Some(song) = song
+				&& self.playing.as_ref().is_some_and(|p| p.id == station_id)
+			{
+				let display = song.display();
+				if self.song.as_ref().is_none_or(|(t, _)| *t != display) {
+					if let Some(open) = self.open.iter_mut().find(|o| o.station.id == station_id) {
+						open.title = Some(display.clone());
+					}
+					self.emit(TunerEvent::Title {
+						station_id: station_id.clone(),
+						title: Some(display.clone()),
+					});
+					self.song = Some((display.clone(), now));
+					let announce = self.settings.as_ref().is_some_and(|s| s.lock().recognition.announce);
+					if announce
+						&& let Some(title) = self.settle.title(Some(display), now)
+					{
+						self.emit(TunerEvent::Announce(title));
+					}
+				}
+			}
+		}
+		self.maybe_recognize(now);
 
 		for &(token, at) in rendered {
 			if let Some(p) = self.pending.take_if(|p| p.token == token) {
@@ -340,6 +442,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	fn tune(&mut self, target: &Station, warm: Vec<Station>, repeat: bool, now: Instant) {
+		if self.playing.as_ref().is_some_and(|p| p.id != target.id) {
+			// The old station's recording ends and its taps come off.
+			self.detach_taps();
+		}
 		self.settle.focused(now);
 		self.deferred = None;
 		let mut cold = None;
@@ -433,6 +539,224 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			since,
 			warm,
 		});
+		self.attach_taps(station);
+	}
+
+	/// Builds the playing station's taps from the settings: a time-shift
+	/// buffer when it has minutes, a capture buffer when recognition is on,
+	/// and a fresh recorder slot. Re-activating the same station keeps them.
+	fn attach_taps(&mut self, station: &Station) {
+		if self.tap_station.as_deref() == Some(station.id.as_str()) {
+			return;
+		}
+		self.detach_taps();
+		let Some(settings) = &self.settings else {
+			return;
+		};
+		let settings = settings.lock().clone();
+		let rate = self.factory.rate();
+		let mut taps = Taps::default();
+		let minutes = settings.timeshift_minutes_for(&station.id);
+		if minutes > 0 {
+			let buffer = Arc::new(ShiftBuffer::new(rate, minutes));
+			let status = Arc::new(ShiftStatus::new());
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: status.clone(),
+			});
+			taps.shift = Some(buffer.clone());
+			self.shift = Some((buffer, status));
+		}
+		if settings.recognition_enabled_for(&station.id) {
+			let capture = Arc::new(ShiftBuffer::with_seconds(rate, 90));
+			taps.capture = Some(capture.clone());
+			self.capture = Some(capture);
+		}
+		let slot = Arc::new(Mutex::new(None));
+		taps.record = Some(slot.clone());
+		self.record_slot = Some(slot);
+		self.tap_station = Some(station.id.clone());
+		self.factory.set_taps(&station.id, taps);
+	}
+
+	/// Stops any recording and unregisters the taps of the station they
+	/// belonged to.
+	fn detach_taps(&mut self) {
+		if let Some(slot) = &self.record_slot
+			&& let Some(rec) = slot.lock().take()
+		{
+			let _ = rec.stop();
+		}
+		if let Some(id) = self.tap_station.take() {
+			self.factory.clear_taps(&id);
+		}
+		self.shift = None;
+		self.capture = None;
+		self.record_slot = None;
+		self.song = None;
+	}
+
+	/// The playing station's time-shift buffer and its live status.
+	pub fn shift(&self) -> Option<(Arc<ShiftBuffer>, Arc<ShiftStatus>)> {
+		self.shift.clone()
+	}
+
+	pub fn shift_pause(&mut self, paused: bool) {
+		self.sink.send(MixerCmd::ShiftPause(paused));
+	}
+
+	pub fn shift_seek(&mut self, seconds: i32) {
+		self.sink.send(MixerCmd::ShiftSeek(seconds));
+	}
+
+	pub fn shift_live(&mut self) {
+		self.sink.send(MixerCmd::ShiftLive);
+	}
+
+	pub fn is_recording(&self) -> bool {
+		self.record_slot
+			.as_ref()
+			.is_some_and(|slot| slot.lock().is_some())
+	}
+
+	/// Starts recording the playing station; returns the file path.
+	pub fn start_recording(&mut self) -> Result<PathBuf> {
+		let station = self
+			.playing
+			.clone()
+			.ok_or_else(|| CoreError::Output("Nothing is playing".into()))?;
+		let slot = self
+			.record_slot
+			.clone()
+			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
+		let settings = self
+			.settings
+			.as_ref()
+			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
+		let settings = settings.lock().clone();
+		let dir = settings
+			.recording
+			.dir
+			.as_deref()
+			.map(PathBuf::from)
+			.unwrap_or_else(crate::record::default_dir);
+		let ext = station
+			.url
+			.rsplit('.')
+			.next()
+			.filter(|e| matches!(e.to_ascii_lowercase().as_str(), "mp3" | "aac" | "ogg" | "flac" | "m4a"))
+			.unwrap_or("mp3");
+		let rec = Recorder::start(&dir, &station.name, &settings.recording, self.factory.rate(), ext)?;
+		let path = rec.path().to_path_buf();
+		*slot.lock() = Some(rec);
+		Ok(path)
+	}
+
+	/// Stops the recording, returning its file path.
+	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
+		let slot = self.record_slot.clone()?;
+		slot.lock().take().map(|rec| rec.stop())
+	}
+
+	/// Starts a recognition attempt when the settings ask for one: the
+	/// station is enabled, AudD is the provider, the capture buffer holds a
+	/// full sample, and the stream is not already telling us the song (or is
+	/// not asked to be believed).
+	fn maybe_recognize(&mut self, now: Instant) {
+		if self.recog_in_flight
+			|| self
+				.last_recog
+				.is_some_and(|t| now.duration_since(t) < RECOG_GAP)
+		{
+			return;
+		}
+		let (Some(settings), Some(station), Some(capture)) =
+			(&self.settings, &self.playing, &self.capture)
+		else {
+			return;
+		};
+		let settings = settings.lock().clone();
+		if !settings.recognition_enabled_for(&station.id)
+			|| settings.recognition.provider != RecognitionProvider::Audd
+		{
+			return;
+		}
+		let Some(token) = settings.recognition.audd_token.clone().filter(|t| !t.is_empty()) else {
+			return;
+		};
+		if settings.recognition.only_when_no_metadata && self.song.is_some() {
+			return;
+		}
+		if capture.buffered_seconds() < RECOG_SAMPLE_SECONDS {
+			return;
+		}
+		let Some(rt) = self.factory.rt() else {
+			return;
+		};
+		let Ok(wav) = wav_bytes(&capture.tail_f32(RECOG_SAMPLE_SECONDS), capture.rate()) else {
+			return;
+		};
+		self.last_recog = Some(now);
+		self.recog_in_flight = true;
+		let tx = self.recog_tx.clone();
+		let station_id = station.id.clone();
+		rt.spawn(async move {
+			let song = identify_audd(&token, wav).await.ok().flatten();
+			let _ = tx.send((station_id, song));
+		});
+	}
+
+	/// Scrobbles the song that just ended, when it played long enough and
+	/// the station allows it.
+	fn scrobble_previous(&mut self, previous: &(String, Instant), now: Instant) {
+		if now.duration_since(previous.1) < SCROBBLE_MIN {
+			return;
+		}
+		let (Some(settings), Some(station), Some(rt)) =
+			(&self.settings, &self.playing, self.factory.rt())
+		else {
+			return;
+		};
+		let settings = settings.lock().clone();
+		if !settings.scrobble_enabled_for(&station.id) {
+			return;
+		}
+		let (artist, track) = match previous.0.split_once(" - ") {
+			Some((a, t)) => (a.trim().to_string(), t.trim().to_string()),
+			None => (String::new(), previous.0.clone()),
+		};
+		if track.is_empty() {
+			return;
+		}
+		let started = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.map(|d| d.as_secs())
+			.unwrap_or(0)
+			.saturating_sub(now.duration_since(previous.1).as_secs());
+		rt.spawn(async move {
+			if let Some(token) = &settings.scrobble.listenbrainz_token
+				&& !token.is_empty()
+			{
+				let _ = scrobble::listenbrainz(token, &artist, &track, None, started).await;
+			}
+			if let (Some(key), Some(secret), Some(session)) = (
+				&settings.scrobble.lastfm_api_key,
+				&settings.scrobble.lastfm_secret,
+				&settings.scrobble.lastfm_session_key,
+			) && !key.is_empty()
+			{
+				let _ = scrobble::lastfm(
+					settings.scrobble.lastfm_base.as_deref(),
+					key,
+					secret,
+					session,
+					&artist,
+					&track,
+					started,
+				)
+				.await;
+			}
+		});
 	}
 
 	fn stream_event(&mut self, serial: u64, event: StreamEvent, now: Instant) {
@@ -445,6 +769,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			StreamEvent::Title(title) => {
 				self.open[i].title = title.clone();
 				if playing {
+					if self.song.as_ref().map(|(t, _)| t) != title.as_ref() {
+						if let Some(prev) = self.song.take() {
+							self.scrobble_previous(&prev, now);
+						}
+						self.song = title.clone().map(|t| (t, now));
+					}
 					self.emit(TunerEvent::Title {
 						station_id,
 						title: title.clone(),

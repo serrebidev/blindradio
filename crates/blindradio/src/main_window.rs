@@ -158,6 +158,22 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::FeatureSettings => {
+			if let Some(next) = dialogs::features::show(app) {
+				dispatch(app, next);
+			}
+		}
+		Action::StationSettings => {
+			let station = app.borrow().selected_or_playing();
+			match station {
+				Some(st) => {
+					if let Some(next) = dialogs::features::show_station(app, &st) {
+						dispatch(app, next);
+					}
+				}
+				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+			}
+		}
 		a => app.borrow_mut().run(a),
 	}
 }

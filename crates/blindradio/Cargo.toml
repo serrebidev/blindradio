@@ -10,6 +10,7 @@ blindradio-core = { path = "../blindradio-core" }
 wxdragon = "*"
 wx-utils = { git = "https://github.com/trypsynth/wx-utils", features = ["shortcuts", "global-hotkeys"] }
 crossbeam-channel = "*"
+parking_lot = "*"
 tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
 live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }

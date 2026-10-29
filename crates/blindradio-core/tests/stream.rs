@@ -29,6 +29,7 @@ fn ctx(retry_window: Duration) -> EngineCtx {
 		rt: RT.handle().clone(),
 		client: client(),
 		cache: Arc::new(parking_lot::Mutex::new(cache)),
+		taps: Default::default(),
 		out_rate: OUT_RATE,
 		retry_window,
 	}

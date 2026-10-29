@@ -53,6 +53,22 @@ pub const COPY_URL: &str = "Copy Stream &URL";
 pub const GET_STARTER: &str = "&Get SerrebiRadio Stations";
 pub const PLAY_PAUSE: &str = "&Play/Pause";
 pub const STOP_MENU: &str = "&Stop";
+pub const RECORD: &str = "&Record";
+pub const SKIP_BACK: &str = "Skip &Back";
+pub const SKIP_FORWARD: &str = "Skip &Forward";
+pub const GO_LIVE: &str = "Go to &Live";
+pub const PAUSED: &str = "Paused";
+pub const RESUMED: &str = "Resumed";
+pub const LIVE: &str = "Live";
+pub const REC_STARTED: &str = "Recording started";
+/// Prefix: `Recording saved to <path>`.
+pub const REC_SAVED: &str = "Recording saved to ";
+/// Suffix: ` - <time> behind live`.
+pub const BEHIND_LIVE: &str = " behind live";
+/// Suffix: ` - <time> played`.
+pub const PLAYED_FOR: &str = " played";
+pub const STATUS_PAUSED: &str = " - Paused";
+pub const STATUS_RECORDING: &str = " - Recording";
 pub const MUTE_MENU: &str = "&Mute";
 pub const VOLUME_UP: &str = "Volume &Up";
 pub const VOLUME_DOWN: &str = "Volume &Down";
@@ -173,6 +189,42 @@ pub const MID: &str = "&Mid (dB)";
 pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
 
+// Feature settings (global and per station).
+pub const FEATURE_SETTINGS: &str = "&Feature Settings…";
+pub const FEATURES_TITLE: &str = "Playback Features";
+pub const STATION_SETTINGS_ITEM: &str = "&Station Settings…";
+pub const STATION_SETTINGS_TITLE: &str = "Station Settings";
+pub const TS_ENABLE: &str = "&Time-Shift Playback";
+pub const TS_MINUTES: &str = "&Buffer Minutes";
+pub const SEEK_STEP: &str = "&Seek Step (Seconds)";
+pub const REC_FORMAT: &str = "Recording &Format";
+pub const REC_BITRATE: &str = "MP3 &Bitrate (kbps)";
+pub const REC_VBR: &str = "MP3 &VBR";
+pub const REC_DIR: &str = "Recordings &Folder (blank is the default)";
+pub const FMT_ORIGINAL: &str = "Original stream format";
+pub const FMT_WAV: &str = "WAV";
+pub const FMT_MP3: &str = "MP3";
+pub const FMT_FLAC: &str = "FLAC";
+pub const RECOG_ENABLE: &str = "&Recognize Songs Without Metadata";
+pub const RECOG_PROVIDER: &str = "Recognition &Service";
+pub const RECOG_TOKEN: &str = "AudD &Token";
+pub const RECOG_ONLY_META: &str = "Only when the stream gives no &title";
+pub const RECOG_ANNOUNCE: &str = "&Announce Recognized Songs";
+pub const PROV_METADATA: &str = "Stream metadata only";
+pub const PROV_AUDD: &str = "AudD";
+pub const SCROB_ENABLE: &str = "S&crobble Listened Songs";
+pub const SCROB_LB_TOKEN: &str = "ListenBrainz T&oken";
+pub const SCROB_KEY: &str = "last.fm API &Key";
+pub const SCROB_SECRET: &str = "last.fm &Secret";
+pub const SCROB_SESSION: &str = "last.fm Session K&ey";
+pub const SCROB_BASE: &str = "last.fm &Base URL (blank is last.fm)";
+pub const USE_GLOBAL: &str = "Use Global";
+pub const ON: &str = "On";
+pub const OFF: &str = "Off";
+pub const ST_TS_MINUTES: &str = "Buffer &Minutes (blank is global)";
+pub const ST_RECOG: &str = "Song &Recognition";
+pub const ST_SCROB: &str = "Scro&bbling";
+
 // Global hotkeys.
 pub const GLOBAL_HOTKEYS: &str = "&Global Hotkeys…";
 pub const TAB_GLOBAL: &str = "Global";
@@ -185,6 +237,10 @@ pub const HK_PREVIOUS_FAVORITE: &str = "Previous Favorite";
 pub const HK_ANNOUNCE: &str = "Announce Now Playing";
 pub const HK_TOGGLE_WINDOW: &str = "Hide or Show BlindRadio";
 pub const HK_TOGGLE_EQ: &str = "Equalizer On or Off";
+pub const HK_RECORD: &str = "Record";
+pub const HK_SEEK_BACK: &str = "Skip Back";
+pub const HK_SEEK_FORWARD: &str = "Skip Forward";
+pub const HK_GO_LIVE: &str = "Go to Live";
 /// Prefix: `Hotkey taken: <chord>, <chord>`.
 pub const HOTKEY_TAKEN: &str = "Hotkey taken: ";
 pub const HOTKEYS_UNAVAILABLE: &str = "Hotkeys unavailable";

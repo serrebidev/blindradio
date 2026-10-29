@@ -72,6 +72,12 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 			vec![
 				Item(s::PLAY_PAUSE, "Ctrl+P", A::PlayPause),
 				Item(s::STOP_MENU, "Ctrl+S", A::Stop),
+				Item(s::RECORD, "Ctrl+R", A::Record),
+				Separator,
+				Item(s::SKIP_BACK, "Ctrl+Left", A::SeekBack),
+				Item(s::SKIP_FORWARD, "Ctrl+Right", A::SeekForward),
+				Item(s::GO_LIVE, "Ctrl+J", A::GoLive),
+				Separator,
 				Item(s::MUTE_MENU, "Ctrl+M", A::Mute),
 				Item(s::VOLUME_UP, "Ctrl+Up", A::VolumeUp),
 				Item(s::VOLUME_DOWN, "Ctrl+Down", A::VolumeDown),
@@ -82,6 +88,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Separator,
 				Sub(s::SLEEP_TIMER, sleep),
 				Item(s::EQUALIZER, "Ctrl+E", A::Equalizer),
+				Item(s::FEATURE_SETTINGS, "Ctrl+T", A::FeatureSettings),
 			],
 		),
 		(
@@ -204,7 +211,7 @@ fn is_on(settings: &Settings, id: SettingId) -> bool {
 mod tests {
 	use super::*;
 	use crate::action::app_key;
-	use wxdragon::prelude::{WXK_DOWN, WXK_F1, WXK_UP};
+	use wxdragon::prelude::{WXK_DOWN, WXK_F1, WXK_LEFT, WXK_RIGHT, WXK_UP};
 
 	/// Every item with its shortcut, `&` dropped, submenus flattened.
 	fn items() -> Vec<(String, &'static str, Action)> {
@@ -233,6 +240,8 @@ mod tests {
 		let code = match key {
 			"Up" => WXK_UP,
 			"Down" => WXK_DOWN,
+			"Left" => WXK_LEFT,
+			"Right" => WXK_RIGHT,
 			"F1" => WXK_F1,
 			k if k.len() == 1 => k.chars().next().unwrap() as i32,
 			k => panic!("unknown key {k}"),
@@ -260,6 +269,10 @@ mod tests {
 			("Get SerrebiRadio Stations", ""),
 			("Play/Pause", "Ctrl+P"),
 			("Stop", "Ctrl+S"),
+			("Record", "Ctrl+R"),
+			("Skip Back", "Ctrl+Left"),
+			("Skip Forward", "Ctrl+Right"),
+			("Go to Live", "Ctrl+J"),
 			("Mute", "Ctrl+M"),
 			("Volume Up", "Ctrl+Up"),
 			("Volume Down", "Ctrl+Down"),
@@ -274,6 +287,7 @@ mod tests {
 			("2 Hours", "Ctrl+6"),
 			("Off", "Ctrl+0"),
 			("Equalizer…", "Ctrl+E"),
+			("Feature Settings…", "Ctrl+T"),
 			("User Guide", "F1"),
 			("About BlindRadio", ""),
 			("Exit", ""),

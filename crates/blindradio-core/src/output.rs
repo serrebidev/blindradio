@@ -15,6 +15,7 @@ use crate::eq::Eq;
 use crate::error::CoreError;
 use crate::ring::{CUSHION_MS, PcmRing};
 use crate::settings::EqSettings;
+use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
 /// Warm-swap crossfade length.
 const CROSSFADE_MS: u64 = 25;
@@ -40,6 +41,18 @@ pub enum MixerCmd {
 	/// which lasts until a `SetActive` ring has audio, so tuning never has dead air.
 	/// `SetActive { ring: None }` (stop) is silence.
 	Tune,
+	/// Gives the active station a time-shift buffer. Playback stays live until
+	/// a pause or a seek back moves the cursor into the buffer.
+	ShiftAttach {
+		buffer: Arc<ShiftBuffer>,
+		status: Arc<ShiftStatus>,
+	},
+	/// Holds playback where it is; the stream keeps filling the buffer.
+	ShiftPause(bool),
+	/// Moves the cursor by signed seconds from where it is (or from live).
+	ShiftSeek(i32),
+	/// Returns to the live edge.
+	ShiftLive,
 }
 
 /// Where the playing ring stands.
@@ -93,6 +106,11 @@ pub struct MixerCore {
 	noise_lp: f32,
 	a: Vec<f32>,
 	b: Vec<f32>,
+	/// Time-shift state for the active station; None plays the ring live.
+	shift: Option<(Arc<ShiftBuffer>, Arc<ShiftStatus>)>,
+	/// Absolute frame the shifted playback reads next; None is live.
+	shift_cursor: Option<u64>,
+	shift_paused: bool,
 }
 
 impl MixerCore {
@@ -121,6 +139,9 @@ impl MixerCore {
 			noise_lp: 0.0,
 			a: Vec::new(),
 			b: Vec::new(),
+			shift: None,
+			shift_cursor: None,
+			shift_paused: false,
 		};
 		m.set_rate(rate);
 		m
@@ -146,6 +167,15 @@ impl MixerCore {
 				self.hiss = true;
 			}
 			MixerCmd::SetActive { ring, token } => {
+				// A new station starts live and unshifted; its ShiftAttach follows.
+				if let Some((_, status)) = &self.shift {
+					status.attached.store(false, Ordering::Relaxed);
+					status.cursor.store(u64::MAX, Ordering::Relaxed);
+					status.paused.store(false, Ordering::Relaxed);
+				}
+				self.shift = None;
+				self.shift_cursor = None;
+				self.shift_paused = false;
 				// Waiting on a station hisses; stop is silent.
 				self.hiss = ring.is_some();
 				let is = |a: &Arc<PcmRing>| ring.as_ref().is_some_and(|r| Arc::ptr_eq(a, r));
@@ -164,6 +194,43 @@ impl MixerCore {
 					self.strikes = 0;
 				}
 				self.pending = Some(token);
+			}
+			MixerCmd::ShiftAttach { buffer, status } => {
+				status.attached.store(true, Ordering::Relaxed);
+				status.cursor.store(u64::MAX, Ordering::Relaxed);
+				status.paused.store(false, Ordering::Relaxed);
+				self.shift = Some((buffer, status));
+				self.shift_cursor = None;
+				self.shift_paused = false;
+			}
+			MixerCmd::ShiftPause(paused) => {
+				if let Some((buffer, status)) = &self.shift {
+					if paused && self.shift_cursor.is_none() {
+						// Freeze at the live edge; the buffer keeps filling past it.
+						self.shift_cursor = Some(buffer.live_edge());
+					}
+					self.shift_paused = paused;
+					status.paused.store(paused, Ordering::Relaxed);
+					if !paused && self.shift_cursor == Some(buffer.live_edge()) {
+						self.shift_cursor = None;
+					}
+				}
+			}
+			MixerCmd::ShiftSeek(seconds) => {
+				if let Some((buffer, _)) = &self.shift {
+					let edge = buffer.live_edge();
+					let base = self.shift_cursor.unwrap_or(edge) as i64;
+					let target = (base + seconds as i64 * buffer.rate() as i64)
+						.clamp(buffer.start() as i64, edge as i64) as u64;
+					self.shift_cursor = if target >= edge { None } else { Some(target) };
+				}
+			}
+			MixerCmd::ShiftLive => {
+				self.shift_cursor = None;
+				self.shift_paused = false;
+				if let Some((_, status)) = &self.shift {
+					status.paused.store(false, Ordering::Relaxed);
+				}
 			}
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
 			MixerCmd::Mute(muted) => self.muted = muted,
@@ -184,7 +251,31 @@ impl MixerCore {
 		self.a.clear();
 		self.a.resize(out.len(), 0.0);
 		let mut got = 0;
-		if let Some(ring) = &self.active {
+		// Time-shifted playback reads the buffer at the cursor instead of the
+		// ring; the ring is drained and dropped so its producer never blocks.
+		let shifted = self.shift.is_some() && (self.shift_paused || self.shift_cursor.is_some());
+		if shifted {
+			if let Some(ring) = &self.active {
+				self.b.clear();
+				self.b.resize(out.len(), 0.0);
+				ring.pop_into(&mut self.b);
+			}
+			if !self.shift_paused {
+				let cursor = self.shift_cursor.unwrap_or(0);
+				let (buffer, _) = self.shift.as_ref().unwrap();
+				let n = buffer.read_at(cursor, &mut self.a);
+				got = n / 2;
+				let next = cursor + got as u64;
+				// Reaching the live edge hands playback back to the ring.
+				self.shift_cursor = if next >= buffer.live_edge() { None } else { Some(next) };
+			}
+			if let Some((_, status)) = &self.shift {
+				status
+					.cursor
+					.store(self.shift_cursor.unwrap_or(u64::MAX), Ordering::Relaxed);
+			}
+		}
+		if !shifted && let Some(ring) = &self.active {
 			let level = ring.len_ms();
 			if self.flow == Flow::Buffering && level > 0 && level >= self.cushion_ms {
 				self.flow = Flow::Playing;
@@ -246,7 +337,7 @@ impl MixerCore {
 
 		// Hiss covers every frame the active station does not, easing in and out over a crossfade.
 		for f in 0..frames {
-			let want = if self.hiss && f >= got { 1.0 } else { 0.0 };
+			let want = if self.hiss && !self.shift_paused && f >= got { 1.0 } else { 0.0 };
 			self.hiss_gain += (want - self.hiss_gain).clamp(-self.hiss_step, self.hiss_step);
 			if self.hiss_gain > 0.0 {
 				// xorshift32 white noise, lowpassed.
@@ -1079,5 +1170,56 @@ mod tests {
 		}
 		assert!(peak > 0.9, "boosted signal reaches the limit: {peak}");
 		assert!(peak <= 1.0);
+	}
+
+	fn shift_setup() -> (MixerCore, Arc<ShiftBuffer>, Arc<ShiftStatus>) {
+		let buffer = Arc::new(ShiftBuffer::new(1000, 1));
+		buffer.push(&vec![0.5; 20_000]); // 10 s of constant tone
+		let status = Arc::new(ShiftStatus::new());
+		let mut m = MixerCore::new(1000);
+		m.handle(MixerCmd::SetActive { ring: None, token: 1 });
+		m.handle(MixerCmd::ShiftAttach {
+			buffer: buffer.clone(),
+			status: status.clone(),
+		});
+		(m, buffer, status)
+	}
+
+	#[test]
+	fn seek_back_plays_the_buffer() {
+		let (mut m, buffer, status) = shift_setup();
+		m.handle(MixerCmd::ShiftSeek(-5));
+		let out = render_frames(&mut m, 100);
+		assert!(
+			(out[2 * 50] - 0.5).abs() < 0.01,
+			"shifted audio sounds: {}",
+			out[2 * 50]
+		);
+		let behind = status.behind_seconds(&buffer);
+		assert!((4.8..5.0).contains(&behind), "behind: {behind}");
+	}
+
+	#[test]
+	fn pause_freezes_and_resume_continues() {
+		let (mut m, buffer, status) = shift_setup();
+		m.handle(MixerCmd::ShiftPause(true));
+		let out = render_frames(&mut m, 100);
+		assert!(out.iter().all(|s| *s == 0.0), "pause is silent");
+		buffer.push(&vec![0.5; 4_000]); // 2 more seconds arrive while paused
+		assert_eq!(status.behind_seconds(&buffer), 2.0);
+		m.handle(MixerCmd::ShiftPause(false));
+		let out = render_frames(&mut m, 100);
+		assert!((out[2 * 50] - 0.5).abs() < 0.01, "resume plays from the freeze point");
+	}
+
+	#[test]
+	fn seek_past_live_returns_to_live() {
+		let (mut m, _, status) = shift_setup();
+		m.handle(MixerCmd::ShiftSeek(-5));
+		m.handle(MixerCmd::ShiftSeek(30));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), u64::MAX, "back at live");
+		m.handle(MixerCmd::ShiftLive);
+		let out = render_frames(&mut m, 10);
+		assert!(out.iter().all(|s| *s == 0.0), "no ring, no sound");
 	}
 }

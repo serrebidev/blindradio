@@ -1,7 +1,7 @@
 //! Everything a menu item, button or key can do. Menus, buttons and keys only produce these.
 
 use blindradio_core::sleep::SLEEP_MINUTES;
-use wxdragon::prelude::{WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_UP};
+use wxdragon::prelude::{WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_LEFT, WXK_RIGHT, WXK_UP};
 
 /// The File menu's check items.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -18,6 +18,14 @@ pub enum Action {
 	Play,
 	PlayPause,
 	Stop,
+	/// Toggle recording of the playing station.
+	Record,
+	/// One step back in the time-shift buffer.
+	SeekBack,
+	/// One step forward, never past live.
+	SeekForward,
+	/// Jump to the live edge.
+	GoLive,
 	Mute,
 	VolumeUp,
 	VolumeDown,
@@ -46,6 +54,10 @@ pub enum Action {
 	ToggleSetting(SettingId),
 	/// File > Global Hotkeys…: the chord editor.
 	GlobalHotkeys,
+	/// Playback feature settings dialog.
+	FeatureSettings,
+	/// Per-station overrides dialog (context menu).
+	StationSettings,
 	/// Help > Check for Updates.
 	CheckForUpdates,
 	Help,
@@ -76,11 +88,15 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 			match code {
 				WXK_UP => return Some(Action::VolumeUp),
 				WXK_DOWN => return Some(Action::VolumeDown),
+				WXK_LEFT => return Some(Action::SeekBack),
+				WXK_RIGHT => return Some(Action::SeekForward),
 				_ => {}
 			}
 			Some(match letter? {
 				'P' => Action::PlayPause,
 				'S' => Action::Stop,
+				'R' => Action::Record,
+				'J' => Action::GoLive,
 				'M' => Action::Mute,
 				'D' => Action::ToggleFavorite,
 				'F' => Action::OpenSearch,
@@ -92,6 +108,7 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 				'Y' => Action::SongHistory,
 				'L' => Action::OpenCollections,
 				'E' => Action::Equalizer,
+				'T' => Action::FeatureSettings,
 				'I' if main_window => Action::Import,
 				_ => return None,
 			})
@@ -130,6 +147,8 @@ mod tests {
 		let everywhere = [
 			('P', Action::PlayPause),
 			('S', Action::Stop),
+			('R', Action::Record),
+			('J', Action::GoLive),
 			('M', Action::Mute),
 			('D', Action::ToggleFavorite),
 			('F', Action::OpenSearch),
@@ -141,6 +160,7 @@ mod tests {
 			('Y', Action::SongHistory),
 			('L', Action::OpenCollections),
 			('E', Action::Equalizer),
+			('T', Action::FeatureSettings),
 			('1', Action::Sleep(15)),
 			('2', Action::Sleep(30)),
 			('3', Action::Sleep(45)),
@@ -164,6 +184,14 @@ mod tests {
 			assert_eq!(
 				app_key(WXK_DOWN, true, false, false, main),
 				Some(Action::VolumeDown)
+			);
+			assert_eq!(
+				app_key(WXK_LEFT, true, false, false, main),
+				Some(Action::SeekBack)
+			);
+			assert_eq!(
+				app_key(WXK_RIGHT, true, false, false, main),
+				Some(Action::SeekForward)
 			);
 			assert_eq!(
 				app_key(WXK_F1, false, false, false, main),

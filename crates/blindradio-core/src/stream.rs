@@ -11,13 +11,37 @@ use tokio::sync::oneshot;
 use tokio::task::AbortHandle;
 use tokio::time::{sleep, timeout};
 
+use std::collections::HashMap;
+
 use crate::Result;
 use crate::decode::{ByteReader, Decoder, byte_pipe};
 use crate::hls::{hint as hls_hint, run_hls};
 use crate::net::{Opened, ResolveCache, open};
+use crate::record::Recorder;
 use crate::resample::Resampler;
 use crate::ring::PcmRing;
 use crate::station::Station;
+use crate::timeshift::ShiftBuffer;
+
+/// Side channels on a playing station's audio, registered by station id.
+/// The stream loops re-read their entry per chunk, so attaching or removing
+/// taps takes effect on a running stream at once.
+#[derive(Clone, Default)]
+pub struct Taps {
+	/// Full time-shift buffer (minutes deep).
+	pub shift: Option<Arc<ShiftBuffer>>,
+	/// Short capture buffer feeding song recognition.
+	pub capture: Option<Arc<ShiftBuffer>>,
+	/// The recorder slot; the app starts and stops the recorder inside it
+	/// while the decode loop writes.
+	pub record: Option<Arc<Mutex<Option<Recorder>>>>,
+}
+
+pub type TapMap = Arc<Mutex<HashMap<String, Taps>>>;
+
+pub fn taps_for(taps: &TapMap, station_id: &str) -> Taps {
+	taps.lock().get(station_id).cloned().unwrap_or_default()
+}
 
 /// Connect, open and the first body bytes must all fit in this.
 const START_BUDGET: Duration = Duration::from_secs(5);
@@ -38,6 +62,7 @@ pub struct EngineCtx {
 	pub rt: tokio::runtime::Handle,
 	pub client: reqwest::Client,
 	pub cache: Arc<Mutex<ResolveCache>>,
+	pub taps: TapMap,
 	pub out_rate: u32,
 	pub retry_window: Duration,
 }
@@ -101,6 +126,7 @@ pub fn start(
 		.rt
 		.spawn(run(
 			station.url.clone(),
+			station.id.clone(),
 			ctx.clone(),
 			ring.clone(),
 			shared.clone(),
@@ -173,7 +199,13 @@ impl Hls {
 	}
 }
 
-async fn run(url: String, ctx: EngineCtx, ring: Arc<PcmRing>, shared: Arc<Shared>) {
+async fn run(
+	url: String,
+	station_id: String,
+	ctx: EngineCtx,
+	ring: Arc<PcmRing>,
+	shared: Arc<Shared>,
+) {
 	let mut conn = match connect(&ctx, &url).await {
 		Ok(c) => c,
 		Err(reason) => return shared.emit(StreamEvent::Failed(reason)),
@@ -183,7 +215,7 @@ async fn run(url: String, ctx: EngineCtx, ring: Arc<PcmRing>, shared: Arc<Shared
 	let mut outage: Option<Instant> = None;
 	let mut attempt = 0;
 	loop {
-		let (reason, produced) = play(conn, &ctx, &ring, &shared, &mut title).await;
+		let (reason, produced) = play(conn, &ctx, &station_id, &ring, &shared, &mut title).await;
 		// An ended HLS playlist (VOD) is over; reconnecting would replay it from the start.
 		if !shared.played.load(Ordering::Relaxed) || reason == ENDED {
 			return shared.emit(StreamEvent::Failed(reason));
@@ -330,6 +362,7 @@ async fn reconnect(
 async fn play(
 	mut conn: Conn,
 	ctx: &EngineCtx,
+	station_id: &str,
 	ring: &Arc<PcmRing>,
 	shared: &Arc<Shared>,
 	title: &mut Option<String>,
@@ -338,6 +371,7 @@ async fn play(
 	let (done_tx, done_rx) = oneshot::channel();
 	let (thread_ring, thread_shared) = (ring.clone(), shared.clone());
 	let (out_rate, hint) = (ctx.out_rate, conn.hint);
+	let (thread_taps, thread_id) = (ctx.taps.clone(), station_id.to_string());
 	let produced = Arc::new(AtomicBool::new(false));
 	let thread_produced = produced.clone();
 	let spawned = std::thread::Builder::new()
@@ -350,6 +384,8 @@ async fn play(
 				out_rate,
 				&thread_shared,
 				&thread_produced,
+				&thread_taps,
+				&thread_id,
 			);
 			let _ = done_tx.send(result);
 		});
@@ -357,7 +393,7 @@ async fn play(
 		return ("No data".into(), false);
 	}
 
-	let net_reason = pump(&mut conn, tx, shared, title, &produced).await;
+	let net_reason = pump(&mut conn, tx, shared, title, &produced, &ctx.taps, station_id).await;
 	// The sender is gone, so the decoder drains what it has and ends; waiting keeps two
 	// connections from pushing into the ring at once.
 	let decoded = done_rx.await;
@@ -378,6 +414,8 @@ async fn pump(
 	shared: &Shared,
 	title: &mut Option<String>,
 	produced: &AtomicBool,
+	taps: &TapMap,
+	station_id: &str,
 ) -> Option<String> {
 	// Bytes that never decode (endless junk under an audio content type) must not play silence forever.
 	let decode_by = Instant::now() + START_BUDGET;
@@ -403,6 +441,12 @@ async fn pump(
 			}
 		}
 		for bytes in audio.drain(..) {
+			// An Original-format recording taps the clean encoded bytes here.
+			if let Some(slot) = &taps_for(taps, station_id).record
+				&& let Some(rec) = slot.lock().as_mut()
+			{
+				let _ = rec.write_bytes(&bytes);
+			}
 			if !send(&tx, bytes).await {
 				return None;
 			}
@@ -447,6 +491,8 @@ fn decode(
 	out_rate: u32,
 	shared: &Shared,
 	produced: &AtomicBool,
+	taps: &TapMap,
+	station_id: &str,
 ) -> Result<()> {
 	let mut decoder = Decoder::new(Box::new(reader), hint)?;
 	let mut rate = decoder.sample_rate();
@@ -464,6 +510,20 @@ fn decode(
 			continue;
 		}
 		ring.push(&out);
+		// Taps: time-shift and recognition buffers plus PCM recording formats.
+		// A failing tap must never stop playback, so errors are dropped.
+		let t = taps_for(taps, station_id);
+		if let Some(b) = &t.shift {
+			b.push(&out);
+		}
+		if let Some(b) = &t.capture {
+			b.push(&out);
+		}
+		if let Some(slot) = &t.record
+			&& let Some(rec) = slot.lock().as_mut()
+		{
+			let _ = rec.write_pcm(&out);
+		}
 		out.clear();
 		if !produced.swap(true, Ordering::Relaxed) {
 			if !shared.played.swap(true, Ordering::Relaxed) {

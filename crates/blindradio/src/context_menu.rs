@@ -31,6 +31,7 @@ pub enum Item {
 	/// True when the station is a favorite already: the item removes it.
 	Favorite(bool),
 	CopyUrl,
+	StationSettings,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
 	/// The same collections alone, as top-level check items (Add to Collection).
@@ -49,6 +50,7 @@ pub enum Choice {
 	Play,
 	Favorite,
 	CopyUrl,
+	StationSettings,
 	/// Into or out of the collection with this id.
 	Toggle(String),
 	NewCollection,
@@ -67,6 +69,7 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 				Item::Play,
 				Item::Favorite(lib.is_favorite(&st.id)),
 				Item::CopyUrl,
+				Item::StationSettings,
 				Item::AddToCollection(
 					lib.collections
 						.iter()
@@ -129,6 +132,14 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			}
 			Item::CopyUrl => {
 				menu.append(add(Choice::CopyUrl), s::COPY_URL, "", ItemKind::Normal);
+			}
+			Item::StationSettings => {
+				menu.append(
+					add(Choice::StationSettings),
+					s::STATION_SETTINGS_ITEM,
+					"",
+					ItemKind::Normal,
+				);
 			}
 			Item::AddToCollection(collections) => {
 				let sub = Menu::builder().build();
@@ -242,6 +253,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::Play => Action::Play,
 		Choice::Favorite => Action::ToggleFavorite,
 		Choice::CopyUrl => Action::CopyUrl,
+		Choice::StationSettings => Action::StationSettings,
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
 		Choice::NewCollection => {
 			// Modal: outside the borrow.

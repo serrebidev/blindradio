@@ -21,10 +21,14 @@ pub enum HotkeyAction {
 	AnnounceNowPlaying,
 	ToggleWindow,
 	ToggleEq,
+	Record,
+	SeekBack,
+	SeekForward,
+	GoLive,
 }
 
 impl HotkeyAction {
-	pub const ALL: [HotkeyAction; 9] = [
+	pub const ALL: [HotkeyAction; 13] = [
 		HotkeyAction::PlayPause,
 		HotkeyAction::Stop,
 		HotkeyAction::VolumeUp,
@@ -34,6 +38,10 @@ impl HotkeyAction {
 		HotkeyAction::AnnounceNowPlaying,
 		HotkeyAction::ToggleWindow,
 		HotkeyAction::ToggleEq,
+		HotkeyAction::Record,
+		HotkeyAction::SeekBack,
+		HotkeyAction::SeekForward,
+		HotkeyAction::GoLive,
 	];
 
 	pub fn id(self) -> &'static str {
@@ -47,6 +55,10 @@ impl HotkeyAction {
 			HotkeyAction::AnnounceNowPlaying => "announce_now_playing",
 			HotkeyAction::ToggleWindow => "toggle_window",
 			HotkeyAction::ToggleEq => "toggle_eq",
+			HotkeyAction::Record => "record",
+			HotkeyAction::SeekBack => "seek_back",
+			HotkeyAction::SeekForward => "seek_forward",
+			HotkeyAction::GoLive => "go_live",
 		}
 	}
 
@@ -61,6 +73,10 @@ impl HotkeyAction {
 			HotkeyAction::AnnounceNowPlaying => s::HK_ANNOUNCE,
 			HotkeyAction::ToggleWindow => s::HK_TOGGLE_WINDOW,
 			HotkeyAction::ToggleEq => s::HK_TOGGLE_EQ,
+			HotkeyAction::Record => s::HK_RECORD,
+			HotkeyAction::SeekBack => s::HK_SEEK_BACK,
+			HotkeyAction::SeekForward => s::HK_SEEK_FORWARD,
+			HotkeyAction::GoLive => s::HK_GO_LIVE,
 		}
 	}
 
@@ -75,6 +91,10 @@ impl HotkeyAction {
 			HotkeyAction::AnnounceNowPlaying => "Ctrl+Alt+Shift+N",
 			HotkeyAction::ToggleWindow => "Ctrl+Alt+Shift+Y",
 			HotkeyAction::ToggleEq => "Ctrl+Alt+Shift+E",
+			HotkeyAction::Record => "Ctrl+Alt+Shift+R",
+			HotkeyAction::SeekBack => "Ctrl+Alt+Shift+B",
+			HotkeyAction::SeekForward => "Ctrl+Alt+Shift+F",
+			HotkeyAction::GoLive => "Ctrl+Alt+Shift+L",
 		}
 	}
 }

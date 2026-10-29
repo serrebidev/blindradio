@@ -45,6 +45,16 @@ impl Sink for SharedOutput {
 	}
 }
 
+/// `3:20` under an hour, `1:02:33` over it.
+pub fn fmt_dur(seconds: f32) -> String {
+	let total = seconds.max(0.0) as u64;
+	if total >= 3600 {
+		format!("{}:{:02}:{:02}", total / 3600, total % 3600 / 60, total % 60)
+	} else {
+		format!("{}:{:02}", total / 60, total % 60)
+	}
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum PlayPause<T> {
 	Stop,
@@ -135,6 +145,11 @@ pub struct App {
 	pub hotkeys: Hotkeys,
 	/// The song playing, for Announce Now Playing.
 	song: Option<String>,
+	/// When the playing station started sounding; drives the status line.
+	playing_since: Option<Instant>,
+	/// The status line without its time suffixes.
+	status_base: RefCell<String>,
+	last_status_tick: Instant,
 	/// The tray icon, once installed.
 	pub tray: Option<crate::tray::Tray>,
 	/// The single-instance claim; a later copy raises this window through it.
@@ -199,6 +214,9 @@ impl App {
 			speech,
 			hotkeys,
 			song: None,
+			playing_since: None,
+			status_base: RefCell::new(String::new()),
+			last_status_tick: Instant::now(),
 			tray: None,
 			instance: None,
 			readonly,
@@ -214,6 +232,10 @@ impl App {
 
 	/// Right after the window shows.
 	pub fn start(&mut self) {
+		// The tuner reads its own snapshot of the settings for time-shift,
+		// recording, recognition and scrobbling; save_settings refreshes it.
+		self.tuner
+			.set_settings(Arc::new(parking_lot::Mutex::new(self.settings.clone())));
 		// Before anything saves the library.
 		let first_run = store::first_run(&self.data);
 		// Play/Pause right after start plays the station from last time.
@@ -286,16 +308,52 @@ impl App {
 				Some(st) => self.play(st),
 				None => self.say(s::NOTHING_TO_PLAY),
 			},
-			Action::PlayPause => match play_pause(
-				self.tuner.playing().is_some(),
-				self.remembered.clone(),
-				self.selected.clone(),
-			) {
-				PlayPause::Stop => self.stop(true),
-				PlayPause::Play(st) => self.play(st),
-				PlayPause::Nothing => self.say(s::NOTHING_TO_PLAY),
-			},
+			Action::PlayPause => {
+				// With a time-shift buffer, pause holds the stream instead of
+				// disconnecting; resume picks up where it paused.
+				if self.tuner.playing().is_some()
+					&& let Some((_, status)) = self.tuner.shift()
+				{
+					let paused = status.paused.load(std::sync::atomic::Ordering::Relaxed);
+					self.tuner.shift_pause(!paused);
+					if self.settings.announce_status {
+						self.say(if paused { s::RESUMED } else { s::PAUSED });
+					}
+					return;
+				}
+				match play_pause(
+					self.tuner.playing().is_some(),
+					self.remembered.clone(),
+					self.selected.clone(),
+				) {
+					PlayPause::Stop => self.stop(true),
+					PlayPause::Play(st) => self.play(st),
+					PlayPause::Nothing => self.say(s::NOTHING_TO_PLAY),
+				}
+			}
 			Action::Stop => self.stop(true),
+			Action::Record => {
+				if self.tuner.is_recording() {
+					match self.tuner.stop_recording() {
+						Some(Ok(path)) => self.say(&format!("{}{}", s::REC_SAVED, path.display())),
+						Some(Err(e)) => self.say(&e.to_string()),
+						None => {}
+					}
+				} else {
+					match self.tuner.start_recording() {
+						Ok(_) => self.say(s::REC_STARTED),
+						Err(e) => self.say(&e.to_string()),
+					}
+				}
+			}
+			Action::SeekBack => self.seek(-1),
+			Action::SeekForward => self.seek(1),
+			Action::GoLive => {
+				self.tuner.shift_live();
+				if self.settings.announce_status && self.tuner.shift().is_some() {
+					self.say(s::LIVE);
+				}
+			}
 			Action::Mute => {
 				self.settings.muted = !self.settings.muted;
 				self.mixer(MixerCmd::Mute(self.settings.muted));
@@ -374,7 +432,9 @@ impl App {
 			| Action::ImportAsCollection
 			| Action::SongHistory
 			| Action::Equalizer
-			| Action::GlobalHotkeys => {}
+			| Action::GlobalHotkeys
+			| Action::FeatureSettings
+			| Action::StationSettings => {}
 			Action::CopyUrl => self.copy_url(),
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
 		}
@@ -437,6 +497,7 @@ impl App {
 			self.save_settings();
 			update::check(&self.win.frame, CheckTrigger::Automatic);
 		}
+		self.refresh_status_line(now);
 		self.refresh();
 	}
 
@@ -477,6 +538,10 @@ impl App {
 			}
 			HotkeyAction::ToggleWindow => self.toggle_window(),
 			HotkeyAction::ToggleEq => self.toggle_eq(),
+			HotkeyAction::Record => self.run(Action::Record),
+			HotkeyAction::SeekBack => self.run(Action::SeekBack),
+			HotkeyAction::SeekForward => self.run(Action::SeekForward),
+			HotkeyAction::GoLive => self.run(Action::GoLive),
 		}
 	}
 
@@ -534,6 +599,7 @@ impl App {
 	fn tuner_event(&mut self, event: TunerEvent) {
 		match event {
 			TunerEvent::Playing { station_id } => {
+				self.playing_since = Some(Instant::now());
 				// Dial tuning stays quiet: the audio is the confirmation.
 				if let Some(name) = self.playing_name(&station_id) {
 					self.say_kind(Kind::Status, &name);
@@ -600,29 +666,89 @@ impl App {
 		}
 		self.tuner.stop();
 		self.song = None;
+		self.playing_since = None;
 		self.now_playing(None);
 		if announce && self.settings.announce_status {
 			self.say(s::STOPPED);
 		}
 	}
 
+	/// One seek step in the time-shift buffer; says where playback landed.
+	fn seek(&mut self, direction: i32) {
+		let Some((buffer, status)) = self.tuner.shift() else {
+			return;
+		};
+		let step = i32::try_from(self.settings.timeshift.seek_step_seconds).unwrap_or(15);
+		self.tuner.shift_seek(direction * step);
+		if self.settings.announce_status {
+			let behind = status.behind_seconds(&buffer);
+			if behind >= 1.0 {
+				self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+			} else {
+				self.say(s::LIVE);
+			}
+		}
+	}
+
 	/// The window title and the now playing line; `None` is stopped.
 	fn now_playing(&self, text: Option<&str>) {
-		let title = text.unwrap_or(s::APP_NAME);
+		*self.status_base.borrow_mut() = text.unwrap_or("").to_string();
+		self.show_line(text.unwrap_or(""));
+	}
+
+	fn show_line(&self, text: &str) {
+		let title = if text.is_empty() { s::APP_NAME } else { text };
 		if self.win.frame.get_title() != title {
 			self.win.frame.set_title(title);
 		}
-		let line = escape(text.unwrap_or(s::STOPPED));
+		let line = escape(if text.is_empty() { s::STOPPED } else { text });
 		if self.win.now_playing.get_label() != line {
 			self.win.now_playing.set_label(&line);
 		}
+	}
+
+	/// Once a second: the status line gains how long the station has played,
+	/// the time-shift position and the recording marker.
+	fn refresh_status_line(&mut self, now: Instant) {
+		if now.duration_since(self.last_status_tick) < Duration::from_secs(1) {
+			return;
+		}
+		self.last_status_tick = now;
+		let base = self.status_base.borrow().clone();
+		if base.is_empty() || self.tuner.playing().is_none() {
+			return;
+		}
+		let mut line = base;
+		if let Some(since) = self.playing_since {
+			line += &format!(" - {}{}", fmt_dur(since.elapsed().as_secs_f32()), s::PLAYED_FOR);
+		}
+		if let Some((buffer, status)) = self.tuner.shift() {
+			let behind = status.behind_seconds(&buffer);
+			if behind >= 1.0 {
+				line += &format!(" - {}{}", fmt_dur(behind), s::BEHIND_LIVE);
+			}
+			if status.paused.load(std::sync::atomic::Ordering::Relaxed) {
+				line += s::STATUS_PAUSED;
+			}
+		}
+		if self.tuner.is_recording() {
+			line += s::STATUS_RECORDING;
+		}
+		self.show_line(&line);
 	}
 
 	/// Button labels, the favorites menu item and the volume slider follow the state.
 	fn refresh(&self) {
 		let win = &self.win;
 		let playing = self.tuner.playing().is_some();
-		set_label(win.play, if playing { s::PAUSE } else { s::PLAY });
+		let shift_paused = self
+			.tuner
+			.shift()
+			.is_some_and(|(_, st)| st.paused.load(std::sync::atomic::Ordering::Relaxed));
+		set_label(
+			win.play,
+			if playing && !shift_paused { s::PAUSE } else { s::PLAY },
+		);
 		set_label(
 			win.mute,
 			if self.settings.muted {
@@ -693,6 +819,8 @@ impl App {
 			eprintln!("settings: {e}");
 			self.say(s::NOT_SAVED);
 		}
+		self.tuner
+			.set_settings(Arc::new(parking_lot::Mutex::new(self.settings.clone())));
 	}
 
 	/// Refills the main window list; focus stays on the same station, else the same place.

@@ -2,6 +2,23 @@
 
 Terse, newest first. Each release's section is its GitHub release note.
 
+## 0.2.6
+
+- Time-shift playback: pause now holds the stream and resumes where you paused, and
+  you can skip back or forward in steps (15 seconds by default) or jump back to live.
+  The buffer is 30 minutes by default, settable globally and per station.
+- Recording: Ctrl+R records the playing station — the stream's own format untouched,
+  or WAV, MP3 (constant or variable bitrate) or FLAC decoded.
+- Song recognition: stations that send no titles can be identified with AudD; the
+  recognized song shows in the status line and can be announced as it changes.
+- Scrobbling: songs that play for a minute or more can be scrobbled to ListenBrainz
+  and to last.fm or Libre.fm.
+- The status line now shows how long the station has been playing, how far behind
+  live you are while time-shifted, and when a recording is running.
+- New Playback menu items and global hotkeys for Record, Skip Back, Skip Forward and
+  Go to Live; Feature Settings (Ctrl+T) holds the new options, and a station's own
+  overrides live under Station Settings in its context menu.
+
 ## 0.2.5
 
 - Browse is grouped: the top level is Directories (Radio Browser, TuneIn, iHeartRadio,

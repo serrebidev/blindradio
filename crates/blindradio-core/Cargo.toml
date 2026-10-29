@@ -6,7 +6,7 @@ version.workspace = true
 
 [dependencies]
 thiserror = "*"
-reqwest = { version = "*", default-features = false, features = ["rustls", "stream", "form"] }
+reqwest = { version = "*", default-features = false, features = ["rustls", "stream", "form", "multipart", "json"] }
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync"] }
 serde_json = "*"
 percent-encoding = "*"
@@ -24,6 +24,10 @@ scraper = "*"
 m3u8-rs = "*"
 cpal = "*"
 dirs = "*"
+hound = "*"
+mp3lame-encoder = "*"
+flacenc = "*"
+md5 = "*"
 
 [dev-dependencies]
 tempfile = "*"
