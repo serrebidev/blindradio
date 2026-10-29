@@ -148,8 +148,14 @@ pub fn install(app: &Rc<RefCell<App>>) -> Option<Tray> {
 	// menu's Show is the only way in there.
 	#[cfg(target_os = "windows")]
 	{
+		// A single click is the mouse way back in. Keyboard activation of the
+		// icon (Enter in the notification area) and a double-click arrive as
+		// a double-click event instead, never as left-up: bind both, or the
+		// window cannot be brought back without the menu.
 		let a = app.clone();
 		icon.on_left_up(move |_| raise(&a));
+		let a = app.clone();
+		icon.on_left_double_click(move |_| raise(&a));
 	}
 	#[cfg(target_os = "linux")]
 	{

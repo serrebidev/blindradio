@@ -270,8 +270,11 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		let WindowEventData::General(e) = e else {
 			return;
 		};
-		// Hide to the tray instead of closing, when that setting is on.
+		// Hide to the tray instead of closing, when that setting is on. The
+		// veto is the explicit cancel: skip(false) alone leaves the close to
+		// the default handler's reading of it.
 		if a.borrow().settings.close_to_tray {
+			e.veto();
 			e.skip(false);
 			a.borrow().win.frame.hide();
 			return;

@@ -21,7 +21,9 @@ taken from this file by `cargo xtask release`.
   joined by Play a station as I move to it, Hide to the system tray when
   closed, and Maximize the window at startup.
 - Closing the window really exits now; with Hide to the system tray on, it
-  hides to the tray instead and playback continues.
+  hides to the tray instead and playback continues. The window comes back
+  from the tray by clicking the icon, double-clicking it or pressing Enter
+  on it, or through the tray menu's Show Window.
 - The window title is the playing station's name alone — no song, no stream
   details — so a screen reader's title command reads the station first. The
   now-playing line is station first too, then the song.
