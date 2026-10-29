@@ -12,6 +12,7 @@ use crate::output::{MixerCmd, Output};
 use crate::recognize::{SongId, identify_audd, wav_bytes};
 use crate::record::Recorder;
 use crate::ring::{CUSHION_MS, PcmRing};
+use crate::ringfeed::{RingFeed, WINDOW_SECONDS};
 use crate::scrobble;
 use crate::settings::{RecognitionProvider, Settings};
 use crate::station::Station;
@@ -279,6 +280,12 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	/// Station the taps below belong to; they reset when it changes.
 	tap_station: Option<String>,
 	shift: Option<(Arc<ShiftBuffer>, Arc<ShiftStatus>)>,
+	/// The encoded ring replay feed, when the playing station's
+	/// time-shift uses the optional encoded ring.
+	ring_feed: Option<RingFeed>,
+	/// Session time the listener paused at, in ring mode: resuming
+	/// after the window slid past it re-primes the window there.
+	ring_paused_at: Option<u64>,
 	capture: Option<Arc<ShiftBuffer>>,
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 	/// The playing station's current song title and when it started.
@@ -309,6 +316,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			settings: None,
 			tap_station: None,
 			shift: None,
+			ring_feed: None,
+			ring_paused_at: None,
 			capture: None,
 			record_slot: None,
 			song: None,
@@ -573,7 +582,25 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let rate = self.factory.rate();
 		let mut taps = Taps::default();
 		let minutes = settings.timeshift_minutes_for(&station.id);
-		if minutes > 0 {
+		let ring_bytes = settings.timeshift_ring_bytes();
+		if minutes > 0 && ring_bytes > 0 {
+			// Encoded ring mode: the byte pump fills the ring, the
+			// replay feed decodes a window from it, and the mixer
+			// plays the window. No decoded shift tap.
+			let ring = Arc::new(crate::encoded_ring::EncodedRing::new(ring_bytes as usize));
+			let tap = Arc::new(crate::stream::RingTap::new(ring.clone()));
+			taps.ring = Some(tap.clone());
+			let status = Arc::new(ShiftStatus::new());
+			let feed = RingFeed::new(ring, tap, status.clone(), rate);
+			let buffer = feed.window();
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: status.clone(),
+			});
+			self.shift = Some((buffer, status));
+			self.ring_feed = Some(feed);
+			self.ring_paused_at = None;
+		} else if minutes > 0 {
 			let buffer = Arc::new(ShiftBuffer::new(rate, minutes));
 			let status = Arc::new(ShiftStatus::new());
 			self.sink.send(MixerCmd::ShiftAttach {
@@ -606,6 +633,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if let Some(id) = self.tap_station.take() {
 			self.factory.clear_taps(&id);
 		}
+		if let Some(feed) = self.ring_feed.take() {
+			feed.stop();
+		}
+		self.ring_paused_at = None;
 		self.shift = None;
 		self.capture = None;
 		self.record_slot = None;
@@ -618,14 +649,64 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn shift_pause(&mut self, paused: bool) {
+		if let Some(feed) = &self.ring_feed {
+			if paused {
+				self.ring_paused_at = Some(feed.cursor_time());
+				self.sink.send(MixerCmd::ShiftPause(true));
+			} else if let Some(at) = self.ring_paused_at.take()
+				&& at < feed.window_start_ms()
+			{
+				// The window slid past the pause point while paused;
+				// re-prime there. Attaching also unpauses in the mixer,
+				// and the seek places the cursor at the window start.
+				let buffer = feed.prime(at);
+				self.sink.send(MixerCmd::ShiftAttach {
+					buffer: buffer.clone(),
+					status: feed.status(),
+				});
+				self.sink.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+				self.shift = Some((buffer, feed.status()));
+			} else {
+				self.sink.send(MixerCmd::ShiftPause(false));
+			}
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftPause(paused));
 	}
 
 	pub fn shift_seek(&mut self, seconds: i32) {
+		if let Some(feed) = &self.ring_feed {
+			let target = (feed.cursor_time() as i64 + seconds as i64 * 1000)
+				.max(feed.ring_start_ms() as i64) as u64;
+			if seconds < 0 && target < feed.window_start_ms() {
+				// Before the window: re-prime at the target instead of
+				// letting the mixer clamp at the window start.
+				let buffer = feed.prime(target);
+				self.sink.send(MixerCmd::ShiftAttach {
+					buffer: buffer.clone(),
+					status: feed.status(),
+				});
+				self.sink.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+				self.shift = Some((buffer, feed.status()));
+			} else {
+				self.sink.send(MixerCmd::ShiftSeek(seconds));
+			}
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftSeek(seconds));
 	}
 
 	pub fn shift_live(&mut self) {
+		if let Some(feed) = &self.ring_feed {
+			self.ring_paused_at = None;
+			let buffer = feed.prime_live();
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: feed.status(),
+			});
+			self.shift = Some((buffer, feed.status()));
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftLive);
 	}
 

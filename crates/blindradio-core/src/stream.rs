@@ -35,6 +35,41 @@ pub struct Taps {
 	/// The recorder slot; the app starts and stops the recorder inside it
 	/// while the decode loop writes.
 	pub record: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// The encoded ring buffer feed, when the station's time-shift uses
+	/// the optional encoded ring: the byte pump pushes every clean
+	/// encoded chunk here.
+	pub ring: Option<Arc<RingTap>>,
+}
+
+/// Feeds the encoded ring from the byte pump. Chunks arrive paced by
+/// the network, so a chunk's stream time is the session's elapsed time
+/// when it arrives; the initial connection burst skews the first
+/// seconds slightly, which a seek target tolerates (the replay decoder
+/// resynchronizes and discards to the exact frame). One tap serves the
+/// station's whole session, across reconnects: an outage stretches the
+/// time axis by the silence, which is the honest shape of the ring.
+pub struct RingTap {
+	ring: Arc<crate::encoded_ring::EncodedRing>,
+	started: Instant,
+}
+
+impl RingTap {
+	pub fn new(ring: Arc<crate::encoded_ring::EncodedRing>) -> RingTap {
+		RingTap {
+			ring,
+			started: Instant::now(),
+		}
+	}
+
+	pub fn push(&self, chunk: &[u8]) {
+		let ms = self.started.elapsed().as_millis() as u64;
+		self.ring.push(ms, chunk);
+	}
+
+	/// Session time now, on the same axis the chunks are stamped with.
+	pub fn now_ms(&self) -> u64 {
+		self.started.elapsed().as_millis() as u64
+	}
 }
 
 pub type TapMap = Arc<Mutex<HashMap<String, Taps>>>;
@@ -545,11 +580,15 @@ async fn pump(
 			}
 		}
 		for bytes in audio.drain(..) {
+			let t = taps_for(taps, station_id);
 			// An Original-format recording taps the clean encoded bytes here.
-			if let Some(slot) = &taps_for(taps, station_id).record
+			if let Some(slot) = &t.record
 				&& let Some(rec) = slot.lock().as_mut()
 			{
 				let _ = rec.write_bytes(&bytes);
+			}
+			if let Some(rt) = &t.ring {
+				rt.push(&bytes);
 			}
 			if !send(&tx, bytes).await {
 				return None;

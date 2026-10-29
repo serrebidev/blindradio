@@ -25,20 +25,26 @@ window next to Buffer Minutes.
   encoded chunks, each stamped by the caller with the stream time of
   its first byte; whole-chunk trim from the front; `span(from, to)`
   for recording, `chunk_at(time)` for replay.
-- Tee and stamps (next): the byte pipe feeding the live `Decoder`
-  also pushes into the ring. Stamps come from the live decoder's
-  progress — bytes consumed so far against frames decoded so far,
-  checkpointed per chunk. Accuracy within a chunk is fine: replay
-  resynchronizes and discards to the exact frame.
-- Replay pump (next): a second `Decoder` over ring bytes starting at
-  `chunk_at(cursor)`, decoding forward into the station's existing
-  `ShiftBuffer` window, so the mixer, `ShiftStatus`, seek steps,
-  pause and the status bar are unchanged. On a seek, the pump restarts
-  at the new position and the window re-primes (a short rebuffer, as
-  in DVBViewer). Reaching the live edge hands back to the live path.
-- Recording from the buffer (next): Original format writes
-  `span(start, end)` bytes directly; WAV/MP3/FLAC decode that span
-  with a throwaway `Decoder` and encode as today.
+- Tee and stamps (done): the byte pump pushes every clean encoded
+  chunk into the ring through `stream::RingTap`. Stamps are the
+  station session's elapsed time when the chunk arrives — chunks are
+  network-paced, so the axis is stream time within the first burst's
+  skew, and an outage honestly stretches it. One tap serves the whole
+  session across reconnects.
+- Replay feed (done, `ringfeed::RingFeed`): a second `Decoder` over
+  ring bytes, resampled into a 180-second `ShiftBuffer` window whose
+  frame 0 maps to a session time (`WindowMap`), so the mixer,
+  `ShiftStatus`, seek steps, pause and the status bar are unchanged.
+  The feed throttles so the window never slides out from under the
+  mixer's cursor. The tuner intercepts seek/pause/live in ring mode:
+  a seek or resume landing before the window, or going live,
+  re-primes the window at the target and re-attaches. Reaching the
+  window's edge hands back to the live path, as before.
+- Recording from the buffer (last piece, designed): recording while
+  time-shifted starts at the playhead. WAV/MP3/FLAC take the mixer's
+  own shifted frames (what the listener hears), the decode-loop tap
+  yielding while `ShiftStatus` shows a shifted playhead; Original
+  appends ring spans as the cursor passes them, paced by the feed.
 
 ## Risks
 

@@ -21,9 +21,11 @@ pub struct EncodedRing {
 struct RingInner {
 	chunks: VecDeque<Chunk>,
 	bytes: usize,
+	next_seq: u64,
 }
 
 struct Chunk {
+	seq: u64,
 	start_ms: u64,
 	data: Vec<u8>,
 }
@@ -35,6 +37,7 @@ impl EncodedRing {
 			inner: Mutex::new(RingInner {
 				chunks: VecDeque::new(),
 				bytes: 0,
+				next_seq: 0,
 			}),
 		}
 	}
@@ -49,7 +52,10 @@ impl EncodedRing {
 			.back()
 			.map_or(start_ms, |c| start_ms.max(c.start_ms));
 		inner.bytes += data.len();
+		let seq = inner.next_seq;
+		inner.next_seq += 1;
 		inner.chunks.push_back(Chunk {
+			seq,
 			start_ms,
 			data: data.to_vec(),
 		});
@@ -95,6 +101,40 @@ impl EncodedRing {
 			offset += c.data.len();
 		}
 		found
+	}
+
+	/// Bytes from the chunk containing `time_ms` to the live edge,
+	/// with the sequence number of the last chunk served: a reader
+	/// following the stream starts here, then continues with
+	/// `bytes_after_seq`. None when `time_ms` predates the ring.
+	pub fn serve_from(&self, time_ms: u64) -> Option<(Vec<u8>, u64)> {
+		let inner = self.inner.lock();
+		// The containing chunk is the last one starting at or before
+		// the target; the newest chunk counts as containing any later
+		// time, since it is still growing toward the live edge.
+		let start = inner.chunks.iter().rposition(|c| c.start_ms <= time_ms)?;
+		let mut out = Vec::new();
+		let mut last_seq = 0;
+		for c in inner.chunks.iter().skip(start) {
+			out.extend_from_slice(&c.data);
+			last_seq = c.seq;
+		}
+		Some((out, last_seq))
+	}
+
+	/// Bytes in chunks pushed after sequence `seq`, with the newest
+	/// sequence served (unchanged when nothing new arrived).
+	pub fn bytes_after_seq(&self, seq: u64) -> (Vec<u8>, u64) {
+		let inner = self.inner.lock();
+		let mut out = Vec::new();
+		let mut last = seq;
+		for c in &inner.chunks {
+			if c.seq > seq {
+				out.extend_from_slice(&c.data);
+				last = c.seq;
+			}
+		}
+		(out, last)
 	}
 
 	/// The encoded bytes covering `[from_ms, to_ms)`, whole chunks
@@ -157,6 +197,30 @@ mod tests {
 		assert_eq!(r.chunk_at(500), None);
 		assert_eq!(r.chunk_at(1500), Some((0, 1000)));
 		assert_eq!(r.chunk_at(2500), Some((40, 2000)));
+	}
+
+	#[test]
+	fn serve_from_and_follow_by_seq() {
+		let r = ring(1000);
+		r.push(0, &[1u8; 10]);
+		r.push(1000, &[2u8; 10]);
+		r.push(2000, &[3u8; 10]);
+		let (bytes, seq) = r.serve_from(500).unwrap();
+		assert_eq!(bytes.len(), 30);
+		assert_eq!(seq, 2);
+		let (more, seq) = r.bytes_after_seq(seq);
+		assert!(more.is_empty());
+		assert_eq!(seq, 2);
+		r.push(3000, &[4u8; 10]);
+		let (more, seq) = r.bytes_after_seq(seq);
+		assert_eq!(more, vec![4u8; 10]);
+		assert_eq!(seq, 3);
+		// A time past the newest stamp serves the newest chunk; a time
+		// before the ring's first chunk serves nothing.
+		assert_eq!(r.serve_from(99_000).unwrap().0, vec![4u8; 10]);
+		let r2 = ring(1000);
+		r2.push(5000, &[1u8; 10]);
+		assert_eq!(r2.serve_from(100), None);
 	}
 
 	#[test]

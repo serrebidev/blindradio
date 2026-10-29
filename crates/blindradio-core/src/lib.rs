@@ -14,6 +14,7 @@ pub mod record;
 pub mod resample;
 pub mod scrobble;
 pub mod ring;
+pub mod ringfeed;
 pub mod settings;
 pub mod sleep;
 pub mod sources;
