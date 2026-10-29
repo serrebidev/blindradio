@@ -273,7 +273,7 @@ jobs:
 
   publish:
     name: Verify and publish
-    needs: [windows, linux, macos]
+    needs: [prepare, windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
       - name: Every asset and signature present, then publish
