@@ -1,6 +1,9 @@
 # Changelog
 
-Terse, newest first. Each release's section is its GitHub release note.
+Readable release history for BlindRadio, newest first. When adjacent releases
+were part of the same fix stream, they are combined with a version range such
+as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
+taken from this file by `cargo xtask release`.
 
 ## 0.2.6
 
