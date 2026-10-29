@@ -72,6 +72,15 @@ jobs:
           set -euo pipefail
           tag="v$VERSION"
           if git ls-remote --tags origin "$tag" | grep -q .; then
+            # A tag left by an earlier dispatch of this same workflow, with
+            # its release still a draft, means a later leg failed: resume
+            # that release instead of starting over. A published release
+            # under the tag stays refused — never re-release.
+            if [ "$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || echo missing)" = "true" ]; then
+              echo "Resuming $tag: tag and unpublished draft already exist."
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             echo "tag $tag already exists; refusing to re-release" >&2
             exit 1
           fi
@@ -134,8 +143,13 @@ jobs:
       - name: Find the VC++ runtime redist
         shell: pwsh
         run: |
-          $crt = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT\msvcp140.dll" |
-            Sort-Object FullName | Select-Object -Last 1
+          $found = foreach ($root in Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\2022" -Directory -ErrorAction SilentlyContinue) {
+            foreach ($ver in Get-ChildItem (Join-Path $root.FullName "VC\Redist\MSVC") -Directory -ErrorAction SilentlyContinue) {
+              $dll = Join-Path $ver.FullName "x64\Microsoft.VC143.CRT\msvcp140.dll"
+              if (Test-Path $dll) { Get-Item $dll }
+            }
+          }
+          $crt = $found | Sort-Object FullName | Select-Object -Last 1
           if (-not $crt) { throw "VC++ runtime redist not found on this runner" }
           "VC_REDIST_DIR=$($crt.DirectoryName)" >> $env:GITHUB_ENV
 
@@ -185,7 +199,7 @@ jobs:
       - name: Check the AppImage starts
         run: |
           set +e
-          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libegl1 libgl1 > /dev/null
           timeout 15 xvfb-run -a ./target/dist/BlindRadio.AppImage
           code=$?
           if [ $code -ne 124 ]; then
