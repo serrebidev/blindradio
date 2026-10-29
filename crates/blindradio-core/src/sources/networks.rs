@@ -1,4 +1,5 @@
 //! Curated networks (BBC, NPR, SomaFM and others), shipped as data in `data/networks.json`.
+//! A network with a single station is not listed; it is not a network.
 
 use super::{Node, SearchQuery};
 use crate::station::{Source, Station};
@@ -47,6 +48,7 @@ pub fn children(id: &str) -> Vec<Node> {
 	if id == "net" {
 		return networks()
 			.iter()
+			.filter(|n| n.stations.len() > 1)
 			.map(|n| Node::Folder {
 				id: format!("net/{}", n.slug),
 				name: n.name.clone(),
@@ -71,6 +73,7 @@ pub fn search(q: &SearchQuery) -> Vec<Station> {
 	}
 	networks()
 		.iter()
+		.filter(|n| n.stations.len() > 1)
 		.flat_map(|n| n.stations.iter().map(move |s| (n, s)))
 		.filter(|(_, s)| s.name.to_lowercase().contains(&name))
 		.map(|(n, s)| station(n, s))

@@ -2,6 +2,12 @@
 
 Terse, newest first. Each release's section is its GitHub release note.
 
+## 0.2.5
+
+- Browse is grouped: the top level is Directories (Radio Browser, TuneIn, iHeartRadio,
+  Icecast, SHOUTcast, Internet-Radio, laut.fm) and Networks, not eight loose entries.
+- A network with a single station is no longer listed under Networks.
+
 ## 0.2.4
 
 - Browse and search laut.fm as a new directory: its sixty most popular genres, up to 250

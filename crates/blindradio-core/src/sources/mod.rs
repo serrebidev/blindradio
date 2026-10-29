@@ -348,6 +348,16 @@ impl Sources {
 	}
 
 	pub fn roots() -> Vec<Node> {
+		[("dir", "Directories"), ("net", "Networks")]
+			.map(|(id, name)| Node::Folder {
+				id: id.into(),
+				name: name.into(),
+			})
+			.into()
+	}
+
+	/// The station directories, the children of the `dir` root.
+	fn directories() -> Vec<Node> {
 		[
 			("rb", "Radio Browser"),
 			("tunein", "TuneIn"),
@@ -356,7 +366,6 @@ impl Sources {
 			("shoutcast", "SHOUTcast"),
 			("internet-radio", "Internet-Radio"),
 			("lautfm", "laut.fm"),
-			("net", "Networks"),
 		]
 		.map(|(id, name)| Node::Folder {
 			id: id.into(),
@@ -370,6 +379,7 @@ impl Sources {
 	pub async fn children(&self, id: &str, sort: Sort) -> Result<Vec<Node>> {
 		let head = id.split(['/', '@']).next().unwrap_or("");
 		match head {
+			"dir" => Ok(Self::directories()),
 			"rb" => self.rb.children(&self.client, id, sort).await,
 			"tunein" => self.tunein.children(&self.client, id).await,
 			"iheart" => self.iheart.children(&self.client, id).await,

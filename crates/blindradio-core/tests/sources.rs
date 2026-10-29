@@ -59,16 +59,7 @@ fn folder(id: &str, name: &str) -> Node {
 fn roots_in_order() {
 	assert_eq!(
 		Sources::roots(),
-		vec![
-			folder("rb", "Radio Browser"),
-			folder("tunein", "TuneIn"),
-			folder("iheart", "iHeartRadio"),
-			folder("icecast", "Icecast"),
-			folder("shoutcast", "SHOUTcast"),
-			folder("internet-radio", "Internet-Radio"),
-			folder("lautfm", "laut.fm"),
-			folder("net", "Networks"),
-		]
+		vec![folder("dir", "Directories"), folder("net", "Networks")]
 	);
 }
 

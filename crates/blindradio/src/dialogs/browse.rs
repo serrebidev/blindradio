@@ -105,7 +105,7 @@ pub struct BrowseModel {
 	roots: Vec<usize>,
 	focus: Option<usize>,
 	cache: HashMap<String, Vec<Node>>,
-	/// Roots whose failure was said since their last fetch.
+	/// Branches whose failure was said since their last fetch.
 	failed: HashSet<usize>,
 	collections: usize,
 	custom: usize,
@@ -151,10 +151,16 @@ impl BrowseModel {
 
 	/// The sort changed: Radio Browser levels (the only sorted ones) are dropped, cache
 	/// first, so the next open fetches them in the new order. Focus inside one moves to
-	/// the Radio Browser root.
+	/// the Radio Browser folder.
 	pub fn resort(&mut self) {
 		self.cache.retain(|id, _| !id.starts_with("rb"));
-		let rb = self.roots[0];
+		let Some(rb) = self
+			.items
+			.iter()
+			.position(|item| item.kind.key() == Some("rb"))
+		else {
+			return;
+		};
 		let mut under = vec![false; self.items.len()];
 		for (i, item) in self.items.iter().enumerate() {
 			under[i] = i == rb || item.parent.is_some_and(|p| under[p]);
@@ -263,8 +269,13 @@ impl BrowseModel {
 		self.focus = Some(i);
 	}
 
+	/// The branch an item belongs to: the highest item below a tree root, or the
+	/// root itself. Failures are announced per branch (Radio Browser, a network).
 	fn root_of(&self, mut i: usize) -> usize {
 		while let Some(p) = self.items[i].parent {
+			if self.roots.contains(&p) {
+				break;
+			}
 			i = p;
 		}
 		i
@@ -1216,24 +1227,38 @@ mod tests {
 		i
 	}
 
+	/// Opens the Directories root with its seven directories, as the app does.
+	fn open_dir(m: &mut BrowseModel) -> usize {
+		let dirs = [
+			("rb", "Radio Browser"),
+			("tunein", "TuneIn"),
+			("iheart", "iHeartRadio"),
+			("icecast", "Icecast"),
+			("shoutcast", "SHOUTcast"),
+			("internet-radio", "Internet-Radio"),
+			("lautfm", "laut.fm"),
+		];
+		load(
+			m,
+			None,
+			"dir",
+			dirs
+				.iter()
+				.map(|(id, name)| Node::Folder {
+					id: id.to_string(),
+					name: name.to_string(),
+				})
+				.collect(),
+		)
+	}
+
 	#[test]
 	fn browse_roots() {
 		let m = BrowseModel::new(Memory::default(), &Library::default());
 		let roots: Vec<&str> = m.children(None).iter().map(|&i| m.label(i)).collect();
 		assert_eq!(
 			roots,
-			[
-				"Radio Browser",
-				"TuneIn",
-				"iHeartRadio",
-				"Icecast",
-				"SHOUTcast",
-				"Internet-Radio",
-				"laut.fm",
-				"Networks",
-				"Collections",
-				"Custom Stations"
-			]
+			["Directories", "Networks", "Collections", "Custom Stations"]
 		);
 		assert_eq!(m.focus(), Some(m.children(None)[0]), "opens on the top");
 	}
@@ -1243,9 +1268,10 @@ mod tests {
 		let mut lib = Library::default();
 		lib.add_custom("Mine", "http://mine");
 		let mut m = BrowseModel::new(Memory::default(), &lib);
+		let dir = open_dir(&mut m);
 		let rb = load(
 			&mut m,
-			None,
+			Some(dir),
 			"rb",
 			vec![folder("rb/genre"), folder("rb/country")],
 		);
@@ -1265,8 +1291,8 @@ mod tests {
 		assert_eq!(m.first_on_level(genre), genre);
 		assert_eq!(m.last_on_level(genre), find(&m, Some(rb), "rb/country"));
 		let custom = find(&m, None, CUSTOM);
-		assert_eq!(m.last_on_level(rb), custom);
-		assert_eq!(m.top(), rb, "Ctrl+Home");
+		assert_eq!(m.last_on_level(rb), find(&m, Some(dir), "lautfm"));
+		assert_eq!(m.top(), dir, "Ctrl+Home");
 		assert_eq!(m.bottom(), custom, "Ctrl+End: Custom Stations is closed");
 		assert_eq!(m.open(custom), None, "local: nothing to fetch");
 		assert_eq!(
@@ -1279,7 +1305,8 @@ mod tests {
 	#[test]
 	fn load_more_focus_first_new() {
 		let mut m = BrowseModel::new(Memory::default(), &Library::default());
-		let rb = load(&mut m, None, "rb", vec![folder("rb/genre")]);
+		let dir = open_dir(&mut m);
+		let rb = load(&mut m, Some(dir), "rb", vec![folder("rb/genre")]);
 		let genre = load(
 			&mut m,
 			Some(rb),
@@ -1316,9 +1343,10 @@ mod tests {
 	#[test]
 	fn browse_load_does_not_move_focus() {
 		let mut m = BrowseModel::new(Memory::default(), &Library::default());
+		let dir = open_dir(&mut m);
 		let rb = load(
 			&mut m,
-			None,
+			Some(dir),
 			"rb",
 			vec![folder("rb/genre"), folder("rb/country")],
 		);
@@ -1350,7 +1378,8 @@ mod tests {
 
 		// TuneIn ids are flat: the path, not the id, says where a station is.
 		let mut m = BrowseModel::new(Memory::default(), &lib);
-		let tunein = load(&mut m, None, "tunein", vec![folder("tunein/r101215")]);
+		let dir = open_dir(&mut m);
+		let tunein = load(&mut m, Some(dir), "tunein", vec![folder("tunein/r101215")]);
 		let africa = load(
 			&mut m,
 			Some(tunein),
@@ -1374,7 +1403,8 @@ mod tests {
 			Some("s2"),
 			"back on the station, its Load More page included"
 		);
-		let tunein = find(&m, None, "tunein");
+		let dir = find(&m, None, "dir");
+		let tunein = find(&m, Some(dir), "tunein");
 		let africa = find(&m, Some(tunein), "tunein/r101215");
 		let kenya = find(&m, Some(africa), "tunein/r100289");
 		assert!(m.expanded(tunein) && m.expanded(africa) && m.expanded(kenya));
@@ -1393,19 +1423,22 @@ mod tests {
 		assert!(m.expanded(collections));
 
 		// Closed while a folder was loading: that folder.
-		let rb = load(&mut m, None, "rb", vec![folder("rb/genre")]);
+		let dir = open_dir(&mut m);
+		let rb = load(&mut m, Some(dir), "rb", vec![folder("rb/genre")]);
 		let genre = find(&m, Some(rb), "rb/genre");
 		m.open(genre);
 		m.set_focus(m.children(Some(genre))[0]);
 		let m = BrowseModel::new(m.memory(Sort::default()), &lib);
-		let rb = find(&m, None, "rb");
+		let dir = find(&m, None, "dir");
+		let rb = find(&m, Some(dir), "rb");
 		assert_eq!(m.focus(), Some(find(&m, Some(rb), "rb/genre")));
 	}
 
 	#[test]
 	fn browse_failure_message() {
 		let mut m = BrowseModel::new(Memory::default(), &Library::default());
-		let rb = find(&m, None, "rb");
+		let dir = open_dir(&mut m);
+		let rb = find(&m, Some(dir), "rb");
 		m.open(rb);
 		m.set_focus(m.children(Some(rb))[0]);
 		assert_eq!(m.loaded(rb, None).as_deref(), Some("Failed: Radio Browser"));
@@ -1446,7 +1479,8 @@ mod tests {
 	#[test]
 	fn browse_resort_drops_radio_browser_levels() {
 		let mut m = BrowseModel::new(Memory::default(), &Library::default());
-		let rb = load(&mut m, None, "rb", vec![folder("rb/genre")]);
+		let dir = open_dir(&mut m);
+		let rb = load(&mut m, Some(dir), "rb", vec![folder("rb/genre")]);
 		let genre = load(&mut m, Some(rb), "rb/genre", vec![station("a")]);
 		m.set_focus(find(&m, Some(genre), "a"));
 		m.resort();
@@ -1489,7 +1523,8 @@ mod tests {
 			},
 			"in a collection: out of it"
 		);
-		let rb = load(&mut m, None, "rb", vec![station("a")]);
+		let dir = open_dir(&mut m);
+		let rb = load(&mut m, Some(dir), "rb", vec![station("a")]);
 		assert_eq!(m.delete_target(find(&m, Some(rb), "a")), Delete::NotOwn);
 		assert_eq!(m.delete_target(jazz_folder), Delete::NotOwn);
 	}

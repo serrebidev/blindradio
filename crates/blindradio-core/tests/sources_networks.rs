@@ -138,8 +138,6 @@ fn curated_network_channels_and_search() {
 		(".977 Jamz", "net:977:jamz"),
 		("Grunge FM", "net:bigr:grunge-fm"),
 		("Radio Swiss Jazz", "net:radio-swiss:jazz"),
-		("KEXP", "net:kexp:kexp"),
-		("WFUV", "net:wfuv:wfuv"),
 		("RTÉ Radio 1", "net:rte:radio-1"),
 		("RNZ Concert", "net:rnz:concert"),
 		("RFI Monde", "net:rfi:monde"),
@@ -153,7 +151,6 @@ fn curated_network_channels_and_search() {
 		("YleX", "net:yle:ylex"),
 		("KCRW News 24", "net:kcrw:news-24"),
 		("WNYC FM", "net:wnyc:fm"),
-		("MPR News", "net:mpr:news"),
 		("Amsterdam Trance", "net:1fm:amsterdam-trance"),
 		("Smooth Jazz", "net:101ru:ch-31"),
 	] {
@@ -239,7 +236,11 @@ fn new_networks_are_complete() {
 #[test]
 fn networks_children_and_ids() {
 	let roots = children("net");
-	assert_eq!(roots.len(), networks().len());
+	// Single-station networks are not listed.
+	assert_eq!(
+		roots.len(),
+		networks().iter().filter(|n| n.stations.len() > 1).count()
+	);
 	assert_eq!(
 		roots[0],
 		Node::Folder {

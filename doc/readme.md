@@ -41,9 +41,10 @@ fails or takes too long is skipped so the others can still return results.
 
 ## Browsing
 
-Ctrl+G opens Browse: Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
-laut.fm, Networks, Collections and Custom
-Stations. Right opens a folder, Left closes it, and a folder that is still loading says
+Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
+holds Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio and laut.fm;
+Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
+that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
