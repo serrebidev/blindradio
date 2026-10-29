@@ -576,7 +576,17 @@ fn redist_dir() -> Result<PathBuf, String> {
 }
 
 /// Signs with the owner's certificate; a missing one fails the release.
+/// Cloud builds set BLINDRADIO_UNSIGNED: no owner certificate exists there,
+/// so the exe and the installer ship without Authenticode. The minisign
+/// signatures the updater verifies are unaffected.
 fn sign(path: &Path) -> Result<(), String> {
+	if std::env::var_os("BLINDRADIO_UNSIGNED").is_some() {
+		println!(
+			"xtask: BLINDRADIO_UNSIGNED set, not Authenticode-signing {}",
+			path.display()
+		);
+		return Ok(());
+	}
 	let signtool = std::env::var_os("SIGNTOOL_PATH")
 		.map(PathBuf::from)
 		.map(Ok)

@@ -1,0 +1,259 @@
+name: Release (cloud)
+
+# The cloud release path: the same gates and assets as `cargo xtask release`
+# on Brandon's PC, run entirely in Actions. Dispatch it with a version whose
+# `## <version>` section is already in CHANGELOG.md. Use one path per
+# release — never run this and a local xtask release for the same version.
+# The Windows leg is Authenticode-unsigned here (the owner's certificate
+# stays on his PC); every asset still carries its minisign signature.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, such as 0.2.7"
+        required: true
+        type: string
+
+concurrency:
+  group: cloud-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  gate:
+    name: Tests and clippy
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets
+
+  prepare:
+    name: Bump, tag and draft
+    needs: gate
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.make.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Extract the notes and bump the version
+        id: make
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if git ls-remote --tags origin "$tag" | grep -q .; then
+            echo "tag $tag already exists; refusing to re-release" >&2
+            exit 1
+          fi
+          python3 - "$VERSION" <<'PY'
+          import sys
+          version = sys.argv[1]
+          head = f"## {version}"
+          notes, inside = [], False
+          for line in open("CHANGELOG.md").read().splitlines():
+              if line.startswith("## "):
+                  inside = line.strip() == head
+                  if inside:
+                      continue
+                  if notes:
+                      break
+              if inside:
+                  notes.append(line)
+          notes = "\n".join(notes).strip()
+          if not notes:
+              sys.exit(f"no {head} section in CHANGELOG.md")
+          import os
+          with open(os.path.join(os.environ["RUNNER_TEMP"], "notes.md"), "w") as f:
+              f.write(notes + "\n")
+          lines = open("Cargo.toml").read().splitlines(keepends=True)
+          for i, line in enumerate(lines):
+              if line.startswith('version = "'):
+                  lines[i] = f'version = "{version}"\n'
+                  break
+          else:
+              sys.exit("no version line in the workspace manifest")
+          open("Cargo.toml", "w").write("".join(lines))
+          PY
+          cargo metadata --format-version 1 > /dev/null
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: release $VERSION"
+          git tag "$tag"
+          git push origin main "$tag"
+          gh release create "$tag" --draft --title "BlindRadio $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  windows:
+    name: Windows assets
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Find the VC++ runtime redist
+        shell: pwsh
+        run: |
+          $crt = Get-ChildItem "C:\Program Files*\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT\msvcp140.dll" |
+            Sort-Object FullName | Select-Object -Last 1
+          if (-not $crt) { throw "VC++ runtime redist not found on this runner" }
+          "VC_REDIST_DIR=$($crt.DirectoryName)" >> $env:GITHUB_ENV
+
+      - name: Make sure Inno Setup is available
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") -and
+              -not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Build the Windows assets
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          BLINDRADIO_UNSIGNED: "1"
+        run: cargo xtask dist-windows
+
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release upload "${{ needs.prepare.outputs.tag }}"
+          target/dist/BlindRadio.zip target/dist/BlindRadio.zip.minisig
+          target/dist/BlindRadio_setup.exe target/dist/BlindRadio_setup.exe.minisig
+          --clobber
+
+  linux:
+    name: Linux assets
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Build in the repo's container and sign
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+        run: |
+          set -euo pipefail
+          docker build -t blindradio-build tools/linux
+          docker run --rm -v "$PWD:/work" -v "$PWD/target:/work/target" \
+            -e MINISIGN_KEY blindradio-build sh -c \
+            'cargo build --release -p blindradio && cargo xtask dist-linux && cargo xtask sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz'
+
+      - name: Check the AppImage starts
+        run: |
+          set +e
+          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+          timeout 15 xvfb-run -a ./target/dist/BlindRadio.AppImage
+          code=$?
+          if [ $code -ne 124 ]; then
+            timeout 15 xvfb-run -a ./target/dist/BlindRadio.AppImage --appimage-extract-and-run
+            code=$?
+          fi
+          if [ $code -ne 124 ]; then
+            echo "AppImage exited with $code instead of still running" >&2
+            exit 1
+          fi
+
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release upload "${{ needs.prepare.outputs.tag }}"
+          target/dist/BlindRadio.AppImage target/dist/BlindRadio.AppImage.minisig
+          target/dist/BlindRadio.tar.gz target/dist/BlindRadio.tar.gz.minisig
+          --clobber
+
+  macos:
+    name: macOS asset
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - name: Apple Silicon only
+        run: test "$(uname -m)" = arm64
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Toolchain the wxDragon build needs
+        run: brew install cmake ninja llvm
+
+      - name: Build the app and the disk image
+        env:
+          LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+        run: cargo xtask dist-macos
+
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release upload "${{ needs.prepare.outputs.tag }}"
+          target/dist/BlindRadio.dmg target/dist/BlindRadio.dmg.minisig
+          --clobber
+
+  publish:
+    name: Verify and publish
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every asset and signature present, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ needs.prepare.outputs.tag }}"
+          present="$(gh release view "$tag" --json assets --jq '.assets[].name')"
+          echo "$present"
+          for name in BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg; do
+            for wanted in "$name" "$name.minisig"; do
+              grep -qx "$wanted" <<<"$present" || { echo "missing: $wanted"; exit 1; }
+            done
+          done
+          gh release edit "$tag" --draft=false --latest
