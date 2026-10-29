@@ -276,9 +276,13 @@ jobs:
     needs: [prepare, windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
+      # gh resolves the repo from the checkout's remote here; without one
+      # `release edit` dies on "not a git repository". GH_REPO pins it too.
+      - uses: actions/checkout@v5
       - name: Every asset and signature present, then publish
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           tag="${{ needs.prepare.outputs.tag }}"
