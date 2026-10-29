@@ -72,6 +72,11 @@ pub struct StreamFormat {
 	pub bitrate_kbps: Option<u32>,
 	pub sample_rate: u32,
 	pub channels: u32,
+	/// The container is a bare, self-synchronizing codec stream (MPEG
+	/// audio, ADTS AAC), so a decoder can start at any chunk of it
+	/// without the stream's opening headers: the encoded ring's replay
+	/// and Original recording depend on it.
+	pub replayable: bool,
 }
 
 impl StreamFormat {
@@ -177,6 +182,17 @@ impl Decoder {
 	/// The codec label ("MP3", "AAC", …) of the track being decoded.
 	pub fn codec(&self) -> &'static str {
 		self.codec
+	}
+
+	/// The stream can restart at an arbitrary byte: MPEG audio and ADTS
+	/// resynchronize per frame, while Ogg, FLAC, MP4 and the rest need
+	/// their opening headers, which a mid-ring chunk no longer has.
+	pub fn replayable(&self) -> bool {
+		use symphonia::core::formats::well_known::*;
+		matches!(
+			self.format.format_info().format,
+			FORMAT_ID_MP1 | FORMAT_ID_MP2 | FORMAT_ID_MP3 | FORMAT_ID_ADTS
+		)
 	}
 
 	/// Channel count of the audio last produced; 0 before the first buffer.
@@ -358,8 +374,14 @@ mod tests {
 		assert_eq!(dec.codec(), "MP3");
 		assert_eq!(dec.sample_rate(), 44100);
 		assert_eq!(dec.channels(), 2);
+		assert!(dec.replayable(), "MP3 resynchronizes anywhere");
+		let dec = Decoder::new(Box::new(fixture("tone.aac")), Some("aac")).unwrap();
+		assert!(dec.replayable(), "ADTS resynchronizes anywhere");
 		let dec = Decoder::new(Box::new(fixture("tone.opus")), Some("opus")).unwrap();
 		assert_eq!(dec.codec(), "Opus");
+		assert!(!dec.replayable(), "Ogg needs its headers");
+		let dec = Decoder::new(Box::new(fixture("tone.flac")), Some("flac")).unwrap();
+		assert!(!dec.replayable(), "FLAC needs its header");
 		let dec = Decoder::new(Box::new(fixture("mono22k.mp3")), Some("mp3")).unwrap();
 		assert_eq!(dec.channels(), 1);
 	}
@@ -371,6 +393,7 @@ mod tests {
 			bitrate_kbps: Some(128),
 			sample_rate: 44100,
 			channels: 2,
+			replayable: true,
 		};
 		assert_eq!(f.describe(), "MP3, 128 kbps, 44.1 kHz, stereo");
 		let f = StreamFormat {
@@ -378,6 +401,7 @@ mod tests {
 			bitrate_kbps: None,
 			sample_rate: 48000,
 			channels: 1,
+			replayable: true,
 		};
 		assert_eq!(f.describe(), "AAC, 48 kHz, mono");
 		let f = StreamFormat {
@@ -385,6 +409,7 @@ mod tests {
 			bitrate_kbps: None,
 			sample_rate: 0,
 			channels: 0,
+			replayable: false,
 		};
 		assert_eq!(f.describe(), "Audio");
 	}

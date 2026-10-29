@@ -21,7 +21,7 @@ use crate::record::Recorder;
 use crate::resample::Resampler;
 use crate::ring::PcmRing;
 use crate::station::Station;
-use crate::timeshift::ShiftBuffer;
+use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
 /// Side channels on a playing station's audio, registered by station id.
 /// The stream loops re-read their entry per chunk, so attaching or removing
@@ -35,6 +35,53 @@ pub struct Taps {
 	/// The recorder slot; the app starts and stops the recorder inside it
 	/// while the decode loop writes.
 	pub record: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// The encoded ring buffer feed, when the station's time-shift uses
+	/// the optional encoded ring: the byte pump pushes every clean
+	/// encoded chunk here.
+	pub ring: Option<Arc<RingTap>>,
+	/// The ring mode's shift status, so the recording taps can yield
+	/// to the playhead-paced writers (mixer and replay feed) while the
+	/// listener is time-shifted.
+	pub shift_status: Option<Arc<ShiftStatus>>,
+}
+
+/// True while the listener is time-shifted (cursor in the buffer or
+/// paused), from the status the mixer keeps current.
+fn shifted(status: &Option<Arc<ShiftStatus>>) -> bool {
+	status.as_ref().is_some_and(|s| {
+		s.cursor.load(Ordering::Relaxed) != u64::MAX || s.paused.load(Ordering::Relaxed)
+	})
+}
+
+/// Feeds the encoded ring from the byte pump. Chunks arrive paced by
+/// the network, so a chunk's stream time is the session's elapsed time
+/// when it arrives; the initial connection burst skews the first
+/// seconds slightly, which a seek target tolerates (the replay decoder
+/// resynchronizes and discards to the exact frame). One tap serves the
+/// station's whole session, across reconnects: an outage stretches the
+/// time axis by the silence, which is the honest shape of the ring.
+pub struct RingTap {
+	ring: Arc<crate::encoded_ring::EncodedRing>,
+	started: Instant,
+}
+
+impl RingTap {
+	pub fn new(ring: Arc<crate::encoded_ring::EncodedRing>) -> RingTap {
+		RingTap {
+			ring,
+			started: Instant::now(),
+		}
+	}
+
+	pub fn push(&self, chunk: &[u8]) {
+		let ms = self.started.elapsed().as_millis() as u64;
+		self.ring.push(ms, chunk);
+	}
+
+	/// Session time now, on the same axis the chunks are stamped with.
+	pub fn now_ms(&self) -> u64 {
+		self.started.elapsed().as_millis() as u64
+	}
 }
 
 pub type TapMap = Arc<Mutex<HashMap<String, Taps>>>;
@@ -403,7 +450,10 @@ async fn play(
 		return ("No data".into(), false);
 	}
 
-	let net_reason = pump(&mut conn, tx, shared, title, &produced, &ctx.taps, station_id).await;
+	let net_reason = pump(
+		&mut conn, tx, shared, title, &produced, &ctx.taps, station_id,
+	)
+	.await;
 	// The sender is gone, so the decoder drains what it has and ends; waiting keeps two
 	// connections from pushing into the ring at once.
 	let decoded = done_rx.await;
@@ -446,7 +496,8 @@ pub fn clean_title(raw: &str) -> String {
 /// after a space.
 fn attr_start(t: &str, name: &str) -> Option<usize> {
 	let needle = format!("{name}=\"");
-	t.find(&needle).filter(|&i| i == 0 || t.as_bytes()[i - 1] == b' ')
+	t.find(&needle)
+		.filter(|&i| i == 0 || t.as_bytes()[i - 1] == b' ')
 }
 
 /// The quoted value of the attribute starting at `start`.
@@ -469,8 +520,7 @@ fn attr_run_start(t: &str) -> Option<usize> {
 			{
 				j += 1;
 			}
-			if j > name_start && t[j..].starts_with("=\"") && parses_as_pairs(&t[name_start..])
-			{
+			if j > name_start && t[j..].starts_with("=\"") && parses_as_pairs(&t[name_start..]) {
 				return Some(i);
 			}
 		}
@@ -545,11 +595,18 @@ async fn pump(
 			}
 		}
 		for bytes in audio.drain(..) {
+			let t = taps_for(taps, station_id);
 			// An Original-format recording taps the clean encoded bytes here.
-			if let Some(slot) = &taps_for(taps, station_id).record
+			// In ring mode the replay feed paces those bytes to the
+			// playhead while the listener is shifted; yield then.
+			if let Some(slot) = &t.record
+				&& !shifted(&t.shift_status)
 				&& let Some(rec) = slot.lock().as_mut()
 			{
 				let _ = rec.write_bytes(&bytes);
+			}
+			if let Some(rt) = &t.ring {
+				rt.push(&bytes);
 			}
 			if !send(&tx, bytes).await {
 				return None;
@@ -606,6 +663,7 @@ fn decode(
 		bitrate_kbps,
 		sample_rate: d.sample_rate(),
 		channels: d.channels(),
+		replayable: d.replayable(),
 	};
 	let mut rate = decoder.sample_rate();
 	let mut resampler = Resampler::new(rate, out_rate);
@@ -638,7 +696,10 @@ fn decode(
 		if let Some(b) = &t.capture {
 			b.push(&out);
 		}
+		// In ring mode the mixer taps the shifted audio while the
+		// listener is time-shifted; yield then.
 		if let Some(slot) = &t.record
+			&& !shifted(&t.shift_status)
 			&& let Some(rec) = slot.lock().as_mut()
 		{
 			let _ = rec.write_pcm(&out);

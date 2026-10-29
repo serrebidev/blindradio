@@ -5,6 +5,18 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.8
+
+- Optional encoded ring buffer for time-shifting, the DVBViewer model
+  (Settings, off by default): the stream's own compressed bytes are kept
+  up to a size budget (200 MB by default, about 3.5 hours at 128 kbps),
+  the oldest dropped first, instead of decoded audio by the minute.
+  Pause, resume and seeking work from the ring, and recording can start
+  anywhere inside it. Only self-synchronizing streams (MP3 and ADTS
+  AAC) can replay from the middle; Ogg, FLAC and MP4 stations keep
+  the decoded buffer. With the ring off, the standard decoded minutes
+  buffer is unchanged.
+
 ## 0.2.5
 
 - Browse is grouped: the top level is Directories (Radio Browser, TuneIn, iHeartRadio,

@@ -12,6 +12,7 @@ use crate::output::{MixerCmd, Output};
 use crate::recognize::{SongId, identify_audd, wav_bytes};
 use crate::record::Recorder;
 use crate::ring::{CUSHION_MS, PcmRing};
+use crate::ringfeed::{RingFeed, WINDOW_SECONDS};
 use crate::scrobble;
 use crate::settings::{RecognitionProvider, Settings};
 use crate::station::Station;
@@ -279,6 +280,16 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	/// Station the taps below belong to; they reset when it changes.
 	tap_station: Option<String>,
 	shift: Option<(Arc<ShiftBuffer>, Arc<ShiftStatus>)>,
+	/// The encoded ring replay feed, when the playing station's
+	/// time-shift uses the optional encoded ring.
+	ring_feed: Option<RingFeed>,
+	/// Session time the listener paused at, in ring mode: resuming
+	/// after the window slid past it re-primes the window there.
+	ring_paused_at: Option<u64>,
+	/// The ring and its byte tap, kept across a mode switch so a chained
+	/// stream that turns replayable finds the history it already has.
+	encoded_ring: Option<Arc<crate::encoded_ring::EncodedRing>>,
+	ring_tap: Option<Arc<crate::stream::RingTap>>,
 	capture: Option<Arc<ShiftBuffer>>,
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 	/// The playing station's current song title and when it started.
@@ -309,6 +320,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			settings: None,
 			tap_station: None,
 			shift: None,
+			ring_feed: None,
+			ring_paused_at: None,
+			encoded_ring: None,
+			ring_tap: None,
 			capture: None,
 			record_slot: None,
 			song: None,
@@ -382,10 +397,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 						title: Some(display.clone()),
 					});
 					self.song = Some((display.clone(), now));
-					let announce = self.settings.as_ref().is_some_and(|s| s.lock().recognition.announce);
-					if announce
-						&& let Some(title) = self.settle.title(Some(display), now)
-					{
+					let announce = self
+						.settings
+						.as_ref()
+						.is_some_and(|s| s.lock().recognition.announce);
+					if announce && let Some(title) = self.settle.title(Some(display), now) {
 						self.emit(TunerEvent::Announce(title));
 					}
 				}
@@ -442,11 +458,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	/// The playing stream's format, once its decoder has reported it.
 	pub fn format(&self) -> Option<&crate::decode::StreamFormat> {
-		let playing = self.playing.as_ref()?;
-		self.open
-			.iter()
-			.find(|o| o.station.id == playing.id)
-			.and_then(|o| o.format.as_ref())
+		self.open_format(&self.playing.as_ref()?.id)
 	}
 
 	/// The output reopened at a new rate: everything open closes, so the restart after it
@@ -571,28 +583,143 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		};
 		let settings = settings.lock().clone();
 		let rate = self.factory.rate();
-		let mut taps = Taps::default();
 		let minutes = settings.timeshift_minutes_for(&station.id);
-		if minutes > 0 {
-			let buffer = Arc::new(ShiftBuffer::new(rate, minutes));
-			let status = Arc::new(ShiftStatus::new());
-			self.sink.send(MixerCmd::ShiftAttach {
-				buffer: buffer.clone(),
-				status: status.clone(),
-			});
-			taps.shift = Some(buffer.clone());
-			self.shift = Some((buffer, status));
-		}
+		let ring_bytes = settings.timeshift_ring_bytes();
+		let slot = Arc::new(Mutex::new(None));
+		self.record_slot = Some(slot);
 		if settings.recognition_enabled_for(&station.id) {
 			let capture = Arc::new(ShiftBuffer::with_seconds(rate, 90));
-			taps.capture = Some(capture.clone());
 			self.capture = Some(capture);
 		}
-		let slot = Arc::new(Mutex::new(None));
-		taps.record = Some(slot.clone());
-		self.record_slot = Some(slot);
+		if minutes > 0 && ring_bytes > 0 {
+			// The byte pump fills the ring from the first chunk; which
+			// buffer plays waits for the format event when the stream
+			// is cold, since only self-synchronizing codecs can be
+			// replayed from the middle of the ring.
+			let ring = Arc::new(crate::encoded_ring::EncodedRing::new(ring_bytes as usize));
+			let tap = Arc::new(crate::stream::RingTap::new(ring.clone()));
+			self.encoded_ring = Some(ring.clone());
+			self.ring_tap = Some(tap.clone());
+			let replayable = self
+				.open_format(&station.id)
+				.is_none_or(|format| format.replayable);
+			if replayable {
+				self.attach_ring_shift(rate, ring, tap);
+			} else {
+				self.attach_decoded_shift(rate, minutes);
+			}
+		} else if minutes > 0 {
+			self.attach_decoded_shift(rate, minutes);
+		}
 		self.tap_station = Some(station.id.clone());
+		let taps = self.current_taps();
 		self.factory.set_taps(&station.id, taps);
+	}
+
+	/// A station's stream format once its decoder has reported it.
+	fn open_format(&self, station_id: &str) -> Option<&crate::decode::StreamFormat> {
+		self.open
+			.iter()
+			.find(|o| o.station.id == station_id)
+			.and_then(|o| o.format.as_ref())
+	}
+
+	/// Plays the encoded ring's decoded window: the byte pump and replay
+	/// feed keep the deep history, and the mixer plays a small slice of it.
+	fn attach_ring_shift(
+		&mut self,
+		rate: u32,
+		ring: Arc<crate::encoded_ring::EncodedRing>,
+		tap: Arc<crate::stream::RingTap>,
+	) {
+		let status = Arc::new(ShiftStatus::new());
+		let feed = RingFeed::new(ring, tap, status.clone(), self.record_slot.clone(), rate);
+		let buffer = feed.window();
+		self.sink.send(MixerCmd::ShiftAttach {
+			buffer: buffer.clone(),
+			status: status.clone(),
+		});
+		self.sink
+			.send(MixerCmd::RecordSlot(self.record_slot.clone()));
+		self.shift = Some((buffer, status));
+		self.ring_feed = Some(feed);
+		self.ring_paused_at = None;
+	}
+
+	/// Plays the standard decoded-minutes buffer.
+	fn attach_decoded_shift(&mut self, rate: u32, minutes: u32) {
+		if let Some(feed) = self.ring_feed.take() {
+			feed.stop();
+		}
+		self.sink.send(MixerCmd::RecordSlot(None));
+		self.ring_paused_at = None;
+		if minutes == 0 {
+			return;
+		}
+		let buffer = Arc::new(ShiftBuffer::new(rate, minutes));
+		let status = Arc::new(ShiftStatus::new());
+		self.sink.send(MixerCmd::ShiftAttach {
+			buffer: buffer.clone(),
+			status: status.clone(),
+		});
+		self.shift = Some((buffer, status));
+	}
+
+	/// The taps to register from the tuner's current pieces. In ring mode
+	/// the decoded shift tap stays off and the mixer's shifted frames go to
+	/// the recorder through its slot; in decoded mode the stream taps them.
+	fn current_taps(&self) -> Taps {
+		let ring = self.ring_feed.is_some();
+		Taps {
+			shift: if ring {
+				None
+			} else {
+				self.shift.as_ref().map(|(buffer, _)| buffer.clone())
+			},
+			capture: self.capture.clone(),
+			record: self.record_slot.clone(),
+			ring: self.ring_tap.clone(),
+			shift_status: if ring {
+				self.shift.as_ref().map(|(_, status)| status.clone())
+			} else {
+				None
+			},
+		}
+	}
+
+	/// A format report can change the time-shift mode mid-stream: a cold
+	/// stream starts before its codec is known, and a chained stream can
+	/// switch codecs. Recording and recognition taps stay attached.
+	fn sync_shift_mode(&mut self) {
+		if self.ring_tap.is_none() {
+			return;
+		}
+		let Some(station) = self.playing.clone() else {
+			return;
+		};
+		if self.tap_station.as_deref() != Some(station.id.as_str()) {
+			return;
+		}
+		let replayable = match self.open_format(&station.id) {
+			Some(format) => format.replayable,
+			None => return,
+		};
+		if replayable == self.ring_feed.is_some() {
+			return;
+		}
+		if replayable {
+			let (Some(ring), Some(tap)) = (self.encoded_ring.clone(), self.ring_tap.clone()) else {
+				return;
+			};
+			self.attach_ring_shift(self.factory.rate(), ring, tap);
+		} else {
+			let Some(settings) = &self.settings else {
+				return;
+			};
+			let minutes = settings.lock().timeshift_minutes_for(&station.id);
+			self.attach_decoded_shift(self.factory.rate(), minutes);
+		}
+		self.factory.set_taps(&station.id, self.current_taps());
 	}
 
 	/// Stops any recording and unregisters the taps of the station they
@@ -606,6 +733,13 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if let Some(id) = self.tap_station.take() {
 			self.factory.clear_taps(&id);
 		}
+		if let Some(feed) = self.ring_feed.take() {
+			feed.stop();
+		}
+		self.sink.send(MixerCmd::RecordSlot(None));
+		self.ring_paused_at = None;
+		self.encoded_ring = None;
+		self.ring_tap = None;
 		self.shift = None;
 		self.capture = None;
 		self.record_slot = None;
@@ -618,14 +752,66 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn shift_pause(&mut self, paused: bool) {
+		if let Some(feed) = &self.ring_feed {
+			if paused {
+				self.ring_paused_at = Some(feed.cursor_time());
+				self.sink.send(MixerCmd::ShiftPause(true));
+			} else if let Some(at) = self.ring_paused_at.take()
+				&& at < feed.window_start_ms()
+			{
+				// The window slid past the pause point while paused;
+				// re-prime there. Attaching also unpauses in the mixer,
+				// and the seek places the cursor at the window start.
+				let buffer = feed.prime(at);
+				self.sink.send(MixerCmd::ShiftAttach {
+					buffer: buffer.clone(),
+					status: feed.status(),
+				});
+				self.sink
+					.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+				self.shift = Some((buffer, feed.status()));
+			} else {
+				self.sink.send(MixerCmd::ShiftPause(false));
+			}
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftPause(paused));
 	}
 
 	pub fn shift_seek(&mut self, seconds: i32) {
+		if let Some(feed) = &self.ring_feed {
+			let target = (feed.cursor_time() as i64 + seconds as i64 * 1000)
+				.max(feed.ring_start_ms() as i64) as u64;
+			if seconds < 0 && target < feed.window_start_ms() {
+				// Before the window: re-prime at the target instead of
+				// letting the mixer clamp at the window start.
+				let buffer = feed.prime(target);
+				self.sink.send(MixerCmd::ShiftAttach {
+					buffer: buffer.clone(),
+					status: feed.status(),
+				});
+				self.sink
+					.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+				self.shift = Some((buffer, feed.status()));
+			} else {
+				self.sink.send(MixerCmd::ShiftSeek(seconds));
+			}
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftSeek(seconds));
 	}
 
 	pub fn shift_live(&mut self) {
+		if let Some(feed) = &self.ring_feed {
+			self.ring_paused_at = None;
+			let buffer = feed.prime_live();
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: feed.status(),
+			});
+			self.shift = Some((buffer, feed.status()));
+			return;
+		}
 		self.sink.send(MixerCmd::ShiftLive);
 	}
 
@@ -660,9 +846,20 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.url
 			.rsplit('.')
 			.next()
-			.filter(|e| matches!(e.to_ascii_lowercase().as_str(), "mp3" | "aac" | "ogg" | "flac" | "m4a"))
+			.filter(|e| {
+				matches!(
+					e.to_ascii_lowercase().as_str(),
+					"mp3" | "aac" | "ogg" | "flac" | "m4a"
+				)
+			})
 			.unwrap_or("mp3");
-		let rec = Recorder::start(&dir, &station.name, &settings.recording, self.factory.rate(), ext)?;
+		let rec = Recorder::start(
+			&dir,
+			&station.name,
+			&settings.recording,
+			self.factory.rate(),
+			ext,
+		)?;
 		let path = rec.path().to_path_buf();
 		*slot.lock() = Some(rec);
 		Ok(path)
@@ -697,7 +894,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		{
 			return;
 		}
-		let Some(token) = settings.recognition.audd_token.clone().filter(|t| !t.is_empty()) else {
+		let Some(token) = settings
+			.recognition
+			.audd_token
+			.clone()
+			.filter(|t| !t.is_empty())
+		else {
 			return;
 		};
 		if settings.recognition.only_when_no_metadata && self.song.is_some() {
@@ -827,10 +1029,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			StreamEvent::Format(format) => {
 				self.open[i].format = Some(format.clone());
 				if playing {
-					self.emit(TunerEvent::Format {
-						station_id,
-						format,
-					});
+					self.emit(TunerEvent::Format { station_id, format });
+					self.sync_shift_mode();
 				}
 			}
 			StreamEvent::FirstAudio => {}

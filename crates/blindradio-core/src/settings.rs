@@ -36,6 +36,15 @@ pub struct TimeshiftSettings {
 	pub enabled: bool,
 	/// How much audio to keep behind live, per station unless overridden.
 	pub minutes: u32,
+	/// Optional encoded ring buffer (the DVBViewer model): the stream's
+	/// own compressed bytes are kept up to `max_mb`, the oldest dropped
+	/// first, and time-shifting, pause/resume and recording-from-buffer
+	/// work from the ring. Off by default; the decoded minutes buffer
+	/// above is the standard path.
+	pub encoded_ring: bool,
+	/// Ring budget in megabytes, used only when `encoded_ring` is on.
+	/// 0 means the default of 200 MB (about 3.5 hours at 128 kbps).
+	pub max_mb: u32,
 	/// Seconds one seek action moves.
 	pub seek_step_seconds: u32,
 }
@@ -45,6 +54,8 @@ impl Default for TimeshiftSettings {
 		TimeshiftSettings {
 			enabled: true,
 			minutes: 30,
+			encoded_ring: false,
+			max_mb: 0,
 			seek_step_seconds: 15,
 		}
 	}
@@ -206,6 +217,7 @@ impl Settings {
 			*band = (*band).clamp(-MAX_DB, MAX_DB);
 		}
 		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
+		s.timeshift.max_mb = s.timeshift.max_mb.min(16_384);
 		s.timeshift.seek_step_seconds = s.timeshift.seek_step_seconds.clamp(5, 60);
 		s.recording.mp3_bitrate_kbps = s.recording.mp3_bitrate_kbps.clamp(32, 320);
 		for o in s.station_overrides.values_mut() {
@@ -214,6 +226,21 @@ impl Settings {
 			}
 		}
 		s
+	}
+
+	/// The encoded ring budget in bytes, when the ring is enabled:
+	/// `max_mb`, or the 200 MB default when it is 0. Zero when the ring
+	/// is off.
+	pub fn timeshift_ring_bytes(&self) -> u64 {
+		if !self.timeshift.encoded_ring {
+			return 0;
+		}
+		let mb = if self.timeshift.max_mb == 0 {
+			200
+		} else {
+			self.timeshift.max_mb
+		};
+		mb as u64 * 1024 * 1024
 	}
 
 	/// Buffered minutes for a station: its override, else the global value;
