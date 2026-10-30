@@ -5,6 +5,21 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.12
+
+- Copied stream URLs now survive closing the app. The clipboard was
+  never flushed, so the copied text was owned by the running process
+  and vanished the moment BlindRadio closed completely.
+- Pasted URLs are cleaned before they are checked: a BOM or zero-width
+  characters copied along with the address no longer make a good URL
+  announce "Not a stream URL" in Open URL, Add Custom Station or Edit
+  Station.
+- Streams whose HTTPS connection never completes now fall back to the
+  same address over plain HTTP. Some station hosts (AZPM's among them)
+  listen on port 443 but their TLS handshake never finishes, while the
+  stream itself answers fine on HTTP; players like DVBViewer and VLC
+  have always tolerated this.
+
 ## 0.2.11
 
 - Copy, Cut and Paste for stations, in the context menu and on

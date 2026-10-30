@@ -14,9 +14,20 @@ use crate::strings as s;
 
 const OK_ID: Id = ID_HIGHEST + 7000;
 
+/// What a typed or pasted URL means. Copies from web pages and chat can
+/// carry a BOM or zero-width characters in front of the scheme; those
+/// bytes are part of neither the address nor its scheme, and a plain
+/// prefix check on the raw text rejects a good URL for them.
+pub fn clean_url(url: &str) -> String {
+	url.trim()
+		.trim_start_matches(['\u{feff}', '\u{200b}', '\u{200c}', '\u{200d}'])
+		.trim()
+		.to_string()
+}
+
 /// Only a stream an HTTP client can open will play.
 pub fn is_stream_url(url: &str) -> bool {
-	let url = url.trim().to_ascii_lowercase();
+	let url = clean_url(url).to_ascii_lowercase();
 	url.starts_with("http://") || url.starts_with("https://")
 }
 
@@ -62,7 +73,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			if !is_stream_url(&link) {
 				return a.borrow_mut().say(s::NOT_A_STREAM_URL);
 			}
-			let link = link.trim().to_string();
+			let link = clean_url(&link);
 			let typed = name.get_value().trim().to_string();
 			// A station with no name is unreadable in every list: the URL stands in.
 			let typed = if typed.is_empty() {
@@ -133,7 +144,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			if !is_stream_url(&link) {
 				return a.borrow_mut().say(s::NOT_A_STREAM_URL);
 			}
-			let link = link.trim().to_string();
+			let link = clean_url(&link);
 			let typed = name.get_value().trim().to_string();
 			let typed = if typed.is_empty() {
 				link.clone()
@@ -158,7 +169,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 
 #[cfg(test)]
 mod tests {
-	use super::is_stream_url;
+	use super::{clean_url, is_stream_url};
 
 	#[test]
 	fn custom_url_validation() {
@@ -167,5 +178,15 @@ mod tests {
 		assert!(!is_stream_url("example.com/a"));
 		assert!(!is_stream_url("ftp://example.com/a"));
 		assert!(!is_stream_url(""));
+	}
+
+	#[test]
+	fn pasted_url_baggage_is_cleaned() {
+		assert!(is_stream_url("\u{feff}https://example.com/a"));
+		assert!(is_stream_url("\u{200b}https://example.com/a"));
+		assert_eq!(
+			clean_url(" \u{feff}https://example.com/a "),
+			"https://example.com/a"
+		);
 	}
 }

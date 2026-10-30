@@ -71,6 +71,26 @@ pub(crate) fn not_a_stream() -> CoreError {
 	CoreError::Playlist("Not a stream".into())
 }
 
+/// The plain-HTTP twin of an HTTPS URL.
+fn http_twin(url: &str) -> Option<String> {
+	url.strip_prefix("https://")
+		.map(|rest| format!("http://{rest}"))
+}
+
+/// One GET with the headers every stream open sends.
+async fn fetch(
+	client: &reqwest::Client,
+	url: &str,
+) -> std::result::Result<reqwest::Response, reqwest::Error> {
+	client
+		.get(url)
+		.header("User-Agent", user_agent_for(url))
+		.header("Icy-MetaData", "1")
+		.header("Accept-Encoding", "identity")
+		.send()
+		.await
+}
+
 fn is_playlist_type(ct: &str) -> bool {
 	matches!(
 		ct,
@@ -103,14 +123,17 @@ fn open_at<'a>(
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
 		}
-		let mut response = client
-			.get(&url)
-			.header("User-Agent", user_agent_for(&url))
-			.header("Icy-MetaData", "1")
-			.header("Accept-Encoding", "identity")
-			.send()
-			.await
-			.map_err(http_err)?;
+		let mut response = match fetch(client, &url).await {
+			Ok(response) => response,
+			Err(e) => match (e.is_connect(), http_twin(&url)) {
+				// Some stream hosts (Shoutcast boxes, AZPM among them)
+				// listen on 443 but their TLS handshake never completes,
+				// while the same stream answers on plain HTTP. Players
+				// like DVBViewer and VLC fall back; so does this one.
+				(true, Some(twin)) => fetch(client, &twin).await.map_err(http_err)?,
+				_ => return Err(http_err(e)),
+			},
+		};
 		let status = response.status();
 		if status.as_u16() >= 400 {
 			return Err(CoreError::Http(format!("HTTP {}", status.as_u16())));
@@ -272,4 +295,19 @@ pub async fn get_json<T: serde::de::DeserializeOwned>(
 ) -> Result<T> {
 	let body = get_bytes(client, url).await?;
 	serde_json::from_slice(&body).map_err(|_| CoreError::Http("Bad reply".into()))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::http_twin;
+
+	#[test]
+	fn http_twin_swaps_only_the_scheme() {
+		assert_eq!(
+			http_twin("https://streaming.azpm.org/kuaz256").as_deref(),
+			Some("http://streaming.azpm.org/kuaz256")
+		);
+		assert_eq!(http_twin("http://example.com/a"), None);
+		assert_eq!(http_twin("example.com/a"), None);
+	}
 }

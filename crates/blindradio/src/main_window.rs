@@ -155,7 +155,7 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			// station and is not added anywhere (Recent still lists it).
 			let frame = app.borrow().win.frame;
 			if let Some(link) = prompt_text(&frame, s::STREAM_URL, s::OPEN_URL_TITLE) {
-				let link = link.trim().to_string();
+				let link = dialogs::custom_station::clean_url(&link);
 				if dialogs::custom_station::is_stream_url(&link) {
 					app.borrow_mut().play(Station {
 						id: format!("url:{link}"),

@@ -12,6 +12,10 @@ pub fn copy(text: &str) -> bool {
 	}
 	let set = clipboard.set_text(text);
 	let back = clipboard.get_text();
+	// Flush hands the text to the system for good. Unflushed clipboard
+	// data is owned by this process and dies with it, so a copied URL
+	// would vanish the moment BlindRadio closes.
+	clipboard.flush();
 	clipboard.close();
 	set && back.as_deref() == Some(text)
 }
