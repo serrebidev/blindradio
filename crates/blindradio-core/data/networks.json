@@ -6022,19 +6022,6 @@
     ]
   },
   {
-    "name": "NCBI Live",
-    "slug": "ncbi-live",
-    "listed": true,
-    "stations": [
-      {
-        "slug": "ncbi-live",
-        "name": "NCBI Live",
-        "url": "https://s5.radio.co/s73b763f03/listen",
-        "info": "Vision Ireland, Ireland's radio for blind listeners"
-      }
-    ]
-  },
-  {
     "name": "WRBH",
     "slug": "wrbh",
     "listed": true,

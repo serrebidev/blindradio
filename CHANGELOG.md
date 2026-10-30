@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.18
+
+- NCBI Live is removed from Networks: its stream is dead at the source. radio.co's own directory API reports the station no longer exists, and Vision Ireland's live page still points at that same dead address, so their own web player is down the same way. It was added in 0.2.15 from their published address but could never be verified from our side; it does not play anywhere. If Vision Ireland restores the stream it can come straight back.
+
 ## 0.2.17
 
 - New directory: Radio.net, with Top Stations (the service's Top 100), Local Stations (stations near you, by the service's reckoning), and its catalogue folded into the app-wide search. Station entries arrive with their streams ready to play, no extra lookup.

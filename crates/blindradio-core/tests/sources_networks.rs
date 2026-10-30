@@ -75,7 +75,6 @@ fn networks_parse_and_order() {
 			"Mushroom FM",
 			"Vision Australia Radio",
 			"NFBRN",
-			"NCBI Live",
 			"WRBH",
 			"AMI Audio",
 			"RNIB Connect Radio",
