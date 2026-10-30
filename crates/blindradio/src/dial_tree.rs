@@ -135,10 +135,10 @@ impl DialTree {
 				// after that folder's own name it says the same thing
 				// twice, so the suffix goes when it only repeats the
 				// folder (or the station itself).
-				let parent = path.rsplit('/').next().filter(|_| !path.is_empty());
+				let folder = path.rsplit('/').next().filter(|_| !path.is_empty());
 				let text = match st.info.as_deref().filter(|t| !t.is_empty()) {
 					Some(info)
-						if !parent.is_some_and(|p| info.eq_ignore_ascii_case(p))
+						if !folder.is_some_and(|p| info.eq_ignore_ascii_case(p))
 							&& !info.eq_ignore_ascii_case(&st.name) =>
 					{
 						format!("{} - {}", st.name, info)

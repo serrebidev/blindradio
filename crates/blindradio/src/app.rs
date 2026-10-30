@@ -594,6 +594,7 @@ impl App {
 			| Action::OpenUrl
 			| Action::SongHistory
 			| Action::Equalizer
+			| Action::ScheduledRecordings
 			| Action::GlobalHotkeys
 			| Action::FeatureSettings
 			| Action::StationSettings

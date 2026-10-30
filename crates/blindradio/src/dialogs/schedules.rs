@@ -49,7 +49,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 
 fn local_offset() -> i64 {
 	let now = DateTime::now();
-	let naive = days_from_civil(i64::from(now.year()), u32::from(now.month()), u32::from(now.day()))
+	let naive = days_from_civil(i64::from(now.year()), now.month() as u32, u32::from(now.day()))
 		* 86_400
 		+ i64::from(now.hour()) * 3600
 		+ i64::from(now.minute()) * 60
@@ -237,7 +237,7 @@ fn form(
 		.with_label(s::SCHEDULE_STATION)
 		.build();
 	let station = ListBox::builder(&dialog).build();
-	for st in stations {
+	for st in stations.iter() {
 		station.append(&st.name);
 	}
 	let start_label = StaticText::builder(&dialog)

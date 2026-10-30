@@ -388,7 +388,7 @@ mod tests {
 		let d = tempfile::tempdir().unwrap();
 		let path = save_wav(d.path(), "Test FM", 8000, &vec![0.25; 16_000]).unwrap();
 		assert!(path.file_name().unwrap().to_str().unwrap().ends_with(".wav"));
-		let mut reader = hound::WavReader::open(&path).unwrap();
+		let reader = hound::WavReader::open(&path).unwrap();
 		assert_eq!(reader.spec().sample_rate, 8000);
 		assert_eq!(reader.duration(), 8000);
 	}
@@ -399,7 +399,7 @@ mod tests {
 		let mut r = Recorder::start(d.path(), "Test FM", &settings(RecordFormat::Wav), 8000, "mp3").unwrap();
 		r.write_pcm(&vec![0.25; 16_000]).unwrap();
 		let path = r.stop().unwrap();
-		let mut reader = hound::WavReader::open(&path).unwrap();
+		let reader = hound::WavReader::open(&path).unwrap();
 		assert_eq!(reader.spec().sample_rate, 8000);
 		assert_eq!(reader.duration(), 8000);
 	}
