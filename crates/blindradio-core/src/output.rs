@@ -834,6 +834,7 @@ mod tests {
 			bass: 6,
 			mid: 0,
 			treble: 0,
+			..EqSettings::default()
 		}));
 		// Past the EQ's own 25 ms wet fade.
 		render_frames(&mut mixer, 100);
@@ -1202,6 +1203,7 @@ mod tests {
 			bass: 6,
 			mid: 0,
 			treble: 0,
+			..EqSettings::default()
 		};
 		m.handle(MixerCmd::Eq(eq.clone()));
 		m.set_rate(2 * RATE);
@@ -1230,6 +1232,7 @@ mod tests {
 			bass: 12,
 			mid: 12,
 			treble: 12,
+			..EqSettings::default()
 		}));
 		m.handle(MixerCmd::SetActive {
 			ring: Some(ring),

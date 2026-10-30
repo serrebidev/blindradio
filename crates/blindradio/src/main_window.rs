@@ -326,16 +326,33 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 
 	let a = app.clone();
 	win.frame.on_char_hook(move |e| {
-		let WindowEventData::Keyboard(key) = e else {
-			return;
-		};
 		// A dialog is up: its controls keep their keys. Without this, a
 		// Ctrl+V aimed at a text field became Paste Station and the app
 		// answered "Nothing to paste" while the text never landed.
 		if a.borrow().dialog_open {
-			key.event.skip(true);
+			if let WindowEventData::Keyboard(key) = &e {
+				key.event.skip(true);
+			}
 			return;
 		}
+		// The Filter box is a text field in this window: the clipboard
+		// trio edits its text, not the station list.
+		if dialogs::event_in_text(&e) {
+			if let WindowEventData::Keyboard(key) = &e
+				&& let Some(code) = key.get_key_code()
+				&& crate::action::is_text_edit_chord(
+					code,
+					key.control_down(),
+					key.alt_down(),
+					key.shift_down(),
+				) {
+				key.event.skip(true);
+				return;
+			}
+		}
+		let WindowEventData::Keyboard(key) = e else {
+			return;
+		};
 		let action = key.get_key_code().and_then(|code| {
 			app_key(
 				code,

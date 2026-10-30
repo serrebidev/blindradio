@@ -5,6 +5,16 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.20
+
+- The global hot keys are heard everywhere now. Announcements travelled through a live region tied to the BlindRadio window, so Ctrl+Alt+Shift+N spoke only while BlindRadio was the front app. With NVDA running, BlindRadio now speaks through NVDA itself — NVDA's controller client ships beside the app — so the announcement reaches you in any app. Other screen readers, and NVDA not running, keep the live region as before.
+- NVDA+End reads the status line once the BlindRadio NVDA add-on is installed. The status bar is a standard bar sitting in the window's tree with its text, but NVDA's position-based lookup kept missing it (two in-app attempts did not move it). Help, Install NVDA Add-on opens the add-on file that ships with the app; NVDA installs it from there, and the add-on hands NVDA the status bar directly.
+- Pasting a URL into Edit Station works again, for real this time: 0.2.19 stopped the main window's keys, but the dialog windows run their own key handling, and that still turned Ctrl+V into Paste Station and answered "Nothing to paste". Ctrl+C, Ctrl+X and Ctrl+V now edit text whenever a text field has the focus, in dialogs and in the main window's Filter box alike; on a station they keep their station meanings.
+- The equalizer remembers your tuning. Moving a band by hand, trying another preset and coming back to Custom used to lose the hand-set bands — the named preset had overwritten them. Custom keeps its own bands now and restores them. You can also save a tuning under your own name (Name, then Save Preset) and delete it later; saved presets join the Preset list.
+- The equalizer is easier to feel and finer to move. The bands reach further into the middle of the spectrum, so presets are plainly heard on speakers and not only on headphones, and Loudness is stronger (the DVBViewer kind of difference). New presets: Bass and Treble, Clarity and Laptop Speakers. PageUp and PageDown now move a slider by one dB like the arrow keys, instead of the native five.
+- Browse moves folders now: Shift+Up and Shift+Down (Alt+Up and Alt+Down too) move a folder among the folders on its level. The 0.2.19 notes said Browse had this; it had only landed in Collections and Favorites. A folder in Collections or Custom Stations moves in your library itself; a directory folder keeps the order you give it between sessions.
+- Streema cannot be added as a directory. The audit: Streema offers no public API (its own About page says an API is only being considered), its station pages expose no stream address to build on, and GitHub holds no usable client — the 20 most recent and 20 most starred results for "streema" and "streema api" are unrelated projects and stale scrapers, the one unofficial API a 2024 page scraper. There is nothing sound to build a source on; if Streema ships an API it can be picked up then.
+
 ## 0.2.19
 
 - MP2 stations play now. Some stations (BBC Radio 4's 2.onj.me address is one) send MPEG Layer II audio while calling it MP3; the decoder had no Layer II codec and refused them outright, though VLC and DVBViewer play them. A Layer II decoder is in, so those stations tune and play like any other.

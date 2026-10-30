@@ -49,7 +49,14 @@ impl Speech {
 	}
 
 	pub fn say(&self, text: &str, priority: Priority) {
-		live_region::announce_with_priority(self.label, text, priority);
+		// Through NVDA itself when it is running: the live region is
+		// only heard while BlindRadio is the foreground app, which made
+		// the global hot key's announcement silent everywhere else.
+		// NVDA not running (or another reader in charge) keeps the
+		// live region.
+		if !crate::nvda::speak(text, priority == Priority::High) {
+			live_region::announce_with_priority(self.label, text, priority);
+		}
 	}
 }
 

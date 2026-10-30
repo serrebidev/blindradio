@@ -4,10 +4,14 @@ use std::f64::consts::PI;
 
 use crate::settings::{EqPreset, EqSettings};
 
-const LOW_HZ: f64 = 120.0;
+// Shelf corners sit wide (250 Hz / 3 kHz) on purpose: at 120 Hz / 6 kHz
+// a boost only moved the far ends of the spectrum, and on laptop or TV
+// speakers the change was barely felt (Brandon's report). Wide shelves
+// move the bands small speakers actually reproduce.
+const LOW_HZ: f64 = 250.0;
 const MID_HZ: f64 = 1000.0;
 const MID_Q: f64 = 0.9;
-const HIGH_HZ: f64 = 6000.0;
+const HIGH_HZ: f64 = 3000.0;
 /// Band gain limit in dB, either way.
 pub const MAX_DB: i8 = 12;
 /// On/off crossfade, as long as the mixer's warm-swap crossfade.
@@ -20,9 +24,16 @@ impl EqPreset {
 			EqPreset::Flat => Some((0, 0, 0)),
 			EqPreset::BassBoost => Some((6, 0, 0)),
 			EqPreset::TrebleBoost => Some((0, 0, 6)),
-			EqPreset::Loudness => Some((5, -1, 4)),
+			EqPreset::BassAndTreble => Some((6, 0, 6)),
+			// DVBViewer-style loudness: strong smiles at both ends, so
+			// it is plainly heard even on speakers, not just headphones.
+			EqPreset::Loudness => Some((8, -2, 6)),
 			EqPreset::Voice => Some((-3, 4, 1)),
 			EqPreset::Warm => Some((3, 1, -2)),
+			EqPreset::Clarity => Some((-1, 3, 6)),
+			// Small speakers reproduce neither deep bass nor air; put
+			// the energy in the middle where they can play it.
+			EqPreset::LaptopSpeakers => Some((-4, 4, 3)),
 			EqPreset::Custom => None,
 		}
 	}
@@ -32,9 +43,12 @@ impl EqPreset {
 			EqPreset::Flat => "Flat",
 			EqPreset::BassBoost => "Bass Boost",
 			EqPreset::TrebleBoost => "Treble Boost",
+			EqPreset::BassAndTreble => "Bass and Treble",
 			EqPreset::Loudness => "Loudness",
 			EqPreset::Voice => "Voice",
 			EqPreset::Warm => "Warm",
+			EqPreset::Clarity => "Clarity",
+			EqPreset::LaptopSpeakers => "Laptop Speakers",
 			EqPreset::Custom => "Custom",
 		}
 	}
@@ -204,6 +218,7 @@ mod tests {
 			bass,
 			mid,
 			treble,
+			..EqSettings::default()
 		}
 	}
 
@@ -305,15 +320,29 @@ mod tests {
 			(EqPreset::Flat, Some((0, 0, 0)), "Flat"),
 			(EqPreset::BassBoost, Some((6, 0, 0)), "Bass Boost"),
 			(EqPreset::TrebleBoost, Some((0, 0, 6)), "Treble Boost"),
-			(EqPreset::Loudness, Some((5, -1, 4)), "Loudness"),
+			(EqPreset::BassAndTreble, Some((6, 0, 6)), "Bass and Treble"),
+			(EqPreset::Loudness, Some((8, -2, 6)), "Loudness"),
 			(EqPreset::Voice, Some((-3, 4, 1)), "Voice"),
 			(EqPreset::Warm, Some((3, 1, -2)), "Warm"),
+			(EqPreset::Clarity, Some((-1, 3, 6)), "Clarity"),
+			(EqPreset::LaptopSpeakers, Some((-4, 4, 3)), "Laptop Speakers"),
 			(EqPreset::Custom, None, "Custom"),
 		];
 		for (p, bands, label) in all {
 			assert_eq!(p.bands(), bands);
 			assert_eq!(p.label(), label);
 		}
+	}
+
+	#[test]
+	fn loudness_moves_the_middle_bands_speakers_play() {
+		// Brandon: DVBViewer's loudness is felt on speakers, ours was
+		// not. Measured on this curve: 300 Hz +2.4 dB, 3 kHz +2.7 dB,
+		// 100 Hz +7.8 dB — a smile small speakers can reproduce.
+		let (b, m, t) = EqPreset::Loudness.bands().unwrap();
+		let s = settings(b, m, t);
+		assert!(gain_db(&s, 300.0) > 2.0, "low shelf reaches 300 Hz");
+		assert!(gain_db(&s, 3000.0) > 2.0, "high shelf reaches 3 kHz");
 	}
 
 	#[test]
@@ -324,3 +353,4 @@ mod tests {
 		);
 	}
 }
+

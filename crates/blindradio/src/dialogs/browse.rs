@@ -23,6 +23,19 @@ use crate::strings as s;
 /// Key of the Collections root.
 const COLLECTIONS: &str = "collections";
 
+/// A local folder's key is its collection id plus one "f<index>"
+/// segment per level down. Splits it back into the collection id and
+/// the folder index path the library's move takes. None for a
+/// collection row itself (no segments) or a malformed key.
+fn local_path(key: &str) -> Option<(String, Vec<usize>)> {
+	let (collection, rest) = key.split_once('/')?;
+	let mut path = Vec::new();
+	for seg in rest.split('/') {
+		path.push(seg.strip_prefix('f')?.parse().ok()?);
+	}
+	Some((collection.to_owned(), path))
+}
+
 /// What Browse keeps between openings, for the session: where focus was, and every directory
 /// level loaded, so reopening is instant and needs no loader to move focus.
 #[derive(Default)]
@@ -109,6 +122,9 @@ pub struct BrowseModel {
 	failed: HashSet<usize>,
 	collections: usize,
 	custom: usize,
+	/// The user's folder order for remote levels and the roots, from
+	/// Settings: parent folder id ("" for the roots) to folder ids.
+	order: HashMap<String, Vec<String>>,
 }
 
 impl BrowseModel {
@@ -121,6 +137,7 @@ impl BrowseModel {
 			failed: HashSet::new(),
 			collections: 0,
 			custom: 0,
+			order: HashMap::new(),
 		};
 		for node in Sources::roots() {
 			let i = m.add(None, Kind::from_node(node));
@@ -138,6 +155,100 @@ impl BrowseModel {
 		m.refresh_local(lib);
 		m.restore(&memory.path);
 		m
+	}
+
+	/// The settings key a level's order is stored under: the parent
+	/// folder's id, "" for the roots.
+	fn order_key(&self, parent: Option<usize>) -> String {
+		parent
+			.and_then(|p| self.key(p))
+			.unwrap_or_default()
+			.to_owned()
+	}
+
+	/// Seeds the user's saved folder order (Settings.browse_order) and
+	/// puts the roots in it. Remote levels pick it up as they load.
+	pub fn set_order(&mut self, order: HashMap<String, Vec<String>>) {
+		self.order = order;
+		let mut roots = self.roots.clone();
+		self.apply_order(None, &mut roots);
+		self.roots = roots;
+	}
+
+	/// Puts a level's folders in the user's saved order: folders named
+	/// in the list take the folder slots in that order, folders it does
+	/// not name keep their source order after them, and every other row
+	/// keeps its slot.
+	fn apply_order(&self, parent: Option<usize>, kids: &mut Vec<usize>) {
+		let key = self.order_key(parent);
+		let Some(want) = self.order.get(&key) else {
+			return;
+		};
+		if want.is_empty() {
+			return;
+		}
+		let slots: Vec<usize> = kids
+			.iter()
+			.enumerate()
+			.filter(|(_, i)| self.is_folder(**i))
+			.map(|(n, _)| n)
+			.collect();
+		let mut folders: Vec<usize> = slots.iter().map(|&n| kids[n]).collect();
+		folders.sort_by_key(|&i| {
+			let k = self.key(i);
+			want.iter()
+				.position(|w| Some(w.as_str()) == k)
+				.unwrap_or(usize::MAX)
+		});
+		for (n, f) in slots.into_iter().zip(folders) {
+			kids[n] = f;
+		}
+	}
+
+	/// Moves folder `i` one step among the folder rows on its level;
+	/// other rows keep their slots. Records the level's new order and
+	/// returns it with its settings key so the caller can persist it.
+	/// None when there is no folder sibling that way. Local folders do
+	/// not come here: the library itself is reordered for those.
+	pub fn move_folder(&mut self, i: usize, up: bool) -> Option<(String, Vec<String>)> {
+		if !self.is_folder(i) {
+			return None;
+		}
+		let parent = self.items[i].parent;
+		let mut level = self.children(parent).to_vec();
+		let folders: Vec<usize> = level
+			.iter()
+			.copied()
+			.filter(|&x| self.is_folder(x))
+			.collect();
+		let at = folders.iter().position(|&x| x == i)?;
+		let next = if up { at.checked_sub(1)? } else { at + 1 };
+		let other = *folders.get(next)?;
+		let a = level.iter().position(|&x| x == i)?;
+		let b = level.iter().position(|&x| x == other)?;
+		level.swap(a, b);
+		match parent {
+			None => self.roots = level.clone(),
+			Some(p) => self.set_children(p, level.clone()),
+		}
+		let order: Vec<String> = level
+			.iter()
+			.copied()
+			.filter(|&x| self.is_folder(x))
+			.filter_map(|x| self.key(x).map(str::to_owned))
+			.collect();
+		let key = self.order_key(parent);
+		self.order.insert(key.clone(), order.clone());
+		Some((key, order))
+	}
+
+	/// Under Collections or Custom Stations: the library owns the order.
+	pub fn is_local(&self, i: usize) -> bool {
+		let mut at = i;
+		while let Some(p) = self.items[at].parent {
+			at = p;
+		}
+		at == self.collections || at == self.custom
 	}
 
 	/// Taken when the window closes.
@@ -419,6 +530,7 @@ impl BrowseModel {
 				node => out.push(self.add(Some(parent), Kind::from_node(node))),
 			}
 		}
+		self.apply_order(Some(parent), &mut out);
 		out
 	}
 
@@ -939,6 +1051,71 @@ impl View {
 		}
 	}
 
+	/// Shift+Up / Shift+Down (Alt works too): move the focused folder
+	/// one step among the folders on its level. Local folders reorder
+	/// the library itself; remote folders record the order in the
+	/// settings, since the source's order is not ours to change.
+	fn move_folder(&self, app: &Rc<RefCell<App>>, up: bool) {
+		let (f, parent, local, key) = {
+			let m = self.model.borrow();
+			let Some(f) = m.focus() else { return };
+			if !m.is_folder(f) {
+				return;
+			}
+			(
+				f,
+				m.parent(f),
+				m.is_local(f),
+				m.key(f).map(str::to_owned),
+			)
+		};
+		if local {
+			let Some((collection, path)) = key.as_deref().and_then(local_path) else {
+				return;
+			};
+			let old_pos = self
+				.model
+				.borrow()
+				.children(parent)
+				.iter()
+				.position(|&x| x == f);
+			let moved = {
+				let mut a = app.borrow_mut();
+				let r = a
+					.library
+					.collection_mut(&collection)
+					.and_then(|c| c.move_folder(&path, up));
+				if r.is_some() {
+					a.save_library();
+				}
+				r
+			};
+			if moved.is_none() {
+				return;
+			}
+			self.refresh_local(app);
+			// Local levels list stations first, then folders, so the
+			// moved folder sits exactly one level slot over.
+			if let Some(old) = old_pos {
+				let level = self.model.borrow().children(parent).to_vec();
+				let at = if up { old.wrapping_sub(1) } else { old + 1 };
+				if let Some(&to) = level.get(at) {
+					self.model.borrow_mut().set_focus(to);
+					self.show_focus();
+					self.focused(app, to);
+				}
+			}
+		} else if let Some((key, order)) = self.model.borrow_mut().move_folder(f, up) {
+			{
+				let mut a = app.borrow_mut();
+				a.settings.browse_order.insert(key, order);
+				a.save_settings();
+			}
+			self.sync(parent);
+			self.show_focus();
+		}
+	}
+
 	fn delete(&self, app: &Rc<RefCell<App>>, i: usize) {
 		let target = self.model.borrow().delete_target(i);
 		match target {
@@ -1107,7 +1284,15 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		return None;
 	};
 	let memory = std::mem::take(&mut app.borrow_mut().browse);
-	let model = BrowseModel::new(memory, &app.borrow().library);
+	let mut model = BrowseModel::new(memory, &app.borrow().library);
+	model.set_order(
+		app.borrow()
+			.settings
+			.browse_order
+			.clone()
+			.into_iter()
+			.collect(),
+	);
 	let view = Rc::new(View {
 		tree,
 		root,
@@ -1210,6 +1395,18 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, token: &WindowT
 		};
 		let ctrl = e.control_down();
 		let plain = !(e.alt_down() || e.shift_down());
+		// Shift+Up / Shift+Down moves a folder among its level's
+		// folders (Alt+Up / Alt+Down too, as in Collections).
+		let move_dir = match (code, ctrl) {
+			(WXK_UP, false) if !plain => Some(true),
+			(WXK_DOWN, false) if !plain => Some(false),
+			_ => None,
+		};
+		if let Some(up) = move_dir {
+			e.skip(false);
+			v.move_folder(&a, up);
+			return;
+		}
 		let to = {
 			let m = v.model.borrow();
 			match (code, ctrl) {
@@ -1598,5 +1795,64 @@ mod tests {
 		let rb = load(&mut m, Some(dir), "rb", vec![station("a")]);
 		assert_eq!(m.delete_target(find(&m, Some(rb), "a")), Delete::NotOwn);
 		assert_eq!(m.delete_target(jazz_folder), Delete::NotOwn);
+	}
+
+	#[test]
+	fn browse_move_folder_remote() {
+		let mut m = BrowseModel::new(Memory::default(), &Library::default());
+		let dir = open_dir(&mut m);
+		let rb = load(
+			&mut m,
+			Some(dir),
+			"rb",
+			vec![folder("rb/genre"), folder("rb/country"), folder("rb/language")],
+		);
+		let language = find(&m, Some(rb), "rb/language");
+		// The first folder on a level has nowhere up.
+		assert_eq!(m.move_folder(rb, true), None, "rb is first under Directories");
+		let genre = find(&m, Some(rb), "rb/genre");
+		assert_eq!(m.move_folder(genre, true), None, "already first");
+		let (key, order) = m.move_folder(language, true).expect("moves up");
+		assert_eq!(key, "rb");
+		assert_eq!(order, ["rb/genre", "rb/language", "rb/country"]);
+		assert_eq!(labels(&m, rb), ["rb/genre", "rb/language", "rb/country"]);
+		let (key, order) = m.move_folder(language, true).expect("moves up again");
+		assert_eq!(key, "rb");
+		assert_eq!(order, ["rb/language", "rb/genre", "rb/country"]);
+		assert_eq!(m.move_folder(language, true), None, "now first");
+		let (_, order) = m.move_folder(language, false).expect("moves down");
+		assert_eq!(order, ["rb/genre", "rb/language", "rb/country"]);
+
+		// The saved order survives a fresh model over the same cache:
+		// the level is rebuilt from the source order, then re-sorted.
+		let mut m2 = BrowseModel::new(m.memory(Sort::default()), &Library::default());
+		m2.set_order([("rb".to_string(), order)].into_iter().collect());
+		let dir = find(&m2, None, "dir");
+		let rb = find(&m2, Some(dir), "rb");
+		assert_eq!(m2.open(rb), None, "rb comes from the cache");
+		assert_eq!(labels(&m2, rb), ["rb/genre", "rb/language", "rb/country"]);
+	}
+
+	#[test]
+	fn browse_move_folder_local_keys() {
+		assert_eq!(
+			local_path("custom/f0"),
+			Some((CUSTOM.to_string(), vec![0]))
+		);
+		assert_eq!(
+			local_path("col:9/f1/f2"),
+			Some(("col:9".to_string(), vec![1, 2]))
+		);
+		assert_eq!(local_path("col:9"), None, "a collection row itself");
+		assert_eq!(local_path("custom/x0"), None);
+		let mut lib = Library::default();
+		let mine = lib.add_custom("Mine", "http://mine");
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let custom = find(&m, None, CUSTOM);
+		assert!(m.is_local(custom));
+		assert!(m.is_local(find(&m, Some(custom), &mine.id)));
+		let collections = find(&m, None, "collections");
+		assert!(m.is_local(collections));
+		assert!(!m.is_local(find(&m, None, "dir")));
 	}
 }

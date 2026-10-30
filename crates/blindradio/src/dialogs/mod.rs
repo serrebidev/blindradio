@@ -52,6 +52,35 @@ fn opens_window(a: &Action) -> bool {
 	)
 }
 
+/// Route with the focused control in mind: in a text field, the
+/// clipboard trio edits text; everywhere else it works on stations.
+pub fn route_focused(
+	own: &Action,
+	code: i32,
+	ctrl: bool,
+	alt: bool,
+	shift: bool,
+	in_text: bool,
+) -> Route {
+	if in_text && crate::action::is_text_edit_chord(code, ctrl, alt, shift) {
+		return Route::Pass;
+	}
+	route(own, code, ctrl, alt, shift)
+}
+
+/// Whether the key event started in a text field. A char hook's event
+/// object is the window the key was aimed at, so its class answers.
+pub(crate) fn event_in_text(e: &WindowEventData) -> bool {
+	let WindowEventData::Keyboard(key) = e else {
+		return false;
+	};
+	key.event
+		.event
+		.get_event_object()
+		.and_then(|w| w.get_class_name())
+		.is_some_and(|c| c == "wxTextCtrl")
+}
+
 /// `own` is the shortcut that opens this window.
 pub fn route(own: &Action, code: i32, ctrl: bool, alt: bool, shift: bool) -> Route {
 	match app_key(code, ctrl, alt, shift, false) {
@@ -75,16 +104,18 @@ pub fn run(
 	let next = Rc::new(RefCell::new(None));
 	let (a, n) = (app.clone(), next.clone());
 	dialog.on_char_hook(move |e| {
+		let in_text = event_in_text(&e);
 		let WindowEventData::Keyboard(key) = e else {
 			return;
 		};
 		let route = key.get_key_code().map_or(Route::Pass, |code| {
-			route(
+			route_focused(
 				&own,
 				code,
 				key.control_down(),
 				key.alt_down(),
 				key.shift_down(),
+				in_text,
 			)
 		});
 		if route == Route::Pass {
@@ -154,5 +185,30 @@ mod tests {
 			Route::Switch(Action::OpenFavorites)
 		);
 		assert_eq!(route(&own, WXK_ESCAPE, false, false, false), Route::Close);
+	}
+
+	#[test]
+	fn clipboard_trio_edits_text_in_a_text_field() {
+		let own = Action::OpenSearch;
+		let key = |c: char| c as i32;
+		// In a text field the trio edits text, or Edit Station answers
+		// "Nothing to paste" and the pasted URL never lands.
+		for c in ['C', 'X', 'V'] {
+			assert_eq!(
+				route_focused(&own, key(c), true, false, false, true),
+				Route::Pass,
+				"Ctrl+{c} in text"
+			);
+			// On a list the same chords keep their station actions.
+			assert!(matches!(
+				route_focused(&own, key(c), true, false, false, false),
+				Route::Run(_)
+			));
+		}
+		// Other app keys still run from a text field.
+		assert_eq!(
+			route_focused(&own, key('P'), true, false, false, true),
+			Route::Run(Action::PlayPause)
+		);
 	}
 }

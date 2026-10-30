@@ -47,6 +47,10 @@ and Radio.net;
 Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
 that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
+Shift+Up and Shift+Down move a folder among the folders on its level (Alt+Up and
+Alt+Down work too). A folder in Collections or Custom Stations moves in your library
+itself; a directory folder keeps the order you give it, remembered between sessions,
+since the directory's own order is not yours to change.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
@@ -118,9 +122,16 @@ through the default.
 
 Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Choosing a preset or
 moving a band enables the equalizer and is heard at once; Enabled is the off switch.
-Choosing a preset moves the sliders and reads the bands. Up and Down move a band by one dB,
-Home and End go to the ends, PageUp and PageDown by five. Moving a band by hand makes the
-preset Custom.
+Choosing a preset moves the sliders and reads the bands. The presets are Flat, Bass
+Boost, Treble Boost, Bass and Treble, Loudness, Voice, Warm, Clarity, Laptop Speakers
+and Custom. The bands reach further into the middle of the spectrum than they used to,
+so a preset is plainly heard on speakers as well as headphones; Loudness is the
+strongest smile of the set.
+Up and Down move a band by one dB, PageUp and PageDown by one dB too, and Home and End
+go to the ends. Moving a band by hand makes the preset Custom — and Custom remembers
+your bands: switch to another preset and back and your tuning is still there.
+To keep a tuning under your own name, type it in the Name box and choose Save Preset;
+it joins the Preset list. Delete Preset removes the saved preset showing in the list.
 
 ## Collections
 
@@ -208,6 +219,12 @@ The window title is the playing station's name alone. The now-playing line shows
 `Station - Song`, with how long it has played and the stream's format, such as
 `MP3, 128 kbps, 44.1 kHz, stereo`. Ctrl+Alt+Shift+N says it whatever your announcement
 settings are.
+
+The global hot keys work from any app. With NVDA running, announcements are spoken by
+NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
+window. NVDA's own status line command, NVDA+End, reads the same line once the
+BlindRadio NVDA add-on is installed: Help → Install NVDA Add-on opens the add-on file
+that ships with the app, and NVDA installs it from there.
 
 ## Keyboard shortcuts
 

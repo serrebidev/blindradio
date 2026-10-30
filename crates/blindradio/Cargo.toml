@@ -21,6 +21,11 @@ ship-shape = "0.5.0"
 # Global hotkeys on macOS and X11; Windows uses wx-utils.
 global-hotkey = "*"
 
+[target.'cfg(windows)'.dependencies]
+# Loads NVDA's controller client DLL at runtime (speech.rs); the DLL
+# itself ships beside the exe, nothing is linked.
+libloading = "*"
+
 [build-dependencies]
 embed-manifest = "*"
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }

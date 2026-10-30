@@ -620,6 +620,11 @@ impl App {
 				},
 			},
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
+			Action::InstallNvdaAddon => {
+				if !crate::nvda::install_addon() {
+					self.say(s::NVDA_ADDON_MISSING);
+				}
+			}
 		}
 		self.refresh();
 	}

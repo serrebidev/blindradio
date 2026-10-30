@@ -13,6 +13,7 @@ mod instance;
 mod dial_tree;
 mod main_window;
 mod menus;
+mod nvda;
 mod speech;
 mod station_list;
 mod strings;

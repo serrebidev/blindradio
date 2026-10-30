@@ -69,6 +69,8 @@ pub enum Action {
 	PasteStation,
 	/// Help > Check for Updates.
 	CheckForUpdates,
+	/// Help > Install NVDA Add-on: opens the shipped add-on file.
+	InstallNvdaAddon,
 	Help,
 	About,
 	/// Fetch the SerrebiRadio starter list again.
@@ -170,11 +172,37 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 	}
 }
 
+/// The text-editing chords: copy, cut and paste inside a text field. The
+/// app key table maps the same chords to station clipboard actions, so a
+/// char hook must pass these to the control whenever a text field has
+/// focus, or pasting a URL into a dialog answers "Nothing to paste" and
+/// the text never lands (the Edit Station bug, twice shipped).
+pub fn is_text_edit_chord(code: i32, ctrl: bool, alt: bool, shift: bool) -> bool {
+	if !(ctrl && !alt && !shift) {
+		return false;
+	}
+	let letter = u8::try_from(code).ok().map(char::from);
+	matches!(letter, Some('C' | 'X' | 'V'))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	fn key(c: char) -> i32 {
 		c as i32
+	}
+
+	#[test]
+	fn text_edit_chords_are_the_clipboard_trio() {
+		for c in ['C', 'X', 'V'] {
+			assert!(is_text_edit_chord(key(c), true, false, false), "{c}");
+		}
+		// Not editing chords: the app actions keep them.
+		assert!(!is_text_edit_chord(key('U'), true, false, false), "copy URL");
+		assert!(!is_text_edit_chord(key('V'), true, true, false), "alt held");
+		assert!(!is_text_edit_chord(key('V'), true, false, true), "shift held");
+		assert!(!is_text_edit_chord(key('V'), false, false, false), "plain V");
+		assert!(!is_text_edit_chord(WXK_LEFT, true, false, false));
 	}
 
 	#[test]

@@ -164,6 +164,7 @@ dependencies = [
  "embed-manifest",
  "flate2",
  "global-hotkey",
+ "libloading",
  "live-region 0.3.3 (git+https://github.com/trypsynth/live-region)",
  "parking_lot",
  "serde_json",

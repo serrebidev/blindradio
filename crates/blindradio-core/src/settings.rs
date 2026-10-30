@@ -15,10 +15,23 @@ pub enum EqPreset {
 	Flat,
 	BassBoost,
 	TrebleBoost,
+	BassAndTreble,
 	Loudness,
 	Voice,
 	Warm,
+	Clarity,
+	LaptopSpeakers,
 	Custom,
+}
+
+/// A preset the user saved by name in the equalizer dialog.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SavedEqPreset {
+	pub name: String,
+	pub bass: i8,
+	pub mid: i8,
+	pub treble: i8,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,6 +42,16 @@ pub struct EqSettings {
 	pub bass: i8,
 	pub mid: i8,
 	pub treble: i8,
+	/// The Custom preset's own bands. Named presets overwrite
+	/// bass/mid/treble, so the hand-tuned set lives here and choosing
+	/// Custom again restores it.
+	pub custom_bass: i8,
+	pub custom_mid: i8,
+	pub custom_treble: i8,
+	/// The saved preset the current bands came from, when one is in use.
+	pub saved_name: Option<String>,
+	/// Presets the user saved by name.
+	pub saved: Vec<SavedEqPreset>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -189,6 +212,10 @@ pub struct Settings {
 	pub station_overrides: BTreeMap<String, StationSettings>,
 	/// Scheduled recordings, in the order the user made them.
 	pub schedules: Vec<ScheduledRecording>,
+	/// Folder order the user set in Browse for levels that cannot be
+	/// reordered at the source: parent folder id ("" for the roots) to
+	/// its folder ids in the user's order.
+	pub browse_order: BTreeMap<String, Vec<String>>,
 }
 
 impl Default for Settings {
@@ -217,6 +244,7 @@ impl Default for Settings {
 			scrobble: ScrobbleSettings::default(),
 			station_overrides: BTreeMap::new(),
 			schedules: Vec::new(),
+			browse_order: BTreeMap::new(),
 		}
 	}
 }
@@ -225,8 +253,20 @@ impl Settings {
 	pub fn load(dir: &Path) -> Settings {
 		let mut s: Settings = store::load(&dir.join(store::SETTINGS_FILE));
 		s.volume = s.volume.clamp(0.0, 1.0);
-		for band in [&mut s.eq.bass, &mut s.eq.mid, &mut s.eq.treble] {
+		for band in [
+			&mut s.eq.bass,
+			&mut s.eq.mid,
+			&mut s.eq.treble,
+			&mut s.eq.custom_bass,
+			&mut s.eq.custom_mid,
+			&mut s.eq.custom_treble,
+		] {
 			*band = (*band).clamp(-MAX_DB, MAX_DB);
+		}
+		for p in &mut s.eq.saved {
+			for band in [&mut p.bass, &mut p.mid, &mut p.treble] {
+				*band = (*band).clamp(-MAX_DB, MAX_DB);
+			}
 		}
 		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
 		s.timeshift.max_mb = s.timeshift.max_mb.min(16_384);
@@ -310,7 +350,12 @@ mod tests {
 				preset: EqPreset::Flat,
 				bass: 0,
 				mid: 0,
-				treble: 0
+				treble: 0,
+				custom_bass: 0,
+				custom_mid: 0,
+				custom_treble: 0,
+				saved_name: None,
+				saved: Vec::new()
 			}
 		);
 		assert!(s.hotkeys.is_empty());
@@ -388,6 +433,16 @@ mod tests {
 			bass: 3,
 			mid: -2,
 			treble: 1,
+			custom_bass: 5,
+			custom_mid: 5,
+			custom_treble: 5,
+			saved_name: Some("Mine".into()),
+			saved: vec![crate::settings::SavedEqPreset {
+				name: "Mine".into(),
+				bass: 5,
+				mid: 5,
+				treble: 5,
+			}],
 		};
 		s.hotkeys.insert("play".into(), "Ctrl+P".into());
 		s.main_list = Some("col:1".into());

@@ -111,6 +111,8 @@ pub const SLEEP_OFF: &str = "&Off";
 pub const EQUALIZER: &str = "&Equalizer…";
 pub const USER_GUIDE: &str = "User &Guide";
 pub const CHECK_UPDATES: &str = "Check for &Updates";
+pub const INSTALL_NVDA_ADDON: &str = "Install NVDA &Add-on…";
+pub const NVDA_ADDON_MISSING: &str = "The NVDA add-on file is not beside BlindRadio.";
 pub const ABOUT: &str = "&About BlindRadio";
 
 // Station lists.
@@ -216,6 +218,9 @@ pub const BASS: &str = "&Bass (dB)";
 pub const MID: &str = "&Mid (dB)";
 pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
+pub const PRESET_NAME: &str = "&Name for a saved preset";
+pub const SAVE_PRESET: &str = "&Save Preset";
+pub const DELETE_PRESET: &str = "De&lete Preset";
 
 // Scheduled recordings.
 pub const SCHEDULES_TITLE: &str = "Scheduled Recordings";
