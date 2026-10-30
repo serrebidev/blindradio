@@ -502,6 +502,10 @@ fn dist_windows() -> Result<(), String> {
 	)
 	.map_err(|e| format!("guide: {e}"))?;
 
+	// Flat entries, no wrapping folder: the updater extracts the zip over
+	// the folder the exe already lives in, so a wrapped `BlindRadio/`
+	// folder would land beside the exe instead of over it, and the old
+	// exe would relaunch — the update "downloads but never applies".
 	let zip_path = dist.join(format!("{APP}.zip"));
 	let _ = std::fs::remove_file(&zip_path);
 	let mut zip = Zip::create(&zip_path).map_err(|e| format!("zip: {e}"))?;
@@ -509,10 +513,10 @@ fn dist_windows() -> Result<(), String> {
 		.into_iter()
 		.chain(RUNTIME_DLLS)
 	{
-		zip.file(&portable.join(name), &format!("{APP}/{name}"))
+		zip.file(&portable.join(name), name)
 			.map_err(|e| format!("zip {name}: {e}"))?;
 	}
-	zip.dir(&portable.join("data"), &format!("{APP}/data"))
+	zip.dir(&portable.join("data"), "data")
 		.map_err(|e| format!("zip data: {e}"))?;
 	zip.finish().map_err(|e| format!("zip: {e}"))?;
 

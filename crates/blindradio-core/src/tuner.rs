@@ -782,9 +782,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if let Some(feed) = &self.ring_feed {
 			let target = (feed.cursor_time() as i64 + seconds as i64 * 1000)
 				.max(feed.ring_start_ms() as i64) as u64;
-			if seconds < 0 && target < feed.window_start_ms() {
-				// Before the window: re-prime at the target instead of
-				// letting the mixer clamp at the window start.
+			if seconds > 0 && target >= feed.now_ms() {
+				// At or past live: go live for real instead of clamping
+				// at the window's edge, which can trail the live edge.
+				self.shift_live();
+			} else if (seconds < 0 && target < feed.window_start_ms())
+				|| (seconds > 0 && target > feed.window_end_ms())
+			{
+				// Outside the window: re-prime at the target instead of
+				// letting the mixer clamp at the window's edge.
 				let buffer = feed.prime(target);
 				self.sink.send(MixerCmd::ShiftAttach {
 					buffer: buffer.clone(),
@@ -799,6 +805,24 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			return;
 		}
 		self.sink.send(MixerCmd::ShiftSeek(seconds));
+	}
+
+	/// Jumps to the oldest audio the buffer still holds.
+	pub fn shift_start(&mut self) {
+		if let Some(feed) = &self.ring_feed {
+			self.ring_paused_at = None;
+			let buffer = feed.prime(feed.ring_start_ms());
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: feed.status(),
+			});
+			self.sink
+				.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+			self.shift = Some((buffer, feed.status()));
+			return;
+		}
+		// The mixer clamps at the buffer's start.
+		self.sink.send(MixerCmd::ShiftSeek(i32::MIN));
 	}
 
 	pub fn shift_live(&mut self) {

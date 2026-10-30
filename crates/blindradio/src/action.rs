@@ -1,7 +1,9 @@
 //! Everything a menu item, button or key can do. Menus, buttons and keys only produce these.
 
 use blindradio_core::sleep::SLEEP_MINUTES;
-use wxdragon::prelude::{WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_LEFT, WXK_RIGHT, WXK_UP};
+use wxdragon::prelude::{
+	WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_F5, WXK_F6, WXK_F7, WXK_F8, WXK_LEFT, WXK_RIGHT, WXK_UP,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
@@ -15,6 +17,8 @@ pub enum Action {
 	SeekBack,
 	/// One step forward, never past live.
 	SeekForward,
+	/// Jump to the oldest audio the buffer still holds.
+	SeekStart,
 	/// Jump to the live edge.
 	GoLive,
 	Mute,
@@ -48,6 +52,7 @@ pub enum Action {
 	FeatureSettings,
 	/// Per-station overrides dialog (context menu).
 	StationSettings,
+	EditStation,
 	/// Help > Check for Updates.
 	CheckForUpdates,
 	Help,
@@ -103,11 +108,21 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 				_ => return None,
 			})
 		}
-		(true, false, true) if main_window => match letter? {
-			'I' => Some(Action::ImportAsCollection),
-			'L' => Some(Action::AddToCollection),
-			_ => None,
-		},
+		(true, false, true) => {
+			match code {
+				WXK_LEFT => return Some(Action::SeekStart),
+				WXK_RIGHT => return Some(Action::GoLive),
+				_ => {}
+			}
+			if !main_window {
+				return None;
+			}
+			Some(match letter? {
+				'I' => Action::ImportAsCollection,
+				'L' => Action::AddToCollection,
+				_ => return None,
+			})
+		}
 		(false, true, false) if main_window => match (digit, letter) {
 			(Some(0), _) => Some(Action::PlayFavorite(9)),
 			(Some(d), _) => Some(Action::PlayFavorite(d as usize - 1)),
@@ -116,6 +131,11 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 		},
 		(false, false, false) => match code {
 			WXK_F1 => Some(Action::Help),
+			// The transport row: buffer start, skip back, skip forward, live.
+			WXK_F5 => Some(Action::SeekStart),
+			WXK_F6 => Some(Action::SeekBack),
+			WXK_F7 => Some(Action::SeekForward),
+			WXK_F8 => Some(Action::GoLive),
 			// The main window has nothing to close.
 			WXK_ESCAPE if !main_window => Some(Action::Close),
 			_ => None,
@@ -127,7 +147,6 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 #[cfg(test)]
 mod tests {
 	use super::*;
-
 	fn key(c: char) -> i32 {
 		c as i32
 	}
@@ -184,8 +203,32 @@ mod tests {
 				Some(Action::SeekForward)
 			);
 			assert_eq!(
+				app_key(WXK_LEFT, true, false, true, main),
+				Some(Action::SeekStart)
+			);
+			assert_eq!(
+				app_key(WXK_RIGHT, true, false, true, main),
+				Some(Action::GoLive)
+			);
+			assert_eq!(
 				app_key(WXK_F1, false, false, false, main),
 				Some(Action::Help)
+			);
+			assert_eq!(
+				app_key(WXK_F5, false, false, false, main),
+				Some(Action::SeekStart)
+			);
+			assert_eq!(
+				app_key(WXK_F6, false, false, false, main),
+				Some(Action::SeekBack)
+			);
+			assert_eq!(
+				app_key(WXK_F7, false, false, false, main),
+				Some(Action::SeekForward)
+			);
+			assert_eq!(
+				app_key(WXK_F8, false, false, false, main),
+				Some(Action::GoLive)
 			);
 		}
 		assert_eq!(

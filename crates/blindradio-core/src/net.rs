@@ -17,7 +17,10 @@ static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 	reqwest::Client::builder()
 		// Per-request headers from `user_agent_for` override this; it covers any stray request.
 		.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
-		.connect_timeout(Duration::from_secs(4))
+		// 10 s, not 4: some station servers are slow to finish the TLS
+		// handshake (AZPM's, measured), and a stream that connects slowly
+		// still plays for hours. Patient players connect where 4 s failed.
+		.connect_timeout(Duration::from_secs(10))
 		.redirect(reqwest::redirect::Policy::limited(10))
 		.build()
 		.expect("http client")

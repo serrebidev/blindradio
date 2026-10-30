@@ -34,15 +34,16 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 	if !made {
 		eprintln!("xtask: appimagetool was not available; the tarball is still built");
 	}
+	// Flat entries, like the Windows zip: the updater extracts the
+	// tarball over the folder the binary already lives in.
 	let tarball = dist.join("BlindRadio.tar.gz");
 	let mut tar = TarGz::create(&tarball).map_err(|e| format!("tar: {e}"))?;
-	tar.file(&exe, "BlindRadio/blindradio")
+	tar.file(&exe, "blindradio").map_err(|e| format!("tar: {e}"))?;
+	tar.file(&root.join("LICENSE"), "LICENSE")
 		.map_err(|e| format!("tar: {e}"))?;
-	tar.file(&root.join("LICENSE"), "BlindRadio/LICENSE")
+	tar.file(&root.join("doc/readme.md"), "readme.md")
 		.map_err(|e| format!("tar: {e}"))?;
-	tar.file(&root.join("doc/readme.md"), "BlindRadio/readme.md")
-		.map_err(|e| format!("tar: {e}"))?;
-	tar.dir(&root.join("doc"), "BlindRadio/doc")
+	tar.dir(&root.join("doc"), "doc")
 		.map_err(|e| format!("tar: {e}"))?;
 	tar.finish().map_err(|e| format!("tar: {e}"))?;
 	println!("xtask: {} and {}", appimage.display(), tarball.display());

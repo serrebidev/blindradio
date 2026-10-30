@@ -361,6 +361,39 @@ impl Library {
 			|| self.fav_folders.iter().any(|f| f.contains_id(id))
 	}
 
+	/// True when the library holds a copy of the station (so it can be edited).
+	pub fn holds_station(&self, id: &str) -> bool {
+		self.is_favorite(id) || self.collections.iter().any(|c| c.contains_id(id))
+	}
+
+	/// Renames and re-points every held copy of a station: collections and
+	/// their folders, favorites and their folders. True when any copy changed.
+	pub fn update_station(&mut self, id: &str, name: &str, url: &str) -> bool {
+		fn walk(
+			stations: &mut [Station],
+			folders: &mut [Folder],
+			id: &str,
+			name: &str,
+			url: &str,
+		) -> bool {
+			let mut hit = false;
+			for s in stations.iter_mut().filter(|s| s.id == id) {
+				s.name = name.to_string();
+				s.url = url.to_string();
+				hit = true;
+			}
+			for f in folders {
+				hit |= walk(&mut f.stations, &mut f.folders, id, name, url);
+			}
+			hit
+		}
+		let mut hit = walk(&mut self.favorites, &mut self.fav_folders, id, name, url);
+		for c in &mut self.collections {
+			hit |= walk(&mut c.stations, &mut c.folders, id, name, url);
+		}
+		hit
+	}
+
 	/// Every favorite, root first then folders depth-first.
 	pub fn all_favorites(&self) -> Vec<Station> {
 		let mut out = self.favorites.clone();

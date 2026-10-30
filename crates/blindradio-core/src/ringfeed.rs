@@ -113,6 +113,14 @@ impl RingFeed {
 		self.core.tap.now_ms()
 	}
 
+	/// The newest session time the window can play: its live edge
+	/// mapped back onto the ring's axis. A seek past this would only
+	/// clamp at the window's edge, short of where it aimed.
+	pub fn window_end_ms(&self) -> u64 {
+		let map = *self.core.map.lock();
+		map.time_at(self.core.window.lock().live_edge())
+	}
+
 	/// The oldest time the ring still holds.
 	pub fn ring_start_ms(&self) -> u64 {
 		self.core.ring.start_ms().unwrap_or(0)

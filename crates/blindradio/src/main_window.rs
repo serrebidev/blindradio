@@ -23,6 +23,9 @@ pub struct MainWindow {
 	pub stations: StationList,
 	/// `Stopped`, `<station>` or `<song> - <station>`.
 	pub now_playing: StaticText,
+	/// The frame's status bar: the same line, where a screen reader's
+	/// status bar command looks for it.
+	pub status_bar: StatusBar,
 	pub play: Button,
 	pub stop: Button,
 	pub mute: Button,
@@ -42,6 +45,9 @@ pub fn build() -> MainWindow {
 		.with_title(s::APP_NAME)
 		.with_size(Size::new(640, 520))
 		.build();
+	let status_bar = StatusBar::builder(&frame).build();
+	frame.set_existing_status_bar(Some(&status_bar));
+	status_bar.set_status_text(s::STOPPED, 0);
 	let panel = Panel::builder(&frame).build();
 	let stations = StationList::new(&panel, s::STATIONS);
 	let now_playing = StaticText::builder(&panel).with_label(s::STOPPED).build();
@@ -81,6 +87,7 @@ pub fn build() -> MainWindow {
 		frame,
 		stations,
 		now_playing,
+		status_bar,
 		play,
 		stop,
 		mute,
@@ -168,6 +175,17 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			match station {
 				Some(st) => {
 					if let Some(next) = dialogs::features::show_station(app, &st) {
+						dispatch(app, next);
+					}
+				}
+				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+			}
+		}
+		Action::EditStation => {
+			let station = app.borrow().selected_or_playing();
+			match station {
+				Some(st) => {
+					if let Some(next) = dialogs::custom_station::show_edit(app, &st) {
 						dispatch(app, next);
 					}
 				}

@@ -95,6 +95,16 @@ const FORMATS: [RecordFormat; 4] = [
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	let current = app.borrow().settings.clone();
+	// The startup list choices: the default stations, every playlist merged,
+	// or any one collection (an imported playlist is a collection).
+	let mut collections: Vec<(String, String)> = app
+		.borrow()
+		.library
+		.collections
+		.iter()
+		.map(|c| (c.id.clone(), c.name.clone()))
+		.collect();
+	collections.sort_by_key(|(_, name)| name.to_lowercase());
 	let dialog = Dialog::builder(&frame, s::FEATURES_TITLE).build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
@@ -107,6 +117,20 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		current.close_lists_when_playing,
 	);
 	let play_last = check(&dialog, &sizer, s::PLAY_LAST, current.play_last_at_startup);
+	let startup_items: Vec<&str> = std::iter::once(s::STARTUP_DEFAULT)
+		.chain(std::iter::once(s::STARTUP_ALL))
+		.chain(collections.iter().map(|(_, name)| name.as_str()))
+		.collect();
+	let startup_at = match current.main_list.as_deref() {
+		Some(crate::app::ALL_LISTS) => 1,
+		_ => current
+			.main_list
+			.as_ref()
+			.and_then(|id| collections.iter().position(|(cid, _)| cid == id))
+			.map(|i| i + 2)
+			.unwrap_or(0),
+	};
+	let startup_list = choice(&dialog, &sizer, s::STARTUP_LIST, &startup_items, startup_at);
 	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
 	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
 	let max_start = check(&dialog, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
@@ -227,6 +251,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.announce_status = ann_status.get_value();
 			st.close_lists_when_playing = close_lists.get_value();
 			st.play_last_at_startup = play_last.get_value();
+			st.main_list = match startup_list.get_selection() {
+				Some(1) => Some(crate::app::ALL_LISTS.to_string()),
+				Some(i) if i > 1 => collections
+					.get(i as usize - 2)
+					.map(|(id, _)| id.clone()),
+				_ => None,
+			};
 			st.play_on_move = play_move.get_value();
 			st.close_to_tray = tray.get_value();
 			st.maximize_on_start = max_start.get_value();
@@ -260,6 +291,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.scrobble.lastfm_session_key = blank_none(&fm_session.get_value());
 			st.scrobble.lastfm_base = blank_none(&fm_base.get_value());
 			app.save_settings();
+			app.refresh_dial();
 			d.end_modal(ID_OK);
 		});
 	}

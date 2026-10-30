@@ -46,7 +46,7 @@ fn station(n: &Network, s: &NetStation) -> Station {
 
 pub fn children(id: &str) -> Vec<Node> {
 	if id == "net" {
-		return networks()
+		let mut folders: Vec<Node> = networks()
 			.iter()
 			.filter(|n| n.stations.len() > 1)
 			.map(|n| Node::Folder {
@@ -54,15 +54,19 @@ pub fn children(id: &str) -> Vec<Node> {
 				name: n.name.clone(),
 			})
 			.collect();
+		folders.sort_by_key(|n| n.name().to_lowercase());
+		return folders;
 	}
 	let Some(slug) = id.strip_prefix("net/") else {
 		return vec![];
 	};
-	networks()
+	let mut stations: Vec<Node> = networks()
 		.iter()
 		.filter(|n| n.slug == slug)
 		.flat_map(|n| n.stations.iter().map(|s| Node::Station(station(n, s))))
-		.collect()
+		.collect();
+	stations.sort_by_key(|n| n.name().to_lowercase());
+	stations
 }
 
 /// Name only; a blank name finds nothing rather than every station.

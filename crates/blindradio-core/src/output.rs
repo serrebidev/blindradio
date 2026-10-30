@@ -221,22 +221,33 @@ impl MixerCore {
 					status.paused.store(paused, Ordering::Relaxed);
 					if !paused && self.shift_cursor == Some(buffer.live_edge()) {
 						self.shift_cursor = None;
+						status.cursor.store(u64::MAX, Ordering::Relaxed);
 					}
 				}
 			}
 			MixerCmd::ShiftSeek(seconds) => {
-				if let Some((buffer, _)) = &self.shift {
+				if let Some((buffer, status)) = &self.shift {
 					let edge = buffer.live_edge();
 					let base = self.shift_cursor.unwrap_or(edge) as i64;
 					let target = (base + seconds as i64 * buffer.rate() as i64)
 						.clamp(buffer.start() as i64, edge as i64) as u64;
 					self.shift_cursor = if target >= edge { None } else { Some(target) };
+					if self.shift_cursor.is_none() {
+						// Live from here on: say so in the status at once.
+						// Render only writes the status while shifted, so a
+						// cursor cleared here would otherwise leave the last
+						// shifted frame standing — the status line and the
+						// announcements would keep quoting a stale "behind
+						// live" while the ring plays live.
+						status.cursor.store(u64::MAX, Ordering::Relaxed);
+					}
 				}
 			}
 			MixerCmd::ShiftLive => {
 				self.shift_cursor = None;
 				self.shift_paused = false;
 				if let Some((_, status)) = &self.shift {
+					status.cursor.store(u64::MAX, Ordering::Relaxed);
 					status.paused.store(false, Ordering::Relaxed);
 				}
 			}
@@ -1241,5 +1252,49 @@ mod tests {
 		m.handle(MixerCmd::ShiftLive);
 		let out = render_frames(&mut m, 10);
 		assert!(out.iter().all(|s| *s == 0.0), "no ring, no sound");
+	}
+}
+
+#[cfg(test)]
+mod dynamic_seek {
+	use super::*;
+
+	#[test]
+	fn forward_seeks_reach_live_while_buffer_fills() {
+		// rate 1000 => 1 frame = 1 ms; buffer holds 120 s.
+		let buffer = Arc::new(ShiftBuffer::new(1000, 2));
+		let status = Arc::new(ShiftStatus::new());
+		let mut m = MixerCore::new(1000);
+		m.handle(MixerCmd::SetActive { ring: None, token: 1 });
+		m.handle(MixerCmd::ShiftAttach { buffer: buffer.clone(), status: status.clone() });
+		let tone = vec![0.5f32; 200]; // 100 frames = 0.1 s per push
+		// Fill 60 s while rendering live.
+		for _ in 0..600 {
+			buffer.push(&tone);
+			let mut out = vec![0.0f32; 200];
+			m.render(&mut out);
+		}
+		// Seek back 30 s.
+		m.handle(MixerCmd::ShiftSeek(-30));
+		{
+			let mut out = vec![0.0f32; 200];
+			m.render(&mut out);
+		}
+		let b0 = status.behind_seconds(&buffer);
+		println!("behind after -30: {b0}");
+		assert!((29.0..31.0).contains(&b0), "behind after seek back: {b0}");
+		// Now: keep producing + rendering 0.1 s per step, seek +15 twice.
+		for press in 1..=2 {
+			m.handle(MixerCmd::ShiftSeek(15));
+			for _ in 0..5 {
+				buffer.push(&tone);
+				let mut out = vec![0.0f32; 200];
+				m.render(&mut out);
+			}
+			let b = status.behind_seconds(&buffer);
+			println!("behind after press {press}: {b}");
+		}
+		let b = status.behind_seconds(&buffer);
+		assert!(b < 2.0, "should be at/near live after two +15 seeks from 30 behind, got {b}");
 	}
 }

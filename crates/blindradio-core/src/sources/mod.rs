@@ -13,6 +13,17 @@ pub enum Node {
 	LoadMore { id: String },
 }
 
+impl Node {
+	/// The row's display name; a Load More row has none.
+	pub fn name(&self) -> &str {
+		match self {
+			Node::Folder { name, .. } => name,
+			Node::Station(s) => &s.name,
+			Node::LoadMore { .. } => "",
+		}
+	}
+}
+
 pub mod icecast;
 pub mod iheart;
 pub mod internet_radio;
@@ -356,9 +367,9 @@ impl Sources {
 			.into()
 	}
 
-	/// The station directories, the children of the `dir` root.
+	/// The station directories, the children of the `dir` root, in name order.
 	fn directories() -> Vec<Node> {
-		[
+		let mut dirs: Vec<Node> = [
 			("rb", "Radio Browser"),
 			("tunein", "TuneIn"),
 			("iheart", "iHeartRadio"),
@@ -371,7 +382,9 @@ impl Sources {
 			id: id.into(),
 			name: name.into(),
 		})
-		.into()
+		.into();
+		dirs.sort_by_key(|n| n.name().to_lowercase());
+		dirs
 	}
 
 	/// Children of a browse folder. `sort` orders Radio Browser station lists; the

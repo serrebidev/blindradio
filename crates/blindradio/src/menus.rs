@@ -34,9 +34,16 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 		(
 			s::MENU_FILE,
 			vec![
-				Entry::Devices,
+				Item(s::IMPORT, "Ctrl+I", A::Import),
+				Item(
+					s::IMPORT_AS_COLLECTION,
+					"Ctrl+Shift+I",
+					A::ImportAsCollection,
+				),
 				Separator,
+				Item(s::FEATURE_SETTINGS, "Ctrl+T", A::FeatureSettings),
 				Item(s::GLOBAL_HOTKEYS, "", A::GlobalHotkeys),
+				Separator,
 				Item(s::EXIT, "", A::Exit),
 			],
 		),
@@ -50,12 +57,6 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::COLLECTIONS, "Ctrl+L", A::OpenCollections),
 				Separator,
 				Item(s::ADD_CUSTOM, "Ctrl+N", A::NewCustomStation),
-				Item(s::IMPORT, "Ctrl+I", A::Import),
-				Item(
-					s::IMPORT_AS_COLLECTION,
-					"Ctrl+Shift+I",
-					A::ImportAsCollection,
-				),
 				Item(s::COPY_URL, "Ctrl+U", A::CopyUrl),
 				Separator,
 				Item(s::GET_STARTER, "", A::GetStarter),
@@ -68,9 +69,10 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::STOP_MENU, "Ctrl+S", A::Stop),
 				Item(s::RECORD, "Ctrl+R", A::Record),
 				Separator,
-				Item(s::SKIP_BACK, "Ctrl+Left", A::SeekBack),
-				Item(s::SKIP_FORWARD, "Ctrl+Right", A::SeekForward),
-				Item(s::GO_LIVE, "Ctrl+J", A::GoLive),
+				Item(s::SKIP_BACK, "F6", A::SeekBack),
+				Item(s::SKIP_FORWARD, "F7", A::SeekForward),
+				Item(s::JUMP_START, "F5", A::SeekStart),
+				Item(s::GO_LIVE, "F8", A::GoLive),
 				Separator,
 				Item(s::MUTE_MENU, "Ctrl+M", A::Mute),
 				Item(s::VOLUME_UP, "Ctrl+Up", A::VolumeUp),
@@ -82,7 +84,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Separator,
 				Sub(s::SLEEP_TIMER, sleep),
 				Item(s::EQUALIZER, "Ctrl+E", A::Equalizer),
-				Item(s::FEATURE_SETTINGS, "Ctrl+T", A::FeatureSettings),
+				Entry::Devices,
 			],
 		),
 		(
@@ -190,7 +192,9 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 mod tests {
 	use super::*;
 	use crate::action::app_key;
-	use wxdragon::prelude::{WXK_DOWN, WXK_F1, WXK_LEFT, WXK_RIGHT, WXK_UP};
+	use wxdragon::prelude::{
+		WXK_DOWN, WXK_F1, WXK_F5, WXK_F6, WXK_F7, WXK_F8, WXK_LEFT, WXK_RIGHT, WXK_UP,
+	};
 
 	/// Every item with its shortcut, `&` dropped, submenus flattened.
 	fn items() -> Vec<(String, &'static str, Action)> {
@@ -222,6 +226,10 @@ mod tests {
 			"Left" => WXK_LEFT,
 			"Right" => WXK_RIGHT,
 			"F1" => WXK_F1,
+			"F5" => WXK_F5,
+			"F6" => WXK_F6,
+			"F7" => WXK_F7,
+			"F8" => WXK_F8,
 			k if k.len() == 1 => k.chars().next().unwrap() as i32,
 			k => panic!("unknown key {k}"),
 		};
@@ -249,9 +257,10 @@ mod tests {
 			("Play/Pause", "Ctrl+P"),
 			("Stop", "Ctrl+S"),
 			("Record", "Ctrl+R"),
-			("Skip Back", "Ctrl+Left"),
-			("Skip Forward", "Ctrl+Right"),
-			("Go to Live", "Ctrl+J"),
+			("Skip Back", "F6"),
+			("Skip Forward", "F7"),
+			("Jump to Start of Buffer", "F5"),
+			("Go to Live", "F8"),
 			("Mute", "Ctrl+M"),
 			("Volume Up", "Ctrl+Up"),
 			("Volume Down", "Ctrl+Down"),
@@ -305,7 +314,10 @@ mod tests {
 	#[test]
 	fn file_menu_has_no_checks() {
 		let (_, file) = &menus()[0];
-		assert!(file.iter().any(|e| matches!(e, Entry::Devices)));
+		// The audio device submenu lives in Playback now, not File.
+		assert!(!file.iter().any(|e| matches!(e, Entry::Devices)));
+		let (_, playback) = &menus()[2];
+		assert!(playback.iter().any(|e| matches!(e, Entry::Devices)));
 		let labels: Vec<String> = file
 			.iter()
 			.filter_map(|e| match e {
@@ -313,6 +325,8 @@ mod tests {
 				_ => None,
 			})
 			.collect();
+		// Settings lives in File now.
+		assert!(labels.iter().any(|l| l == "Settings…"));
 		for gone in [
 			"Announce Song Titles",
 			"Announce Connection Status",

@@ -5,6 +5,44 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.10
+
+- Fixed portable self-update never applying: the downloaded update was
+  verified and extracted, but the zip (and the Linux tarball) wrapped
+  everything in a `BlindRadio` folder, so extraction landed beside the
+  running app instead of over it and the old version relaunched. The
+  archives are flat now, so updating from any older portable install to
+  this release — and every release after — applies for real.
+- Skip forward now reaches live: with the encoded ring buffer, a skip
+  that lands at or past the live edge goes live instead of stopping
+  short at the replay window's edge, and a skip past the window
+  re-primes at its target rather than clamping.
+- New time-shift jumps on a function-key row: F5 jumps to the start of
+  the buffer, F6 skips back, F7 skips forward, F8 jumps to live.
+  Ctrl+Shift+Left and Ctrl+Shift+Right do the two jumps too; the Ctrl
+  arrows and Ctrl+J are unchanged.
+- Settings gains a Startup List: the main list can open on the default
+  stations, on every playlist merged (All Playlists), or on any one
+  collection — an imported playlist is a collection, so your own
+  playlists can be what the app starts with instead of the defaults.
+- A station you hold (in a playlist, your favorites, or Custom Stations)
+  can now be edited: Edit Station on its context menu changes its name
+  and stream URL everywhere it appears. Station Settings never did
+  this; it holds per-station playback options only.
+- Networks and the station directories are listed in alphabetical
+  order, and so are the stations inside each network.
+- Slow-starting servers connect more reliably: the connection timeout
+  rose from 4 to 10 seconds, after stations on slow-handshaking
+  servers (AZPM's, for one) failed here while playing in other apps.
+- Menus reorganized: Settings moved from Playback to the File menu,
+  playlist imports moved from Stations to File, and the Audio Device
+  submenu moved from File to Playback.
+- The status line is now in the window's real status bar — station,
+  song, time played, Live or how far behind live you are, and the
+  stream format (for example `MP3, 128 kbps, 44.1 kHz, stereo`) — and
+  the window title reads `BlindRadio - <station> - <song>`, so Alt+Tab
+  and the title command name the app first.
+
 ## 0.2.9
 
 - Five networks join the catalog: DFM (Russia, 45 stations) and Hit FM

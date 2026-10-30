@@ -31,6 +31,7 @@ pub enum Item {
 	/// True when the station is a favorite already: the item removes it.
 	Favorite(bool),
 	CopyUrl,
+	EditStation,
 	StationSettings,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
@@ -54,6 +55,7 @@ pub enum Choice {
 	Play,
 	Favorite,
 	CopyUrl,
+	EditStation,
 	StationSettings,
 	/// Into or out of the collection with this id.
 	Toggle(String),
@@ -86,6 +88,11 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 						.collect(),
 				),
 			];
+			// Only a held station can be edited: a directory or network
+			// station exists nowhere in the library to save the change to.
+			if lib.holds_station(&st.id) {
+				items.insert(3, Item::EditStation);
+			}
 			if !lib.fav_folders.is_empty() {
 				items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
 			}
@@ -165,6 +172,14 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			}
 			Item::CopyUrl => {
 				menu.append(add(Choice::CopyUrl), s::COPY_URL, "", ItemKind::Normal);
+			}
+			Item::EditStation => {
+				menu.append(
+					add(Choice::EditStation),
+					s::EDIT_STATION_ITEM,
+					"",
+					ItemKind::Normal,
+				);
 			}
 			Item::StationSettings => {
 				menu.append(
@@ -312,6 +327,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::Play => Action::Play,
 		Choice::Favorite => Action::ToggleFavorite,
 		Choice::CopyUrl => Action::CopyUrl,
+		Choice::EditStation => Action::EditStation,
 		Choice::StationSettings => Action::StationSettings,
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
 		Choice::NewCollection => {
@@ -367,6 +383,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(true),
 				Item::CopyUrl,
+				Item::EditStation,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -399,6 +416,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
+				Item::EditStation,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz, "Jazz".into(), false),

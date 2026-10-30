@@ -129,11 +129,18 @@ due, playback stops.
 
 ## Settings
 
-Ctrl+T opens Settings. The General checkboxes are Announce Song Titles, Announce Connection
-Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as I Move to It,
-Hide to the System Tray When Closed, and Maximize the Window at Startup. With Play a Station
-as I Move to It off, moving through a list only selects the station; Enter plays it. The
-time-shift, recording, recognition and scrobbling options live in the same window.
+Ctrl+T opens Settings (File menu). The General checkboxes are Announce Song Titles, Announce
+Connection Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as
+I Move to It, Hide to the System Tray When Closed, and Maximize the Window at Startup. With
+Play a Station as I Move to It off, moving through a list only selects the station; Enter
+plays it. The Startup List chooses what the main list shows when the app starts: the default
+stations, All Playlists (every collection merged into one list), or one of your collections —
+an imported playlist is a collection, so your own playlists can be what opens. A station in
+one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
+Edit Station on its context menu edits its name and stream URL everywhere it appears.
+Collections themselves are renamed in the Collections window (Rename button, or Rename on
+the context menu). The time-shift, recording, recognition and scrobbling options live in
+the same window.
 
 ## When a stream drops
 
@@ -181,6 +188,11 @@ settings are.
 | Ctrl+U | Copy Stream URL |
 | Ctrl+Y | Song History |
 | Ctrl+E | Equalizer |
+| F5 | Jump to start of buffer |
+| F6, Ctrl+Left | Skip back |
+| F7, Ctrl+Right | Skip forward |
+| F8, Ctrl+Shift+Right, Ctrl+J | Jump to live |
+| Ctrl+Shift+Left | Jump to start of buffer |
 | Ctrl+1 to Ctrl+6, Ctrl+0 | Sleep timer, off |
 | Alt+1 to Alt+0 | Play favorite 1 to 10 |
 | Alt+V | Volume slider |

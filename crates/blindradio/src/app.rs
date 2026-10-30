@@ -80,7 +80,17 @@ fn landed<T: Clone>(selected: &mut Option<T>, remembered: &mut Option<T>, statio
 }
 
 /// The main window list: the collection last played from, else SerrebiRadio.
+/// `main_list` value meaning every collection merged: the dial shows all
+/// imported playlists at once. Never a real collection id (those are
+/// `col:` + a uuid), so it cannot collide.
+pub const ALL_LISTS: &str = "all-playlists";
+
 pub fn dial_collection<'a>(lib: &'a Library, main_list: Option<&str>) -> Option<&'a Collection> {
+	if main_list == Some(ALL_LISTS) {
+		// The merged view is no single collection (deleting from it, say,
+		// would be ambiguous), so single-collection work sees nothing.
+		return None;
+	}
 	main_list
 		.and_then(|id| lib.collections.iter().find(|c| c.id == id))
 		.or_else(|| {
@@ -88,6 +98,19 @@ pub fn dial_collection<'a>(lib: &'a Library, main_list: Option<&str>) -> Option<
 				.iter()
 				.find(|c| c.name.eq_ignore_ascii_case(import::STARTER_COLLECTION))
 		})
+}
+
+/// The stations the main window lists: one collection, or every collection
+/// merged in name order under [`ALL_LISTS`].
+pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
+	if main_list == Some(ALL_LISTS) {
+		let mut cols: Vec<&Collection> = lib.collections.iter().collect();
+		cols.sort_by_key(|c| c.name.to_lowercase());
+		return cols.iter().flat_map(|c| c.all_stations()).collect();
+	}
+	dial_collection(lib, main_list)
+		.map(|c| c.all_stations())
+		.unwrap_or_default()
 }
 
 /// `BLINDRADIO_DATA` (tests) overrides the data folder.
@@ -348,6 +371,7 @@ impl App {
 			}
 			Action::SeekBack => self.seek(-1),
 			Action::SeekForward => self.seek(1),
+			Action::SeekStart => self.seek_start(),
 			Action::GoLive => {
 				self.tuner.shift_live();
 				if self.settings.announce_status && self.tuner.shift().is_some() {
@@ -424,7 +448,8 @@ impl App {
 			| Action::Equalizer
 			| Action::GlobalHotkeys
 			| Action::FeatureSettings
-			| Action::StationSettings => {}
+			| Action::StationSettings
+			| Action::EditStation => {}
 			Action::CopyUrl => self.copy_url(),
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
 		}
@@ -695,6 +720,21 @@ impl App {
 		}
 	}
 
+	fn seek_start(&mut self) {
+		let Some((buffer, status)) = self.tuner.shift() else {
+			return;
+		};
+		self.tuner.shift_start();
+		if self.settings.announce_status {
+			let behind = status.behind_seconds(&buffer);
+			if behind >= 1.0 {
+				self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+			} else {
+				self.say(s::LIVE);
+			}
+		}
+	}
+
 	/// The window title and the now playing line; `None` is stopped.
 	fn now_playing(&self, text: Option<&str>) {
 		*self.status_base.borrow_mut() = text.unwrap_or("").to_string();
@@ -702,20 +742,24 @@ impl App {
 	}
 
 	fn show_line(&self, text: &str) {
-		// The frame title is what a screen reader's title command reads: the
-		// playing station's name alone, never the song or status suffixes.
-		let title = self
-			.tuner
-			.playing()
-			.map(|p| p.name.as_str())
-			.unwrap_or(s::APP_NAME);
+		// The frame title is what Alt+Tab and a screen reader's title
+		// command announce: the app's name first, then the station and
+		// the song, never the status suffixes.
+		let base = self.status_base.borrow().clone();
+		let title = if base.is_empty() {
+			s::APP_NAME.to_string()
+		} else {
+			format!("{} - {}", s::APP_NAME, base)
+		};
 		if self.win.frame.get_title() != title {
-			self.win.frame.set_title(title);
+			self.win.frame.set_title(&title);
 		}
-		let line = escape(if text.is_empty() { s::STOPPED } else { text });
+		let plain = if text.is_empty() { s::STOPPED } else { text };
+		let line = escape(plain);
 		if self.win.now_playing.get_label() != line {
 			self.win.now_playing.set_label(&line);
 		}
+		self.win.status_bar.set_status_text(plain, 0);
 	}
 
 	/// Once a second: the status line gains how long the station has played,
@@ -733,14 +777,20 @@ impl App {
 		if let Some(since) = self.playing_since {
 			line += &format!(" - {}{}", fmt_dur(since.elapsed().as_secs_f32()), s::PLAYED_FOR);
 		}
+		let mut live = true;
 		if let Some((buffer, status)) = self.tuner.shift() {
 			let behind = status.behind_seconds(&buffer);
 			if behind >= 1.0 {
 				line += &format!(" - {}{}", fmt_dur(behind), s::BEHIND_LIVE);
+				live = false;
 			}
 			if status.paused.load(std::sync::atomic::Ordering::Relaxed) {
 				line += s::STATUS_PAUSED;
+				live = false;
 			}
+		}
+		if live {
+			line += s::STATUS_LIVE;
 		}
 		if self.tuner.is_recording() {
 			line += s::STATUS_RECORDING;
@@ -842,9 +892,7 @@ impl App {
 
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
-		let stations = dial_collection(&self.library, self.settings.main_list.as_deref())
-			.map(|c| c.all_stations())
-			.unwrap_or_default();
+		let stations = dial_stations(&self.library, self.settings.main_list.as_deref());
 		let list = &self.win.stations;
 		let current = list.current();
 		let focus = current
@@ -1052,5 +1100,40 @@ mod tests {
 			starter,
 			"a deleted collection falls back"
 		);
+	}
+
+	#[test]
+	fn all_lists_merges_every_collection_by_name() {
+		let mut lib = Library::default();
+		let zeta = lib.create_collection("Zeta");
+		let alpha = lib.create_collection("Alpha");
+		let st = |name: &str| Station {
+			id: format!("custom:{name}"),
+			name: name.into(),
+			url: "http://x".into(),
+			source: blindradio_core::station::Source::RadioBrowser,
+			info: None,
+		};
+		lib.collections
+			.iter_mut()
+			.find(|c| c.id == alpha)
+			.unwrap()
+			.stations
+			.push(st("A One"));
+		lib.collections
+			.iter_mut()
+			.find(|c| c.id == zeta)
+			.unwrap()
+			.stations
+			.push(st("Z One"));
+		assert!(
+			dial_collection(&lib, Some(ALL_LISTS)).is_none(),
+			"the merged view is no single collection"
+		);
+		let names: Vec<&str> = dial_stations(&lib, Some(ALL_LISTS))
+			.iter()
+			.map(|s| s.name.as_str())
+			.collect();
+		assert_eq!(names, ["A One", "Z One"], "collections in name order");
 	}
 }
