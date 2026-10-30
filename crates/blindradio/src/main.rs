@@ -14,6 +14,8 @@ mod dial_tree;
 mod main_window;
 mod menus;
 mod nvda;
+#[cfg(windows)]
+mod status_strip;
 mod speech;
 mod station_list;
 mod strings;

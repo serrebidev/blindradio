@@ -111,8 +111,6 @@ pub const SLEEP_OFF: &str = "&Off";
 pub const EQUALIZER: &str = "&Equalizer…";
 pub const USER_GUIDE: &str = "User &Guide";
 pub const CHECK_UPDATES: &str = "Check for &Updates";
-pub const INSTALL_NVDA_ADDON: &str = "&Install NVDA Add-on…";
-pub const NVDA_ADDON_MISSING: &str = "The NVDA add-on file is not beside BlindRadio.";
 pub const ABOUT: &str = "&About BlindRadio";
 
 // Station lists.

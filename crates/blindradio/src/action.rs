@@ -69,8 +69,6 @@ pub enum Action {
 	PasteStation,
 	/// Help > Check for Updates.
 	CheckForUpdates,
-	/// Help > Install NVDA Add-on: opens the shipped add-on file.
-	InstallNvdaAddon,
 	Help,
 	About,
 	/// Fetch the SerrebiRadio starter list again.

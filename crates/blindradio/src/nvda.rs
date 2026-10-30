@@ -10,24 +10,6 @@
 //! Windows-only and fully optional: no DLL, no NVDA, or a failed call
 //! all return false and the caller falls back to the live region.
 
-/// Help > Install NVDA Add-on: open the add-on file shipped beside
-/// the exe; NVDA installs an add-on when its file is opened. The
-/// add-on is what makes NVDA+End read the status line. False when
-/// the file is not there (a build tree, another platform).
-pub fn install_addon() -> bool {
-	let Ok(exe) = std::env::current_exe() else {
-		return false;
-	};
-	let Some(dir) = exe.parent() else {
-		return false;
-	};
-	let path = dir.join("BlindRadio.nvda-addon");
-	if !path.exists() {
-		return false;
-	}
-	wxdragon::prelude::launch_default_application(&path.to_string_lossy())
-}
-
 /// Speak `text` through NVDA; `interrupt` cancels what NVDA is saying
 /// first. True when NVDA took the text.
 #[cfg(windows)]

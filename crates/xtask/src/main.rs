@@ -511,23 +511,6 @@ fn dist_windows() -> Result<(), String> {
 	)
 	.map_err(|e| format!("guide: {e}"))?;
 
-	// The NVDA add-on that makes NVDA+End read the status line: a zip
-	// with its manifest at the root, opened from Help > Install NVDA
-	// Add-on. NVDA installs it on open.
-	let addon_path = portable.join("BlindRadio.nvda-addon");
-	let _ = std::fs::remove_file(&addon_path);
-	let mut addon = Zip::create(&addon_path).map_err(|e| format!("add-on: {e}"))?;
-	addon
-		.file(&root.join("nvda-addon/manifest.ini"), "manifest.ini")
-		.map_err(|e| format!("add-on manifest: {e}"))?;
-	addon
-		.file(
-			&root.join("nvda-addon/appModules/blindradio.py"),
-			"appModules/blindradio.py",
-		)
-		.map_err(|e| format!("add-on module: {e}"))?;
-	addon.finish().map_err(|e| format!("add-on: {e}"))?;
-
 	// Flat entries, no wrapping folder: the updater extracts the zip over
 	// the folder the exe already lives in, so a wrapped `BlindRadio/`
 	// folder would land beside the exe instead of over it, and the old
@@ -538,11 +521,7 @@ fn dist_windows() -> Result<(), String> {
 	for name in [EXE, "LICENSE", "readme.html"]
 		.into_iter()
 		.chain(RUNTIME_DLLS)
-		.chain([
-			"nvdaControllerClient.dll",
-			"nvdaControllerClient-LICENSE.txt",
-			"BlindRadio.nvda-addon",
-		])
+		.chain(["nvdaControllerClient.dll", "nvdaControllerClient-LICENSE.txt"])
 	{
 		zip.file(&portable.join(name), name)
 			.map_err(|e| format!("zip {name}: {e}"))?;

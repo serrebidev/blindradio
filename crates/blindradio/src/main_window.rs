@@ -29,9 +29,13 @@ pub struct MainWindow {
 	pub filter: TextCtrl,
 	/// `Stopped`, `<station>` or `<song> - <station>`.
 	pub now_playing: StaticText,
-	/// The frame's status bar: the same line, where a screen reader's
-	/// status bar command looks for it.
+	/// The status bar: the same line, where a screen reader's status
+	/// bar command looks for it. On Windows it lives in the strip
+	/// window (see status_strip); elsewhere in the frame itself.
 	pub status_bar: StatusBar,
+	/// Windows only: the borderless owned window hosting the status
+	/// bar along the frame's bottom edge. None elsewhere.
+	pub status_strip: Option<Frame>,
 	pub play: Button,
 	pub stop: Button,
 	pub mute: Button,
@@ -51,19 +55,19 @@ pub fn build() -> MainWindow {
 		.with_title(s::APP_NAME)
 		.with_size(Size::new(640, 520))
 		.build();
-	// The frame creates its own status bar (wxFrame::CreateStatusBar).
-	// A hand-built bar attached afterwards has its text in the
-	// accessibility tree, but NVDA's status line command (NVDA+End)
-	// hit-tests the frame's bottom-left corner and walks up to a
-	// frame-managed bar, so it reported "No status line found".
-	// Style is wxSTB_DEFAULT_STYLE: SIZEGRIP | SHOW_TIPS |
-	// ELLIPSIZE_END | FULL_REPAINT_ON_RESIZE.
-	let status_bar = frame.create_status_bar(1, 0x10131, ID_ANY as i32, "statusBar");
+	// The status bar. On Windows it cannot live in this frame at all:
+	// NVDA's status line command hit-tests the frame's bottom-left
+	// corner, which is border, outside the client area every in-frame
+	// bar is clipped to (see status_strip). Elsewhere the frame's own
+	// bar is fine. Bar style is wxSTB_DEFAULT_STYLE either way:
+	// SIZEGRIP | SHOW_TIPS | ELLIPSIZE_END | FULL_REPAINT_ON_RESIZE.
+	#[cfg(windows)]
+	let (status_strip, status_bar, strip_pad) = crate::status_strip::build(&frame);
+	#[cfg(not(windows))]
+	let (status_strip, strip_pad) = (None, 0);
+	#[cfg(not(windows))]
+	let status_bar = frame_status_bar(&frame);
 	status_bar.set_status_text(s::STOPPED, 0);
-	// Topmost among the frame's children: the panel is created after the
-	// bar, and a hit-test at the frame's bottom edge must meet the bar,
-	// not the panel, first.
-	status_bar.raise();
 	let panel = Panel::builder(&frame).build();
 	// wxMSW names a control after the label created just before it.
 	let filter_label = StaticText::builder(&panel).with_label(s::FILTER).build();
@@ -108,6 +112,11 @@ pub fn build() -> MainWindow {
 	sizer.add(&volume_label, 0, SizerFlag::All, 5);
 	sizer.add(&volume, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add(&message, 0, SizerFlag::Expand | SizerFlag::All, 5);
+	// The strip overlays the frame's bottom edge; keep the panel's
+	// content clear of it (0 off Windows).
+	if strip_pad > 0 {
+		sizer.add_spacer(strip_pad);
+	}
 	panel.set_sizer(sizer, true);
 	MainWindow {
 		frame,
@@ -115,6 +124,7 @@ pub fn build() -> MainWindow {
 		filter,
 		now_playing,
 		status_bar,
+		status_strip,
 		play,
 		stop,
 		mute,
@@ -122,6 +132,16 @@ pub fn build() -> MainWindow {
 		volume,
 		message,
 	}
+}
+
+/// The frame's own status bar, for the platforms without the strip.
+#[cfg(not(windows))]
+fn frame_status_bar(frame: &Frame) -> StatusBar {
+	let status_bar = frame.create_status_bar(1, 0x10131, ID_ANY as i32, "statusBar");
+	// Topmost among the frame's children: the panel is created after
+	// the bar and would otherwise cover it.
+	status_bar.raise();
+	status_bar
 }
 
 /// Every menu item, button and key runs through here.

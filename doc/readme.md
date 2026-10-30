@@ -222,9 +222,9 @@ settings are.
 
 The global hot keys work from any app. With NVDA running, announcements are spoken by
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
-window. NVDA's own status line command, NVDA+End, reads the same line once the
-BlindRadio NVDA add-on is installed: Help → Install NVDA Add-on opens the add-on file
-that ships with the app, and NVDA installs it from there.
+window. NVDA's own status line command, NVDA+End, reads the same line; on Windows the
+status bar sits in its own thin window along the main window's bottom edge, exactly
+where that command looks, so it works with no add-on and nothing to install.
 
 ## Keyboard shortcuts
 

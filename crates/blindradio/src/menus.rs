@@ -98,7 +98,6 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 			vec![
 				Item(s::USER_GUIDE, "F1", A::Help),
 				Item(s::CHECK_UPDATES, "", A::CheckForUpdates),
-				Item(s::INSTALL_NVDA_ADDON, "", A::InstallNvdaAddon),
 				Item(s::ABOUT, "", A::About),
 			],
 		),

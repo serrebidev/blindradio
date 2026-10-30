@@ -620,17 +620,14 @@ impl App {
 				},
 			},
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
-			Action::InstallNvdaAddon => {
-				if !crate::nvda::install_addon() {
-					self.say(s::NVDA_ADDON_MISSING);
-				}
-			}
 		}
 		self.refresh();
 	}
 
 	/// Every 50 ms.
 	pub fn poll(&mut self) {
+		#[cfg(windows)]
+		crate::status_strip::sync(&self.win);
 		let now = Instant::now();
 		let rendered: Vec<_> = self.rendered.try_iter().collect();
 		self.tuner.poll(now, &rendered);

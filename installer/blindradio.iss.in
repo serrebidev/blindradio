@@ -33,7 +33,6 @@ Source: "@APP_DIR@\readme.html"; DestDir: "{app}"; Flags: ignoreversion
 Source: "@APP_DIR@\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "@APP_DIR@\nvdaControllerClient.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "@APP_DIR@\nvdaControllerClient-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "@APP_DIR@\BlindRadio.nvda-addon"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
