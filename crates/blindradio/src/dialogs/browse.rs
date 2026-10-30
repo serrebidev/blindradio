@@ -1828,6 +1828,7 @@ mod tests {
 		let mut m2 = BrowseModel::new(m.memory(Sort::default()), &Library::default());
 		m2.set_order([("rb".to_string(), order)].into_iter().collect());
 		let dir = find(&m2, None, "dir");
+		assert_eq!(m2.open(dir), None, "directories come from the cache");
 		let rb = find(&m2, Some(dir), "rb");
 		assert_eq!(m2.open(rb), None, "rb comes from the cache");
 		assert_eq!(labels(&m2, rb), ["rb/genre", "rb/language", "rb/country"]);
