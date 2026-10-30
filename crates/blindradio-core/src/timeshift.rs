@@ -97,6 +97,15 @@ impl ShiftBuffer {
 		out.truncate(n);
 		out
 	}
+
+	/// Everything in the buffer as f32, oldest first (Save Buffer).
+	pub fn snapshot_f32(&self) -> Vec<f32> {
+		let frames = (self.live_edge() - self.start()) as usize;
+		let mut out = vec![0.0; frames * 2];
+		let n = self.read_at(self.start(), &mut out);
+		out.truncate(n);
+		out
+	}
 }
 
 /// Playback position within a `ShiftBuffer`, written by the mixer on every
@@ -136,6 +145,20 @@ mod tests {
 		(from..from + frames)
 			.flat_map(|i| [i as f32 / 32768.0, i as f32 / 32768.0])
 			.collect()
+	}
+
+	#[test]
+	fn snapshot_holds_the_whole_buffer_oldest_first() {
+		let b = ShiftBuffer::new(1000, 1);
+		b.push(&ramp(0, 500));
+		let snap = b.snapshot_f32();
+		assert_eq!(snap.len(), 1000);
+		assert!((snap[0]).abs() < 0.001);
+		assert!((snap[998] - 499.0 / 32767.0).abs() < 0.001);
+		b.push(&ramp(500, 59_600)); // overflows the 60 s ring: oldest dropped
+		let snap = b.snapshot_f32();
+		assert_eq!(snap.len(), 120_000);
+		assert!((snap[0] - 100.0 / 32767.0).abs() < 0.01);
 	}
 
 	#[test]

@@ -185,6 +185,11 @@ impl Collection {
 			None => false,
 		}
 	}
+
+	/// Moves the folder at `path` one step among its siblings; its new path.
+	pub fn move_folder(&mut self, path: &[usize], up: bool) -> Option<Vec<usize>> {
+		move_folder_in(&mut self.folders, path, up)
+	}
 }
 
 /// The folder at `path` in a folder list: the first index picks from the
@@ -276,6 +281,59 @@ pub fn remove_folder_in(folders: &mut Vec<Folder>, path: &[usize]) -> bool {
 	}
 	list.remove(last);
 	true
+}
+
+/// Moves the folder at `path` one step among its siblings; its new path,
+/// or None when it is already at that end (or the path is wrong).
+pub fn move_folder_in(folders: &mut Vec<Folder>, path: &[usize], up: bool) -> Option<Vec<usize>> {
+	let (&last, parent) = path.split_last()?;
+	let list = folder_list_in(folders, parent)?;
+	let next = if up {
+		last.checked_sub(1)?
+	} else {
+		last + 1
+	};
+	if next >= list.len() {
+		return None;
+	}
+	list.swap(last, next);
+	let mut new_path = parent.to_vec();
+	new_path.push(next);
+	Some(new_path)
+}
+
+/// Every folder under `folders` with its path, parents first, names joined
+/// with " / " (the pickers' display form).
+pub fn folder_paths(folders: &[Folder]) -> Vec<(Vec<usize>, String)> {
+	fn walk(
+		folders: &[Folder],
+		base: &[usize],
+		names: &str,
+		out: &mut Vec<(Vec<usize>, String)>,
+	) {
+		for (i, f) in folders.iter().enumerate() {
+			let mut path = base.to_vec();
+			path.push(i);
+			let label = if names.is_empty() {
+				f.name.clone()
+			} else {
+				format!("{names} / {}", f.name)
+			};
+			out.push((path.clone(), label.clone()));
+			walk(&f.folders, &path, &label, out);
+		}
+	}
+	let mut out = Vec::new();
+	walk(folders, &[], "", &mut out);
+	out
+}
+
+/// A place a station can be filed from a picker: the favorites (root or a
+/// folder) or a collection (root or a folder).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StationDest {
+	Favorites(Vec<usize>),
+	Collection { id: String, path: Vec<usize> },
 }
 
 /// Where a held station lives (see `Library::station_home`).
@@ -534,6 +592,11 @@ impl Library {
 		}
 	}
 
+	/// Moves the favorites folder at `path` one step among its siblings.
+	pub fn move_fav_folder(&mut self, path: &[usize], up: bool) -> Option<Vec<usize>> {
+		move_folder_in(&mut self.fav_folders, path, up)
+	}
+
 	pub fn add_recent(&mut self, s: &Station) {
 		self.recent.retain(|r| r.id != s.id);
 		self.recent.insert(0, s.clone());
@@ -551,6 +614,127 @@ impl Library {
 		self.ensure_custom();
 		self.collections[0].stations.push(s.clone());
 		s
+	}
+
+	/// A new custom station filed straight into `dest` (the Add Custom
+	/// Station dialog's picker). Falls back to Custom Stations when the
+	/// destination no longer exists.
+	pub fn add_custom_to(&mut self, name: &str, url: &str, dest: &StationDest) -> Station {
+		let s = Station {
+			id: format!("custom:{}", uuid::Uuid::new_v4()),
+			name: name.into(),
+			url: url.into(),
+			source: Source::Custom,
+			info: None,
+		};
+		let filed = match dest {
+			StationDest::Favorites(path) => match self.fav_stations_at_mut(path) {
+				Some(list) => {
+					list.push(s.clone());
+					true
+				}
+				None => false,
+			},
+			StationDest::Collection { id, path } => {
+				if id == CUSTOM {
+					self.ensure_custom();
+				}
+				match self
+					.collection_mut(id)
+					.and_then(|c| c.stations_at_mut(path))
+				{
+					Some(list) => {
+						list.push(s.clone());
+						true
+					}
+					None => false,
+				}
+			}
+		};
+		if !filed {
+			self.ensure_custom();
+			self.collections[0].stations.push(s.clone());
+		}
+		s
+	}
+
+	/// Every destination the Add Custom Station picker offers, in order:
+	/// Custom Stations, each collection and its folders, Favorites and its
+	/// folders. The first entry is where new stations went before the picker.
+	pub fn destinations(&self) -> Vec<(String, StationDest)> {
+		let mut out = vec![(
+			"Custom Stations".to_string(),
+			StationDest::Collection {
+				id: CUSTOM.into(),
+				path: Vec::new(),
+			},
+		)];
+		for c in &self.collections {
+			if c.id != CUSTOM {
+				out.push((
+					c.name.clone(),
+					StationDest::Collection {
+						id: c.id.clone(),
+						path: Vec::new(),
+					},
+				));
+			}
+			for (path, label) in folder_paths(&c.folders) {
+				out.push((
+					format!("{} / {}", c.name, label),
+					StationDest::Collection {
+						id: c.id.clone(),
+						path,
+					},
+				));
+			}
+		}
+		out.push(("Favorites".to_string(), StationDest::Favorites(Vec::new())));
+		for (path, label) in folder_paths(&self.fav_folders) {
+			out.push((
+				format!("Favorites / {label}"),
+				StationDest::Favorites(path),
+			));
+		}
+		out
+	}
+
+	/// Files a held station into one folder of a collection. False when the
+	/// collection already holds the station anywhere, or the folder is gone.
+	pub fn add_to_collection_folder(
+		&mut self,
+		id: &str,
+		path: &[usize],
+		s: &Station,
+	) -> bool {
+		let Some(c) = self.collection_mut(id) else {
+			return false;
+		};
+		if c.contains_id(&s.id) {
+			return false;
+		}
+		match c.stations_at_mut(path) {
+			Some(list) => {
+				list.push(s.clone());
+				true
+			}
+			None => false,
+		}
+	}
+
+	/// Every folder of every collection but Custom Stations, for the
+	/// station menu: collection id, folder path, "Collection / Folder" label.
+	pub fn collection_folder_list(&self) -> Vec<(String, Vec<usize>, String)> {
+		let mut out = Vec::new();
+		for c in &self.collections {
+			if c.id == CUSTOM {
+				continue;
+			}
+			for (path, label) in folder_paths(&c.folders) {
+				out.push((c.id.clone(), path, format!("{} / {}", c.name, label)));
+			}
+		}
+		out
 	}
 
 	/// Copies in favorites or other collections stay.

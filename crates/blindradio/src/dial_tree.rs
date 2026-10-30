@@ -1,7 +1,9 @@
 //! The main window's station tree: the startup list with its folders, where
 //! the flat list used to drop them. Rows carry the station's index into the
 //! flat dial order, so tuning, Play On Move and the menus behave exactly as
-//! they did over the list; typing filters the tree to matching stations.
+//! they did over the list. Letters typed in the tree jump to stations by
+//! their first letters (the tree's own navigation); filtering lives in the
+//! main window's separate filter box.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
@@ -32,17 +34,11 @@ pub enum DialNode {
 	Station(usize),
 }
 
-/// What the main window does on Delete and while the user types a filter.
+/// What the main window does on Delete in the tree.
 #[derive(Default)]
 pub struct DialHooks {
 	/// The focused station's flat index.
 	pub on_delete: Option<Rc<dyn Fn(usize)>>,
-	/// A letter typed in the tree: it extends the filter.
-	pub on_type: Option<Rc<dyn Fn(char)>>,
-	/// Backspace: the filter loses its last character.
-	pub on_backspace: Option<Rc<dyn Fn()>>,
-	/// Escape: the filter goes, the whole tree comes back.
-	pub on_clear_filter: Option<Rc<dyn Fn()>>,
 }
 
 #[derive(Clone)]
@@ -134,9 +130,20 @@ impl DialTree {
 		match node {
 			DialNode::Station(i) => {
 				let Some(st) = stations.get(*i) else { return };
+				// An imported playlist files a station under its group,
+				// and the group name rides along as the info. Read right
+				// after that folder's own name it says the same thing
+				// twice, so the suffix goes when it only repeats the
+				// folder (or the station itself).
+				let parent = path.rsplit('/').next().filter(|_| !path.is_empty());
 				let text = match st.info.as_deref().filter(|t| !t.is_empty()) {
-					Some(info) => format!("{} - {}", st.name, info),
-					None => st.name.clone(),
+					Some(info)
+						if !parent.is_some_and(|p| info.eq_ignore_ascii_case(p))
+							&& !info.eq_ignore_ascii_case(&st.name) =>
+					{
+						format!("{} - {}", st.name, info)
+					}
+					_ => st.name.clone(),
 				};
 				let Some(item) = self.list.append_item(parent, &text, None, None) else {
 					return;
@@ -221,24 +228,6 @@ impl DialTree {
 			dispatch(&a, Action::Play);
 		});
 
-		// Typing filters the tree.
-		let on_type = hooks.on_type.clone();
-		self.list.bind_internal(EventType::CHAR, move |e: Event| {
-			let c = e
-				.get_unicode_key()
-				.and_then(|k| char::from_u32(k as u32))
-				.filter(|c| !c.is_control() && *c != ' ');
-			match c.filter(|_| !e.control_down() && !e.alt_down()) {
-				Some(c) if on_type.is_some() => {
-					e.skip(false);
-					if let Some(hook) = &on_type {
-						hook(c);
-					}
-				}
-				_ => e.skip(true),
-			}
-		});
-
 		let me = self.clone();
 		let on_delete = hooks.on_delete.clone();
 		self.list
@@ -255,18 +244,6 @@ impl DialTree {
 						}
 						_ => e.skip(true),
 					},
-					WXK_BACK if hooks.on_backspace.is_some() => {
-						e.skip(false);
-						if let Some(hook) = &hooks.on_backspace {
-							hook();
-						}
-					}
-					WXK_ESCAPE if hooks.on_clear_filter.is_some() => {
-						e.skip(false);
-						if let Some(hook) = &hooks.on_clear_filter {
-							hook();
-						}
-					}
 					_ => e.skip(true),
 				}
 			});

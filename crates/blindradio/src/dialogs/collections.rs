@@ -1008,11 +1008,15 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		};
 		let plain = !(e.control_down() || e.alt_down() || e.shift_down());
 		let alt = e.alt_down() && !e.control_down() && !e.shift_down();
-		let act = match (code, plain, alt) {
-			(WXK_DELETE, true, _) => 0,
-			(WXK_F2, true, _) => 1,
-			(WXK_UP, _, true) => 2,
-			(WXK_DOWN, _, true) => 3,
+		// Shift+Up / Shift+Down moves folders too (decided below: folders only).
+		let shift = e.shift_down() && !e.control_down() && !e.alt_down();
+		let act = match (code, plain, alt, shift) {
+			(WXK_DELETE, true, _, _) => 0,
+			(WXK_F2, true, _, _) => 1,
+			(WXK_UP, _, true, _) => 2,
+			(WXK_DOWN, _, true, _) => 3,
+			(WXK_UP, _, false, true) => 2,
+			(WXK_DOWN, _, false, true) => 3,
 			_ => return e.skip(true),
 		};
 		e.skip(false);
@@ -1022,6 +1026,9 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		let Some(at) = v.at(&a, row) else {
 			return;
 		};
+		if shift && !matches!(row, Row::Folder(_)) {
+			return;
+		}
 		match (act, row, &at) {
 			(
 				0,

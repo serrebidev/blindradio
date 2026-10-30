@@ -71,6 +71,11 @@ pub const PAUSED: &str = "Paused";
 pub const RESUMED: &str = "Resumed";
 pub const LIVE: &str = "Live";
 pub const RECORD_PAUSE: &str = "P&ause Recording";
+pub const SAVE_BUFFER: &str = "Save Buffer…";
+pub const SCHEDULED_RECORDINGS: &str = "Scheduled Recordings…";
+pub const NO_BUFFER: &str = "No buffer to save";
+/// Prefix: `Buffer saved to <path>`.
+pub const BUFFER_SAVED: &str = "Buffer saved to ";
 pub const REC_STARTED: &str = "Recording started";
 pub const REC_PAUSED: &str = "Recording paused";
 pub const REC_RESUMED: &str = "Recording resumed";
@@ -120,6 +125,7 @@ pub const PLAY_ITEM: &str = "&Play";
 pub const ADD_TO_COLLECTION_SUB: &str = "Add to &Collection";
 pub const NEW_COLLECTION: &str = "&New Collection…";
 pub const ADD_TO_FAV_FOLDER: &str = "Add to Favorites &Folder";
+pub const ADD_TO_COLLECTION_FOLDER: &str = "Add to Collection F&older";
 pub const MOVE_TO_FOLDER: &str = "Move to &Folder";
 pub const NEW_FOLDER: &str = "New &Folder…";
 pub const NEW_FOLDER_TITLE: &str = "New Folder";
@@ -176,6 +182,7 @@ pub const PLAYLISTS_FILTER: &str = "Playlists (*.m3u;*.m3u8;*.pls)|*.m3u;*.m3u8;
 // Add Custom Station.
 pub const ADD_CUSTOM_TITLE: &str = "Add Custom Station";
 pub const STREAM_URL: &str = "Stream &URL";
+pub const DESTINATION: &str = "Add to";
 pub const NOT_A_STREAM_URL: &str = "Not a stream URL";
 /// Prefix: `Added <name>`.
 pub const ADDED: &str = "Added ";
@@ -209,6 +216,25 @@ pub const BASS: &str = "&Bass (dB)";
 pub const MID: &str = "&Mid (dB)";
 pub const TREBLE: &str = "&Treble (dB)";
 pub const ENABLED: &str = "&Enabled";
+
+// Scheduled recordings.
+pub const SCHEDULES_TITLE: &str = "Scheduled Recordings";
+pub const SCHEDULES_LIST: &str = "Scheduled recordings";
+pub const ADD_BUTTON: &str = "&Add…";
+pub const EDIT_BUTTON: &str = "&Edit…";
+pub const DELETE_BUTTON: &str = "&Delete";
+pub const SCHEDULE_STATION: &str = "Station";
+pub const SCHEDULE_START: &str = "Start (YYYY-MM-DD HH:MM, local)";
+pub const SCHEDULE_DURATION: &str = "Duration (minutes)";
+pub const SCHEDULE_REPEAT: &str = "Repeat";
+pub const BAD_SCHEDULE_TIME: &str = "Use YYYY-MM-DD HH:MM for the start";
+pub const BAD_SCHEDULE_DURATION: &str = "Duration must be 1 to 1440 minutes";
+/// Prefix: `Scheduled recording started: <station>`.
+pub const SCHEDULE_STARTED: &str = "Scheduled recording started: ";
+/// Prefix: `Scheduled recording saved to <path>`.
+pub const SCHEDULE_SAVED: &str = "Scheduled recording saved to ";
+pub const SCHEDULE_SKIPPED: &str = "Scheduled recording skipped: already recording";
+pub const NO_SCHEDULES: &str = "No scheduled recordings";
 
 // Feature settings (global and per station).
 pub const FEATURE_SETTINGS: &str = "&Settings…";

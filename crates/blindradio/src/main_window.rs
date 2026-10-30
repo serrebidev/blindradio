@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use blindradio_core::station::{Source, Station};
 use wx_utils::prompt_text;
+use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
 use crate::action::{Action, app_key};
@@ -23,6 +24,9 @@ pub struct MainWindow {
 	pub frame: Frame,
 	/// The dial: the SerrebiRadio collection, or the collection last played from.
 	pub stations: DialTree,
+	/// Narrows the tree to matching stations; typing in the tree itself
+	/// jumps by first letters instead.
+	pub filter: TextCtrl,
 	/// `Stopped`, `<station>` or `<song> - <station>`.
 	pub now_playing: StaticText,
 	/// The frame's status bar: the same line, where a screen reader's
@@ -56,7 +60,14 @@ pub fn build() -> MainWindow {
 	// ELLIPSIZE_END | FULL_REPAINT_ON_RESIZE.
 	let status_bar = frame.create_status_bar(1, 0x10131, ID_ANY as i32, "statusBar");
 	status_bar.set_status_text(s::STOPPED, 0);
+	// Topmost among the frame's children: the panel is created after the
+	// bar, and a hit-test at the frame's bottom edge must meet the bar,
+	// not the panel, first.
+	status_bar.raise();
 	let panel = Panel::builder(&frame).build();
+	// wxMSW names a control after the label created just before it.
+	let filter_label = StaticText::builder(&panel).with_label(s::FILTER).build();
+	let filter = TextCtrl::builder(&panel).build();
 	let stations = DialTree::new(&panel, s::STATIONS);
 	let now_playing = StaticText::builder(&panel).with_label(s::STOPPED).build();
 	let play = Button::builder(&panel).with_label(s::PLAY).build();
@@ -79,6 +90,13 @@ pub fn build() -> MainWindow {
 	}
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(
+		&filter_label,
+		0,
+		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+		5,
+	);
+	sizer.add(&filter, 0, SizerFlag::Expand | SizerFlag::All, 5);
+	sizer.add(
 		&stations.label,
 		0,
 		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
@@ -94,6 +112,7 @@ pub fn build() -> MainWindow {
 	MainWindow {
 		frame,
 		stations,
+		filter,
 		now_playing,
 		status_bar,
 		play,
@@ -187,6 +206,11 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::ScheduledRecordings => {
+			if let Some(next) = dialogs::schedules::show(app) {
+				dispatch(app, next);
+			}
+		}
 		Action::GlobalHotkeys => {
 			if let Some(next) = dialogs::hotkeys::show(app) {
 				dispatch(app, next);
@@ -237,14 +261,29 @@ pub fn volume_step(code: i32) -> Option<i32> {
 pub fn bind(app: &Rc<RefCell<App>>) {
 	let win = app.borrow().win.clone();
 
-	let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
+	let a1 = app.clone();
 	let hooks = DialHooks {
 		on_delete: Some(Rc::new(move |i| a1.borrow_mut().delete_from_dial(i))),
-		on_type: Some(Rc::new(move |c| a2.borrow_mut().dial_filter_type(c))),
-		on_backspace: Some(Rc::new(move || a3.borrow_mut().dial_filter_backspace())),
-		on_clear_filter: Some(Rc::new(move || a4.borrow_mut().dial_filter_clear())),
 	};
 	win.stations.bind(app, hooks);
+
+	// The filter box narrows the tree as it changes; Escape empties it.
+	let (a, filter) = (app.clone(), win.filter.clone());
+	win.filter
+		.bind_internal(EventType::TEXT, move |e: Event| {
+			e.skip(true);
+			a.borrow_mut().dial_filter_set(filter.get_value());
+		});
+	let filter = win.filter.clone();
+	win.filter
+		.bind_internal(EventType::KEY_DOWN, move |e: Event| {
+			if e.get_key_code() == Some(WXK_ESCAPE) {
+				e.skip(false);
+				filter.set_value("");
+			} else {
+				e.skip(true);
+			}
+		});
 
 	let a = app.clone();
 	win.frame.on_menu_selected(move |e| {
@@ -290,6 +329,13 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		let WindowEventData::Keyboard(key) = e else {
 			return;
 		};
+		// A dialog is up: its controls keep their keys. Without this, a
+		// Ctrl+V aimed at a text field became Paste Station and the app
+		// answered "Nothing to paste" while the text never landed.
+		if a.borrow().dialog_open {
+			key.event.skip(true);
+			return;
+		}
 		let action = key.get_key_code().and_then(|code| {
 			app_key(
 				code,

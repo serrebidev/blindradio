@@ -119,6 +119,59 @@ fn nearest_bitrate(kbps: u32) -> mp3lame_encoder::Bitrate {
 		.unwrap_or(Kbps192)
 }
 
+/// A WAV file being written chunk by chunk (Save Buffer streams the
+/// time-shift buffer through in pieces instead of holding it all).
+pub struct WavSave {
+	w: hound::WavWriter<BufWriter<File>>,
+	path: PathBuf,
+}
+
+impl WavSave {
+	/// Starts a WAV in the recordings folder, named like a recording.
+	pub fn create(dir: &Path, station: &str, rate: u32) -> Result<WavSave> {
+		std::fs::create_dir_all(dir)?;
+		let now = SystemTime::now()
+			.duration_since(UNIX_EPOCH)
+			.map(|d| d.as_secs())
+			.unwrap_or(0);
+		let path = dir.join(format!("{} {}.wav", file_stem(station), stamp(now)));
+		let spec = hound::WavSpec {
+			channels: 2,
+			sample_rate: rate,
+			bits_per_sample: 16,
+			sample_format: hound::SampleFormat::Int,
+		};
+		let w = hound::WavWriter::create(&path, spec)
+			.map_err(|e| CoreError::Output(e.to_string()))?;
+		Ok(WavSave { w, path })
+	}
+
+	pub fn write(&mut self, pcm: &[f32]) -> Result<()> {
+		for s in to_i16(pcm) {
+			self.w
+				.write_sample(s)
+				.map_err(|e| CoreError::Output(e.to_string()))?;
+		}
+		Ok(())
+	}
+
+	pub fn finish(self) -> Result<PathBuf> {
+		self.w
+			.finalize()
+			.map_err(|e| CoreError::Output(e.to_string()))?;
+		Ok(self.path)
+	}
+}
+
+/// Writes decoded stereo PCM to a WAV file named like a recording
+/// (Save Buffer: the time-shift buffer is decoded audio whatever the
+/// stream's own format was). Returns the file's path.
+pub fn save_wav(dir: &Path, station: &str, rate: u32, pcm: &[f32]) -> Result<PathBuf> {
+	let mut save = WavSave::create(dir, station, rate)?;
+	save.write(pcm)?;
+	save.finish()
+}
+
 impl Recorder {
 	/// `source_ext` names the stream's own format for `Original` recordings
 	/// ("mp3", "aac", ...). `rate` is the decoded output rate.
@@ -328,6 +381,16 @@ mod tests {
 			format,
 			..RecordSettings::default()
 		}
+	}
+
+	#[test]
+	fn save_wav_writes_a_named_recording() {
+		let d = tempfile::tempdir().unwrap();
+		let path = save_wav(d.path(), "Test FM", 8000, &vec![0.25; 16_000]).unwrap();
+		assert!(path.file_name().unwrap().to_str().unwrap().ends_with(".wav"));
+		let mut reader = hound::WavReader::open(&path).unwrap();
+		assert_eq!(reader.spec().sample_rate, 8000);
+		assert_eq!(reader.duration(), 8000);
 	}
 
 	#[test]

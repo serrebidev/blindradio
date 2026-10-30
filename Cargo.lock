@@ -188,6 +188,7 @@ dependencies = [
  "m3u8-rs",
  "md5",
  "mp3lame-encoder",
+ "oxideav-mp2",
  "parking_lot",
  "percent-encoding",
  "quick-xml",
@@ -200,7 +201,7 @@ dependencies = [
  "symphonia-adapter-fdk-aac",
  "symphonia-adapter-libopus",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
  "tokio",
  "uuid",
 ]
@@ -1939,6 +1940,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8534a2ed5b65350f90c63b3e160a8edd8b812fcf3182a88fd7fcee3b6fca673a"
 dependencies = [
  "cmake",
+]
+
+[[package]]
+name = "oxideav-core"
+version = "0.1.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16003ef2cd554e10f0c451d7a74b4c56b32473d50c174aefb3bdbe4139b9c14d"
+dependencies = [
+ "bytemuck",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "oxideav-mp2"
+version = "0.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19c132641af52d4dce3d1f56e92325f0c682e9b49d1dceadc96bd6d02fa74ee1"
+dependencies = [
+ "oxideav-core",
 ]
 
 [[package]]

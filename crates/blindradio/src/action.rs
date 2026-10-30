@@ -15,6 +15,10 @@ pub enum Action {
 	Record,
 	/// Pause or resume the active recording.
 	RecordPause,
+	/// Save the time-shift buffer to a WAV file in the recordings folder.
+	SaveBuffer,
+	/// The scheduled recordings list dialog.
+	ScheduledRecordings,
 	/// One step back in the time-shift buffer.
 	SeekBack,
 	/// One step forward, never past live.

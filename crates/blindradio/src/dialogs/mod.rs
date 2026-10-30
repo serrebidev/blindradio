@@ -10,6 +10,7 @@ pub mod features;
 pub mod history;
 pub mod hotkeys;
 pub mod recent;
+pub mod schedules;
 pub mod search;
 
 use std::cell::RefCell;

@@ -72,6 +72,8 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::NEXT_STATION, "Alt+Right", A::NextStation),
 				Item(s::RECORD, "Ctrl+R", A::Record),
 				Item(s::RECORD_PAUSE, "Ctrl+Shift+R", A::RecordPause),
+				Item(s::SAVE_BUFFER, "", A::SaveBuffer),
+				Item(s::SCHEDULED_RECORDINGS, "", A::ScheduledRecordings),
 				Separator,
 				Item(s::SKIP_BACK, "F6", A::SeekBack),
 				Item(s::SKIP_FORWARD, "F7", A::SeekForward),

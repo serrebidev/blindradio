@@ -32,6 +32,9 @@ pub enum Band {
 }
 
 /// A band moved by hand makes the preset Custom; the value is clamped.
+/// Moving a band also enables the equalizer: a hand move means "use
+/// this", and a separate trip to the Enabled box is how the dialog
+/// shipped presets that changed nothing anyone could hear.
 pub fn set_band(settings: &mut EqSettings, band: Band, db: i32) {
 	let db = db.clamp(-i32::from(eq::MAX_DB), i32::from(eq::MAX_DB)) as i8;
 	match band {
@@ -40,14 +43,19 @@ pub fn set_band(settings: &mut EqSettings, band: Band, db: i32) {
 		Band::Treble => settings.treble = db,
 	}
 	settings.preset = EqPreset::Custom;
+	settings.enabled = true;
 }
 
 /// A preset moves the bands with it; Custom keeps them as they are.
+/// Choosing a preset enables the equalizer, so the choice is heard the
+/// moment it is made (the DVBViewer behaviour); the Enabled box is the
+/// one explicit off switch.
 pub fn apply_preset(settings: &mut EqSettings, preset: EqPreset) {
 	settings.preset = preset;
 	if let Some((bass, mid, treble)) = preset.bands() {
 		(settings.bass, settings.mid, settings.treble) = (bass, mid, treble);
 	}
+	settings.enabled = true;
 }
 
 /// Up and Right raise, Down and Left lower, by one dB: a native trackbar lowers on Up.
@@ -133,6 +141,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			mid.set_value(i32::from(eq.mid));
 			treble.set_value(i32::from(eq.treble));
 			programmatic.set(false);
+			enabled.set_value(eq.enabled);
 			let said = eq::describe(&eq);
 			a.borrow_mut().set_eq(eq);
 			a.borrow_mut().say(&said);
@@ -147,6 +156,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			}
 			let mut eq = a.borrow().settings.eq.clone();
 			set_band(&mut eq, band, e.get_value());
+			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 		// One dB a press, Home and End to the ends; the native trackbar goes its own way.
@@ -170,6 +180,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			slider.set_value(value);
 			let mut eq = a.borrow().settings.eq.clone();
 			set_band(&mut eq, band, value);
+			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 	}
@@ -211,5 +222,18 @@ mod tests {
 		apply_preset(&mut eq, EqPreset::Warm);
 		assert_eq!((eq.bass, eq.mid, eq.treble), (3, 1, -2));
 		assert_eq!(eq.preset, EqPreset::Warm);
+	}
+
+	#[test]
+	fn choosing_or_moving_enables_the_equalizer() {
+		// The shipped bug: EqSettings starts disabled, and picking a
+		// preset left it disabled, so nothing anyone chose was heard.
+		let mut eq = EqSettings::default();
+		assert!(!eq.enabled);
+		apply_preset(&mut eq, EqPreset::BassBoost);
+		assert!(eq.enabled, "a chosen preset is heard at once");
+		eq.enabled = false;
+		set_band(&mut eq, Band::Bass, 3);
+		assert!(eq.enabled, "a hand move is heard at once");
 	}
 }

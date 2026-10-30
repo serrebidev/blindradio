@@ -5,6 +5,20 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.19
+
+- MP2 stations play now. Some stations (BBC Radio 4's 2.onj.me address is one) send MPEG Layer II audio while calling it MP3; the decoder had no Layer II codec and refused them outright, though VLC and DVBViewer play them. A Layer II decoder is in, so those stations tune and play like any other.
+- The equalizer works now. Choosing a preset or moving a band changed the numbers but never switched the equalizer on — it starts off, and nothing in the dialog turned it on, so every preset sounded the same as off. Choosing a preset or moving a band now enables it and is heard at once; the Enabled box is the off switch.
+- Pasting a URL into the Edit Station or Add Custom Station window works again: the main window's Paste Station shortcut was taking Ctrl+V before the focused field could see it and answering "Nothing to paste". While a dialog is open, Ctrl+V belongs to the dialog.
+- The main window's filter has its own box now. Typing in the tree used to narrow the list, which took away moving through stations by their first letters; the Filter box above the tree filters, and letters in the tree jump by first letter again.
+- The tree no longer reads the category name twice: a station whose playlist group matched its folder was announced with the folder's name attached ("Houston Public Media News - Houston Public Media"). The repeated name is dropped; other stations keep their extra information.
+- Previous and Next Station count the station that starts with the app: the remembered startup station was played without joining the Alt+Left / Alt+Right history, so the first step back said "No earlier station". It is in the history now.
+- Add Custom Station asks where the station goes: Custom Stations, any collection or folder, or Favorites and its folders, instead of always Custom Stations. A station's context menu (in Browse too) gains Add to Collection Folder, filing it straight into a collection's folder.
+- Shift+Up and Shift+Down move a folder among its siblings in the Collections and Favorites windows (Alt+Up and Alt+Down keep working too).
+- Playback, Save Buffer writes the whole time-shift buffer to a WAV file in the recordings folder, named like a recording — everything the station played since you tuned in, up to the buffer's length.
+- Scheduled recordings: Playback, Scheduled Recordings. A station, a start time, a duration, and Once, Daily or Weekly; the app tunes in and records on its own and stops when the duration is up. A recording already running by hand is never interrupted, and a Once entry switches itself off after it runs.
+- The status line gets another fix: the status bar is raised above the panel created after it, so NVDA's status line command (NVDA+End), which hit-tests the frame's bottom edge, meets the bar first instead of the panel. Announce Now Playing (Ctrl+Alt+Shift+N) now speaks the whole status line too, so the information is always reachable by that chord whatever the pixel hunt does.
+
 ## 0.2.18
 
 - NCBI Live is removed from Networks: its stream is dead at the source. radio.co's own directory API reports the station no longer exists, and Vision Ireland's live page still points at that same dead address, so their own web player is down the same way. It was added in 0.2.15 from their published address but could never be verified from our side; it does not play anywhere. If Vision Ireland restores the stream it can come straight back.

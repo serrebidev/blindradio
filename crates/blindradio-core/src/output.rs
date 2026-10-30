@@ -803,6 +803,48 @@ mod tests {
 	}
 
 	#[test]
+	fn eq_command_reaches_the_rendered_audio() {
+		// A 100 Hz sine sits in the low shelf's range: Bass Boost at
+		// +6 dB must come out measurably louder than the same ring
+		// rendered with the EQ off. Guards the whole path: command
+		// handling, Eq state, and the render tail.
+		let frames = 3000;
+		let ring = Arc::new(PcmRing::new(RATE, 3.0));
+		let sine: Vec<f32> = (0..frames)
+			.flat_map(|i| {
+				let v = (2.0 * std::f32::consts::PI * 100.0 * i as f32 / RATE as f32).sin() * 0.25;
+				[v, v]
+			})
+			.collect();
+		ring.push(&sine);
+		let mut mixer = mixer();
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring),
+			token: 1,
+		});
+		let rms = |out: &[f32]| {
+			(out.iter().map(|v| v * v).sum::<f32>() / out.len() as f32).sqrt()
+		};
+		// Past the fade-in, with the EQ still off.
+		render_frames(&mut mixer, 100);
+		let off = rms(&render_frames(&mut mixer, 200));
+		mixer.handle(MixerCmd::Eq(EqSettings {
+			enabled: true,
+			preset: crate::settings::EqPreset::BassBoost,
+			bass: 6,
+			mid: 0,
+			treble: 0,
+		}));
+		// Past the EQ's own 25 ms wet fade.
+		render_frames(&mut mixer, 100);
+		let on = rms(&render_frames(&mut mixer, 200));
+		assert!(
+			on > off * 1.3,
+			"Bass Boost must raise a 100 Hz sine: off {off}, on {on}"
+		);
+	}
+
+	#[test]
 	fn start_from_silence_fades_in() {
 		let mut mixer = mixer();
 		mixer.handle(MixerCmd::SetActive {

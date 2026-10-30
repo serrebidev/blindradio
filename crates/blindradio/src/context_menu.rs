@@ -47,6 +47,9 @@ pub enum Item {
 	AddAllTo(Vec<(String, String)>),
 	/// Every favorites folder: its path and its display name.
 	AddToFavoriteFolder(Vec<(Vec<usize>, String)>),
+	/// Every folder of every collection but Custom Stations: collection
+	/// id, folder path, "Collection / Folder" label.
+	AddToCollectionFolder(Vec<(String, Vec<usize>, String)>),
 	/// Every folder of one collection: its path and its display name.
 	MoveToFolder(Vec<(Vec<usize>, String)>),
 	DeleteCustom,
@@ -73,6 +76,8 @@ pub enum Choice {
 	AddAllTo(String),
 	/// Into the favorites folder at this path.
 	AddToFavoriteFolder(Vec<usize>),
+	/// Into the folder at this path of the collection with this id.
+	AddToCollectionFolder(String, Vec<usize>),
 	/// Into the folder at this path of the station's own collection.
 	MoveToFolder(Vec<usize>),
 	DeleteCustom,
@@ -117,6 +122,10 @@ pub fn items_for(
 			}
 			if !lib.fav_folders.is_empty() {
 				items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
+			}
+			let collection_folders = lib.collection_folder_list();
+			if !collection_folders.is_empty() {
+				items.push(Item::AddToCollectionFolder(collection_folders));
 			}
 			// Imported stations get `custom:` ids too, so only Custom Stations membership counts.
 			let custom = lib
@@ -317,6 +326,19 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				}
 				menu.append_submenu(sub, s::ADD_TO_FAV_FOLDER, "");
 			}
+			Item::AddToCollectionFolder(folders) => {
+				let sub = Menu::builder().build();
+				catch(&sub);
+				for (id, path, name) in folders {
+					sub.append(
+						add(Choice::AddToCollectionFolder(id.clone(), path.clone())),
+						&escape(name),
+						"",
+						ItemKind::Normal,
+					);
+				}
+				menu.append_submenu(sub, s::ADD_TO_COLLECTION_FOLDER, "");
+			}
 			Item::MoveToFolder(folders) => {
 				let sub = Menu::builder().build();
 				catch(&sub);
@@ -435,6 +457,9 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		}
 		Choice::AddToFavoriteFolder(path) => {
 			return app.borrow_mut().add_favorite_to(&path, station);
+		}
+		Choice::AddToCollectionFolder(id, path) => {
+			return app.borrow_mut().add_to_collection_folder(&id, &path, station);
 		}
 		Choice::Export => {
 			return export_playlist(

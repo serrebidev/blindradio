@@ -75,7 +75,8 @@ own order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 Ctrl+B lists Favorites as a tree: the root list plus folders you make with New Folder, such as
 News, Music or BBC. Remove, Move Up, Move Down and Export work on stations and folders alike,
-and a station's context menu moves it into another folder. Ctrl+H lists Recently Played.
+Shift+Up and Shift+Down move a folder among its siblings, and a station's context menu moves
+it into another folder. Ctrl+H lists Recently Played.
 On the main window, Alt+1 to Alt+0 play favorites one to ten.
 
 ## Importing
@@ -95,14 +96,17 @@ Favorites and Collections each have an Export button that writes an M3U through 
 ## Your own stations
 
 Ctrl+N adds a station: a name and a stream URL. Anything but an http or https URL is refused
-with `Not a stream URL` and the window stays open.
+with `Not a stream URL` and the window stays open. Add to chooses where the station is
+filed: Custom Stations, any collection or folder, or Favorites and its folders — the
+default is Custom Stations, where new stations went before the choice existed.
 
 ## Context menu
 
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Station Settings and, when you have favorites folders, Add to Favorites Folder.
-For your own station it also offers Delete Custom Station. On a category it says
-`Nothing to do here`.
+When a collection has folders it also offers Add to Collection Folder, which files the
+station straight into one. For your own station it also offers Delete Custom Station. On a
+category it says `Nothing to do here`.
 
 ## Sound card
 
@@ -112,15 +116,18 @@ through the default.
 
 ## Equalizer
 
-Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Choosing a preset moves the
-sliders and reads the bands. Up and Down move a band by one dB, Home and End go to the ends,
-PageUp and PageDown by five. Moving a band by hand makes the preset Custom.
+Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Choosing a preset or
+moving a band enables the equalizer and is heard at once; Enabled is the off switch.
+Choosing a preset moves the sliders and reads the bands. Up and Down move a band by one dB,
+Home and End go to the ends, PageUp and PageDown by five. Moving a band by hand makes the
+preset Custom.
 
 ## Collections
 
 Ctrl+L lists Custom Stations and every collection as a tree, folders included. New Folder
 makes a folder inside the focused one. F2 renames a collection or a folder, Delete deletes it
-after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, a station's context
+after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, Shift+Up and
+Shift+Down move a folder among its siblings, a station's context
 menu moves it between folders, and the Applications key on a collection adds every station of
 one collection to another. Ctrl+Shift+L adds the playing station to a collection.
 
@@ -135,6 +142,20 @@ it was. Paste into Favorites works the same way from the Favorites window.
 
 Ctrl+Y shows what played: the station's published history when it has one, with when each song
 played, otherwise what you have heard since you tuned in. Copy and Enter copy the focused song.
+
+## Recording
+
+Ctrl+R starts and stops a recording of the playing station; files land in the recordings
+folder, in the format Settings chooses. Playback, Save Buffer writes the whole time-shift
+buffer — everything the station has played since you tuned in, up to the buffer's length —
+to a WAV file in the same folder, named like a recording.
+
+Playback, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
+a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage the list;
+an entry can be switched off without deleting it. When the time comes the app tunes to
+the station and records, and stops when the duration is up; a recording already running
+by hand is never interrupted, and a Once entry switches itself off after it has run.
+Start times are your local time.
 
 ## Sleep timer
 
@@ -152,9 +173,10 @@ plays it. The Startup List chooses what the main list shows when the app starts:
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
 is a tree: All Playlists shows one folder per playlist with its directories inside, and a
-single playlist shows its directories directly. Typing letters while the tree is focused
-filters it to the stations whose names contain them; Backspace edits the filter and Escape
-clears it. A station in
+single playlist shows its directories directly. The Filter box above the tree narrows it
+to the stations whose names contain what you type; clearing the box brings the whole tree
+back. In the tree itself, typing a letter jumps to the next station starting with it, the
+way lists usually work. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on

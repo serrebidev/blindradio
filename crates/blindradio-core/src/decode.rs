@@ -53,6 +53,8 @@ fn codecs() -> CodecRegistry {
 	// FDK handles HE-AAC (SBR/PS), which symphonia's native AAC decoder does not.
 	codecs.register_audio_decoder_at_tier::<symphonia_adapter_fdk_aac::AacDecoder>(Tier::Preferred);
 	codecs.register_audio_decoder::<symphonia_adapter_libopus::OpusDecoder>();
+	// Symphonia has no Layer II decoder of its own; ours is in mp2.rs.
+	codecs.register_audio_decoder::<crate::mp2::Mp2Decoder>();
 	codecs
 }
 
@@ -109,6 +111,7 @@ fn codec_label(id: symphonia::core::codecs::audio::AudioCodecId) -> &'static str
 	use symphonia::core::codecs::audio::well_known::*;
 	match id {
 		CODEC_ID_MP3 => "MP3",
+		CODEC_ID_MP2 => "MP2",
 		CODEC_ID_AAC => "AAC",
 		CODEC_ID_VORBIS => "Vorbis",
 		CODEC_ID_OPUS => "Opus",
@@ -319,6 +322,18 @@ mod tests {
 			);
 			assert!(peak(out.into_iter()) > 0.05, "{name}: silent");
 		}
+	}
+
+	#[test]
+	fn decodes_mp2() {
+		// Layer II has no symphonia decoder; stations serving it (BBC
+		// relays among them) were refused as "unsupported audio codec".
+		// The fixture is 20 frames of a stereo tone at 48 kHz, encoded
+		// with oxideav-mp2's encoder.
+		let (rate, out) = decode_all(Box::new(fixture("tone.mp2")), "mp3");
+		assert_eq!(rate, 48000);
+		assert_eq!(out.len() / 2, 20 * 1152);
+		assert!(peak(out.into_iter()) > 0.05, "silent");
 	}
 
 	#[test]

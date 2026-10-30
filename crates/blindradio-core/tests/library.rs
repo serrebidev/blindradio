@@ -336,3 +336,85 @@ fn station_home_finds_collections_folders_and_favorites() {
 	);
 	assert_eq!(lib.station_home("nowhere"), None);
 }
+
+#[test]
+fn folders_move_among_siblings() {
+	let mut lib = Library::default();
+	let jazz = lib.create_collection("Jazz");
+	let c = lib.collection_mut(&jazz).unwrap();
+	c.add_folder(&[], "Alpha").unwrap();
+	c.add_folder(&[], "Beta").unwrap();
+	c.add_folder(&[], "Gamma").unwrap();
+	// The middle folder steps up, then back down; the ends refuse.
+	assert_eq!(c.move_folder(&[1], true), Some(vec![0]));
+	assert_eq!(c.folders[0].name, "Beta");
+	assert_eq!(c.move_folder(&[0], true), None);
+	assert_eq!(c.move_folder(&[0], false), Some(vec![1]));
+	assert_eq!(c.folders[1].name, "Beta");
+	assert_eq!(c.move_folder(&[2], false), None);
+	// Nested folders move inside their own parent only.
+	let parent = c.add_folder(&[], "Parent").unwrap();
+	c.add_folder(&parent, "One").unwrap();
+	c.add_folder(&parent, "Two").unwrap();
+	let two = {
+		let mut p = parent.clone();
+		p.push(1);
+		p
+	};
+	let landed = c.move_folder(&two, true).unwrap();
+	assert_eq!(c.folder_at(&landed).unwrap().name, "Two");
+	// Favorites share the same machinery.
+	lib.add_fav_folder(&[], "First").unwrap();
+	lib.add_fav_folder(&[], "Second").unwrap();
+	assert_eq!(lib.move_fav_folder(&[1], true), Some(vec![0]));
+	assert_eq!(lib.fav_folders[0].name, "Second");
+}
+
+#[test]
+fn custom_stations_file_where_the_picker_says() {
+	let mut lib = Library::default();
+	let jazz = lib.create_collection("Jazz");
+	lib.collection_mut(&jazz)
+		.unwrap()
+		.add_folder(&[], "Live")
+		.unwrap();
+	lib.add_fav_folder(&[], "Morning").unwrap();
+	let dests = lib.destinations();
+	assert_eq!(dests[0].0, "Custom Stations");
+	let in_folder = dests
+		.iter()
+		.find(|(label, _)| label == "Jazz / Live")
+		.map(|(_, d)| d.clone())
+		.expect("collection folder offered");
+	let filed = lib.add_custom_to("Filed", "http://filed", &in_folder);
+	let at = lib
+		.collection_mut(&jazz)
+		.unwrap()
+		.stations_at(&[0])
+		.unwrap()
+		.to_vec();
+	assert_eq!(ids(&at), vec![filed.id.as_str()]);
+	let fav = dests
+		.iter()
+		.find(|(label, _)| label == "Favorites / Morning")
+		.map(|(_, d)| d.clone())
+		.expect("favorites folder offered");
+	let favved = lib.add_custom_to("Favved", "http://favved", &fav);
+	assert_eq!(
+		ids(lib.fav_stations_at(&[0]).unwrap()),
+		vec![favved.id.as_str()]
+	);
+	// The plain add still lands in Custom Stations, and a station already
+	// in a collection cannot be filed into one of its folders again.
+	let plain = lib.add_custom("Plain", "http://plain");
+	assert!(lib
+		.collections
+		.iter()
+		.find(|c| c.id == CUSTOM)
+		.unwrap()
+		.contains_id(&plain.id));
+	assert!(!lib.add_to_collection_folder(&jazz, &[0], &filed));
+	let other = st("other");
+	assert!(lib.add_to_collection_folder(&jazz, &[0], &other));
+	assert_eq!(lib.collection_folder_list().len(), 1);
+}

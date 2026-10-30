@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use blindradio_core::library::StationDest;
 use blindradio_core::station::Station;
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
@@ -40,6 +41,17 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.with_label(s::STREAM_URL)
 		.build();
 	let url = TextCtrl::builder(&dialog).build();
+	// Where the new station goes: a collection or favorites folder, not
+	// always Custom Stations (the ask behind the picker).
+	let dests: Vec<(String, StationDest)> = app.borrow().library.destinations();
+	let dest_label = StaticText::builder(&dialog)
+		.with_label(s::DESTINATION)
+		.build();
+	let dest = Choice::builder(&dialog).build();
+	for (label, _) in &dests {
+		dest.append(label);
+	}
+	dest.set_selection(0);
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	for (label, control) in [(&name_label, &name), (&url_label, &url)] {
 		sizer.add(
@@ -50,6 +62,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		);
 		sizer.add(control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	}
+	sizer.add(
+		&dest_label,
+		0,
+		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+		5,
+	);
+	sizer.add(&dest, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	// A bad URL must keep the window open, so OK is not a stock button.
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
@@ -81,9 +100,17 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			} else {
 				typed
 			};
+			let chosen = dest
+				.get_selection()
+				.and_then(|i| dests.get(i as usize))
+				.map(|(_, d)| d.clone())
+				.unwrap_or(StationDest::Collection {
+					id: blindradio_core::library::CUSTOM.into(),
+					path: Vec::new(),
+				});
 			let station = {
 				let mut app = a.borrow_mut();
-				let station = app.library.add_custom(&typed, &link);
+				let station = app.library.add_custom_to(&typed, &link, &chosen);
 				app.save_library();
 				app.refresh_dial();
 				station

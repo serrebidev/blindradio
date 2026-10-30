@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::eq::MAX_DB;
+use crate::schedule::ScheduledRecording;
 use crate::station::Station;
 use crate::{Result, store};
 
@@ -186,6 +187,8 @@ pub struct Settings {
 	pub scrobble: ScrobbleSettings,
 	/// Keyed by station id.
 	pub station_overrides: BTreeMap<String, StationSettings>,
+	/// Scheduled recordings, in the order the user made them.
+	pub schedules: Vec<ScheduledRecording>,
 }
 
 impl Default for Settings {
@@ -213,6 +216,7 @@ impl Default for Settings {
 			recognition: RecognitionSettings::default(),
 			scrobble: ScrobbleSettings::default(),
 			station_overrides: BTreeMap::new(),
+			schedules: Vec::new(),
 		}
 	}
 }
@@ -228,6 +232,9 @@ impl Settings {
 		s.timeshift.max_mb = s.timeshift.max_mb.min(16_384);
 		s.timeshift.seek_step_seconds = s.timeshift.seek_step_seconds.clamp(5, 60);
 		s.recording.mp3_bitrate_kbps = s.recording.mp3_bitrate_kbps.clamp(32, 320);
+		for sc in &mut s.schedules {
+			sc.duration_minutes = sc.duration_minutes.clamp(1, 24 * 60);
+		}
 		for o in s.station_overrides.values_mut() {
 			if let Some(m) = o.timeshift_minutes {
 				o.timeshift_minutes = Some(m.clamp(1, 240));

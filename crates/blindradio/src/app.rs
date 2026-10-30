@@ -264,7 +264,7 @@ pub struct App {
 	played: Vec<Station>,
 	/// Index into `played` of the entry playing now.
 	played_at: Option<usize>,
-	/// The station tree's filter, typed in the tree; empty shows all.
+	/// The station tree's filter, typed in the filter box; empty shows all.
 	dial_filter: String,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
 	dial: bool,
@@ -280,6 +280,9 @@ pub struct App {
 	playing_since: Option<Instant>,
 	/// The status line without its time suffixes.
 	status_base: RefCell<String>,
+	/// The status line as last written to the bar, suffixes and all; the
+	/// Announce Now Playing chord speaks it verbatim.
+	status_line: RefCell<String>,
 	last_status_tick: Instant,
 	/// The tray icon, once installed.
 	pub tray: Option<crate::tray::Tray>,
@@ -293,6 +296,11 @@ pub struct App {
 	last_device_poll: Instant,
 	/// When the daily update check is due this run.
 	update_due: Option<Instant>,
+	/// Scheduled recordings already started: (entry id, occurrence).
+	sched_fired: std::collections::HashSet<(String, u64)>,
+	/// The scheduled recording on air now: (entry id, occurrence).
+	sched_active: Option<(String, u64)>,
+	last_sched_poll: Instant,
 	/// Taken and stopped on shutdown, while the frame it ticks on still exists.
 	pub timer: Option<Timer<Frame>>,
 	// Dropped last: the tuner's streams run on its runtime.
@@ -351,6 +359,7 @@ impl App {
 			song: None,
 			playing_since: None,
 			status_base: RefCell::new(String::new()),
+			status_line: RefCell::new(String::new()),
 			last_status_tick: Instant::now(),
 			tray: None,
 			instance: None,
@@ -360,6 +369,9 @@ impl App {
 			events,
 			last_device_poll: Instant::now(),
 			update_due: None,
+			sched_fired: std::collections::HashSet::new(),
+			sched_active: None,
+			last_sched_poll: Instant::now(),
 			timer: Some(timer),
 			engine,
 		})
@@ -503,6 +515,7 @@ impl App {
 					self.say(s::REC_PAUSED);
 				}
 			}
+			Action::SaveBuffer => self.save_buffer(),
 			Action::SeekBack => self.seek(-1),
 			Action::SeekForward => self.seek(1),
 			Action::SeekStart => self.seek_start(),
@@ -636,6 +649,10 @@ impl App {
 			self.stop(false);
 			self.say(s::SLEEP_STOPPING);
 		}
+		if now.duration_since(self.last_sched_poll) >= Duration::from_secs(1) {
+			self.last_sched_poll = now;
+			self.check_schedules();
+		}
 		if now.duration_since(self.last_device_poll) >= DEVICE_POLL {
 			self.last_device_poll = now;
 			let event = self.output.borrow_mut().poll_devices(&output_devices);
@@ -702,7 +719,16 @@ impl App {
 			HotkeyAction::PreviousFavorite => self.step_favorite(false),
 			HotkeyAction::AnnounceNowPlaying => {
 				let playing = self.tuner.playing().map(|st| st.name.clone());
-				let text = hotkeys::now_playing_text(self.song.as_deref(), playing.as_deref());
+				// The chord speaks the status line itself: NVDA's own
+				// status line command hit-tests the window's bottom-left
+				// pixel and misses this frame's bar on some setups, so the
+				// app guarantees the same words through its own key.
+				let line = self.status_line.borrow().clone();
+				let text = if playing.is_some() && !line.is_empty() {
+					line
+				} else {
+					hotkeys::now_playing_text(self.song.as_deref(), playing.as_deref())
+				};
 				self.say_announced(&text);
 			}
 			HotkeyAction::ToggleWindow => self.toggle_window(),
@@ -839,6 +865,117 @@ impl App {
 				Some(Err(e)) => self.say(&e.to_string()),
 				None => {}
 			}
+		}
+	}
+
+	/// Save Buffer: the whole time-shift buffer to a WAV in the
+	/// recordings folder, streamed through in 30-second pieces so a long
+	/// buffer never sits in memory all at once.
+	pub fn save_buffer(&mut self) {
+		use blindradio_core::record::{WavSave, default_dir};
+		let Some(station) = self.tuner.playing().cloned() else {
+			return self.say(s::NO_BUFFER);
+		};
+		let Some((buffer, _)) = self.tuner.shift() else {
+			return self.say(s::NO_BUFFER);
+		};
+		if buffer.buffered_seconds() < 1.0 {
+			return self.say(s::NO_BUFFER);
+		}
+		let dir = self
+			.settings
+			.recording
+			.dir
+			.as_deref()
+			.map(PathBuf::from)
+			.unwrap_or_else(default_dir);
+		let mut save = match WavSave::create(&dir, &station.name, buffer.rate()) {
+			Ok(save) => save,
+			Err(e) => return self.say(&e.to_string()),
+		};
+		let (start, edge) = (buffer.start(), buffer.live_edge());
+		let chunk = u64::from(buffer.rate()) * 30;
+		let mut at = start;
+		let mut piece = vec![0.0f32; (chunk * 2) as usize];
+		while at < edge {
+			let n = buffer.read_at(at, &mut piece);
+			if n == 0 {
+				break;
+			}
+			if let Err(e) = save.write(&piece[..n]) {
+				return self.say(&e.to_string());
+			}
+			at += (n / 2) as u64;
+		}
+		match save.finish() {
+			Ok(path) => self.say(&format!("{}{}", s::BUFFER_SAVED, path.display())),
+			Err(e) => self.say(&e.to_string()),
+		}
+	}
+
+	/// Once a second from poll(): start due scheduled recordings and
+	/// stop them at their end. Nothing fires while a dialog is open; an
+	/// entry whose window is still open fires when the dialog closes.
+	fn check_schedules(&mut self) {
+		use blindradio_core::schedule::Repeat;
+		if self.dialog_open {
+			return;
+		}
+		let now = update::now();
+		if let Some((id, occ)) = self.sched_active.clone() {
+			let end = self
+				.settings
+				.schedules
+				.iter()
+				.find(|e| e.id == id)
+				.map(|e| e.end_of(occ));
+			if end.is_some_and(|e| now >= e) || !self.tuner.is_recording() {
+				if self.tuner.is_recording() {
+					match self.tuner.stop_recording() {
+						Some(Ok(path)) => {
+							self.say(&format!("{}{}", s::SCHEDULE_SAVED, path.display()))
+						}
+						Some(Err(e)) => self.say(&e.to_string()),
+						None => {}
+					}
+				}
+				self.sched_active = None;
+				if let Some(e) = self.settings.schedules.iter_mut().find(|e| e.id == id)
+					&& e.repeat == Repeat::Once
+				{
+					e.enabled = false;
+					self.save_settings();
+				}
+			}
+			return;
+		}
+		for entry in self.settings.schedules.clone() {
+			if !entry.enabled {
+				continue;
+			}
+			let Some(occ) = entry.occurrence_at(now) else {
+				continue;
+			};
+			if now >= entry.end_of(occ)
+				|| self.sched_fired.contains(&(entry.id.clone(), occ))
+			{
+				continue;
+			}
+			self.sched_fired.insert((entry.id.clone(), occ));
+			if self.tuner.is_recording() {
+				self.say(s::SCHEDULE_SKIPPED);
+				continue;
+			}
+			let name = entry.station.name.clone();
+			self.play(entry.station.clone());
+			match self.tuner.start_recording() {
+				Ok(_) => {
+					self.say(&format!("{}{name}", s::SCHEDULE_STARTED));
+					self.sched_active = Some((entry.id.clone(), occ));
+				}
+				Err(e) => self.say(&e.to_string()),
+			}
+			break;
 		}
 	}
 
@@ -980,6 +1117,7 @@ impl App {
 			self.win.frame.set_title(&title);
 		}
 		let plain = if text.is_empty() { s::STOPPED } else { text };
+		*self.status_line.borrow_mut() = plain.to_string();
 		let line = escape(plain);
 		if self.win.now_playing.get_label() != line {
 			self.win.now_playing.set_label(&line);
@@ -1140,28 +1278,19 @@ impl App {
 		list.set_dial(&nodes, stations, focus);
 	}
 
-	/// A letter typed in the station tree: the filter grows.
-	pub fn dial_filter_type(&mut self, c: char) {
-		self.dial_filter.push(c);
-		self.apply_dial_filter();
-	}
-
-	/// Backspace in the station tree: the filter shrinks.
-	pub fn dial_filter_backspace(&mut self) {
-		if self.dial_filter.pop().is_some() {
-			self.apply_dial_filter();
-		}
-	}
-
-	/// Escape in the station tree: the whole tree comes back.
-	pub fn dial_filter_clear(&mut self) {
-		if self.dial_filter.is_empty() {
+	/// The filter box changed: the tree narrows to matching stations, or
+	/// comes back whole when the box empties.
+	pub fn dial_filter_set(&mut self, text: String) {
+		if text == self.dial_filter {
 			return;
 		}
-		self.dial_filter.clear();
-		self.win.message.set_label("");
-		self.refresh_dial();
-		self.say(s::FILTER_CLEARED);
+		self.dial_filter = text;
+		if self.dial_filter.is_empty() {
+			self.win.message.set_label("");
+			self.refresh_dial();
+		} else {
+			self.apply_dial_filter();
+		}
 	}
 
 	fn apply_dial_filter(&mut self) {
@@ -1213,6 +1342,10 @@ impl App {
 				Some(i) => {
 					list.select(i, false);
 					self.tune(&stations, i);
+					// The startup station counts as played: Alt+Left from
+					// the next station must be able to come back to it.
+					// tune() only records it when Play on Move is on.
+					self.note_played(&stations[i]);
 				}
 				None => self.play(last),
 			},
@@ -1368,6 +1501,25 @@ impl App {
 		if self.library.add_favorite_to(path, station) {
 			self.say(s::ADDED_TO_FAVORITES);
 			self.save_library();
+		}
+	}
+
+	/// Browse and the station menu: file a station into one folder of a
+	/// collection (the root-only Add to Collection could not reach them).
+	pub fn add_to_collection_folder(&mut self, id: &str, path: &[usize], station: &Station) {
+		let Some(name) = self
+			.library
+			.collections
+			.iter()
+			.find(|c| c.id == id)
+			.map(|c| c.name.clone())
+		else {
+			return;
+		};
+		if self.library.add_to_collection_folder(id, path, station) {
+			self.say(&format!("{}{name}", s::ADDED_TO));
+			self.save_library();
+			self.refresh_dial();
 		}
 	}
 
