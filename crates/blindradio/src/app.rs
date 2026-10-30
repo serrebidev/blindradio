@@ -1130,10 +1130,8 @@ mod tests {
 			dial_collection(&lib, Some(ALL_LISTS)).is_none(),
 			"the merged view is no single collection"
 		);
-		let names: Vec<&str> = dial_stations(&lib, Some(ALL_LISTS))
-			.iter()
-			.map(|s| s.name.as_str())
-			.collect();
+		let merged = dial_stations(&lib, Some(ALL_LISTS));
+		let names: Vec<&str> = merged.iter().map(|s| s.name.as_str()).collect();
 		assert_eq!(names, ["A One", "Z One"], "collections in name order");
 	}
 }
