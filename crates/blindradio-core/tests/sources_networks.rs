@@ -73,7 +73,13 @@ fn networks_parse_and_order() {
 			"TechnoBase.FM",
 			"ACB Media",
 			"Mushroom FM",
-			"Vision Australia Radio"
+			"Vision Australia Radio",
+			"NFBRN",
+			"NCBI Live",
+			"WRBH",
+			"AMI Audio",
+			"RNIB Connect Radio",
+			"Double Tap Live"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -255,10 +261,13 @@ fn new_networks_are_complete() {
 #[test]
 fn networks_children_and_ids() {
 	let roots = children("net");
-	// Single-station networks are not listed.
+	// Single-station networks are not listed unless flagged as named services.
 	assert_eq!(
 		roots.len(),
-		networks().iter().filter(|n| n.stations.len() > 1).count()
+		networks()
+			.iter()
+			.filter(|n| n.stations.len() > 1 || n.listed)
+			.count()
 	);
 	// Roots come back in name order, BBC among them.
 	let root_names: Vec<String> = roots.iter().map(|n| n.name().to_lowercase()).collect();

@@ -1,5 +1,6 @@
 //! Curated networks (BBC, NPR, SomaFM and others), shipped as data in `data/networks.json`.
-//! A network with a single station is not listed; it is not a network.
+//! A network with a single station is not listed; it is not a network — unless
+//! the service is flagged `listed`, for named single-station services.
 
 use super::{Node, SearchQuery};
 use crate::station::{Source, Station};
@@ -10,7 +11,15 @@ use std::sync::LazyLock;
 pub struct Network {
 	pub name: String,
 	pub slug: String,
+	/// Named single-station services stay listed despite the >1 rule.
+	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
+	pub listed: bool,
 	pub stations: Vec<NetStation>,
+}
+
+/// Listed in Browse and search: multi-station networks, plus flagged services.
+fn is_listed(n: &Network) -> bool {
+	n.stations.len() > 1 || n.listed
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -48,7 +57,7 @@ pub fn children(id: &str) -> Vec<Node> {
 	if id == "net" {
 		let mut folders: Vec<Node> = networks()
 			.iter()
-			.filter(|n| n.stations.len() > 1)
+			.filter(|n| is_listed(n))
 			.map(|n| Node::Folder {
 				id: format!("net/{}", n.slug),
 				name: n.name.clone(),
@@ -77,7 +86,7 @@ pub fn search(q: &SearchQuery) -> Vec<Station> {
 	}
 	networks()
 		.iter()
-		.filter(|n| n.stations.len() > 1)
+		.filter(|n| is_listed(n))
 		.flat_map(|n| n.stations.iter().map(move |s| (n, s)))
 		.filter(|(_, s)| s.name.to_lowercase().contains(&name))
 		.map(|(n, s)| station(n, s))

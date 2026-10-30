@@ -8,6 +8,7 @@ taken from this file by `cargo xtask release`.
 ## 0.2.15
 
 - Three new networks, all broadcasting for blind and print-disabled listeners: ACB Media, with all ten channels from the American Council of the Blind (Mainstream, Treasure Trove, Cafe, Community, the live and special event channels, and the convention channels); Mushroom FM (Mushroom FM and Mushroom Escape, old-time radio drama and comedy); and Vision Australia Radio (Adelaide, Albury, Bendigo, Geelong, Melbourne, Perth and Shepparton). Every stream was checked live before shipping, and the Networks list stays in alphabetical order.
+- Six more blind-community radio services, each listed under Networks with its one station: NFBRN (the National Federation of the Blind's 24/7 radio network), NCBI Live (Vision Ireland), WRBH (New Orleans' reading radio), AMI Audio (Accessible Media Inc., Canada), RNIB Connect Radio (UK) and Double Tap Live (blind tech talk around the clock). Single-station networks normally stay unlisted; these named services are flagged to stay visible.
 
 ## 0.2.14
 
