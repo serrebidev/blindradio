@@ -3,7 +3,8 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use blindradio_core::library::{CUSTOM, Library};
+use blindradio_core::import;
+use blindradio_core::library::{CUSTOM, Folder, Library};
 use blindradio_core::station::Station;
 use wx_utils::prompt_text;
 use wxdragon::prelude::*;
@@ -35,6 +36,7 @@ pub enum Item {
 	CutStation,
 	PasteStation,
 	EditStation,
+	Export,
 	StationSettings,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
@@ -62,6 +64,7 @@ pub enum Choice {
 	CutStation,
 	PasteStation,
 	EditStation,
+	Export,
 	StationSettings,
 	/// Into or out of the collection with this id.
 	Toggle(String),
@@ -92,6 +95,7 @@ pub fn items_for(
 				Item::Favorite(lib.is_favorite(&st.id)),
 				Item::CopyUrl,
 				Item::CopyStation,
+				Item::Export,
 				Item::StationSettings,
 				Item::AddToCollection(
 					lib.collections
@@ -125,9 +129,12 @@ pub fn items_for(
 			}
 			Ok(items)
 		}
-		Target::Collection { custom: false } => Ok(vec![Item::Rename, Item::Delete]),
-		// Add All to Collection joins with the Collections window (Task 6).
-		Target::Collection { custom: true } | Target::Other => Err(s::NOTHING_TO_DO),
+		Target::Collection { custom: false } => {
+			Ok(vec![Item::Rename, Item::Delete, Item::Export])
+		}
+		// Custom Stations cannot be renamed or deleted, but it exports.
+		Target::Collection { custom: true } => Ok(vec![Item::Export]),
+		Target::Other => Err(s::NOTHING_TO_DO),
 	}
 }
 
@@ -222,6 +229,9 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 					"",
 					ItemKind::Normal,
 				);
+			}
+			Item::Export => {
+				menu.append(add(Choice::Export), s::EXPORT, "", ItemKind::Normal);
 			}
 			Item::StationSettings => {
 				menu.append(
@@ -363,6 +373,42 @@ fn open_on_first_item(window: &dyn WxWidget) {
 #[cfg(not(windows))]
 fn open_on_first_item(_: &dyn WxWidget) {}
 
+/// The Export… flow shared by every menu: a save dialog named after
+/// `name`, then the stations (and folders, as M3U groups) written with
+/// the same writer the Collections and Favorites windows use.
+pub fn export_playlist(
+	app: &Rc<RefCell<App>>,
+	parent: &dyn WxWidget,
+	name: &str,
+	stations: &[Station],
+	folders: &[Folder],
+) {
+	let file = FileDialog::builder(parent)
+		.with_message(s::EXPORT)
+		.with_default_file(&format!("{}{}", name, s::M3U_EXTENSION))
+		.with_wildcard(s::PLAYLISTS_FILTER)
+		.with_style(FileDialogStyle::Save | FileDialogStyle::OverwritePrompt)
+		.build();
+	if file.show_modal() != ID_OK {
+		return;
+	}
+	let Some(path) = file.get_path() else {
+		return;
+	};
+	let count = stations.len()
+		+ folders
+			.iter()
+			.map(|f| f.all_stations().len())
+			.sum::<usize>();
+	match import::export_m3u_tree(stations, folders, std::path::Path::new(&path)) {
+		Ok(()) => app.borrow_mut().say(&format!("{}{}", s::EXPORTED, count)),
+		Err(e) => {
+			eprintln!("export: {e}");
+			app.borrow_mut().say(s::NOT_SAVED);
+		}
+	}
+}
+
 /// Runs a station menu choice.
 pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, choice: Choice) {
 	let action = match choice {
@@ -389,6 +435,15 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		}
 		Choice::AddToFavoriteFolder(path) => {
 			return app.borrow_mut().add_favorite_to(&path, station);
+		}
+		Choice::Export => {
+			return export_playlist(
+				app,
+				parent,
+				&station.name,
+				std::slice::from_ref(station),
+				&[],
+			);
 		}
 		// Collection owners handle their own.
 		Choice::Rename | Choice::Delete | Choice::AddAllTo(_) | Choice::MoveToFolder(_) => return,
@@ -431,6 +486,7 @@ mod tests {
 				Item::EditStation,
 				Item::CopyStation,
 				Item::CutStation,
+				Item::Export,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -449,6 +505,7 @@ mod tests {
 				Item::CopyStation,
 				Item::CutStation,
 				Item::PasteStation,
+				Item::Export,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -468,6 +525,7 @@ mod tests {
 				Item::Favorite(false),
 				Item::CopyUrl,
 				Item::CopyStation,
+				Item::Export,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -485,6 +543,7 @@ mod tests {
 				Item::EditStation,
 				Item::CopyStation,
 				Item::CutStation,
+				Item::Export,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz, "Jazz".into(), false),
@@ -495,11 +554,11 @@ mod tests {
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: false }, &lib, false),
-			Ok(vec![Item::Rename, Item::Delete])
+			Ok(vec![Item::Rename, Item::Delete, Item::Export])
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: true }, &lib, false),
-			Err("Nothing to do here")
+			Ok(vec![Item::Export])
 		);
 		assert_eq!(
 			items_for(&Target::Other, &lib, false),

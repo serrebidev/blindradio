@@ -5,6 +5,14 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.13
+
+- Export playlists from the main list: the context menu on a station, a collection (Custom Stations included), a category, a network, or the Favorites header now has Export…, which writes an M3U playlist file you can open anywhere. The Collections and Favorites windows offer the same Export in their menus.
+- Pause and resume recordings: Ctrl+Shift+R (Playback menu, Pause Recording) pauses a recording and later resumes it into the same file, leaving the paused span out — skip an ad break inside one recording. Changing stations or pressing Stop now saves the recording properly instead of leaving it unfinished.
+- Recording now starts where you are in the buffer in the standard time-shift mode too: if you are listening ten minutes behind live, the recording starts at your position, not at the live edge. It already worked this way in the encoded-ring mode.
+- The first press of a seek key no longer announces the position from before the seek: skipping back from live with F6 no longer says "Live" on the first press, and F5 reports the buffer depth it jumped to.
+- Opening the Favorites window no longer pops the wxWidgets debug dialog about expanding a hidden root node.
+
 ## 0.2.12
 
 - Copied stream URLs now survive closing the app. The clipboard was

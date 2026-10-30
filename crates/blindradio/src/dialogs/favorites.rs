@@ -122,6 +122,7 @@ impl View {
 			let lib = app.borrow();
 			self.level(
 				&self.root.clone(),
+				true,
 				&[],
 				&lib.library.favorites,
 				&lib.library.fav_folders,
@@ -143,6 +144,7 @@ impl View {
 	fn level(
 		&self,
 		parent: &TreeItemId,
+		is_root: bool,
 		path: &[usize],
 		stations: &[Station],
 		folders: &[Folder],
@@ -186,6 +188,7 @@ impl View {
 			}
 			self.level(
 				&child,
+				false,
 				&fpath,
 				&f.stations,
 				&f.folders,
@@ -197,7 +200,10 @@ impl View {
 				self.tree.expand(&child);
 			}
 		}
-		if !was_landed && landed.is_some() {
+		// The root is hidden (HideRoot): expanding it trips a wx
+		// assertion ("Can't expand/collapse hidden root node"). Its
+		// children are visible without it being expanded.
+		if !is_root && !was_landed && landed.is_some() {
 			self.tree.expand(parent);
 		}
 	}

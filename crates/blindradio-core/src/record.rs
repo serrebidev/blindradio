@@ -26,6 +26,9 @@ pub fn default_dir() -> PathBuf {
 pub struct Recorder {
 	kind: Kind,
 	path: PathBuf,
+	/// While paused, writes are dropped: the file keeps only the takes
+	/// the user let through, so ads can be skipped inside one recording.
+	paused: bool,
 }
 
 enum Kind {
@@ -140,6 +143,7 @@ impl Recorder {
 				Ok(Recorder {
 					kind: Kind::Passthrough(file),
 					path,
+					paused: false,
 				})
 			}
 			RecordFormat::Wav => {
@@ -155,6 +159,7 @@ impl Recorder {
 				Ok(Recorder {
 					kind: Kind::Wav(Some(writer)),
 					path,
+					paused: false,
 				})
 			}
 			RecordFormat::Mp3 => {
@@ -180,6 +185,7 @@ impl Recorder {
 						out: Vec::new(),
 					},
 					path,
+					paused: false,
 				})
 			}
 			RecordFormat::Flac => {
@@ -192,6 +198,7 @@ impl Recorder {
 						part: 1,
 					},
 					path,
+					paused: false,
 				})
 			}
 		}
@@ -201,8 +208,19 @@ impl Recorder {
 		&self.path
 	}
 
+	pub fn set_paused(&mut self, paused: bool) {
+		self.paused = paused;
+	}
+
+	pub fn is_paused(&self) -> bool {
+		self.paused
+	}
+
 	/// Encoded stream bytes; only `Original` recordings take them.
 	pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
+		if self.paused {
+			return Ok(());
+		}
 		if let Kind::Passthrough(file) = &mut self.kind {
 			file.write_all(bytes)?;
 		}
@@ -211,6 +229,9 @@ impl Recorder {
 
 	/// Decoded stereo f32 frames; only the PCM formats take them.
 	pub fn write_pcm(&mut self, stereo: &[f32]) -> Result<()> {
+		if self.paused {
+			return Ok(());
+		}
 		match &mut self.kind {
 			Kind::Passthrough(_) => Ok(()),
 			Kind::Wav(w) => {

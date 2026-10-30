@@ -622,6 +622,24 @@ impl BrowseModel {
 		Some((stations, at))
 	}
 
+	/// Every station at or below row `i`, in list order: what an
+	/// export of a category, network or section header contains.
+	/// Only rows the model has loaded can appear.
+	pub fn stations_under(&self, i: usize) -> Vec<Station> {
+		let mut out = Vec::new();
+		let mut stack = vec![i];
+		while let Some(x) = stack.pop() {
+			if let Some(st) = self.station(x) {
+				out.push(st.clone());
+			}
+			// Push reversed so the walk stays in list order.
+			for &c in self.children(Some(x)).iter().rev() {
+				stack.push(c);
+			}
+		}
+		out
+	}
+
 	pub fn delete_target(&self, i: usize) -> Delete {
 		// A station in a folder belongs to the collection above the folder.
 		let Some(st) = self.station(i) else {
@@ -967,13 +985,43 @@ impl View {
 		};
 		let items = match items {
 			Ok(items) => items,
-			Err(text) => return app.borrow_mut().say(text),
+			Err(text) => {
+				// A category, network or section header has no menu of
+				// its own, but everything under it exports.
+				let m = self.model.borrow();
+				if m.stations_under(f).is_empty() {
+					return app.borrow_mut().say(text);
+				}
+				vec![context_menu::Item::Export]
+			}
 		};
 		let Some(choice) = context_menu::popup(&self.tree, &items) else {
 			return;
 		};
 		match (station, collection, choice) {
 			(Some(st), _, choice) => context_menu::apply(app, &self.tree, &st, choice),
+			(None, Some((id, name)), Choice::Export) => {
+				let (stations, folders) = {
+					let a = app.borrow();
+					match a.library.collections.iter().find(|c| c.id == id) {
+						Some(c) => (c.stations.clone(), c.folders.clone()),
+						None => (Vec::new(), Vec::new()),
+					}
+				};
+				context_menu::export_playlist(app, &self.tree, &name, &stations, &folders);
+			}
+			(None, None, Choice::Export) => {
+				let (name, stations) = {
+					let m = self.model.borrow();
+					(m.label(f).to_owned(), m.stations_under(f))
+				};
+				let folder = blindradio_core::library::Folder {
+					name: name.clone(),
+					stations,
+					folders: Vec::new(),
+				};
+				context_menu::export_playlist(app, &self.tree, &name, &[], &[folder]);
+			}
 			(None, Some((id, _)), Choice::Rename) => {
 				if let Some(name) =
 					prompt_text(&self.tree, s::COLLECTION_NAME, &plain(s::RENAME_ITEM))

@@ -45,6 +45,22 @@ impl Sink for SharedOutput {
 	}
 }
 
+/// Where a seek lands, in seconds behind live: the pre-seek distance
+/// moved by the seek's seconds (forward seeks carry a positive delta),
+/// clamped to the live edge and to the buffer's depth.
+pub fn behind_after(behind: f32, delta_seconds: i32, depth: f32) -> f32 {
+	(behind - delta_seconds as f32).clamp(0.0, depth.max(0.0))
+}
+
+/// The buffer's depth in seconds: live edge minus its oldest frame.
+pub fn buffer_depth(buffer: &blindradio_core::timeshift::ShiftBuffer) -> f32 {
+	let rate = buffer.rate();
+	if rate == 0 {
+		return 0.0;
+	}
+	buffer.live_edge().saturating_sub(buffer.start()) as f32 / rate as f32
+}
+
 /// `3:20` under an hour, `1:02:33` over it.
 pub fn fmt_dur(seconds: f32) -> String {
 	let total = seconds.max(0.0) as u64;
@@ -377,16 +393,23 @@ impl App {
 			Action::Stop => self.stop(true),
 			Action::Record => {
 				if self.tuner.is_recording() {
-					match self.tuner.stop_recording() {
-						Some(Ok(path)) => self.say(&format!("{}{}", s::REC_SAVED, path.display())),
-						Some(Err(e)) => self.say(&e.to_string()),
-						None => {}
-					}
+					self.finish_recording();
 				} else {
 					match self.tuner.start_recording() {
 						Ok(_) => self.say(s::REC_STARTED),
 						Err(e) => self.say(&e.to_string()),
 					}
+				}
+			}
+			Action::RecordPause => {
+				if !self.tuner.is_recording() {
+					self.say(s::NOT_RECORDING);
+				} else if self.tuner.recording_paused() {
+					self.tuner.set_recording_paused(false);
+					self.say(s::REC_RESUMED);
+				} else {
+					self.tuner.set_recording_paused(true);
+					self.say(s::REC_PAUSED);
 				}
 			}
 			Action::SeekBack => self.seek(-1),
@@ -715,7 +738,21 @@ impl App {
 			.map(|p| p.name.clone())
 	}
 
+	/// Ends the active recording, if any, and says where it went. A
+	/// station change or a stop ends a recording: its slot belongs to
+	/// the old stream, and an unfinalized file would be lost.
+	fn finish_recording(&mut self) {
+		if self.tuner.is_recording() {
+			match self.tuner.stop_recording() {
+				Some(Ok(path)) => self.say(&format!("{}{}", s::REC_SAVED, path.display())),
+				Some(Err(e)) => self.say(&e.to_string()),
+				None => {}
+			}
+		}
+	}
+
 	pub fn play(&mut self, station: Station) {
+		self.finish_recording();
 		self.dial = false;
 		self.song = None;
 		self.now_playing(Some(&station.name));
@@ -731,6 +768,7 @@ impl App {
 	}
 
 	fn stop(&mut self, announce: bool) {
+		self.finish_recording();
 		if let Some(playing) = self.tuner.playing() {
 			self.remembered = Some(playing.clone());
 		}
@@ -749,14 +787,15 @@ impl App {
 			return;
 		};
 		let step = i32::try_from(self.settings.timeshift.seek_step_seconds).unwrap_or(15);
+		// The status cursor only moves when the mixer processes the
+		// seek, so reading it back here would announce the position
+		// from BEFORE the seek (a first skip back from live said
+		// "Live"). Compute where the seek lands instead.
+		let before = status.behind_seconds(&buffer);
 		self.tuner.shift_seek(direction * step);
 		if self.settings.announce_status {
-			let behind = status.behind_seconds(&buffer);
-			if behind >= 1.0 {
-				self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
-			} else {
-				self.say(s::LIVE);
-			}
+			let after = behind_after(before, direction * step, buffer_depth(&buffer));
+			self.say_behind(after);
 		}
 	}
 
@@ -764,14 +803,20 @@ impl App {
 		let Some((buffer, status)) = self.tuner.shift() else {
 			return;
 		};
+		let _ = status;
 		self.tuner.shift_start();
 		if self.settings.announce_status {
-			let behind = status.behind_seconds(&buffer);
-			if behind >= 1.0 {
-				self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
-			} else {
-				self.say(s::LIVE);
-			}
+			// The jump lands at the buffer's oldest audio: a full
+			// buffer depth behind live, whatever the status still says.
+			self.say_behind(buffer_depth(&buffer));
+		}
+	}
+
+	fn say_behind(&mut self, behind: f32) {
+		if behind >= 1.0 {
+			self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+		} else {
+			self.say(s::LIVE);
 		}
 	}
 
@@ -833,7 +878,11 @@ impl App {
 			line += s::STATUS_LIVE;
 		}
 		if self.tuner.is_recording() {
-			line += s::STATUS_RECORDING;
+			line += if self.tuner.recording_paused() {
+				s::STATUS_REC_PAUSED
+			} else {
+				s::STATUS_RECORDING
+			};
 		}
 		if let Some(format) = self.tuner.format() {
 			let described = format.describe();
@@ -1197,6 +1246,19 @@ fn set_label(button: Button, label: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn behind_after_seek_math() {
+		// First skip back from live must not still say live.
+		assert_eq!(behind_after(0.0, -15, 600.0), 15.0);
+		// Forward past the edge clamps to live.
+		assert_eq!(behind_after(10.0, 15, 600.0), 0.0);
+		// Back past the buffer's start clamps to its depth.
+		assert_eq!(behind_after(500.0, -300, 600.0), 600.0);
+		// Ordinary steps move the distance by the step.
+		assert_eq!(behind_after(120.0, -15, 600.0), 135.0);
+		assert_eq!(behind_after(120.0, 15, 600.0), 105.0);
+	}
 
 	#[test]
 	fn play_pause_rules() {

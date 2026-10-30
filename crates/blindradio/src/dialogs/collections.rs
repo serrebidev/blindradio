@@ -687,13 +687,14 @@ impl View {
 		let Some(at) = self.at(app, row) else {
 			return;
 		};
-		let mut items = vec![Item::Rename, Item::Delete];
+		let mut items = vec![Item::Rename, Item::Delete, Item::Export];
 		if app.borrow().station_clip.is_some() {
 			items.push(Item::PasteStation);
 		}
 		match context_menu::popup(&self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &at),
 			Some(Choice::Delete) => self.delete(app, row, &at),
+			Some(Choice::Export) => self.export(app, row, &at),
 			Some(Choice::PasteStation) => {
 				app.borrow_mut()
 					.paste_into(PasteDest::Collection(at.id.clone(), at.path.clone()));
@@ -716,12 +717,14 @@ impl View {
 		if !to.is_empty() {
 			items.push(Item::AddAllTo(to));
 		}
+		items.push(Item::Export);
 		if app.borrow().station_clip.is_some() {
 			items.push(Item::PasteStation);
 		}
 		match context_menu::popup(&self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &collection),
 			Some(Choice::Delete) => self.delete(app, row, &collection),
+			Some(Choice::Export) => self.export(app, row, &collection),
 			Some(Choice::PasteStation) => {
 				app.borrow_mut()
 					.paste_into(PasteDest::Collection(collection.id.clone(), Vec::new()));

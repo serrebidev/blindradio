@@ -13,6 +13,8 @@ pub enum Action {
 	Stop,
 	/// Toggle recording of the playing station.
 	Record,
+	/// Pause or resume the active recording.
+	RecordPause,
 	/// One step back in the time-shift buffer.
 	SeekBack,
 	/// One step forward, never past live.
@@ -121,6 +123,10 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 				WXK_RIGHT => return Some(Action::GoLive),
 				_ => {}
 			}
+			// Like Ctrl+R, pausing a recording works from dialogs too.
+			if letter == Some('R') {
+				return Some(Action::RecordPause);
+			}
 			if !main_window {
 				return None;
 			}
@@ -219,6 +225,10 @@ mod tests {
 			assert_eq!(
 				app_key(WXK_RIGHT, true, false, true, main),
 				Some(Action::GoLive)
+			);
+			assert_eq!(
+				app_key(key('R'), true, false, true, main),
+				Some(Action::RecordPause)
 			);
 			assert_eq!(
 				app_key(WXK_F1, false, false, false, main),

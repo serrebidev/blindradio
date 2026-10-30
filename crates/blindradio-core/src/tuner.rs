@@ -651,7 +651,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if let Some(feed) = self.ring_feed.take() {
 			feed.stop();
 		}
-		self.sink.send(MixerCmd::RecordSlot(None));
+		// The mixer taps the shifted frames in this mode too, so it
+		// holds the record slot just like the ring attach does.
+		self.sink
+			.send(MixerCmd::RecordSlot(self.record_slot.clone()));
 		self.ring_paused_at = None;
 		if minutes == 0 {
 			return;
@@ -679,11 +682,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			capture: self.capture.clone(),
 			record: self.record_slot.clone(),
 			ring: self.ring_tap.clone(),
-			shift_status: if ring {
-				self.shift.as_ref().map(|(_, status)| status.clone())
-			} else {
-				None
-			},
+			// Both modes: the stream's live taps must yield while the
+			// listener is time-shifted, because the mixer is tapping
+			// the playhead audio into the recorder instead. Without
+			// this the decoded mode recorded the live edge no matter
+			// where the listener sat in the buffer.
+			shift_status: self.shift.as_ref().map(|(_, status)| status.clone()),
 		}
 	}
 
@@ -893,6 +897,29 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
 		let slot = self.record_slot.clone()?;
 		slot.lock().take().map(|rec| rec.stop())
+	}
+
+	/// Pauses or resumes the active recording; false when none is running.
+	/// A paused recording drops the audio written to it, so the file
+	/// holds only the spans the user let through.
+	pub fn set_recording_paused(&mut self, paused: bool) -> bool {
+		let Some(slot) = &self.record_slot else {
+			return false;
+		};
+		let mut guard = slot.lock();
+		match guard.as_mut() {
+			Some(rec) => {
+				rec.set_paused(paused);
+				true
+			}
+			None => false,
+		}
+	}
+
+	pub fn recording_paused(&self) -> bool {
+		self.record_slot
+			.as_ref()
+			.is_some_and(|slot| slot.lock().as_ref().is_some_and(|rec| rec.is_paused()))
 	}
 
 	/// Starts a recognition attempt when the settings ask for one: the

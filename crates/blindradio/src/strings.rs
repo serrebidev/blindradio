@@ -61,7 +61,11 @@ pub const GO_LIVE: &str = "Go to &Live";
 pub const PAUSED: &str = "Paused";
 pub const RESUMED: &str = "Resumed";
 pub const LIVE: &str = "Live";
+pub const RECORD_PAUSE: &str = "&Pause Recording";
 pub const REC_STARTED: &str = "Recording started";
+pub const REC_PAUSED: &str = "Recording paused";
+pub const REC_RESUMED: &str = "Recording resumed";
+pub const NOT_RECORDING: &str = "Not recording";
 /// Prefix: `Recording saved to <path>`.
 pub const REC_SAVED: &str = "Recording saved to ";
 /// Suffix: ` - <time> behind live`.
@@ -71,6 +75,7 @@ pub const PLAYED_FOR: &str = " played";
 pub const STATUS_PAUSED: &str = " - Paused";
 pub const STATUS_LIVE: &str = " - Live";
 pub const STATUS_RECORDING: &str = " - Recording";
+pub const STATUS_REC_PAUSED: &str = " - Recording paused";
 pub const MUTE_MENU: &str = "&Mute";
 pub const VOLUME_UP: &str = "Volume &Up";
 pub const VOLUME_DOWN: &str = "Volume &Down";
