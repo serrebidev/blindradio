@@ -49,7 +49,7 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 
 fn local_offset() -> i64 {
 	let now = DateTime::now();
-	let naive = days_from_civil(i64::from(now.year()), now.month() as u32, u32::from(now.day()))
+	let naive = days_from_civil(i64::from(now.year()), now.month() as u32, now.day() as u32)
 		* 86_400
 		+ i64::from(now.hour()) * 3600
 		+ i64::from(now.minute()) * 60
