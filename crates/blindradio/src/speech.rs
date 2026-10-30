@@ -13,7 +13,7 @@ pub enum Kind {
 	Title,
 	/// Failures and reconnections: always.
 	Failure,
-	/// Answers and confirmations: always.
+	/// Answers and confirmations: only with Announce Actions on.
 	Info,
 }
 
@@ -22,7 +22,8 @@ pub fn should_speak(kind: Kind, settings: &Settings, tuning: bool) -> bool {
 	match kind {
 		Kind::Status => settings.announce_status && !tuning,
 		Kind::Title => settings.announce_titles,
-		Kind::Failure | Kind::Info => true,
+		Kind::Info => settings.announce_actions,
+		Kind::Failure => true,
 	}
 }
 
@@ -75,8 +76,16 @@ mod tests {
 			);
 			assert_eq!(should_speak(Kind::Title, &s, true), titles, "{titles}");
 			assert!(should_speak(Kind::Failure, &s, true));
+			// Announce Actions defaults on.
 			assert!(should_speak(Kind::Info, &s, true));
 		}
+		let quiet = Settings {
+			announce_actions: false,
+			..Settings::default()
+		};
+		assert!(!should_speak(Kind::Info, &quiet, false));
+		// Failures speak even with every announcement off.
+		assert!(should_speak(Kind::Failure, &quiet, false));
 		assert_eq!(priority(Kind::Failure), Priority::High);
 		assert_eq!(priority(Kind::Title), Priority::Medium);
 		assert_eq!(priority(Kind::Info), Priority::Low);

@@ -110,6 +110,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 	let ann_titles = check(&dialog, &sizer, s::ANNOUNCE_TITLES, current.announce_titles);
 	let ann_status = check(&dialog, &sizer, s::ANNOUNCE_STATUS, current.announce_status);
+	let ann_actions = check(&dialog, &sizer, s::ANNOUNCE_ACTIONS, current.announce_actions);
 	let close_lists = check(
 		&dialog,
 		&sizer,
@@ -249,6 +250,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			let st = &mut app.settings;
 			st.announce_titles = ann_titles.get_value();
 			st.announce_status = ann_status.get_value();
+			st.announce_actions = ann_actions.get_value();
 			st.close_lists_when_playing = close_lists.get_value();
 			st.play_last_at_startup = play_last.get_value();
 			st.main_list = match startup_list.get_selection() {

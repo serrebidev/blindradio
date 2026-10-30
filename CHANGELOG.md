@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.14
+
+- New setting: Announce Actions (Settings, on by default). Turn it off and BlindRadio stops speaking the confirmations for actions and keyboard shortcuts — "Recording started", "Copied", position reports and the like. The message line still shows them, and failures still speak. Song titles and connection status keep their own separate settings.
+
 ## 0.2.13
 
 - Export playlists from the main list: the context menu on a station, a collection (Custom Stations included), a category, a network, or the Favorites header now has Export…, which writes an M3U playlist file you can open anywhere. The Collections and Favorites windows offer the same Export in their menus.

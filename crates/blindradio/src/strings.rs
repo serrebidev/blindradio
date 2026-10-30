@@ -37,6 +37,7 @@ pub const MENU_PLAYBACK: &str = "&Playback";
 pub const MENU_HELP: &str = "&Help";
 pub const ANNOUNCE_TITLES: &str = "&Announce Song Titles";
 pub const ANNOUNCE_STATUS: &str = "Announce &Connection Status";
+pub const ANNOUNCE_ACTIONS: &str = "&Announce Actions";
 pub const CLOSE_LISTS: &str = "C&lose Lists When Playing";
 pub const PLAY_LAST: &str = "Play Last Station at &Startup";
 pub const AUDIO_DEVICE: &str = "Audio De&vice";

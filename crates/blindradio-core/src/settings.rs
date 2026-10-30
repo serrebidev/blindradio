@@ -154,6 +154,9 @@ pub struct StationSettings {
 pub struct Settings {
 	pub announce_titles: bool,
 	pub announce_status: bool,
+	/// Spoken confirmations of actions and shortcuts ("Recording
+	/// started", "Copied", ...). Off silences them; failures still speak.
+	pub announce_actions: bool,
 	pub close_lists_when_playing: bool,
 	pub play_last_at_startup: bool,
 	/// Moving to a station in a list plays it (dial tuning). Off: only Enter plays.
@@ -187,6 +190,7 @@ impl Default for Settings {
 		Settings {
 			announce_titles: true,
 			announce_status: true,
+			announce_actions: true,
 			close_lists_when_playing: false,
 			play_last_at_startup: false,
 			play_on_move: true,
@@ -283,7 +287,7 @@ mod tests {
 	#[test]
 	fn defaults_match_spec() {
 		let s = Settings::default();
-		assert!(s.announce_titles && s.announce_status);
+		assert!(s.announce_titles && s.announce_status && s.announce_actions);
 		assert!(!s.close_lists_when_playing && !s.play_last_at_startup && !s.muted);
 		assert!(s.play_on_move && !s.close_to_tray && !s.maximize_on_start);
 		assert_eq!(s.audio_device, None);
