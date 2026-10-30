@@ -71,8 +71,8 @@ pub const PAUSED: &str = "Paused";
 pub const RESUMED: &str = "Resumed";
 pub const LIVE: &str = "Live";
 pub const RECORD_PAUSE: &str = "P&ause Recording";
-pub const SAVE_BUFFER: &str = "Save Buffer…";
-pub const SCHEDULED_RECORDINGS: &str = "Scheduled Recordings…";
+pub const SAVE_BUFFER: &str = "&Write Buffer…";
+pub const SCHEDULED_RECORDINGS: &str = "Scheduled Recordin&gs…";
 pub const NO_BUFFER: &str = "No buffer to save";
 /// Prefix: `Buffer saved to <path>`.
 pub const BUFFER_SAVED: &str = "Buffer saved to ";

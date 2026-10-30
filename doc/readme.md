@@ -146,7 +146,7 @@ played, otherwise what you have heard since you tuned in. Copy and Enter copy th
 ## Recording
 
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
-folder, in the format Settings chooses. Playback, Save Buffer writes the whole time-shift
+folder, in the format Settings chooses. Playback, Write Buffer writes the whole time-shift
 buffer — everything the station has played since you tuned in, up to the buffer's length —
 to a WAV file in the same folder, named like a recording.
 
