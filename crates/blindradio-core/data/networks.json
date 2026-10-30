@@ -5203,5 +5203,677 @@
         "info": "MP3 128k"
       }
     ]
+  },
+  {
+    "name": "DFM",
+    "slug": "dfm",
+    "stations": [
+      {
+        "slug": "dfm",
+        "name": "DFM",
+        "url": "https://dfm.hostingradio.ru/dfm96.aacp",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "afrovibes",
+        "name": "AfroVibes",
+        "url": "https://dfm-afrovibes.hostingradio.ru/afrovibes96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "armin-van-buuren",
+        "name": "Armin van Buuren",
+        "url": "https://dfm.hostingradio.ru/avburren96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "bass-house",
+        "name": "Bass House",
+        "url": "https://dfm-basshouse.hostingradio.ru/basshouse96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "breakbeat",
+        "name": "Breakbeat",
+        "url": "https://dfm-breakbeat.hostingradio.ru/breakbeat96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "calvin-harris",
+        "name": "Calvin Harris",
+        "url": "https://dfm-harris.hostingradio.ru/harris96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "chill",
+        "name": "Chill",
+        "url": "https://dfm-dfmchill.hostingradio.ru/dfmchill96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "club",
+        "name": "Club",
+        "url": "https://dfm-dfmclub.hostingradio.ru/dfmclub96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "dance-gold-1990s",
+        "name": "Dance Gold 1990s",
+        "url": "https://dfm-dancegold90.hostingradio.ru/dancegold9096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "dance-gold-2000s",
+        "name": "Dance Gold 2000s",
+        "url": "https://dfm-dancegold00.hostingradio.ru/dancegold0096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "dance-gold-2010s",
+        "name": "Dance Gold 2010s",
+        "url": "https://dfm-dancegold10.hostingradio.ru/dancegold1096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "dance-gold-2020s",
+        "name": "Dance Gold 2020s",
+        "url": "https://dfm-dancegold20.hostingradio.ru/dancegold2096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "dancehall",
+        "name": "Dancehall",
+        "url": "https://dfm-dancehall.hostingradio.ru/dancehall96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "deep",
+        "name": "Deep",
+        "url": "https://dfm-dfmdeep.hostingradio.ru/dfmdeep96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "disco",
+        "name": "Disco",
+        "url": "https://dfm-disco.hostingradio.ru/disco96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "diskach-90s",
+        "name": "Diskach 90s",
+        "url": "https://dfm-disc90.hostingradio.ru/disc9096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "gangsta-deep",
+        "name": "Gangsta Deep",
+        "url": "https://dfm-gangstadeep.hostingradio.ru/gangstadeep96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "insomnia",
+        "name": "Insomnia",
+        "url": "https://dfm-insomnia.hostingradio.ru/insomnia96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "k-pop",
+        "name": "K-Pop",
+        "url": "https://dfm-kpop.hostingradio.ru/kpop96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "kalyan-rap",
+        "name": "Kalyan Rap",
+        "url": "https://dfm-kalianrap.hostingradio.ru/kalianrap96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "martin-garrix",
+        "name": "Martin Garrix",
+        "url": "https://dfm-garrix.hostingradio.ru/garrix96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "organic-house",
+        "name": "Organic House",
+        "url": "https://dfm-organichouse.hostingradio.ru/organichouse96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "party",
+        "name": "Party",
+        "url": "https://dfm-party.hostingradio.ru/dfmparty96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pioneer",
+        "name": "Pioneer",
+        "url": "https://hls-01-dfm.hostingradio.ru/pioneer/playlist.m3u8",
+        "info": "HLS"
+      },
+      {
+        "slug": "pop-dance",
+        "name": "Pop Dance",
+        "url": "https://dfm-popdance.hostingradio.ru/popdance96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pop-gold-1990s",
+        "name": "Pop Gold 1990s",
+        "url": "https://dfm-popgold90.hostingradio.ru/popgold9096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pop-gold-2000s",
+        "name": "Pop Gold 2000s",
+        "url": "https://dfm-popgold00.hostingradio.ru/popgold0096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pop-gold-2010s",
+        "name": "Pop Gold 2010s",
+        "url": "https://dfm-popgold10.hostingradio.ru/popgold1096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pop-gold-2020s",
+        "name": "Pop Gold 2020s",
+        "url": "https://dfm-popgold20.hostingradio.ru/popgold2096.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "pump",
+        "name": "Pump",
+        "url": "https://dfm-pump.hostingradio.ru/pump96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "remake",
+        "name": "Remake",
+        "url": "https://dfm-remake.hostingradio.ru/remake96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "russian-dance",
+        "name": "Russian Dance",
+        "url": "https://dfm-dfmrusdance.hostingradio.ru/dfmrusdance96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "russian-gold",
+        "name": "Russian Gold",
+        "url": "https://dfm-russiangold.hostingradio.ru/russiangold96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "russian-rave",
+        "name": "Russian Rave",
+        "url": "https://dfm-russianrave.hostingradio.ru/russianrave96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "sad-dance",
+        "name": "Sad Dance",
+        "url": "https://dfm-saddance.hostingradio.ru/saddance96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "savannah-beat",
+        "name": "Savannah Beat",
+        "url": "https://dfm-savanbeat.hostingradio.ru/savanbeat96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "skrillex",
+        "name": "Skrillex",
+        "url": "https://dfm-skrillex.hostingradio.ru/skrillex96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "slap-bass",
+        "name": "Slap Bass",
+        "url": "https://dfm-slapbass.hostingradio.ru/slapbass96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "swedish-house-mafia",
+        "name": "Swedish House Mafia",
+        "url": "https://dfm-housemafia.hostingradio.ru/housemafia96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "tech-house",
+        "name": "Tech House",
+        "url": "https://dfm-techhouse.hostingradio.ru/techhouse96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "the-prodigy",
+        "name": "The Prodigy",
+        "url": "https://dfm-prodigy.hostingradio.ru/prodigy96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "tiesto",
+        "name": "Tiesto",
+        "url": "https://dfm-tiesto.hostingradio.ru/tiesto96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "trap",
+        "name": "Trap",
+        "url": "https://dfm-dfmtrap.hostingradio.ru/dfmtrap96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "vocal-drum",
+        "name": "Vocal Drum",
+        "url": "https://dfm-drum.hostingradio.ru/drum96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "vocal-trance",
+        "name": "Vocal Trance",
+        "url": "https://dfm-trance.hostingradio.ru/trance96.aacp",
+        "info": "AAC+ 96k"
+      }
+    ]
+  },
+  {
+    "name": "Hit FM",
+    "slug": "hit-fm",
+    "stations": [
+      {
+        "slug": "hit-fm",
+        "name": "Hit FM",
+        "url": "https://hitfm.hostingradio.ru/hitfm96.aacp",
+        "info": "AAC 96k"
+      },
+      {
+        "slug": "hit-lopez",
+        "name": "Hit Lopez",
+        "url": "https://hitfm-hitlopez.hostingradio.ru/hitlopez96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "100-pud-hit",
+        "name": "100 Pud Hit",
+        "url": "https://hitfm-hit100pud.hostingradio.ru/hit100pud96.aacp",
+        "info": "AAC+ 96k"
+      },
+      {
+        "slug": "on-the-run",
+        "name": "On The Run",
+        "url": "https://hitfm-ontherun.hostingradio.ru/hitontherun96.aacp",
+        "info": "AAC+ 96k"
+      }
+    ]
+  },
+  {
+    "name": "Radioparty.pl",
+    "slug": "radioparty-pl",
+    "stations": [
+      {
+        "slug": "radioparty",
+        "name": "Radioparty.pl",
+        "url": "http://s7.radioparty.pl:8000/",
+        "info": "MP3"
+      },
+      {
+        "slug": "dj-mixes-party",
+        "name": "DJ Mixes Party",
+        "url": "https://djmixes.radioparty.pl:8035/",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "energy-2000",
+        "name": "Energy 2000",
+        "url": "https://energy2000.radioparty.pl:8005/",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "house-party",
+        "name": "House Party",
+        "url": "http://house.radioparty.pl:8010/",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "trance-party",
+        "name": "Trance Party",
+        "url": "https://trance.radioparty.pl:8015/",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "vocal-trance",
+        "name": "Vocal Trance",
+        "url": "http://s2.radioparty.pl:8025/vocaltrance",
+        "info": "AAC 64k"
+      }
+    ]
+  },
+  {
+    "name": "RauteMusik",
+    "slug": "rautemusik",
+    "stations": [
+      {
+        "slug": "main",
+        "name": "Main",
+        "url": "https://main-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "12punks",
+        "name": "12Punks.FM",
+        "url": "https://12punks-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "80s",
+        "name": "80s",
+        "url": "https://80s-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "90s",
+        "name": "90s",
+        "url": "https://90s-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "bass",
+        "name": "Bass",
+        "url": "https://bass-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "best-of-schlager",
+        "name": "Best of Schlager",
+        "url": "https://best-of-schlager-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "breakz",
+        "name": "Breakz.FM",
+        "url": "https://breakz-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "charthits",
+        "name": "ChartHits.FM",
+        "url": "https://charthits-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "christmas",
+        "name": "The Christmas Channel",
+        "url": "https://christmas-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "christmas-chor",
+        "name": "Christmas Chor",
+        "url": "https://christmas-chor-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "christmas-schlager",
+        "name": "Christmas Schlager",
+        "url": "https://christmas-schlager-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "club",
+        "name": "Club",
+        "url": "https://club-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "coffee-music",
+        "name": "Coffee Music",
+        "url": "https://rautemusik.stream37.radiohost.de/coffee-music_mp3-192",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "country",
+        "name": "CountryHits.FM",
+        "url": "https://country-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "deutsche-hits",
+        "name": "Deutsche Hits",
+        "url": "https://deutsche-hits-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "deutschrap",
+        "name": "Deutschrap",
+        "url": "https://deutschrap-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "deutschrap-charts",
+        "name": "Deutschrap Charts",
+        "url": "https://deutschrap-charts-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "deutschrap-classic",
+        "name": "Deutschrap Classic",
+        "url": "https://deutschrap-classic-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "goldies",
+        "name": "Goldies",
+        "url": "https://goldies-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "happy",
+        "name": "Happy",
+        "url": "https://happy-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "happyhardcore",
+        "name": "Happy Hardcore",
+        "url": "https://happyhardcore-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "harder",
+        "name": "HardeR",
+        "url": "https://harder-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "house",
+        "name": "House",
+        "url": "https://house-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "jam",
+        "name": "JaM",
+        "url": "https://jam-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "karneval",
+        "name": "Karneval",
+        "url": "https://karneval-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "klassik",
+        "name": "Klassik",
+        "url": "https://klassik-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "lounge",
+        "name": "Lounge",
+        "url": "https://lounge-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "lovehits",
+        "name": "LoveHits",
+        "url": "https://lovehits-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "oriental",
+        "name": "Oriental",
+        "url": "https://oriental-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "partyhits",
+        "name": "PartyHits",
+        "url": "https://partyhits-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "progressive",
+        "name": "Progressive",
+        "url": "https://progressive-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "rock",
+        "name": "Rock",
+        "url": "https://rock-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "salsa",
+        "name": "Salsa",
+        "url": "https://salsa-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "schlager",
+        "name": "SchlagerRadio.FM",
+        "url": "https://schlager-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "schlager-oldies",
+        "name": "Schlager Oldies",
+        "url": "https://schlager-oldies-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "sex",
+        "name": "Sex",
+        "url": "https://sex-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "solopiano",
+        "name": "SoloPiano",
+        "url": "https://solopiano-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "study",
+        "name": "Study",
+        "url": "https://study-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "techhouse",
+        "name": "TechHouse",
+        "url": "https://techhouse-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "techno",
+        "name": "Techno",
+        "url": "https://techno-high.rautemusik.fm/",
+        "info": "MP3, ex Techno4Ever"
+      },
+      {
+        "slug": "top40",
+        "name": "Top40",
+        "url": "https://top40-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "trance",
+        "name": "Trance",
+        "url": "https://trance-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "trap",
+        "name": "Trap",
+        "url": "https://trap-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "traurig",
+        "name": "Traurig",
+        "url": "https://traurig-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "volksmusik",
+        "name": "Volksmusik.FM",
+        "url": "https://volksmusik-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "wackenradio",
+        "name": "WackenRadio",
+        "url": "https://wackenradio-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "weihnachten",
+        "name": "Krasse Weihnachten",
+        "url": "https://weihnachten-high.rautemusik.fm/",
+        "info": "MP3"
+      },
+      {
+        "slug": "workout",
+        "name": "Workout",
+        "url": "https://workout-high.rautemusik.fm/",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "TechnoBase.FM",
+    "slug": "technobase-fm",
+    "stations": [
+      {
+        "slug": "technobase-fm",
+        "name": "TechnoBase.FM",
+        "url": "https://listener3.mp3.tb-group.fm/tb.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "trancebase-fm",
+        "name": "TranceBase.FM",
+        "url": "https://listen.trancebase.fm/tunein-mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "hardbase-fm",
+        "name": "HardBase.FM",
+        "url": "http://mp3.stream.tb-group.fm/hb.mp3",
+        "info": "MP3 192k"
+      },
+      {
+        "slug": "housetime-fm",
+        "name": "HouseTime.FM",
+        "url": "https://listen.housetime.fm/tunein-mp3",
+        "info": "MP3 192k"
+      }
+    ]
   }
 ]

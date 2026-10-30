@@ -65,7 +65,12 @@ fn networks_parse_and_order() {
 			"XLtrax",
 			"Radio FG",
 			"1.FM",
-			"101.ru"
+			"101.ru",
+			"DFM",
+			"Hit FM",
+			"Radioparty.pl",
+			"RauteMusik",
+			"TechnoBase.FM"
 		]
 	);
 	let mut ids = HashSet::new();

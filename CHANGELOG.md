@@ -5,6 +5,14 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.9
+
+- Five networks join the catalog: DFM (Russia, 45 stations) and Hit FM
+  (Russia, 4 stations), Radioparty.pl (6 stations), RauteMusik (Germany,
+  48 stations — its Techno channel is the former Techno4Ever), and
+  TechnoBase.FM with its sister stations TranceBase.FM, HardBase.FM and
+  HouseTime.FM. Every stream was verified live before inclusion.
+
 ## 0.2.8
 
 - Optional encoded ring buffer for time-shifting, the DVBViewer model
