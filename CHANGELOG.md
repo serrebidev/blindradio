@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.15
+
+- Three new networks, all broadcasting for blind and print-disabled listeners: ACB Media, with all ten channels from the American Council of the Blind (Mainstream, Treasure Trove, Cafe, Community, the live and special event channels, and the convention channels); Mushroom FM (Mushroom FM and Mushroom Escape, old-time radio drama and comedy); and Vision Australia Radio (Adelaide, Albury, Bendigo, Geelong, Melbourne, Perth and Shepparton). Every stream was checked live before shipping, and the Networks list stays in alphabetical order.
+
 ## 0.2.14
 
 - New setting: Announce Actions (Settings, on by default). Turn it off and BlindRadio stops speaking the confirmations for actions and keyboard shortcuts — "Recording started", "Copied", position reports and the like. The message line still shows them, and failures still speak. Song titles and connection status keep their own separate settings.

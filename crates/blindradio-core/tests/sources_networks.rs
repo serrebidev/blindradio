@@ -70,7 +70,10 @@ fn networks_parse_and_order() {
 			"Hit FM",
 			"Radioparty.pl",
 			"RauteMusik",
-			"TechnoBase.FM"
+			"TechnoBase.FM",
+			"ACB Media",
+			"Mushroom FM",
+			"Vision Australia Radio"
 		]
 	);
 	let mut ids = HashSet::new();

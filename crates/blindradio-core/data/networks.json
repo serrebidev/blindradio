@@ -5875,5 +5875,137 @@
         "info": "MP3 192k"
       }
     ]
+  },
+  {
+    "name": "ACB Media",
+    "slug": "acb-media",
+    "stations": [
+      {
+        "slug": "media-01-mainstream",
+        "name": "Media 01 Mainstream",
+        "url": "https://streaming.live365.com/a11911",
+        "info": "Talk, news and entertainment"
+      },
+      {
+        "slug": "media-02-mainstream-2",
+        "name": "Media 02 Mainstream 2",
+        "url": "https://streaming.live365.com/a27778",
+        "info": "Mainstream overflow channel"
+      },
+      {
+        "slug": "media-03-treasure-trove",
+        "name": "Media 03 Treasure Trove",
+        "url": "https://streaming.live365.com/a17972",
+        "info": "Old-time radio"
+      },
+      {
+        "slug": "media-04-cafe",
+        "name": "Media 04 Cafe",
+        "url": "https://streaming.live365.com/a89697",
+        "info": "Music and conversation"
+      },
+      {
+        "slug": "media-05-community",
+        "name": "Media 05 Community",
+        "url": "https://streaming.live365.com/a46090",
+        "info": "Community programs and events"
+      },
+      {
+        "slug": "media-06-live-event",
+        "name": "Media 06 Live Event",
+        "url": "https://streaming.live365.com/a36240",
+        "info": "Live events"
+      },
+      {
+        "slug": "media-07-special-event",
+        "name": "Media 07 Special Event",
+        "url": "https://streaming.live365.com/a95398",
+        "info": "Special events"
+      },
+      {
+        "slug": "media-08-convention",
+        "name": "Media 08 Convention",
+        "url": "https://streaming.live365.com/a18975",
+        "info": "Convention coverage"
+      },
+      {
+        "slug": "media-09-convention",
+        "name": "Media 09 Convention",
+        "url": "https://streaming.live365.com/a44175",
+        "info": "Convention coverage"
+      },
+      {
+        "slug": "media-10-convention-information",
+        "name": "Media 10 Convention Information",
+        "url": "https://streaming.live365.com/a85327",
+        "info": "Convention information"
+      }
+    ]
+  },
+  {
+    "name": "Mushroom FM",
+    "slug": "mushroom-fm",
+    "stations": [
+      {
+        "slug": "mushroom-fm",
+        "name": "Mushroom FM",
+        "url": "http://65.108.124.70:8676/live",
+        "info": "Music from the 50s to the 80s"
+      },
+      {
+        "slug": "mushroom-escape",
+        "name": "Mushroom Escape",
+        "url": "http://65.108.124.70:8676/escape",
+        "info": "Radio drama and comedy"
+      }
+    ]
+  },
+  {
+    "name": "Vision Australia Radio",
+    "slug": "vision-australia-radio",
+    "stations": [
+      {
+        "slug": "adelaide",
+        "name": "Adelaide",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/5RPHAAC.aac",
+        "info": "5RPH, reading service"
+      },
+      {
+        "slug": "albury",
+        "name": "Albury",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/2APHAAC.aac",
+        "info": "2APH, reading service"
+      },
+      {
+        "slug": "bendigo",
+        "name": "Bendigo",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3BPHAAC.aac",
+        "info": "Reading service"
+      },
+      {
+        "slug": "geelong",
+        "name": "Geelong",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3GPHAAC.aac",
+        "info": "Reading service"
+      },
+      {
+        "slug": "melbourne",
+        "name": "Melbourne",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3RPHAAC.aac",
+        "info": "3RPH, reading service"
+      },
+      {
+        "slug": "perth",
+        "name": "Perth",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/6RPHAAC.aac",
+        "info": "6RPH, reading service"
+      },
+      {
+        "slug": "shepparton",
+        "name": "Shepparton",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3SPHAAC.aac",
+        "info": "Reading service"
+      }
+    ]
   }
 ]
