@@ -91,7 +91,11 @@ async fn children_dispatch_by_prefix() {
 		]
 	);
 	let nets = src.children("net", Sort::default()).await.unwrap();
-	assert_eq!(nets.first(), Some(&folder("net/bbc", "BBC")));
+	let names: Vec<&str> = nets.iter().map(|n| n.name()).collect();
+	let mut sorted = names.clone();
+	sorted.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+	assert_eq!(names, sorted, "networks in name order");
+	assert!(nets.contains(&folder("net/bbc", "BBC")));
 	assert!(matches!(
 		src.children("net/somafm", Sort::default()).await.unwrap()[0],
 		Node::Station(_)

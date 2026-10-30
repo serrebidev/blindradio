@@ -37,6 +37,9 @@ taken from this file by `cargo xtask release`.
 - Menus reorganized: Settings moved from Playback to the File menu,
   playlist imports moved from Stations to File, and the Audio Device
   submenu moved from File to Playback.
+- File gains Open URL: paste a stream address and it plays at once,
+  for a quick listen or a test — nothing is added to any list (it
+  still shows under Recently Played).
 - The status line is now in the window's real status bar — station,
   song, time played, Live or how far behind live you are, and the
   stream format (for example `MP3, 128 kbps, 44.1 kHz, stereo`) — and

@@ -81,6 +81,10 @@ Ctrl+I imports a playlist into Custom Stations as a folder named after the file;
 imports it as a collection named after the file. The playlist's groups become subfolders and
 its order is kept. M3U, M3U8 and PLS files are read.
 
+For one stream right now, File → Open URL plays an address you paste without adding it
+anywhere — handy for a quick listen or testing a stream. It still appears under Recently
+Played, and from there it can be favorited or added to a collection like any station.
+
 ## Exporting
 
 Favorites and Collections each have an Export button that writes an M3U through a save dialog.

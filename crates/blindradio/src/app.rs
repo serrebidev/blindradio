@@ -444,6 +444,7 @@ impl App {
 			| Action::AddToCollection
 			| Action::Import
 			| Action::ImportAsCollection
+			| Action::OpenUrl
 			| Action::SongHistory
 			| Action::Equalizer
 			| Action::GlobalHotkeys
@@ -675,7 +676,7 @@ impl App {
 			.map(|p| p.name.clone())
 	}
 
-	fn play(&mut self, station: Station) {
+	pub fn play(&mut self, station: Station) {
 		self.dial = false;
 		self.song = None;
 		self.now_playing(Some(&station.name));

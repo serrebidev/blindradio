@@ -4,6 +4,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use blindradio_core::station::{Source, Station};
+use wx_utils::prompt_text;
 use wxdragon::prelude::*;
 
 use crate::action::{Action, app_key};
@@ -146,6 +148,25 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 					dialogs::add_to_collection::choose(app, &frame, &st);
 				}
 				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+			}
+		}
+		Action::OpenUrl => {
+			// Quick playback or a test: the URL plays as a throwaway
+			// station and is not added anywhere (Recent still lists it).
+			let frame = app.borrow().win.frame;
+			if let Some(link) = prompt_text(&frame, s::STREAM_URL, s::OPEN_URL_TITLE) {
+				let link = link.trim().to_string();
+				if dialogs::custom_station::is_stream_url(&link) {
+					app.borrow_mut().play(Station {
+						id: format!("url:{link}"),
+						name: link.clone(),
+						url: link,
+						source: Source::Custom,
+						info: None,
+					});
+				} else {
+					app.borrow_mut().say(s::NOT_A_STREAM_URL);
+				}
 			}
 		}
 		Action::Import => dialogs::collections::import(app, false),

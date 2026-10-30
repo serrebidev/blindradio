@@ -34,6 +34,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 		(
 			s::MENU_FILE,
 			vec![
+				Item(s::OPEN_URL, "", A::OpenUrl),
 				Item(s::IMPORT, "Ctrl+I", A::Import),
 				Item(
 					s::IMPORT_AS_COLLECTION,
@@ -250,6 +251,7 @@ mod tests {
 			("Recently Played…", "Ctrl+H"),
 			("Collections…", "Ctrl+L"),
 			("Add Custom Station…", "Ctrl+N"),
+			("Open URL…", ""),
 			("Import Playlist…", "Ctrl+I"),
 			("Import Playlist as Collection…", "Ctrl+Shift+I"),
 			("Copy Stream URL", "Ctrl+U"),

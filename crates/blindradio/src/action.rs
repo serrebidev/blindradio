@@ -53,6 +53,7 @@ pub enum Action {
 	/// Per-station overrides dialog (context menu).
 	StationSettings,
 	EditStation,
+	OpenUrl,
 	/// Help > Check for Updates.
 	CheckForUpdates,
 	Help,
