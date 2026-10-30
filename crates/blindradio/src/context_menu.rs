@@ -31,6 +31,9 @@ pub enum Item {
 	/// True when the station is a favorite already: the item removes it.
 	Favorite(bool),
 	CopyUrl,
+	CopyStation,
+	CutStation,
+	PasteStation,
 	EditStation,
 	StationSettings,
 	/// Every collection but Custom Stations: id, name, holds the station.
@@ -55,6 +58,9 @@ pub enum Choice {
 	Play,
 	Favorite,
 	CopyUrl,
+	CopyStation,
+	CutStation,
+	PasteStation,
 	EditStation,
 	StationSettings,
 	/// Into or out of the collection with this id.
@@ -72,13 +78,20 @@ pub enum Choice {
 }
 
 /// The menu's items, or the message said instead of a menu.
-pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static str> {
+/// `has_clip` is a station sitting on the clipboard: Paste joins the
+/// menu of a held station (it lands in that station's folder).
+pub fn items_for(
+	target: &Target,
+	lib: &Library,
+	has_clip: bool,
+) -> Result<Vec<Item>, &'static str> {
 	match target {
 		Target::Station(st) => {
 			let mut items = vec![
 				Item::Play,
 				Item::Favorite(lib.is_favorite(&st.id)),
 				Item::CopyUrl,
+				Item::CopyStation,
 				Item::StationSettings,
 				Item::AddToCollection(
 					lib.collections
@@ -92,6 +105,11 @@ pub fn items_for(target: &Target, lib: &Library) -> Result<Vec<Item>, &'static s
 			// station exists nowhere in the library to save the change to.
 			if lib.holds_station(&st.id) {
 				items.insert(3, Item::EditStation);
+				// Cut and Paste need a home to take from / land beside.
+				items.insert(5, Item::CutStation);
+				if has_clip {
+					items.insert(6, Item::PasteStation);
+				}
 			}
 			if !lib.fav_folders.is_empty() {
 				items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
@@ -172,6 +190,30 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			}
 			Item::CopyUrl => {
 				menu.append(add(Choice::CopyUrl), s::COPY_URL, "", ItemKind::Normal);
+			}
+			Item::CopyStation => {
+				menu.append(
+					add(Choice::CopyStation),
+					s::COPY_STATION_ITEM,
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::CutStation => {
+				menu.append(
+					add(Choice::CutStation),
+					s::CUT_STATION_ITEM,
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::PasteStation => {
+				menu.append(
+					add(Choice::PasteStation),
+					s::PASTE_STATION_ITEM,
+					"",
+					ItemKind::Normal,
+				);
 			}
 			Item::EditStation => {
 				menu.append(
@@ -327,6 +369,9 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::Play => Action::Play,
 		Choice::Favorite => Action::ToggleFavorite,
 		Choice::CopyUrl => Action::CopyUrl,
+		Choice::CopyStation => return app.borrow_mut().copy_station(station, false),
+		Choice::CutStation => return app.borrow_mut().copy_station(station, true),
+		Choice::PasteStation => return app.borrow_mut().paste_near(station),
 		Choice::EditStation => Action::EditStation,
 		Choice::StationSettings => Action::StationSettings,
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
@@ -378,12 +423,32 @@ mod tests {
 		let mine = lib.add_custom("Mine", "http://mine");
 
 		assert_eq!(
-			items_for(&Target::Station(&rb), &lib),
+			items_for(&Target::Station(&rb), &lib, false),
 			Ok(vec![
 				Item::Play,
 				Item::Favorite(true),
 				Item::CopyUrl,
 				Item::EditStation,
+				Item::CopyStation,
+				Item::CutStation,
+				Item::StationSettings,
+				Item::AddToCollection(vec![
+					(jazz.clone(), "Jazz".into(), false),
+					(news.clone(), "News".into(), true),
+				]),
+			])
+		);
+		// A station on the clipboard adds Paste beside a held station.
+		assert_eq!(
+			items_for(&Target::Station(&rb), &lib, true),
+			Ok(vec![
+				Item::Play,
+				Item::Favorite(true),
+				Item::CopyUrl,
+				Item::EditStation,
+				Item::CopyStation,
+				Item::CutStation,
+				Item::PasteStation,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -397,11 +462,12 @@ mod tests {
 			..station("Serrebi One")
 		};
 		assert_eq!(
-			items_for(&Target::Station(&imported), &lib),
+			items_for(&Target::Station(&imported), &lib, true),
 			Ok(vec![
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
+				Item::CopyStation,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
@@ -411,12 +477,14 @@ mod tests {
 		);
 		// Custom Stations is not togglable; own stations can be deleted.
 		assert_eq!(
-			items_for(&Target::Station(&mine), &lib),
+			items_for(&Target::Station(&mine), &lib, false),
 			Ok(vec![
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
 				Item::EditStation,
+				Item::CopyStation,
+				Item::CutStation,
 				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz, "Jazz".into(), false),
@@ -426,13 +494,16 @@ mod tests {
 			])
 		);
 		assert_eq!(
-			items_for(&Target::Collection { custom: false }, &lib),
+			items_for(&Target::Collection { custom: false }, &lib, false),
 			Ok(vec![Item::Rename, Item::Delete])
 		);
 		assert_eq!(
-			items_for(&Target::Collection { custom: true }, &lib),
+			items_for(&Target::Collection { custom: true }, &lib, false),
 			Err("Nothing to do here")
 		);
-		assert_eq!(items_for(&Target::Other, &lib), Err("Nothing to do here"));
+		assert_eq!(
+			items_for(&Target::Other, &lib, false),
+			Err("Nothing to do here")
+		);
 	}
 }

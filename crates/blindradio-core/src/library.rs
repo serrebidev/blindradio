@@ -278,6 +278,13 @@ pub fn remove_folder_in(folders: &mut Vec<Folder>, path: &[usize]) -> bool {
 	true
 }
 
+/// Where a held station lives (see `Library::station_home`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Home {
+	Collection { id: String, path: Vec<usize> },
+	Favorite { path: Vec<usize> },
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Library {
@@ -368,6 +375,42 @@ impl Library {
 
 	/// Renames and re-points every held copy of a station: collections and
 	/// their folders, favorites and their folders. True when any copy changed.
+	/// Where a held station lives: the first collection (and folder path
+	/// within it) holding it, or the favorites folder holding it. The
+	/// clipboard's cut and paste resolve their endpoints through this.
+	pub fn station_home(&self, id: &str) -> Option<Home> {
+		fn find(
+			stations: &[Station],
+			folders: &[Folder],
+			path: &[usize],
+			id: &str,
+		) -> Option<Vec<usize>> {
+			if stations.iter().any(|s| s.id == id) {
+				return Some(path.to_vec());
+			}
+			for (i, f) in folders.iter().enumerate() {
+				let mut p = path.to_vec();
+				p.push(i);
+				if let Some(found) = find(&f.stations, &f.folders, &p, id) {
+					return Some(found);
+				}
+			}
+			None
+		}
+		for c in &self.collections {
+			if let Some(path) = find(&c.stations, &c.folders, &[], id) {
+				return Some(Home::Collection {
+					id: c.id.clone(),
+					path,
+				});
+			}
+		}
+		if let Some(path) = find(&self.favorites, &self.fav_folders, &[], id) {
+			return Some(Home::Favorite { path });
+		}
+		None
+	}
+
 	pub fn update_station(&mut self, id: &str, name: &str, url: &str) -> bool {
 		fn walk(
 			stations: &mut [Station],

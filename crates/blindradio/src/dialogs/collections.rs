@@ -14,7 +14,7 @@ use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
 use crate::action::Action;
-use crate::app::App;
+use crate::app::{App, PasteDest};
 use crate::bridge::WindowToken;
 use crate::context_menu::{self, Choice, Item, Target};
 use crate::main_window::dispatch;
@@ -645,7 +645,11 @@ impl View {
 		};
 		let mut items = {
 			let lib = app.borrow();
-			match context_menu::items_for(&Target::Station(&station), &lib.library) {
+			match context_menu::items_for(
+				&Target::Station(&station),
+				&lib.library,
+				lib.station_clip.is_some(),
+			) {
 				Ok(items) => items,
 				Err(text) => {
 					drop(lib);
@@ -683,10 +687,18 @@ impl View {
 		let Some(at) = self.at(app, row) else {
 			return;
 		};
-		let items = vec![Item::Rename, Item::Delete];
+		let mut items = vec![Item::Rename, Item::Delete];
+		if app.borrow().station_clip.is_some() {
+			items.push(Item::PasteStation);
+		}
 		match context_menu::popup(&self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &at),
 			Some(Choice::Delete) => self.delete(app, row, &at),
+			Some(Choice::PasteStation) => {
+				app.borrow_mut()
+					.paste_into(PasteDest::Collection(at.id.clone(), at.path.clone()));
+				self.refresh(app, None);
+			}
 			_ => {}
 		}
 	}
@@ -704,9 +716,17 @@ impl View {
 		if !to.is_empty() {
 			items.push(Item::AddAllTo(to));
 		}
+		if app.borrow().station_clip.is_some() {
+			items.push(Item::PasteStation);
+		}
 		match context_menu::popup(&self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &collection),
 			Some(Choice::Delete) => self.delete(app, row, &collection),
+			Some(Choice::PasteStation) => {
+				app.borrow_mut()
+					.paste_into(PasteDest::Collection(collection.id.clone(), Vec::new()));
+				self.refresh(app, None);
+			}
 			Some(Choice::AddAllTo(id)) => {
 				app.borrow_mut().add_all(&collection.id, &id);
 				self.show_collection(app, &collection.id);

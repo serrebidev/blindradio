@@ -5,6 +5,15 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.11
+
+- Copy, Cut and Paste for stations, in the context menu and on
+  Ctrl+C, Ctrl+X and Ctrl+V. Copy copies any station — including one
+  found in Browse or a directory listing — and Paste puts it into a
+  collection, a folder, or Favorites. Cut takes the station out of
+  its home when it is pasted, so cutting and pasting into another
+  folder or collection moves it there.
+
 ## 0.2.10
 
 - Fixed portable self-update never applying: the downloaded update was

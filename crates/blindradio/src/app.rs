@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use blindradio_core::history::SessionHistory;
-use blindradio_core::library::{Collection, Library};
+use blindradio_core::library::{Collection, Home, Library};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
 use blindradio_core::settings::{EqSettings, Settings};
 use blindradio_core::sleep::SleepTimer;
@@ -138,6 +138,23 @@ pub fn readonly_message(readonly: bool, said: bool) -> Option<&'static str> {
 	(readonly && !said).then_some(s::NOT_SAVED)
 }
 
+/// A station on the clipboard, and where a cut station comes from
+/// (a collection id, or Favorites) so Paste can take it out of there.
+#[derive(Clone)]
+pub struct Clip {
+	pub station: Station,
+	pub cut: bool,
+	pub from_collection: Option<String>,
+	pub from_favorites: bool,
+}
+
+/// Where Paste puts the clipboard station.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PasteDest {
+	Collection(String, Vec<usize>),
+	Favorites(Vec<usize>),
+}
+
 pub struct App {
 	pub data: PathBuf,
 	pub settings: Settings,
@@ -156,6 +173,8 @@ pub struct App {
 	pub history: SessionHistory,
 	/// The station focused in the open list; station lists set it and clear it when they close.
 	pub selected: Option<Station>,
+	/// The station clipboard: Copy/Cut hold a station here until Paste.
+	pub station_clip: Option<Clip>,
 	/// What Play/Pause plays after a stop.
 	remembered: Option<Station>,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
@@ -230,6 +249,7 @@ impl App {
 			sleep: SleepTimer::default(),
 			history: SessionHistory::default(),
 			selected: None,
+			station_clip: None,
 			remembered: None,
 			dial: false,
 			win,
@@ -452,6 +472,25 @@ impl App {
 			| Action::StationSettings
 			| Action::EditStation => {}
 			Action::CopyUrl => self.copy_url(),
+			Action::CopyStation => {
+				if let Some(st) = self.selected.clone() {
+					self.copy_station(&st, false);
+				}
+			}
+			Action::CutStation => {
+				if let Some(st) = self.selected.clone() {
+					self.copy_station(&st, true);
+				}
+			}
+			Action::PasteStation => match self.selected.clone() {
+				Some(st) => self.paste_near(&st),
+				None => match dial_collection(&self.library, self.settings.main_list.as_deref())
+					.map(|c| c.id.clone())
+				{
+					Some(id) => self.paste_into(PasteDest::Collection(id, Vec::new())),
+					None => self.say(s::NOWHERE_TO_PASTE),
+				},
+			},
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
 		}
 		self.refresh();
@@ -964,6 +1003,105 @@ impl App {
 		self.say(&format!("{prefix}{name}"));
 		self.save_library();
 		self.refresh_dial();
+	}
+
+	/// Copy or cut a station onto the clipboard. A cut station stays
+	/// where it is until Paste takes it out of its home.
+	pub fn copy_station(&mut self, station: &Station, cut: bool) {
+		let (from_collection, from_favorites) = match self.library.station_home(&station.id) {
+			Some(Home::Collection { id, .. }) => (Some(id), false),
+			Some(Home::Favorite { .. }) => (None, true),
+			None => (None, false),
+		};
+		self.station_clip = Some(Clip {
+			station: station.clone(),
+			cut,
+			from_collection,
+			from_favorites,
+		});
+		let prefix = if cut { s::CUT_SAID } else { s::COPIED_STATION };
+		self.say(&format!("{prefix}{}", station.name));
+	}
+
+	/// Put the clipboard station at `dest`. A cut station is taken out
+	/// of its home first, so pasting it into another folder of its own
+	/// collection moves it there.
+	pub fn paste_into(&mut self, dest: PasteDest) {
+		let Some(clip) = self.station_clip.clone() else {
+			return self.say(s::NOTHING_TO_PASTE);
+		};
+		let st = &clip.station;
+		let (held, dest_name) = match &dest {
+			PasteDest::Collection(id, path) => {
+				let Some(c) = self.library.collections.iter().find(|c| &c.id == id) else {
+					return self.say(s::NOWHERE_TO_PASTE);
+				};
+				(
+					c.stations_at(path)
+						.is_some_and(|v| v.iter().any(|x| x.id == st.id)),
+					c.name.clone(),
+				)
+			}
+			PasteDest::Favorites(path) => (
+				self.library
+					.fav_stations_at(path)
+					.is_some_and(|v| v.iter().any(|x| x.id == st.id)),
+				s::FAVORITES_LIST.to_string(),
+			),
+		};
+		if held {
+			return self.say(&format!("{}{}{}", st.name, s::IS_ALREADY_IN, dest_name));
+		}
+		if clip.cut {
+			if let Some(from) = &clip.from_collection
+				&& let Some(c) = self.library.collection_mut(from)
+			{
+				c.remove_id(&st.id);
+			}
+			if clip.from_favorites {
+				self.library.remove_favorite(&st.id);
+			}
+			self.station_clip = None;
+		}
+		let landed = match &dest {
+			PasteDest::Collection(id, path) => self
+				.library
+				.collection_mut(id)
+				.and_then(|c| c.stations_at_mut(path))
+				.map(|v| v.push(st.clone()))
+				.is_some(),
+			PasteDest::Favorites(path) => self
+				.library
+				.fav_stations_at_mut(path)
+				.map(|v| v.push(st.clone()))
+				.is_some(),
+		};
+		if !landed {
+			return self.say(s::NOWHERE_TO_PASTE);
+		}
+		self.say(&format!(
+			"{}{}{}{}",
+			s::PASTED,
+			st.name,
+			s::INTO,
+			dest_name
+		));
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	/// Paste beside `station`: into the folder that holds it, or the
+	/// dial's collection when it is held nowhere.
+	pub fn paste_near(&mut self, station: &Station) {
+		let dest = match self.library.station_home(&station.id) {
+			Some(Home::Collection { id, path }) => PasteDest::Collection(id, path),
+			Some(Home::Favorite { path }) => PasteDest::Favorites(path),
+			None => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
+				Some(c) => PasteDest::Collection(c.id.clone(), Vec::new()),
+				None => return self.say(s::NOWHERE_TO_PASTE),
+			},
+		};
+		self.paste_into(dest);
 	}
 
 	/// New Collection: an existing name is that collection; the station is added, never removed.

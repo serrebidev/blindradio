@@ -1,4 +1,4 @@
-use blindradio_core::library::{CUSTOM, Library, LibraryError};
+use blindradio_core::library::{CUSTOM, Home, Library, LibraryError};
 use blindradio_core::station::{Source, Station};
 
 fn st(id: &str) -> Station {
@@ -296,4 +296,43 @@ fn folder_paths_add_rename_remove() {
 	assert!(lib.rename_fav_folder(&music, "Tunes"));
 	assert!(lib.remove_fav_folder(&music));
 	assert_eq!(lib.all_favorites().len(), 1, "the root station stays");
+}
+
+#[test]
+fn station_home_finds_collections_folders_and_favorites() {
+	let mut lib = Library::default();
+	let jazz = lib.create_collection("Jazz");
+	let deep = {
+		let c = lib.collection_mut(&jazz).unwrap();
+		let folder = c.add_folder(&[], "Deep").unwrap();
+		c.stations_at_mut(&folder).unwrap().push(st("in-folder"));
+		c.stations_at_mut(&[]).unwrap().push(st("at-root"));
+		folder
+	};
+	assert_eq!(
+		lib.station_home("in-folder"),
+		Some(Home::Collection {
+			id: jazz.clone(),
+			path: deep
+		})
+	);
+	assert_eq!(
+		lib.station_home("at-root"),
+		Some(Home::Collection {
+			id: jazz,
+			path: Vec::new()
+		})
+	);
+	let music = lib.add_fav_folder(&[], "Music").unwrap();
+	lib.fav_stations_at_mut(&music).unwrap().push(st("fav"));
+	assert_eq!(
+		lib.station_home("fav"),
+		Some(Home::Favorite { path: music })
+	);
+	lib.toggle_favorite(&st("fav-root"));
+	assert_eq!(
+		lib.station_home("fav-root"),
+		Some(Home::Favorite { path: Vec::new() })
+	);
+	assert_eq!(lib.station_home("nowhere"), None);
 }

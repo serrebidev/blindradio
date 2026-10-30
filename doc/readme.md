@@ -121,6 +121,13 @@ after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, a sta
 menu moves it between folders, and the Applications key on a collection adds every station of
 one collection to another. Ctrl+Shift+L adds the playing station to a collection.
 
+Stations can also be copied between places: Copy Station on a station's context menu (or
+Ctrl+C) copies it — any station, including one found in Browse or a directory — Cut Station
+(Ctrl+X) marks it to move, and Paste Station (Ctrl+V) puts it beside the focused station, or
+into the folder or collection the Applications key was pressed on. Pasting a cut station into
+another folder of its own collection moves it there; a plain copy leaves the original where
+it was. Paste into Favorites works the same way from the Favorites window.
+
 ## Song history
 
 Ctrl+Y shows what played: the station's published history when it has one, with when each song

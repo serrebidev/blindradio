@@ -14,7 +14,7 @@ use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
 use crate::action::Action;
-use crate::app::App;
+use crate::app::{App, PasteDest};
 use crate::bridge::WindowToken;
 use crate::context_menu::{self, Choice, Item};
 use crate::main_window::dispatch;
@@ -425,7 +425,7 @@ impl View {
 				let Some(loc) = self.loc(row) else {
 					return;
 				};
-				let mut items = vec![Item::Play];
+				let mut items = vec![Item::Play, Item::CopyStation, Item::CutStation];
 				{
 					let lib = app.borrow();
 					if !lib.library.fav_folders.is_empty() {
@@ -434,6 +434,9 @@ impl View {
 						targets.extend(context_menu::fav_folder_list(&lib.library));
 						targets.retain(|(path, _)| *path != loc.path);
 						items.push(Item::MoveToFolder(targets));
+					}
+					if lib.station_clip.is_some() {
+						items.push(Item::PasteStation);
 					}
 				}
 				items.push(Item::Delete);
@@ -445,6 +448,14 @@ impl View {
 					Some(Choice::MoveToFolder(path)) => {
 						self.move_station_to(app, &station, &path)
 					}
+					Some(Choice::CopyStation) => {
+						app.borrow_mut().copy_station(&station, false)
+					}
+					Some(Choice::CutStation) => app.borrow_mut().copy_station(&station, true),
+					Some(Choice::PasteStation) => {
+						app.borrow_mut().paste_near(&station);
+						self.refresh(app, None);
+					}
 					Some(Choice::Delete) => self.remove(app, row),
 					_ => {}
 				}
@@ -453,10 +464,18 @@ impl View {
 				let Some(loc) = self.loc(row) else {
 					return;
 				};
-				let items = vec![Item::Rename, Item::Delete];
+				let mut items = vec![Item::Rename, Item::Delete];
+				if app.borrow().station_clip.is_some() {
+					items.push(Item::PasteStation);
+				}
 				match context_menu::popup(&self.tree, &items) {
 					Some(Choice::Rename) => self.rename_folder(app, &loc.path),
 					Some(Choice::Delete) => self.remove(app, row),
+					Some(Choice::PasteStation) => {
+						app.borrow_mut()
+							.paste_into(PasteDest::Favorites(loc.path.clone()));
+						self.refresh(app, None);
+					}
 					_ => {}
 				}
 			}

@@ -225,7 +225,11 @@ impl StationList {
 					Some((_, st)) => Target::Station(st),
 					None => Target::Other,
 				};
-				let items = context_menu::items_for(&target, &a.borrow().library);
+				let items = context_menu::items_for(
+					&target,
+					&a.borrow().library,
+					a.borrow().station_clip.is_some(),
+				);
 				match (items, focused) {
 					(Ok(items), Some((_, st))) => {
 						if let Some(choice) = context_menu::popup(&me.list, &items) {

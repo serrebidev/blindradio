@@ -960,7 +960,7 @@ impl View {
 			let m = self.model.borrow();
 			let a = app.borrow();
 			(
-				context_menu::items_for(&m.target(f), &a.library),
+				context_menu::items_for(&m.target(f), &a.library, a.station_clip.is_some()),
 				m.station(f).cloned(),
 				m.collection(f),
 			)
