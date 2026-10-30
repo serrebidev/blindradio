@@ -132,6 +132,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			.unwrap_or(0),
 	};
 	let startup_list = choice(&dialog, &sizer, s::STARTUP_LIST, &startup_items, startup_at);
+	let updates_auto = check(&dialog, &sizer, s::CHECK_UPDATES_AUTO, current.check_updates);
 	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
 	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
 	let max_start = check(&dialog, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
@@ -260,6 +261,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 					.map(|(id, _)| id.clone()),
 				_ => None,
 			};
+			st.check_updates = updates_auto.get_value();
 			st.play_on_move = play_move.get_value();
 			st.close_to_tray = tray.get_value();
 			st.maximize_on_start = max_start.get_value();

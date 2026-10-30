@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
 use blindradio_core::history::SessionHistory;
-use blindradio_core::library::{Collection, Home, Library};
+use blindradio_core::library::{Collection, Folder, Home, Library};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
 use blindradio_core::settings::{EqSettings, Settings};
 use blindradio_core::sleep::SleepTimer;
@@ -23,6 +23,7 @@ use wxdragon::prelude::*;
 use crate::action::Action;
 use crate::bridge::{Bridge, WindowToken};
 use crate::clipboard;
+use crate::dial_tree::DialNode;
 use crate::dialogs::browse;
 use crate::hotkeys::{self, HotkeyAction, Hotkeys};
 use crate::main_window::{MainWindow, escape};
@@ -129,6 +130,71 @@ pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
 		.unwrap_or_default()
 }
 
+/// The main window's tree: the dial stations (in exactly
+/// [`dial_stations`] order) plus the folder structure the flat list
+/// dropped. A non-empty `filter` flattens the tree to matching stations.
+pub fn dial_tree(
+	lib: &Library,
+	main_list: Option<&str>,
+	filter: &str,
+) -> (Vec<Station>, Vec<DialNode>) {
+	let stations = dial_stations(lib, main_list);
+	if !filter.is_empty() {
+		let q = filter.to_lowercase();
+		let nodes = stations
+			.iter()
+			.enumerate()
+			.filter(|(_, s)| s.name.to_lowercase().contains(&q))
+			.map(|(i, _)| DialNode::Station(i))
+			.collect();
+		return (stations, nodes);
+	}
+	fn folder_node(folder: &Folder, next: &mut usize) -> DialNode {
+		let mut kids: Vec<DialNode> = folder
+			.stations
+			.iter()
+			.map(|_| {
+				let i = *next;
+				*next += 1;
+				DialNode::Station(i)
+			})
+			.collect();
+		for f in &folder.folders {
+			kids.push(folder_node(f, next));
+		}
+		DialNode::Folder(folder.name.clone(), kids)
+	}
+	fn collection_nodes(c: &Collection, next: &mut usize) -> Vec<DialNode> {
+		let mut nodes: Vec<DialNode> = c
+			.stations
+			.iter()
+			.map(|_| {
+				let i = *next;
+				*next += 1;
+				DialNode::Station(i)
+			})
+			.collect();
+		for f in &c.folders {
+			nodes.push(folder_node(f, next));
+		}
+		nodes
+	}
+	let mut next = 0;
+	let nodes = if main_list == Some(ALL_LISTS) {
+		let mut cols: Vec<&Collection> = lib.collections.iter().collect();
+		cols.sort_by_key(|c| c.name.to_lowercase());
+		cols.iter()
+			.map(|c| DialNode::Folder(c.name.clone(), collection_nodes(c, &mut next)))
+			.collect()
+	} else {
+		dial_collection(lib, main_list)
+			.map(|c| collection_nodes(c, &mut next))
+			.unwrap_or_default()
+	};
+	debug_assert_eq!(next, stations.len());
+	(stations, nodes)
+}
+
 /// `BLINDRADIO_DATA` (tests) overrides the data folder.
 pub fn data_dir() -> PathBuf {
 	match std::env::var_os("BLINDRADIO_DATA") {
@@ -193,6 +259,13 @@ pub struct App {
 	pub station_clip: Option<Clip>,
 	/// What Play/Pause plays after a stop.
 	remembered: Option<Station>,
+	/// Stations played this session, oldest first, for Previous/Next
+	/// Station (Alt+Left / Alt+Right).
+	played: Vec<Station>,
+	/// Index into `played` of the entry playing now.
+	played_at: Option<usize>,
+	/// The station tree's filter, typed in the tree; empty shows all.
+	dial_filter: String,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
 	dial: bool,
 	pub win: MainWindow,
@@ -267,6 +340,9 @@ impl App {
 			selected: None,
 			station_clip: None,
 			remembered: None,
+			played: Vec::new(),
+			played_at: None,
+			dial_filter: String::new(),
 			dial: false,
 			win,
 			menus,
@@ -314,7 +390,9 @@ impl App {
 			self.get_starter(true);
 		}
 		self.report_hotkeys();
-		if update::daily_check_due(self.settings.last_update_check, update::now()) {
+		if self.settings.check_updates
+			&& update::daily_check_due(self.settings.last_update_check, update::now())
+		{
 			self.update_due = Some(Instant::now() + UPDATE_DELAY);
 		}
 		if let Some(text) = readonly_message(self.readonly, self.readonly_said) {
@@ -359,6 +437,9 @@ impl App {
 		// The window title follows focus at once; the song is added when known.
 		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
+		if self.settings.play_on_move {
+			self.note_played(station);
+		}
 	}
 
 	pub fn run(&mut self, a: Action) {
@@ -391,6 +472,8 @@ impl App {
 				}
 			}
 			Action::Stop => self.stop(true),
+			Action::PreviousStation => self.played_step(-1),
+			Action::NextStation => self.played_step(1),
 			Action::Record => {
 				if self.tuner.is_recording() {
 					self.finish_recording();
@@ -752,6 +835,55 @@ impl App {
 	}
 
 	pub fn play(&mut self, station: Station) {
+		self.note_played(&station);
+		self.play_now(station);
+	}
+
+	/// Records a play in the session history, browser-style: playing
+	/// something new drops the entries ahead of the current one.
+	fn note_played(&mut self, station: &Station) {
+		if self
+			.played_at
+			.and_then(|i| self.played.get(i))
+			.is_some_and(|s| s.id == station.id)
+		{
+			return;
+		}
+		let cut = self.played_at.map_or(0, |i| i + 1);
+		self.played.truncate(cut);
+		self.played.push(station.clone());
+		if self.played.len() > 50 {
+			self.played.remove(0);
+		}
+		self.played_at = Some(self.played.len() - 1);
+	}
+
+	/// Alt+Left / Alt+Right: move through the session history without
+	/// recording the move itself.
+	fn played_step(&mut self, delta: i32) {
+		let Some(at) = self.played_at else {
+			self.say(if delta < 0 {
+				s::NO_EARLIER_STATION
+			} else {
+				s::NO_LATER_STATION
+			});
+			return;
+		};
+		let next = at as i32 + delta;
+		if next < 0 {
+			self.say(s::NO_EARLIER_STATION);
+			return;
+		}
+		if next as usize >= self.played.len() {
+			self.say(s::NO_LATER_STATION);
+			return;
+		}
+		self.played_at = Some(next as usize);
+		let station = self.played[next as usize].clone();
+		self.play_now(station);
+	}
+
+	fn play_now(&mut self, station: Station) {
 		self.finish_recording();
 		self.dial = false;
 		self.song = None;
@@ -845,6 +977,10 @@ impl App {
 			self.win.now_playing.set_label(&line);
 		}
 		self.win.status_bar.set_status_text(plain, 0);
+		// NVDA's status text assembly reads the bar object's own name
+		// first; mirror the line so it lives on the bar itself, not
+		// only in its pane.
+		self.win.status_bar.set_name(plain);
 	}
 
 	/// Once a second: the status line gains how long the station has played,
@@ -981,7 +1117,11 @@ impl App {
 
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
-		let stations = dial_stations(&self.library, self.settings.main_list.as_deref());
+		let (stations, nodes) = dial_tree(
+			&self.library,
+			self.settings.main_list.as_deref(),
+			&self.dial_filter,
+		);
 		let list = &self.win.stations;
 		let current = list.current();
 		let focus = current
@@ -989,7 +1129,58 @@ impl App {
 			.and_then(|id| stations.iter().position(|s| s.id == id))
 			.or(current)
 			.unwrap_or(0);
-		list.set_stations(stations, focus);
+		list.set_dial(&nodes, stations, focus);
+	}
+
+	/// A letter typed in the station tree: the filter grows.
+	pub fn dial_filter_type(&mut self, c: char) {
+		self.dial_filter.push(c);
+		self.apply_dial_filter();
+	}
+
+	/// Backspace in the station tree: the filter shrinks.
+	pub fn dial_filter_backspace(&mut self) {
+		if self.dial_filter.pop().is_some() {
+			self.apply_dial_filter();
+		}
+	}
+
+	/// Escape in the station tree: the whole tree comes back.
+	pub fn dial_filter_clear(&mut self) {
+		if self.dial_filter.is_empty() {
+			return;
+		}
+		self.dial_filter.clear();
+		self.win.message.set_label("");
+		self.refresh_dial();
+		self.say(s::FILTER_CLEARED);
+	}
+
+	fn apply_dial_filter(&mut self) {
+		let stations = dial_stations(&self.library, self.settings.main_list.as_deref());
+		let q = self.dial_filter.to_lowercase();
+		let hits: Vec<usize> = stations
+			.iter()
+			.enumerate()
+			.filter(|(_, st)| st.name.to_lowercase().contains(&q))
+			.map(|(i, _)| i)
+			.collect();
+		self.win.message.set_label(&if hits.is_empty() {
+			format!("{}: {} - {}", s::FILTER, self.dial_filter, s::NO_MATCHES)
+		} else {
+			format!(
+				"{}: {} - {} {}",
+				s::FILTER,
+				self.dial_filter,
+				hits.len(),
+				s::MATCHES
+			)
+		});
+		self.refresh_dial();
+		if let Some(&first) = hits.first() {
+			self.win.stations.select(first, false);
+			self.selected = stations.get(first).cloned();
+		}
 	}
 
 	/// Focuses the main window list; false when it is empty. `play`: it plays now, the last
@@ -1334,5 +1525,61 @@ mod tests {
 		let merged = dial_stations(&lib, Some(ALL_LISTS));
 		let names: Vec<&str> = merged.iter().map(|s| s.name.as_str()).collect();
 		assert_eq!(names, ["A One", "Z One"], "collections in name order");
+	}
+
+	#[test]
+	fn dial_tree_keeps_folders_and_dial_order() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("SerrebiRadio");
+		let st = |name: &str| Station {
+			id: format!("custom:{name}"),
+			name: name.into(),
+			url: "http://x".into(),
+			source: blindradio_core::station::Source::RadioBrowser,
+			info: None,
+		};
+		let c = lib
+			.collections
+			.iter_mut()
+			.find(|c| c.id == id)
+			.unwrap();
+		c.stations.push(st("Root One"));
+		c.stations.push(st("Jazz Root"));
+		let mut sub = Folder::new("Sub");
+		sub.stations.push(st("Deep Jazz"));
+		let mut dir = Folder::new("Dir");
+		dir.stations.push(st("Dir One"));
+		dir.folders.push(sub);
+		c.folders.push(dir);
+
+		fn flat(nodes: &[DialNode], out: &mut Vec<usize>) {
+			for n in nodes {
+				match n {
+					DialNode::Station(i) => out.push(*i),
+					DialNode::Folder(_, kids) => flat(kids, out),
+				}
+			}
+		}
+		let (stations, nodes) = dial_tree(&lib, None, "");
+		let names: Vec<&str> = stations.iter().map(|s| s.name.as_str()).collect();
+		assert_eq!(names, ["Root One", "Jazz Root", "Dir One", "Deep Jazz"]);
+		let mut order = Vec::new();
+		flat(&nodes, &mut order);
+		assert_eq!(order, [0, 1, 2, 3], "tree order is the dial order");
+		assert!(
+			matches!(&nodes[2], DialNode::Folder(name, _) if name == "Dir"),
+			"the folder survives as a folder row"
+		);
+
+		let (_, all) = dial_tree(&lib, Some(ALL_LISTS), "");
+		assert!(
+			matches!(&all[0], DialNode::Folder(name, _) if name == "SerrebiRadio"),
+			"all playlists: one folder per playlist"
+		);
+
+		let (_, hits) = dial_tree(&lib, None, "jazz");
+		let mut order = Vec::new();
+		flat(&hits, &mut order);
+		assert_eq!(order, [1, 3], "the filter flattens to matches, in dial order");
 	}
 }

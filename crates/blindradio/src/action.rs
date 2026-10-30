@@ -23,6 +23,10 @@ pub enum Action {
 	SeekStart,
 	/// Jump to the live edge.
 	GoLive,
+	/// Back through the stations played this session (Alt+Left).
+	PreviousStation,
+	/// Forward through them again (Alt+Right).
+	NextStation,
 	Mute,
 	VolumeUp,
 	VolumeDown,
@@ -136,11 +140,16 @@ pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool)
 				_ => return None,
 			})
 		}
-		(false, true, false) if main_window => match (digit, letter) {
-			(Some(0), _) => Some(Action::PlayFavorite(9)),
-			(Some(d), _) => Some(Action::PlayFavorite(d as usize - 1)),
-			(_, Some('V')) => Some(Action::FocusVolume),
-			_ => None,
+		(false, true, false) if main_window => match code {
+			// Back and forward through the stations played this session.
+			WXK_LEFT => Some(Action::PreviousStation),
+			WXK_RIGHT => Some(Action::NextStation),
+			_ => match (digit, letter) {
+				(Some(0), _) => Some(Action::PlayFavorite(9)),
+				(Some(d), _) => Some(Action::PlayFavorite(d as usize - 1)),
+				(_, Some('V')) => Some(Action::FocusVolume),
+				_ => None,
+			},
 		},
 		(false, false, false) => match code {
 			WXK_F1 => Some(Action::Help),
@@ -162,6 +171,23 @@ mod tests {
 	use super::*;
 	fn key(c: char) -> i32 {
 		c as i32
+	}
+
+	#[test]
+	fn alt_arrows_walk_played_stations() {
+		assert_eq!(
+			app_key(WXK_LEFT, false, true, false, true),
+			Some(Action::PreviousStation)
+		);
+		assert_eq!(
+			app_key(WXK_RIGHT, false, true, false, true),
+			Some(Action::NextStation)
+		);
+		assert_eq!(
+			app_key(WXK_LEFT, false, true, false, false),
+			None,
+			"main window only"
+		);
 	}
 
 	#[test]

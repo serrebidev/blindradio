@@ -68,6 +68,8 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 			vec![
 				Item(s::PLAY_PAUSE, "Ctrl+P", A::PlayPause),
 				Item(s::STOP_MENU, "Ctrl+S", A::Stop),
+				Item(s::PREVIOUS_STATION, "Alt+Left", A::PreviousStation),
+				Item(s::NEXT_STATION, "Alt+Right", A::NextStation),
 				Item(s::RECORD, "Ctrl+R", A::Record),
 				Item(s::RECORD_PAUSE, "Ctrl+Shift+R", A::RecordPause),
 				Separator,

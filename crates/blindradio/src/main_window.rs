@@ -13,7 +13,7 @@ use crate::app::App;
 use crate::dialogs;
 use crate::help;
 use crate::menus;
-use crate::station_list::{Hooks, StationList};
+use crate::dial_tree::{DialHooks, DialTree};
 use crate::strings as s;
 
 const POLL_MS: i32 = 50;
@@ -22,7 +22,7 @@ const POLL_MS: i32 = 50;
 pub struct MainWindow {
 	pub frame: Frame,
 	/// The dial: the SerrebiRadio collection, or the collection last played from.
-	pub stations: StationList,
+	pub stations: DialTree,
 	/// `Stopped`, `<station>` or `<song> - <station>`.
 	pub now_playing: StaticText,
 	/// The frame's status bar: the same line, where a screen reader's
@@ -47,11 +47,17 @@ pub fn build() -> MainWindow {
 		.with_title(s::APP_NAME)
 		.with_size(Size::new(640, 520))
 		.build();
-	let status_bar = StatusBar::builder(&frame).build();
-	frame.set_existing_status_bar(Some(&status_bar));
+	// The frame creates its own status bar (wxFrame::CreateStatusBar).
+	// A hand-built bar attached afterwards has its text in the
+	// accessibility tree, but NVDA's status line command (NVDA+End)
+	// hit-tests the frame's bottom-left corner and walks up to a
+	// frame-managed bar, so it reported "No status line found".
+	// Style is wxSTB_DEFAULT_STYLE: SIZEGRIP | SHOW_TIPS |
+	// ELLIPSIZE_END | FULL_REPAINT_ON_RESIZE.
+	let status_bar = frame.create_status_bar(1, 0x10131, ID_ANY as i32, "statusBar");
 	status_bar.set_status_text(s::STOPPED, 0);
 	let panel = Panel::builder(&frame).build();
-	let stations = StationList::new(&panel, s::STATIONS);
+	let stations = DialTree::new(&panel, s::STATIONS);
 	let now_playing = StaticText::builder(&panel).with_label(s::STOPPED).build();
 	let play = Button::builder(&panel).with_label(s::PLAY).build();
 	let stop = Button::builder(&panel).with_label(s::STOP).build();
@@ -231,14 +237,14 @@ pub fn volume_step(code: i32) -> Option<i32> {
 pub fn bind(app: &Rc<RefCell<App>>) {
 	let win = app.borrow().win.clone();
 
-	let a = app.clone();
-	win.stations.bind(
-		app,
-		Hooks {
-			on_delete: Some(Rc::new(move |i| a.borrow_mut().delete_from_dial(i))),
-			..Hooks::default()
-		},
-	);
+	let (a1, a2, a3, a4) = (app.clone(), app.clone(), app.clone(), app.clone());
+	let hooks = DialHooks {
+		on_delete: Some(Rc::new(move |i| a1.borrow_mut().delete_from_dial(i))),
+		on_type: Some(Rc::new(move |c| a2.borrow_mut().dial_filter_type(c))),
+		on_backspace: Some(Rc::new(move || a3.borrow_mut().dial_filter_backspace())),
+		on_clear_filter: Some(Rc::new(move || a4.borrow_mut().dial_filter_clear())),
+	};
+	win.stations.bind(app, hooks);
 
 	let a = app.clone();
 	win.frame.on_menu_selected(move |e| {

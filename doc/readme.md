@@ -142,11 +142,16 @@ due, playback stops.
 
 Ctrl+T opens Settings (File menu). The General checkboxes are Announce Song Titles, Announce
 Connection Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as
-I Move to It, Hide to the System Tray When Closed, and Maximize the Window at Startup. With
+I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, and Check
+for Updates Automatically (the daily update check; Help, Check for Updates always works). With
 Play a Station as I Move to It off, moving through a list only selects the station; Enter
 plays it. The Startup List chooses what the main list shows when the app starts: the default
-stations, All Playlists (every collection merged into one list), or one of your collections —
-an imported playlist is a collection, so your own playlists can be what opens. A station in
+stations, All Playlists, or one of your collections —
+an imported playlist is a collection, so your own playlists can be what opens. The main list
+is a tree: All Playlists shows one folder per playlist with its directories inside, and a
+single playlist shows its directories directly. Typing letters while the tree is focused
+filters it to the stations whose names contain them; Backspace edits the filter and Escape
+clears it. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on
@@ -206,6 +211,7 @@ settings are.
 | Ctrl+Shift+Left | Jump to start of buffer |
 | Ctrl+1 to Ctrl+6, Ctrl+0 | Sleep timer, off |
 | Alt+1 to Alt+0 | Play favorite 1 to 10 |
+| Alt+Left, Alt+Right | Previous / next station played this session |
 | Alt+V | Volume slider |
 | F1 | This guide |
 | Escape | Close the window |

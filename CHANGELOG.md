@@ -5,6 +5,14 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.16
+
+- The startup list keeps its folders now: the main window's station list is a tree, like the Collections window. With Startup List set to All Playlists, each playlist is a folder with its own directories inside; a single playlist shows its directories directly. Stations stay in the same order as before, so tuning, Play On Move, Delete and the context menus work as they always did, and folders you collapse stay collapsed.
+- Filter the tree by typing: with the station tree focused, typing letters narrows it to the stations whose names contain them — the message line shows the filter and how many stations match. Backspace edits the filter, Escape clears it and brings the whole tree back.
+- Previous Station and Next Station (Alt+Left and Alt+Right, in the Playback menu): step back and forward through the stations you have played this session, without hunting through lists — like a browser's back and forward buttons for stations.
+- The status bar reads with NVDA's status line command (NVDA+End) now: the frame builds its own status bar the standard way instead of attaching one afterwards, which the command could not find. It shows the station, how long it has played, the live or behind-live position, and the stream's format, bit rate and sample rate.
+- New setting: Check for Updates automatically (Settings, on by default). The daily update check already ran on its own; now you can turn it off and rely on Help, Check for Updates instead.
+
 ## 0.2.15
 
 - Three new networks, all broadcasting for blind and print-disabled listeners: ACB Media, with all ten channels from the American Council of the Blind (Mainstream, Treasure Trove, Cafe, Community, the live and special event channels, and the convention channels); Mushroom FM (Mushroom FM and Mushroom Escape, old-time radio drama and comedy); and Vision Australia Radio (Adelaide, Albury, Bendigo, Geelong, Melbourne, Perth and Shepparton). Every stream was checked live before shipping, and the Networks list stays in alphabetical order.

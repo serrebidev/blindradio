@@ -177,6 +177,9 @@ pub struct Settings {
 	pub main_list: Option<String>,
 	/// When the daily update check last ran, in seconds since the Unix epoch.
 	pub last_update_check: Option<u64>,
+	/// The daily update check runs automatically; off leaves only the
+	/// manual Check for Updates in the Help menu.
+	pub check_updates: bool,
 	pub timeshift: TimeshiftSettings,
 	pub recording: RecordSettings,
 	pub recognition: RecognitionSettings,
@@ -204,6 +207,7 @@ impl Default for Settings {
 			last_station: None,
 			main_list: None,
 			last_update_check: None,
+			check_updates: true,
 			timeshift: TimeshiftSettings::default(),
 			recording: RecordSettings::default(),
 			recognition: RecognitionSettings::default(),
@@ -287,7 +291,7 @@ mod tests {
 	#[test]
 	fn defaults_match_spec() {
 		let s = Settings::default();
-		assert!(s.announce_titles && s.announce_status && s.announce_actions);
+		assert!(s.announce_titles && s.announce_status && s.announce_actions && s.check_updates);
 		assert!(!s.close_lists_when_playing && !s.play_last_at_startup && !s.muted);
 		assert!(s.play_on_move && !s.close_to_tray && !s.maximize_on_start);
 		assert_eq!(s.audio_device, None);
