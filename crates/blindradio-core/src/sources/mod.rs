@@ -30,6 +30,7 @@ pub mod internet_radio;
 pub mod lautfm;
 pub mod networks;
 pub mod radio_browser;
+pub mod radionet;
 pub mod shoutcast;
 pub mod tunein;
 
@@ -287,6 +288,7 @@ pub struct Endpoints {
 	pub shoutcast: String,
 	pub internet_radio: String,
 	pub lautfm: String,
+	pub radionet: String,
 }
 
 impl Default for Endpoints {
@@ -300,6 +302,7 @@ impl Default for Endpoints {
 			shoutcast: "https://directory.shoutcast.com".into(),
 			internet_radio: "https://www.internet-radio.com".into(),
 			lautfm: "https://api.laut.fm".into(),
+			radionet: "https://prod.radio-api.net".into(),
 		}
 	}
 }
@@ -322,6 +325,7 @@ pub struct Sources {
 	shoutcast: shoutcast::Shoutcast,
 	internet_radio: internet_radio::InternetRadio,
 	lautfm: lautfm::LautFm,
+	radionet: radionet::RadioNet,
 	somafm_base: String,
 }
 
@@ -354,6 +358,7 @@ impl Sources {
 			shoutcast: shoutcast::Shoutcast::new(endpoints.shoutcast),
 			internet_radio: internet_radio::InternetRadio::new(endpoints.internet_radio),
 			lautfm: lautfm::LautFm::new(endpoints.lautfm),
+			radionet: radionet::RadioNet::new(endpoints.radionet),
 			somafm_base: endpoints.somafm,
 		}
 	}
@@ -377,6 +382,7 @@ impl Sources {
 			("shoutcast", "SHOUTcast"),
 			("internet-radio", "Internet-Radio"),
 			("lautfm", "laut.fm"),
+			("radionet", "Radio.net"),
 		]
 		.map(|(id, name)| Node::Folder {
 			id: id.into(),
@@ -400,6 +406,7 @@ impl Sources {
 			"shoutcast" => self.shoutcast.children(&self.client, id, sort).await,
 			"internet-radio" => self.internet_radio.children(&self.client, id).await,
 			"lautfm" => self.lautfm.children(&self.client, id, sort).await,
+			"radionet" => self.radionet.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
 			_ => Ok(vec![]),
 		}
@@ -416,7 +423,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, lautfm) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, lautfm, radionet) = tokio::join!(
 			bounded(self.rb.search(&self.client, q)),
 			async {
 				if name_given {
@@ -460,6 +467,13 @@ impl Sources {
 					vec![]
 				}
 			},
+			async {
+				if name_given {
+					bounded(self.radionet.search(&self.client, q)).await
+				} else {
+					vec![]
+				}
+			},
 		);
 		let mut seen = HashSet::new();
 		rb.into_iter()
@@ -469,6 +483,7 @@ impl Sources {
 			.chain(shoutcast)
 			.chain(internet_radio)
 			.chain(lautfm)
+			.chain(radionet)
 			.chain(networks::search(q))
 			.filter(|s| seen.insert(s.url.clone()))
 			.collect()

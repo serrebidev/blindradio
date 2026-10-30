@@ -34,7 +34,7 @@ Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any.
 Name box starts the search; the results replace the list and the first result plays.
 
 Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
-laut.fm and the curated networks. Genre, Country and Language filters apply to Radio
+laut.fm, Radio.net and the curated networks. Genre, Country and Language filters apply to Radio
 Browser; Icecast also matches Genre when a Name is given. Other directories use the Name
 box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
@@ -42,7 +42,8 @@ fails or takes too long is skipped so the others can still return results.
 ## Browsing
 
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
-holds Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio and laut.fm;
+holds Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio, laut.fm
+and Radio.net;
 Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
 that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
@@ -50,7 +51,9 @@ that is still loading says
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
 Stations and By Genre. laut.fm offers its sixty most popular genres, each listing up to
-250 stations. A listed station may be offline or unavailable in your region.
+250 stations. Radio.net offers its Top Stations and Local Stations. Radio Browser
+offers By Genre, By Country, By Language, By State and Top Stations. A listed station
+may be offline or unavailable in your region.
 
 Networks carries the broadcasters and internet networks, among them RTÉ, RNZ, Deutsche
 Welle, RFI, ORF, SRF, RAI, RTVE, NPO, NRK, DR, Sveriges Radio, Yle, KCRW, WNYC, MPR,

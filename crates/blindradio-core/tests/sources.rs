@@ -36,6 +36,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		shoutcast: s.base.clone(),
 		internet_radio: s.base.clone(),
 		lautfm: s.base.clone(),
+		radionet: s.base.clone(),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -76,7 +77,10 @@ async fn children_dispatch_by_prefix() {
 		src.children("rb", Sort::default()).await.unwrap(),
 		vec![
 			folder("rb/genres", "By Genre"),
-			folder("rb/countries", "By Country")
+			folder("rb/countries", "By Country"),
+			folder("rb/languages", "By Language"),
+			folder("rb/states", "By State"),
+			folder("rb/top", "Top Stations")
 		]
 	);
 	assert_eq!(
@@ -277,4 +281,25 @@ async fn history_found_by_url_after_dedupe() {
 	let mut copy = station("rb:u10", Source::RadioBrowser);
 	copy.url = "https://ice1.somafm.com/groovesalad-128-mp3".into();
 	assert_eq!(src.history(&copy).await.unwrap()[0].title, "Soma - Tune");
+}
+
+const RN_LIST: &str = r#"{"totalCount":2,"playables":[{"id":"one","name":"One FM","genres":["Pop"],"city":"Berlin","country":"DE","streams":[{"url":"http://rn.test/1","status":"VALID"}]},{"id":"two","name":"Two FM","genres":[],"city":"","country":"","streams":[{"url":"","status":"INVALID"}]}]}"#;
+
+#[tokio::test]
+async fn radionet_browse_and_search() {
+	let (_s, src) = sources(vec![
+		json("/stations/list-by-system-name", RN_LIST),
+		json("/stations/search", RN_LIST),
+	]);
+	let kids = src.children("radionet", Sort::default()).await.unwrap();
+	let names: Vec<&str> = kids.iter().map(|n| n.name()).collect();
+	assert_eq!(names, ["Top Stations", "Local Stations"]);
+	let top = src.children("radionet/top", Sort::default()).await.unwrap();
+	assert_eq!(top.len(), 1, "the streamless entry is skipped");
+	assert_eq!(top[0].name(), "One FM");
+	let hits = src.search(&q("one")).await;
+	assert!(
+		hits.iter().any(|s| s.name == "One FM" && s.source == Source::RadioNet),
+		"search reaches radio.net"
+	);
 }

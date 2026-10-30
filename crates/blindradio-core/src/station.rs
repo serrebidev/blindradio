@@ -12,6 +12,7 @@ pub enum Source {
 	Shoutcast,
 	InternetRadio,
 	LautFm,
+	RadioNet,
 	/// A curated network; the string is its display name.
 	Network(String),
 	#[default]
@@ -28,6 +29,7 @@ impl Source {
 			Source::Shoutcast => "SHOUTcast",
 			Source::InternetRadio => "Internet-Radio",
 			Source::LautFm => "laut.fm",
+			Source::RadioNet => "radio.net",
 			Source::Network(name) => name,
 			Source::Custom => "Custom",
 		}

@@ -27,6 +27,8 @@ struct Named {
 	iso_3166_1: String,
 	#[serde(default)]
 	stationcount: u32,
+	#[serde(default)]
+	country: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -237,6 +239,9 @@ impl RadioBrowser {
 			["rb"] => Ok(vec![
 				folder("rb/genres", "By Genre"),
 				folder("rb/countries", "By Country"),
+				folder("rb/languages", "By Language"),
+				folder("rb/states", "By State"),
+				folder("rb/top", "Top Stations"),
 			]),
 			["rb", "genres"] => {
 				let tags = self.list(client, "tags", LIST_TOP).await?;
@@ -275,6 +280,73 @@ impl RadioBrowser {
 						offset,
 						sort,
 					)
+					.await?;
+				Ok(page_nodes(raw, head, offset, |_| true))
+			}
+			["rb", "languages"] => {
+				let all = self
+					.list(client, "languages", "order=name&hidebroken=true")
+					.await?;
+				let mut seen = HashSet::new();
+				Ok(all
+					.into_iter()
+					.filter_map(|l| {
+						let name = l.name.trim().to_owned();
+						(!name.is_empty() && seen.insert(name.clone()))
+							.then(|| folder(format!("rb/language/{}", enc(&name)), name))
+					})
+					.collect())
+			}
+			["rb", "language", lang] => {
+				let lang = dec(lang);
+				let raw = self
+					.stations(client, &["stations", "bylanguageexact", &lang], "", offset, sort)
+					.await?;
+				Ok(page_nodes(raw, head, offset, |_| true))
+			}
+			["rb", "states"] => {
+				let all = self
+					.list(client, "states", "order=name&hidebroken=true")
+					.await?;
+				let mut seen = HashSet::new();
+				Ok(all
+					.into_iter()
+					.filter_map(|st| {
+						let name = st.name.trim().to_owned();
+						if name.is_empty() || !seen.insert(name.clone()) {
+							return None;
+						}
+						let country = st.country.trim();
+						let label = if country.is_empty() {
+							name.clone()
+						} else {
+							format!("{name} ({country})")
+						};
+						Some(folder(format!("rb/state/{}", enc(&name)), label))
+					})
+					.collect())
+			}
+			["rb", "state", state] => {
+				let state = dec(state);
+				// The server matches `state` as a substring; keep exact matches only.
+				let extra = format!("state={}", enc(&state));
+				let keep = |r: &RbStation| r.state.trim() == state;
+				let mut off = offset;
+				// A full page can filter to nothing; look a few pages further for a hit.
+				for pages in 1.. {
+					let raw = self
+						.stations(client, &["stations", "search"], &extra, off, sort)
+						.await?;
+					if pages == STATE_PAGES || raw.len() < PAGE || raw.iter().any(keep) {
+						return Ok(page_nodes(raw, head, off, keep));
+					}
+					off += PAGE;
+				}
+				unreachable!()
+			}
+			["rb", "top"] => {
+				let raw = self
+					.stations(client, &["stations", "topvote"], "", offset, sort)
 					.await?;
 				Ok(page_nodes(raw, head, offset, |_| true))
 			}

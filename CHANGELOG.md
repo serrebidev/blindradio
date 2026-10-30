@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.17
+
+- New directory: Radio.net, with Top Stations (the service's Top 100), Local Stations (stations near you, by the service's reckoning), and its catalogue folded into the app-wide search. Station entries arrive with their streams ready to play, no extra lookup.
+- Radio Browser completes its set: By Language and By State join By Genre and By Country, and Top Stations lists the most-voted stations. State lists keep exact matches only, as under each country.
+
 ## 0.2.16
 
 - The startup list keeps its folders now: the main window's station list is a tree, like the Collections window. With Startup List set to All Playlists, each playlist is a folder with its own directories inside; a single playlist shows its directories directly. Stations stay in the same order as before, so tuning, Play On Move, Delete and the context menus work as they always did, and folders you collapse stay collapsed.
