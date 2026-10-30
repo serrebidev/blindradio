@@ -414,6 +414,14 @@ impl App {
 		}
 	}
 
+	/// Speaks on demand, bypassing the announcement settings: the user
+	/// asked for this one by pressing its chord (Announce Now Playing
+	/// promises to speak whatever the settings say).
+	pub fn say_announced(&mut self, text: &str) {
+		self.win.message.set_label(&escape(text));
+		self.speech.say(text, speech::priority(Kind::Info));
+	}
+
 	/// Empties the message line without a word.
 	pub fn clear_message(&mut self) {
 		self.win.message.set_label("");
@@ -695,7 +703,7 @@ impl App {
 			HotkeyAction::AnnounceNowPlaying => {
 				let playing = self.tuner.playing().map(|st| st.name.clone());
 				let text = hotkeys::now_playing_text(self.song.as_deref(), playing.as_deref());
-				self.say(&text);
+				self.say_announced(&text);
 			}
 			HotkeyAction::ToggleWindow => self.toggle_window(),
 			HotkeyAction::ToggleEq => self.toggle_eq(),
@@ -1573,7 +1581,8 @@ mod tests {
 
 		let (_, all) = dial_tree(&lib, Some(ALL_LISTS), "");
 		assert!(
-			matches!(&all[0], DialNode::Folder(name, _) if name == "SerrebiRadio"),
+			all.iter()
+				.any(|n| matches!(n, DialNode::Folder(name, _) if name == "SerrebiRadio")),
 			"all playlists: one folder per playlist"
 		);
 

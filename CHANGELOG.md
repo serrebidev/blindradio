@@ -12,6 +12,7 @@ taken from this file by `cargo xtask release`.
 - Previous Station and Next Station (Alt+Left and Alt+Right, in the Playback menu): step back and forward through the stations you have played this session, without hunting through lists — like a browser's back and forward buttons for stations.
 - The status bar reads with NVDA's status line command (NVDA+End) now: the frame builds its own status bar the standard way instead of attaching one afterwards, which the command could not find. It shows the station, how long it has played, the live or behind-live position, and the stream's format, bit rate and sample rate.
 - New setting: Check for Updates automatically (Settings, on by default). The daily update check already ran on its own; now you can turn it off and rely on Help, Check for Updates instead.
+- Announce Now Playing (Ctrl+Alt+Shift+N) speaks again when Announce Actions is off: it was routed through the action announcements that the 0.2.14 setting gates, but the chord is an on-demand request and is documented to speak whatever the announcement settings say — now it does.
 
 ## 0.2.15
 
