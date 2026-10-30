@@ -129,11 +129,22 @@ fn curated_network_channels_and_search() {
 				station.id.clone()
 			})
 			.collect();
-		let expected: Vec<_> = expected
+		let mut expected: Vec<_> = expected
 			.iter()
 			.map(|station| format!("net:{slug}:{station}"))
 			.collect();
-		assert_eq!(ids, expected);
+		// Membership is the contract here; children come back in name order.
+		let mut ids_sorted = ids.clone();
+		ids_sorted.sort();
+		expected.sort();
+		assert_eq!(ids_sorted, expected);
+		let names: Vec<String> = nodes
+			.iter()
+			.map(|node| node.name().to_lowercase())
+			.collect();
+		let mut names_sorted = names.clone();
+		names_sorted.sort();
+		assert_eq!(names, names_sorted, "stations in name order");
 	}
 	for (name, id) in [
 		("Main Mix", "net:radio-paradise:main-mix"),
@@ -246,24 +257,31 @@ fn networks_children_and_ids() {
 		roots.len(),
 		networks().iter().filter(|n| n.stations.len() > 1).count()
 	);
-	assert_eq!(
-		roots[0],
-		Node::Folder {
-			id: "net/bbc".into(),
-			name: "BBC".into()
-		}
-	);
+	// Roots come back in name order, BBC among them.
+	let root_names: Vec<String> = roots.iter().map(|n| n.name().to_lowercase()).collect();
+	let mut root_names_sorted = root_names.clone();
+	root_names_sorted.sort();
+	assert_eq!(root_names, root_names_sorted, "networks in name order");
+	assert!(roots.contains(&Node::Folder {
+		id: "net/bbc".into(),
+		name: "BBC".into()
+	}));
 	let bbc = &networks()[0];
 	let nodes = children("net/bbc");
 	assert_eq!(nodes.len(), bbc.stations.len());
 	let Node::Station(first) = &nodes[0] else {
 		panic!("{:?}", nodes[0])
 	};
-	assert_eq!(first.id, format!("net:bbc:{}", bbc.stations[0].slug));
-	assert_eq!(first.name, bbc.stations[0].name);
-	assert_eq!(first.url, bbc.stations[0].url);
+	let first_by_name = bbc
+		.stations
+		.iter()
+		.min_by_key(|st| st.name.to_lowercase())
+		.expect("bbc has stations");
+	assert_eq!(first.id, format!("net:bbc:{}", first_by_name.slug));
+	assert_eq!(first.name, first_by_name.name);
+	assert_eq!(first.url, first_by_name.url);
 	assert_eq!(first.source, Source::Network("BBC".into()));
-	assert_eq!(first.info, bbc.stations[0].info);
+	assert_eq!(first.info, first_by_name.info);
 	assert!(children("net/nope").is_empty());
 	assert!(children("rb").is_empty());
 }
