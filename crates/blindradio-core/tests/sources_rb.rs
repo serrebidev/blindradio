@@ -42,7 +42,10 @@ fn names(nodes: &[Node]) -> Vec<&str> {
 async fn rb_root_has_genre_and_country() {
 	let (_s, rb) = rb(vec![]);
 	let nodes = rb.children(&client(), "rb", Sort::default()).await.unwrap();
-	assert_eq!(names(&nodes), ["By Genre", "By Country"]);
+	assert_eq!(
+		names(&nodes),
+		["By Genre", "By Country", "By Language", "By State", "Top Stations"]
+	);
 }
 
 #[tokio::test]
