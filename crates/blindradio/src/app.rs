@@ -515,6 +515,13 @@ impl App {
 					self.say(s::REC_PAUSED);
 				}
 			}
+			Action::RecordSongs => {
+				self.settings.recording.split_songs = !self.settings.recording.split_songs;
+				let on = self.settings.recording.split_songs;
+				self.save_settings();
+				self.refresh_menus();
+				self.say(if on { s::REC_SONGS_ON } else { s::REC_SONGS_OFF });
+			}
 			Action::SaveBuffer => self.save_buffer(),
 			Action::SeekBack => self.seek(-1),
 			Action::SeekForward => self.seek(1),
@@ -828,6 +835,15 @@ impl App {
 				}
 				self.history.station_changed(&station_id);
 				self.history.title(title.as_deref(), SystemTime::now());
+				// Song-split recording rides the same event: the tuner
+				// closes the finished song's file and opens the new
+				// one when the mode is on; off, this does nothing.
+				if let Some(song) = &title
+					&& let Some(done) = self.tuner.split_recording(song)
+					&& let Err(e) = done
+				{
+					self.say(&e.to_string());
+				}
 			}
 			TunerEvent::Announce(song) => self.say_kind(Kind::Title, &song),
 			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, s::RECONNECTING),
@@ -1107,11 +1123,15 @@ impl App {
 	}
 
 	fn show_line(&self, text: &str) {
-		// The frame title is what Alt+Tab and a screen reader's title
-		// command announce: the app's name first, then the station and
-		// the song, never the status suffixes.
+		// The frame title carries the whole status line (Brandon's
+		// call after NVDA+End kept missing the bar): the app's name,
+		// then the line itself — station, song, played time, format.
+		// A screen reader's title command and Alt+Tab read it from
+		// anywhere. Stopped, the title falls back to the base.
 		let base = self.status_base.borrow().clone();
-		let title = if base.is_empty() {
+		let title = if !text.is_empty() {
+			format!("{} - {}", s::APP_NAME, text)
+		} else if base.is_empty() {
 			s::APP_NAME.to_string()
 		} else {
 			format!("{} - {}", s::APP_NAME, base)

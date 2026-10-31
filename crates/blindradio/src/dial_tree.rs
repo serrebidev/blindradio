@@ -9,14 +9,16 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use blindradio_core::library::{Folder, Library};
 use blindradio_core::station::Station;
 use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
 use crate::action::Action;
-use crate::app::App;
+use crate::app::{ALL_LISTS, App, dial_collection};
 use crate::context_menu::{self, Target};
 use crate::main_window::dispatch;
+use crate::strings as s;
 
 /// What a tree row is. A station row carries its index into the flat dial
 /// order; a folder row carries its path key, for keeping it collapsed or
@@ -97,6 +99,13 @@ impl DialTree {
 			Some(Row::Station(i)) => Some(i),
 			_ => None,
 		}
+	}
+
+	/// The selected row itself, folder or station: the Applications
+	/// key acts on the row, not only on stations.
+	pub fn selected_row(&self) -> Option<Row> {
+		let item = self.list.get_selection()?;
+		self.row(&item)
 	}
 
 	fn item_of(&self, index: usize) -> Option<TreeItemId> {
@@ -277,6 +286,28 @@ impl DialTree {
 		self.list
 			.bind_internal(EventType::CONTEXT_MENU, move |e: Event| {
 				e.skip(false);
+				// A folder row exports, like Browse's folders do; the
+				// main window used to offer a folder nothing at all.
+				if let Some(Row::Folder(key)) = me.selected_row() {
+					let data = {
+						let held = a.borrow();
+						folder_export(&held.library, held.settings.main_list.as_deref(), &key)
+					};
+					match data {
+						Some((name, stations, folders)) => {
+							let items = [context_menu::Item::Export];
+							if let Some(context_menu::Choice::Export) =
+								context_menu::popup(&me.list, &items)
+							{
+								context_menu::export_playlist(
+									&a, &me.list, &name, &stations, &folders,
+								);
+							}
+						}
+						None => a.borrow_mut().say(s::NOTHING_TO_DO),
+					}
+					return;
+				}
 				let focused = me
 					.current()
 					.and_then(|i| me.stations().get(i).cloned().map(|st| (i, st)));
@@ -300,4 +331,41 @@ impl DialTree {
 				}
 			});
 	}
+}
+
+/// A folder found by walking names, level by level.
+fn folder_by_names<'a>(folders: &'a [Folder], names: &[&str]) -> Option<&'a Folder> {
+	let (first, rest) = names.split_first()?;
+	let folder = folders.iter().find(|f| f.name == *first)?;
+	if rest.is_empty() {
+		Some(folder)
+	} else {
+		folder_by_names(&folder.folders, rest)
+	}
+}
+
+/// What Export writes for a dial folder row, as (name, loose stations,
+/// folders): the folder itself, or — at the top of the All Lists view,
+/// where a folder row is a whole collection — everything in it.
+fn folder_export(
+	lib: &Library,
+	main_list: Option<&str>,
+	key: &str,
+) -> Option<(String, Vec<Station>, Vec<Folder>)> {
+	let names: Vec<&str> = key.split('/').collect();
+	if main_list == Some(ALL_LISTS) {
+		let collection = lib.collections.iter().find(|c| c.name == names[0])?;
+		if names.len() == 1 {
+			return Some((
+				collection.name.clone(),
+				collection.stations.clone(),
+				collection.folders.clone(),
+			));
+		}
+		let folder = folder_by_names(&collection.folders, &names[1..])?;
+		return Some((folder.name.clone(), Vec::new(), vec![folder.clone()]));
+	}
+	let collection = dial_collection(lib, main_list)?;
+	let folder = folder_by_names(&collection.folders, &names)?;
+	Some((folder.name.clone(), Vec::new(), vec![folder.clone()]))
 }

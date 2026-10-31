@@ -105,6 +105,9 @@ pub struct RecordSettings {
 	pub mp3_vbr: bool,
 	/// None is the app's default recordings folder.
 	pub dir: Option<String>,
+	/// Record each song to its own file: a new stream title closes
+	/// the current file and opens one named for the new song.
+	pub split_songs: bool,
 }
 
 impl Default for RecordSettings {
@@ -114,6 +117,7 @@ impl Default for RecordSettings {
 			mp3_bitrate_kbps: 192,
 			mp3_vbr: false,
 			dir: None,
+			split_songs: false,
 		}
 	}
 }

@@ -15,6 +15,7 @@ pub enum Action {
 	Record,
 	/// Pause or resume the active recording.
 	RecordPause,
+	RecordSongs,
 	/// Save the time-shift buffer to a WAV file in the recordings folder.
 	SaveBuffer,
 	/// The scheduled recordings list dialog.

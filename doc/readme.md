@@ -50,7 +50,8 @@ that is still loading says
 Shift+Up and Shift+Down move a folder among the folders on its level (Alt+Up and
 Alt+Down work too). A folder in Collections or Custom Stations moves in your library
 itself; a directory folder keeps the order you give it, remembered between sessions,
-since the directory's own order is not yours to change.
+since the directory's own order is not yours to change. The main window's list takes
+the new order as soon as Browse closes — no restart.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and
 naming how many stations go with it; a directory's folders are the directory's
@@ -100,6 +101,9 @@ Played, and from there it can be favorited or added to a collection like any sta
 ## Exporting
 
 Favorites and Collections each have an Export button that writes an M3U through a save dialog.
+The main window's tree exports too: a station from its menu, and a folder — a directory,
+a subdirectory, or a whole collection in the All Lists view — from the folder's own menu,
+with everything under it written as M3U groups, the way Browse exports them.
 
 ## Your own stations
 
@@ -126,9 +130,10 @@ through the default.
 
 ## Equalizer
 
-Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Choosing a preset or
-moving a band enables the equalizer and is heard at once; Enabled is the off switch.
-Choosing a preset moves the sliders and reads the bands. The presets are Flat, Bass
+Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Moving a band enables
+the equalizer and is heard at once. Choosing a preset only moves the sliders and reads
+the bands — Enabled stays exactly as you left it, so arrowing through presets to compare
+them never switches the equalizer on; check Enabled yourself to hear one. The presets are Flat, Bass
 Boost, Treble Boost, Bass and Treble, Loudness, Voice, Warm, Clarity, Laptop Speakers
 and Custom. The bands reach further into the middle of the spectrum than they used to,
 so a preset is plainly heard on speakers as well as headphones; Loudness is the
@@ -170,6 +175,12 @@ Ctrl+R starts and stops a recording of the playing station; files land in the re
 folder, in the format Settings chooses. Playback, Write Buffer writes the whole time-shift
 buffer — everything the station has played since you tuned in, up to the buffer's length —
 to a WAV file in the same folder, named like a recording.
+
+Playback, Record Each Song Separately is a recording mode for stations that name their
+songs: while it is checked, a recording closes the current file when a new song starts
+and opens one named for the station and the song, and so on until you stop the recording.
+Stations that never name a song simply record as one file, as usual. Pausing a recording
+carries across a song change.
 
 Playback, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
 a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage the list;
@@ -225,20 +236,18 @@ and playback continues.
 
 ## Now playing
 
-The window title is the playing station's name alone. The now-playing line shows `Station` or
-`Station - Song`, with how long it has played and the stream's format, such as
-`MP3, 128 kbps, 44.1 kHz, stereo`. Ctrl+Alt+Shift+N says it whatever your announcement
-settings are.
+The now-playing line shows `Station` or `Station - Song`, with how long it has played and
+the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. The window title carries
+the whole line — `BlindRadio`, then the line itself — so a screen reader's title command
+and Alt+Tab hear everything it says, played time and format included. Ctrl+Alt+Shift+N
+says it whatever your announcement settings are.
 
 The global hot keys work from any app. With NVDA running, announcements are spoken by
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
-window. NVDA's own status line command, NVDA+End, reads the same line; on Windows the
-status bar sits in its own thin window along the main window's bottom edge, exactly
-where that command looks, and the bar also answers UI Automation queries itself —
-as a status bar, named with the current line, over the whole bottom edge — so the
-command works whichever way NVDA asks, with no add-on and nothing to install. On
-Linux the status bar is a standard part of the main window, which Orca reads the
-same way.
+window. The status bar itself still holds the line: on Windows it sits in its own thin
+window along the main window's bottom edge and answers UI Automation queries as a
+status bar named with the current line, and on Linux it is a standard part of the main
+window, which Orca reads the same way.
 
 ## Keyboard shortcuts
 

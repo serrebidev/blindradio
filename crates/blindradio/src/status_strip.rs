@@ -126,11 +126,6 @@ pub fn sync(win: &MainWindow) {
 			return;
 		}
 		if IsWindowVisible(frame_hwnd) == 0 || IsIconic(frame_hwnd) != 0 {
-			// wx's own bookkeeping agrees with the Win32 state, so wx
-			// never "corrects" the strip back to hidden behind us.
-			if strip.is_shown() {
-				strip.hide();
-			}
 			ShowWindow(strip_hwnd, SW_HIDE);
 			return;
 		}
@@ -152,9 +147,12 @@ pub fn sync(win: &MainWindow) {
 				SWP_NOACTIVATE,
 			);
 		}
-		if !strip.is_shown() {
-			strip.show(true);
-		}
+		// Visibility is raw Win32 only, never wx's Show: showing a
+		// frame through wx activates it, and 0.2.21's wx show here
+		// stole the foreground from the main window at startup (and
+		// after every restore) — NVDA announced the nameless strip
+		// ("Pane") and the station tree lost focus until Alt+Tab.
+		// SW_SHOWNA shows without activating, as 0.2.20 did.
 		ShowWindow(strip_hwnd, SW_SHOWNA);
 	}
 }

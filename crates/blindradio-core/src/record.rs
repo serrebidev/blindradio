@@ -182,12 +182,45 @@ impl Recorder {
 		rate: u32,
 		source_ext: &str,
 	) -> Result<Recorder> {
-		std::fs::create_dir_all(dir)?;
 		let now = SystemTime::now()
 			.duration_since(UNIX_EPOCH)
 			.map(|d| d.as_secs())
 			.unwrap_or(0);
 		let stem = format!("{} {}", file_stem(station), stamp(now));
+		Self::start_stem(dir, &stem, settings, rate, source_ext)
+	}
+
+	/// A song-split recording's file: named for the station and the
+	/// song, so a folder of them reads as the songs themselves.
+	pub fn start_song(
+		dir: &Path,
+		station: &str,
+		song: &str,
+		settings: &RecordSettings,
+		rate: u32,
+		source_ext: &str,
+	) -> Result<Recorder> {
+		let now = SystemTime::now()
+			.duration_since(UNIX_EPOCH)
+			.map(|d| d.as_secs())
+			.unwrap_or(0);
+		let stem = format!(
+			"{} - {} {}",
+			file_stem(station),
+			file_stem(song),
+			stamp(now)
+		);
+		Self::start_stem(dir, &stem, settings, rate, source_ext)
+	}
+
+	fn start_stem(
+		dir: &Path,
+		stem: &str,
+		settings: &RecordSettings,
+		rate: u32,
+		source_ext: &str,
+	) -> Result<Recorder> {
+		std::fs::create_dir_all(dir)?;
 		let make = |ext: &str| dir.join(format!("{stem}.{ext}"));
 		match settings.format {
 			RecordFormat::Original => {
@@ -391,6 +424,27 @@ mod tests {
 		let reader = hound::WavReader::open(&path).unwrap();
 		assert_eq!(reader.spec().sample_rate, 8000);
 		assert_eq!(reader.duration(), 8000);
+	}
+
+	#[test]
+	fn song_recording_is_named_for_the_song() {
+		let d = tempfile::tempdir().unwrap();
+		let r = Recorder::start_song(
+			d.path(),
+			"Test FM",
+			"Sylver - Take Me Back",
+			&settings(RecordFormat::Wav),
+			8000,
+			"mp3",
+		)
+		.unwrap();
+		let name = r.path().file_name().unwrap().to_str().unwrap().to_string();
+		assert!(
+			name.starts_with("Test FM - Sylver - Take Me Back "),
+			"{name}"
+		);
+		assert!(name.ends_with(".wav"), "{name}");
+		r.stop().unwrap();
 	}
 
 	#[test]

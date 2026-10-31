@@ -292,6 +292,9 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	ring_tap: Option<Arc<crate::stream::RingTap>>,
 	capture: Option<Arc<ShiftBuffer>>,
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// Song-split recording: the song the current file is recording,
+	/// so a title event for the same song does not split it again.
+	record_song: Option<String>,
 	/// The playing station's current song title and when it started.
 	song: Option<(String, Instant)>,
 	last_recog: Option<Instant>,
@@ -326,6 +329,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			ring_tap: None,
 			capture: None,
 			record_slot: None,
+			record_song: None,
 			song: None,
 			last_recog: None,
 			recog_in_flight: false,
@@ -747,6 +751,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.shift = None;
 		self.capture = None;
 		self.record_slot = None;
+		self.record_song = None;
 		self.song = None;
 	}
 
@@ -849,21 +854,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.is_some_and(|slot| slot.lock().is_some())
 	}
 
-	/// Starts recording the playing station; returns the file path.
-	pub fn start_recording(&mut self) -> Result<PathBuf> {
-		let station = self
-			.playing
-			.clone()
-			.ok_or_else(|| CoreError::Output("Nothing is playing".into()))?;
-		let slot = self
-			.record_slot
-			.clone()
-			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
-		let settings = self
-			.settings
-			.as_ref()
-			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
-		let settings = settings.lock().clone();
+	/// Where a recording goes, its source extension, and the settings
+	/// snapshot: everything starting or splitting one needs.
+	fn recording_plan(&self) -> Option<(PathBuf, String, crate::settings::Settings)> {
+		let station = self.playing.as_ref()?;
+		let settings = self.settings.as_ref()?.lock().clone();
 		let dir = settings
 			.recording
 			.dir
@@ -880,21 +875,117 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					"mp3" | "aac" | "ogg" | "flac" | "m4a"
 				)
 			})
-			.unwrap_or("mp3");
-		let rec = Recorder::start(
-			&dir,
-			&station.name,
-			&settings.recording,
-			self.factory.rate(),
-			ext,
-		)?;
+			.unwrap_or("mp3")
+			.to_string();
+		Some((dir, ext, settings))
+	}
+
+	/// Starts recording the playing station; returns the file path.
+	/// In song-split mode the first file is already named for the
+	/// song playing, when the station has said what it is.
+	pub fn start_recording(&mut self) -> Result<PathBuf> {
+		let station = self
+			.playing
+			.clone()
+			.ok_or_else(|| CoreError::Output("Nothing is playing".into()))?;
+		let slot = self
+			.record_slot
+			.clone()
+			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
+		let (dir, ext, settings) = self
+			.recording_plan()
+			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
+		let song = self.song.as_ref().map(|(title, _)| title.clone());
+		let (rec, record_song) = if settings.recording.split_songs {
+			match &song {
+				Some(song) => (
+					Recorder::start_song(
+						&dir,
+						&station.name,
+						song,
+						&settings.recording,
+						self.factory.rate(),
+						&ext,
+					)?,
+					Some(song.clone()),
+				),
+				None => (
+					Recorder::start(
+						&dir,
+						&station.name,
+						&settings.recording,
+						self.factory.rate(),
+						&ext,
+					)?,
+					None,
+				),
+			}
+		} else {
+			(
+				Recorder::start(
+					&dir,
+					&station.name,
+					&settings.recording,
+					self.factory.rate(),
+					&ext,
+				)?,
+				None,
+			)
+		};
 		let path = rec.path().to_path_buf();
 		*slot.lock() = Some(rec);
+		self.record_song = record_song;
 		Ok(path)
+	}
+
+	/// Song-split recording: a new song closes the current file and
+	/// opens one named for it. Returns the finished file's result, or
+	/// None when there is nothing to split (not recording, the mode
+	/// is off, or the song is the one already recording).
+	pub fn split_recording(&mut self, song: &str) -> Option<Result<PathBuf>> {
+		if song.is_empty() || !self.is_recording() {
+			return None;
+		}
+		if self.record_song.as_deref() == Some(song) {
+			return None;
+		}
+		let (dir, ext, settings) = self.recording_plan()?;
+		if !settings.recording.split_songs {
+			return None;
+		}
+		let station = self.playing.clone()?;
+		let slot = self.record_slot.clone()?;
+		let paused = slot.lock().as_ref().is_some_and(|rec| rec.is_paused());
+		let old = slot.lock().take()?;
+		self.record_song = Some(song.to_string());
+		let done = old.stop();
+		if done.is_err() {
+			self.record_song = None;
+			return Some(done);
+		}
+		match Recorder::start_song(
+			&dir,
+			&station.name,
+			song,
+			&settings.recording,
+			self.factory.rate(),
+			&ext,
+		) {
+			Ok(mut rec) => {
+				rec.set_paused(paused);
+				*slot.lock() = Some(rec);
+				Some(done)
+			}
+			Err(e) => {
+				self.record_song = None;
+				Some(Err(e))
+			}
+		}
 	}
 
 	/// Stops the recording, returning its file path.
 	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
+		self.record_song = None;
 		let slot = self.record_slot.clone()?;
 		slot.lock().take().map(|rec| rec.stop())
 	}

@@ -58,9 +58,9 @@ pub fn set_band(settings: &mut EqSettings, band: Band, db: i32) {
 /// A preset moves the bands with it; Custom restores its own stored
 /// bands (the shipped bug: coming back to Custom kept whichever named
 /// preset had overwritten the fields last, so the hand-tuned set was
-/// gone). Choosing a preset enables the equalizer, so the choice is
-/// heard the moment it is made (the DVBViewer behaviour); the Enabled
-/// box is the one explicit off switch.
+/// gone). Choosing a preset never touches Enabled (Brandon's rule):
+/// arrowing through presets to compare them must not switch the
+/// equalizer on — the Enabled box is the user's switch alone.
 pub fn apply_preset(settings: &mut EqSettings, preset: EqPreset) {
 	settings.preset = preset;
 	settings.saved_name = None;
@@ -73,7 +73,6 @@ pub fn apply_preset(settings: &mut EqSettings, preset: EqPreset) {
 	} else if let Some((bass, mid, treble)) = preset.bands() {
 		(settings.bass, settings.mid, settings.treble) = (bass, mid, treble);
 	}
-	settings.enabled = true;
 }
 
 /// A saved preset applies like a built-in one and becomes the Custom
@@ -84,7 +83,6 @@ pub fn apply_saved(settings: &mut EqSettings, saved: &SavedEqPreset) {
 		(saved.bass, saved.mid, saved.treble);
 	settings.preset = EqPreset::Custom;
 	settings.saved_name = Some(saved.name.clone());
-	settings.enabled = true;
 }
 
 /// Save the current bands under `name`, replacing a preset of the same
@@ -419,14 +417,22 @@ mod tests {
 	}
 
 	#[test]
-	fn choosing_or_moving_enables_the_equalizer() {
-		// The shipped bug: EqSettings starts disabled, and picking a
-		// preset left it disabled, so nothing anyone chose was heard.
+	fn choosing_a_preset_never_enables_the_equalizer() {
+		// Brandon's rule: arrowing through presets to compare them
+		// kept checking Enabled on its own. The box is manual; only a
+		// hand band move (a deliberate edit) still enables.
 		let mut eq = EqSettings::default();
 		assert!(!eq.enabled);
 		apply_preset(&mut eq, EqPreset::BassBoost);
-		assert!(eq.enabled, "a chosen preset is heard at once");
-		eq.enabled = false;
+		assert!(!eq.enabled, "a chosen preset leaves Enabled alone");
+		let saved = SavedEqPreset {
+			name: "X".into(),
+			bass: 1,
+			mid: 2,
+			treble: 3,
+		};
+		apply_saved(&mut eq, &saved);
+		assert!(!eq.enabled, "a saved preset leaves Enabled alone");
 		set_band(&mut eq, Band::Bass, 3);
 		assert!(eq.enabled, "a hand move is heard at once");
 	}

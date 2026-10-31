@@ -72,6 +72,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::NEXT_STATION, "Alt+Right", A::NextStation),
 				Item(s::RECORD, "Ctrl+R", A::Record),
 				Item(s::RECORD_PAUSE, "Ctrl+Shift+R", A::RecordPause),
+				Item(s::RECORD_SONGS, "", A::RecordSongs),
 				Item(s::SAVE_BUFFER, "", A::SaveBuffer),
 				Item(s::SCHEDULED_RECORDINGS, "", A::ScheduledRecordings),
 				Separator,
@@ -162,7 +163,23 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 				if *action == Action::ToggleFavorite {
 					ids.favorite = id;
 				}
-				menu.append(id, &menu_label(label, keys), "", ItemKind::Normal);
+				// The song-split recording mode is a check: its state
+				// is the setting, read at build like the devices are.
+				if *action == Action::RecordSongs {
+					let item = menu.append(
+						id,
+						&menu_label(label, keys),
+						"",
+						ItemKind::Check,
+					);
+					if let Some(item) = item
+						&& settings.recording.split_songs
+					{
+						item.check(true);
+					}
+				} else {
+					menu.append(id, &menu_label(label, keys), "", ItemKind::Normal);
+				}
 			}
 			Entry::Devices => {
 				let sub = Menu::builder().build();
@@ -265,6 +282,7 @@ mod tests {
 			("Stop", "Ctrl+S"),
 			("Record", "Ctrl+R"),
 			("Pause Recording", "Ctrl+Shift+R"),
+			("Record Each Song Separately", ""),
 			("Skip Back", "F6"),
 			("Skip Forward", "F7"),
 			("Jump to Start of Buffer", "F5"),

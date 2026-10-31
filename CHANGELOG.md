@@ -5,6 +5,15 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.22
+
+- Fixed a serious startup regression from 0.2.21: as the app started, NVDA announced "Pane" and the station tree would not take focus until Alt+Tab was pressed a few times, and the same theft could recur later. The status strip was being shown through wx as well as directly, and showing a window through wx activates it — the nameless strip kept taking the foreground from the main window. The strip is shown directly again, as in 0.2.20, which never activates it.
+- The status line moved into the window title. NVDA+End still found no status line on the machines that matter, so the title now carries the whole line — station, song, how long it has played, and the stream's format (bit and sample rates) — refreshed every second. A title command or Alt+Tab reads it all.
+- The main window exports folders. Its tree's menu on a folder — a directory, a subdirectory, or a whole collection in the All Lists view — now offers Export, writing everything under it as an M3U with groups, like Browse does; before, only single stations could be exported there.
+- Browse reorders show in the main window at once. Reordering folders in Browse wrote the new order but the main window's list kept the old one until a restart; it rebuilds as soon as Browse closes.
+- Choosing an equalizer preset no longer checks Enabled by itself. Arrowing through presets to compare them kept switching the equalizer on; Enabled is manual now, for built-in and saved presets alike. Moving a band by hand still enables it.
+- New recording mode: Record Each Song Separately (Playback menu). On a station that names its songs, recording closes the current file when a new song starts and opens one named for the station and the song, until you stop. Stations that name no songs record as one file, as usual; a paused recording stays paused across a song change.
+
 ## 0.2.21
 
 - Loudness now levels the volume itself, not only the tone. A fixed EQ curve cannot make a quiet station louder than a loud one — that takes riding the gain, which is what FFmpeg's dynaudnorm filter and mpv's normalization do (the audited consensus for live sources). The Loudness preset now does the same: quiet stations are brought up toward the level of loud ones, hot stations are eased down, a soft ceiling keeps it from ever clipping, and near-silence is left alone so dead air is not amplified. Leaving the preset eases the gain back to normal.

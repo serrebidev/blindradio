@@ -164,6 +164,11 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			if let Some(next) = dialogs::browse::show(app) {
 				dispatch(app, next);
 			}
+			// Reordering folders in Browse writes the library (and the
+			// saved order); the dial behind the dialog was built before
+			// it opened and stayed stale until a restart. Rebuild it
+			// now, whatever the dialog did — focus follows the station.
+			app.borrow_mut().refresh_dial();
 		}
 		Action::OpenFavorites => {
 			if let Some(next) = dialogs::favorites::show(app) {
