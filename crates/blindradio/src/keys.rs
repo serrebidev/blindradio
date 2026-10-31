@@ -792,7 +792,8 @@ mod tests {
 			.insert(K::Play.id().into(), "Ctrl+Shift+P".into());
 		let model = Model::from_settings(&settings);
 		assert_eq!(
-			model.chord(0, K::Play).map(|c| c.to_shortcut_string()),
+			wx_utils::shortcuts::ShortcutModel::chord(&model, 0, K::Play)
+				.map(|c| c.to_shortcut_string()),
 			Some("Ctrl+Shift+P".to_string())
 		);
 		assert_eq!(model.to_settings(), settings.keys);

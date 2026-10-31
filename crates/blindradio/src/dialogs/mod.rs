@@ -175,6 +175,26 @@ mod tests {
 		)
 	}
 
+	/// The old signature over a fresh install's defaults.
+	fn route_focused(
+		own: &Action,
+		code: i32,
+		ctrl: bool,
+		alt: bool,
+		shift: bool,
+		in_text: bool,
+	) -> Route {
+		super::route_focused(
+			&blindradio_core::settings::Settings::default(),
+			own,
+			code,
+			ctrl,
+			alt,
+			shift,
+			in_text,
+		)
+	}
+
 	#[test]
 	fn app_keys_in_text_field() {
 		let own = Action::OpenSearch;
