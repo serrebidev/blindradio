@@ -42,8 +42,12 @@ fails or takes too long is skipped so the others can still return results.
 ## Browsing
 
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
-holds Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio, laut.fm
-and Radio.net;
+holds the BlindRadio Directory, Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast,
+Internet-Radio, laut.fm
+and Radio.net. The BlindRadio Directory is the community's own submitted stations,
+kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
+folder (a country or a category), and the app reads the repository live, so new
+submissions appear in Browse without an app update;
 Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
 that is still loading says
 `Loading`. Enter on `Load More` loads the next page.

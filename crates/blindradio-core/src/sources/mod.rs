@@ -24,6 +24,7 @@ impl Node {
 	}
 }
 
+pub mod directory;
 pub mod icecast;
 pub mod iheart;
 pub mod internet_radio;
@@ -289,6 +290,7 @@ pub struct Endpoints {
 	pub internet_radio: String,
 	pub lautfm: String,
 	pub radionet: String,
+	pub directory: String,
 }
 
 impl Default for Endpoints {
@@ -303,6 +305,7 @@ impl Default for Endpoints {
 			internet_radio: "https://www.internet-radio.com".into(),
 			lautfm: "https://api.laut.fm".into(),
 			radionet: "https://prod.radio-api.net".into(),
+			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
 		}
 	}
 }
@@ -326,6 +329,7 @@ pub struct Sources {
 	internet_radio: internet_radio::InternetRadio,
 	lautfm: lautfm::LautFm,
 	radionet: radionet::RadioNet,
+	directory: directory::Directory,
 	somafm_base: String,
 }
 
@@ -359,6 +363,7 @@ impl Sources {
 			internet_radio: internet_radio::InternetRadio::new(endpoints.internet_radio),
 			lautfm: lautfm::LautFm::new(endpoints.lautfm),
 			radionet: radionet::RadioNet::new(endpoints.radionet),
+			directory: directory::Directory::new(endpoints.directory),
 			somafm_base: endpoints.somafm,
 		}
 	}
@@ -383,6 +388,7 @@ impl Sources {
 			("internet-radio", "Internet-Radio"),
 			("lautfm", "laut.fm"),
 			("radionet", "Radio.net"),
+			("brdir", "BlindRadio Directory"),
 		]
 		.map(|(id, name)| Node::Folder {
 			id: id.into(),
@@ -407,6 +413,7 @@ impl Sources {
 			"internet-radio" => self.internet_radio.children(&self.client, id).await,
 			"lautfm" => self.lautfm.children(&self.client, id, sort).await,
 			"radionet" => self.radionet.children(&self.client, id).await,
+			"brdir" => self.directory.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
 			_ => Ok(vec![]),
 		}

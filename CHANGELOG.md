@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.26
+
+- Browse gains the BlindRadio Directory: community-submitted stations kept in the BlindRadio-directory repository on GitHub, starting with 14 playlists and 1,270 stations (UK, Germany, France, Canada, Public Radio, Classical Music, and more). Each playlist is a folder; stations keep their names and groups, and the app reads the repository live, so stations merged there appear in Browse without an app update. Submissions are welcome by pull request to that repository.
+
 ## 0.2.25
 
 - The status bar no longer repeats the station and song: it carries the played time, live or how far behind live, the recording state and the stream format. The station and song stay in the title and the now-playing line, where they no longer crowd the bar.

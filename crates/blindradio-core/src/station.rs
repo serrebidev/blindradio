@@ -13,6 +13,8 @@ pub enum Source {
 	InternetRadio,
 	LautFm,
 	RadioNet,
+	/// The BlindRadio Directory of submitted stations.
+	Directory,
 	/// A curated network; the string is its display name.
 	Network(String),
 	#[default]
@@ -30,6 +32,7 @@ impl Source {
 			Source::InternetRadio => "Internet-Radio",
 			Source::LautFm => "laut.fm",
 			Source::RadioNet => "radio.net",
+			Source::Directory => "BlindRadio Directory",
 			Source::Network(name) => name,
 			Source::Custom => "Custom",
 		}

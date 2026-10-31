@@ -37,6 +37,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		internet_radio: s.base.clone(),
 		lautfm: s.base.clone(),
 		radionet: s.base.clone(),
+		directory: s.base.clone(),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -72,6 +73,17 @@ async fn children_dispatch_by_prefix() {
 			r#"{"body":[{"type":"link","text":"Africa","guide_id":"r1"}]}"#,
 		),
 		json("/json/tags", r#"[{"name":"jazz","stationcount":5}]"#),
+		json(
+			"/contents",
+			r#"[{"name":"UK.m3u","type":"file"},{"name":"Public Radio.m3u","type":"file"},{"name":"README.md","type":"file"},{"name":"extra","type":"dir"}]"#,
+		),
+		Route::Static {
+			path: "/contents/Public%20Radio.m3u".into(),
+			content_type: "text/plain".into(),
+			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",WNYC\nhttp://pr.test/1\n"
+				.as_bytes()
+				.to_vec(),
+		},
 	]);
 	assert_eq!(
 		src.children("rb", Sort::default()).await.unwrap(),
@@ -93,6 +105,25 @@ async fn children_dispatch_by_prefix() {
 			folder("iheart/all", "All Stations"),
 			folder("iheart/genres", "Genres")
 		]
+	);
+	assert_eq!(
+		src.children("brdir", Sort::default()).await.unwrap(),
+		vec![
+			folder("brdir/Public%20Radio", "Public Radio"),
+			folder("brdir/UK", "UK")
+		]
+	);
+	assert_eq!(
+		src.children("brdir/Public%20Radio", Sort::default())
+			.await
+			.unwrap(),
+		vec![Node::Station(Station {
+			id: "brdir:Public Radio:0".into(),
+			name: "WNYC".into(),
+			url: "http://pr.test/1".into(),
+			source: Source::Directory,
+			info: Some("NPR".into()),
+		})]
 	);
 	let nets = src.children("net", Sort::default()).await.unwrap();
 	let names: Vec<&str> = nets.iter().map(|n| n.name()).collect();
