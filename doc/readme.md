@@ -51,6 +51,10 @@ Shift+Up and Shift+Down move a folder among the folders on its level (Alt+Up and
 Alt+Down work too). A folder in Collections or Custom Stations moves in your library
 itself; a directory folder keeps the order you give it, remembered between sessions,
 since the directory's own order is not yours to change.
+Delete on a station in Collections or Custom Stations removes it from that
+collection. Delete on a folder there removes the folder too — after asking, and
+naming how many stations go with it; a directory's folders are the directory's
+own and cannot be deleted.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
@@ -109,7 +113,9 @@ default is Custom Stations, where new stations went before the choice existed.
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Station Settings and, when you have favorites folders, Add to Favorites Folder.
 When a collection has folders it also offers Add to Collection Folder, which files the
-station straight into one. For your own station it also offers Delete Custom Station. On a
+station straight into one — Custom Stations' folders included, so a station found in
+Search or Browse can be filed into an imported playlist's folder, the same places
+Ctrl+N offers. For your own station it also offers Delete Custom Station. On a
 category it says `Nothing to do here`.
 
 ## Sound card
@@ -126,7 +132,11 @@ Choosing a preset moves the sliders and reads the bands. The presets are Flat, B
 Boost, Treble Boost, Bass and Treble, Loudness, Voice, Warm, Clarity, Laptop Speakers
 and Custom. The bands reach further into the middle of the spectrum than they used to,
 so a preset is plainly heard on speakers as well as headphones; Loudness is the
-strongest smile of the set.
+strongest smile of the set. Loudness also levels the volume itself: it rides the
+gain the way FFmpeg's dynaudnorm and mpv's normalization do, bringing quiet
+stations up to the level of loud ones and hot ones down, without clipping —
+near-silence is left alone, so dead air is not amplified. Leaving the Loudness
+preset eases the gain back to normal.
 Up and Down move a band by one dB, PageUp and PageDown by one dB too, and Home and End
 go to the ends. Moving a band by hand makes the preset Custom — and Custom remembers
 your bands: switch to another preset and back and your tuning is still there.
@@ -224,7 +234,11 @@ The global hot keys work from any app. With NVDA running, announcements are spok
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
 window. NVDA's own status line command, NVDA+End, reads the same line; on Windows the
 status bar sits in its own thin window along the main window's bottom edge, exactly
-where that command looks, so it works with no add-on and nothing to install.
+where that command looks, and the bar also answers UI Automation queries itself —
+as a status bar, named with the current line, over the whole bottom edge — so the
+command works whichever way NVDA asks, with no add-on and nothing to install. On
+Linux the status bar is a standard part of the main window, which Orca reads the
+same way.
 
 ## Keyboard shortcuts
 

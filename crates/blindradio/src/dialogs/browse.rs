@@ -109,6 +109,9 @@ struct Item {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Delete {
 	Remove { collection: String, station: String },
+	/// A folder inside one of the local roots: the folder goes, with
+	/// everything in it (the view confirms first).
+	RemoveFolder { collection: String, path: Vec<usize> },
 	NotOwn,
 }
 
@@ -753,6 +756,17 @@ impl BrowseModel {
 	}
 
 	pub fn delete_target(&self, i: usize) -> Delete {
+		// A folder inside a local root is the user's own too, empty or
+		// not — it was NotOwn before, so an imported playlist's folders
+		// could never be removed here (Brandon's report). A collection
+		// row itself stays NotOwn: whole collections are deleted in
+		// the Collections window.
+		if self.station(i).is_none() && self.is_folder(i) && self.is_local(i) {
+			if let Some((collection, path)) = self.key(i).and_then(local_path) {
+				return Delete::RemoveFolder { collection, path };
+			}
+			return Delete::NotOwn;
+		}
 		// A station in a folder belongs to the collection above the folder.
 		let Some(st) = self.station(i) else {
 			return Delete::NotOwn;
@@ -1129,6 +1143,34 @@ impl View {
 					a.library.remove_from_collection(&collection, &station);
 					a.save_library();
 					a.refresh_dial();
+				}
+				self.refresh_local(app);
+			}
+			Delete::RemoveFolder { collection, path } => {
+				// The Collections window's rule: deleting a folder is
+				// confirmed, with what goes with it named.
+				let (name, count) = {
+					let m = self.model.borrow();
+					(m.label(i).to_string(), m.stations_under(i).len())
+				};
+				let question = if count > 0 {
+					format!("{}{} and its {} stations?", s::DELETE_PREFIX, name, count)
+				} else {
+					format!("{}{}?", s::DELETE_PREFIX, name)
+				};
+				if !confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
+					return;
+				}
+				{
+					let mut a = app.borrow_mut();
+					if a
+						.library
+						.collection_mut(&collection)
+						.is_some_and(|c| c.remove_folder(&path))
+					{
+						a.save_library();
+						a.refresh_dial();
+					}
 				}
 				self.refresh_local(app);
 			}
@@ -1795,6 +1837,41 @@ mod tests {
 		let rb = load(&mut m, Some(dir), "rb", vec![station("a")]);
 		assert_eq!(m.delete_target(find(&m, Some(rb), "a")), Delete::NotOwn);
 		assert_eq!(m.delete_target(jazz_folder), Delete::NotOwn);
+	}
+
+	#[test]
+	fn browse_delete_folder_rules() {
+		// Folders inside the local roots are the user's own, empty or
+		// not; a remote directory's folders never are.
+		let mut lib = Library::default();
+		let jazz = lib.create_collection("Jazz");
+		lib.collection_mut(&jazz)
+			.unwrap()
+			.add_folder(&[], "Sub");
+		lib.add_custom("Mine", "http://mine");
+		lib.collection_mut(CUSTOM)
+			.unwrap()
+			.add_folder(&[], "Imported");
+		let mut m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let jazz_folder = find(&m, Some(collections), &jazz);
+		assert_eq!(
+			m.delete_target(find(&m, Some(jazz_folder), &format!("{jazz}/f0"))),
+			Delete::RemoveFolder {
+				collection: jazz.clone(),
+				path: vec![0]
+			},
+			"a folder inside a collection"
+		);
+		let custom = find(&m, None, CUSTOM);
+		assert_eq!(
+			m.delete_target(find(&m, Some(custom), "custom/f0")),
+			Delete::RemoveFolder {
+				collection: CUSTOM.into(),
+				path: vec![0]
+			},
+			"an imported playlist's folder in Custom Stations"
+		);
 	}
 
 	#[test]

@@ -1126,6 +1126,8 @@ impl App {
 			self.win.now_playing.set_label(&line);
 		}
 		self.win.status_bar.set_status_text(plain, 0);
+		#[cfg(windows)]
+		crate::status_strip::set_text(plain);
 		// NVDA's status text assembly reads the bar object's own name
 		// first; mirror the line so it lives on the bar itself, not
 		// only in its pane.

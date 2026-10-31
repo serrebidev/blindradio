@@ -17,6 +17,28 @@ pub const MAX_DB: i8 = 12;
 /// On/off crossfade, as long as the mixer's warm-swap crossfade.
 const FADE_MS: f64 = 25.0;
 
+// The Loudness leveler (dynaudnorm-style dynamic gain, the consensus
+// tool for live sources: mpv ships it as a filter, FFmpeg as
+// dynaudnorm). A static EQ curve cannot make a quiet station louder
+// than a loud one; a leveler can — it rides the gain so each stretch
+// of audio peaks near a target.
+/// What the leveler aims each stretch's peak at.
+const TARGET_PEAK: f64 = 0.9;
+/// Most gain the leveler may apply: +24 dB for genuinely quiet stations.
+const MAX_GAIN: f64 = 16.0;
+/// Least: a hot station is pulled down, never to silence.
+const MIN_GAIN: f64 = 0.2;
+/// Below this peak (−52 dBFS) a stretch counts as silence and is
+/// left alone, so dead air and hiss are not amplified.
+const SILENCE: f64 = 0.0025;
+/// How far back the reference peak reaches.
+const REF_SECONDS: f64 = 4.0;
+/// Gain rises slowly (no pumping), falls fast (no blasting).
+const UP_SECONDS: f64 = 1.2;
+const DOWN_SECONDS: f64 = 0.05;
+/// Soft-knee ceiling after leveling: approaches 1.0, never crosses.
+const KNEE: f64 = 0.95;
+
 impl EqPreset {
 	/// Band gains in dB (bass, mid, treble); `None` for Custom.
 	pub fn bands(self) -> Option<(i8, i8, i8)> {
@@ -141,6 +163,14 @@ pub struct Eq {
 	wet: f64,
 	wet_step: f64,
 	bands: [Biquad; 3],
+	/// The Loudness preset's leveler is on (see the constants above).
+	level: bool,
+	/// The leveler's current gain; rides toward its target and back
+	/// to 1.0 when the preset is left.
+	lev_gain: f64,
+	/// The leveler's reference peak: the loudest recent frame,
+	/// decaying over REF_SECONDS.
+	lev_ref: f64,
 }
 
 impl Eq {
@@ -152,6 +182,9 @@ impl Eq {
 			wet: 0.0,
 			wet_step: 1.0 / (rate * FADE_MS / 1000.0).max(1.0),
 			bands: [Biquad::default(); 3],
+			level: false,
+			lev_gain: 1.0,
+			lev_ref: 0.0,
 		}
 	}
 
@@ -159,6 +192,7 @@ impl Eq {
 		let db = |v: i8| v.clamp(-MAX_DB, MAX_DB);
 		let gains = [db(s.bass), db(s.mid), db(s.treble)];
 		self.active = s.enabled && gains.iter().any(|&g| g != 0);
+		self.level = s.enabled && s.preset == EqPreset::Loudness;
 		if self.active && self.wet == 0.0 {
 			// State left from long ago would ring in as a burst.
 			for b in &mut self.bands {
@@ -177,12 +211,16 @@ impl Eq {
 
 	/// Interleaved stereo, in place.
 	pub fn process(&mut self, stereo: &mut [f32]) {
-		if !self.active && self.wet == 0.0 {
+		// The leveler may still be riding its gain home after the
+		// Loudness preset was left; that is work even with the EQ off.
+		let settling = self.level || (self.lev_gain - 1.0).abs() > 0.002;
+		if !self.active && self.wet == 0.0 && !settling {
 			return;
 		}
 		let target = if self.active { 1.0 } else { 0.0 };
 		for frame in stereo.as_chunks_mut::<2>().0 {
 			self.wet += (target - self.wet).clamp(-self.wet_step, self.wet_step);
+			let mut mixed = [0.0f64; 2];
 			for (ch, v) in frame.iter_mut().enumerate() {
 				let dry = *v as f64;
 				let mut x = dry;
@@ -190,7 +228,48 @@ impl Eq {
 					x = b.run(ch, x);
 				}
 				// Linear: wet and dry are the same signal, so equal-power would bulge.
-				*v = (dry + (x - dry) * self.wet) as f32;
+				mixed[ch] = dry + (x - dry) * self.wet;
+			}
+			if settling {
+				self.ride_level(&mut mixed);
+			}
+			for (ch, v) in frame.iter_mut().enumerate() {
+				*v = mixed[ch] as f32;
+			}
+		}
+	}
+
+	/// One stereo frame of the Loudness leveler: measure the frame
+	/// against the recent peak, ride the gain toward the target and
+	/// keep the result under a soft ceiling. Channels are coupled —
+	/// one gain for both — so the stereo image never wanders.
+	fn ride_level(&mut self, frame: &mut [f64; 2]) {
+		let peak = frame[0].abs().max(frame[1].abs());
+		let decay = (-1.0 / (self.rate * REF_SECONDS)).exp();
+		self.lev_ref = peak.max(self.lev_ref * decay);
+		let desired = if !self.level {
+			1.0
+		} else if self.lev_ref > SILENCE {
+			(TARGET_PEAK / self.lev_ref).clamp(MIN_GAIN, MAX_GAIN)
+		} else {
+			1.0
+		};
+		let tau = if desired < self.lev_gain {
+			DOWN_SECONDS
+		} else {
+			UP_SECONDS
+		};
+		let k = 1.0 - (-1.0 / (self.rate * tau)).exp();
+		self.lev_gain += (desired - self.lev_gain) * k;
+		if !self.level && (self.lev_gain - 1.0).abs() <= 0.002 {
+			self.lev_gain = 1.0;
+			self.lev_ref = 0.0;
+		}
+		for v in frame.iter_mut() {
+			*v *= self.lev_gain;
+			let a = v.abs();
+			if a > KNEE {
+				*v = v.signum() * (KNEE + (1.0 - KNEE) * ((a - KNEE) / (1.0 - KNEE)).tanh());
 			}
 		}
 	}
@@ -343,6 +422,82 @@ mod tests {
 		let s = settings(b, m, t);
 		assert!(gain_db(&s, 300.0) > 2.0, "low shelf reaches 300 Hz");
 		assert!(gain_db(&s, 3000.0) > 2.0, "high shelf reaches 3 kHz");
+	}
+
+	fn loudness_settings() -> EqSettings {
+		// Zero bands isolate the leveler: the dialog's Loudness bands
+		// ride on top of it in the app.
+		EqSettings {
+			enabled: true,
+			preset: EqPreset::Loudness,
+			bass: 0,
+			mid: 0,
+			treble: 0,
+			..EqSettings::default()
+		}
+	}
+
+	fn scaled(hz: f32, factor: f32, seconds: usize) -> Vec<f32> {
+		sine(hz, RATE as usize * seconds)
+			.iter()
+			.map(|v| v * factor)
+			.collect()
+	}
+
+	fn peak(v: &[f32]) -> f32 {
+		v.iter().map(|x| x.abs()).fold(0.0, f32::max)
+	}
+
+	#[test]
+	fn loudness_levels_a_quiet_station_up() {
+		// Brandon: quiet channels should come up to where loud ones
+		// live. A 0.05-peak station ends up peaking near the target.
+		let mut eq = Eq::new(RATE);
+		eq.set(&loudness_settings());
+		let mut out = scaled(440.0, 0.2, 3);
+		eq.process(&mut out);
+		let last = &out[out.len() - RATE as usize * 2..];
+		assert!(peak(last) > 0.55, "quiet station lifted: {}", peak(last));
+	}
+
+	#[test]
+	fn loudness_tames_a_hot_station_without_clipping() {
+		let mut eq = Eq::new(RATE);
+		eq.set(&loudness_settings());
+		let mut out = scaled(440.0, 4.0, 3);
+		eq.process(&mut out);
+		assert!(peak(&out) <= 1.0, "never over full scale");
+		let last = &out[out.len() - RATE as usize * 2..];
+		assert!(peak(last) > 0.7, "hot station near target: {}", peak(last));
+	}
+
+	#[test]
+	fn loudness_leaves_near_silence_alone() {
+		// Under the silence floor the gain stays at 1: dead air and
+		// hiss must not be amplified into noise.
+		let mut eq = Eq::new(RATE);
+		eq.set(&loudness_settings());
+		let mut out = scaled(440.0, 0.004, 2);
+		eq.process(&mut out);
+		assert!(peak(&out) < 0.01, "silence untouched: {}", peak(&out));
+	}
+
+	#[test]
+	fn loudness_gain_rides_home_when_the_preset_is_left() {
+		let mut eq = Eq::new(RATE);
+		eq.set(&loudness_settings());
+		let mut out = scaled(440.0, 0.2, 2);
+		eq.process(&mut out);
+		assert!(peak(&out) > 0.3, "gain was up: {}", peak(&out));
+		eq.set(&settings(0, 0, 0));
+		let mut out = scaled(440.0, 0.2, 3);
+		eq.process(&mut out);
+		let last = &out[out.len() - RATE as usize * 2..];
+		assert!(
+			peak(last) < 0.08,
+			"back at the station's own level: {}",
+			peak(last)
+		);
 	}
 
 	#[test]

@@ -722,14 +722,15 @@ impl Library {
 		}
 	}
 
-	/// Every folder of every collection but Custom Stations, for the
-	/// station menu: collection id, folder path, "Collection / Folder" label.
+	/// Every folder of every collection, Custom Stations included, for
+	/// the station menu: collection id, folder path, "Collection /
+	/// Folder" label. Custom Stations was skipped once, which locked
+	/// its folders — the imported playlists live there as folders — out
+	/// of the Add to Collection Folder menu entirely (Brandon's
+	/// report); the Add Custom Station picker never skipped them.
 	pub fn collection_folder_list(&self) -> Vec<(String, Vec<usize>, String)> {
 		let mut out = Vec::new();
 		for c in &self.collections {
-			if c.id == CUSTOM {
-				continue;
-			}
 			for (path, label) in folder_paths(&c.folders) {
 				out.push((c.id.clone(), path, format!("{} / {}", c.name, label)));
 			}

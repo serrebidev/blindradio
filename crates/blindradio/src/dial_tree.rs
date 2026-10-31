@@ -118,12 +118,18 @@ impl DialTree {
 		for node in nodes {
 			self.add_node(&self.root, node, &stations, "");
 		}
-		self.quiet.set(false);
+		// The focus select is the program's too: the guard stays up
+		// until after it. It used to drop before the select, whose
+		// selection event then ran the handler mid-rebuild — on GTK
+		// the event is synchronous, the handler borrowed the app
+		// while the caller held it, and the startup selection
+		// panicked (caught by the toolkit, the event lost).
 		if let Some(item) = self.item_of(focus) {
 			self.list.select_item(&item);
 			self.list.set_focused_item(&item);
 			self.list.ensure_visible(&item);
 		}
+		self.quiet.set(false);
 	}
 
 	fn add_node(&self, parent: &TreeItemId, node: &DialNode, stations: &[Station], path: &str) {

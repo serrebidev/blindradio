@@ -47,8 +47,8 @@ pub enum Item {
 	AddAllTo(Vec<(String, String)>),
 	/// Every favorites folder: its path and its display name.
 	AddToFavoriteFolder(Vec<(Vec<usize>, String)>),
-	/// Every folder of every collection but Custom Stations: collection
-	/// id, folder path, "Collection / Folder" label.
+	/// Every folder of every collection, Custom Stations included:
+	/// collection id, folder path, "Collection / Folder" label.
 	AddToCollectionFolder(Vec<(String, Vec<usize>, String)>),
 	/// Every folder of one collection: its path and its display name.
 	MoveToFolder(Vec<(Vec<usize>, String)>),
