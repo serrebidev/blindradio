@@ -254,6 +254,9 @@ whole line whatever your announcement settings are.
 
 When you are listening back in the time-shift buffer, the title names the song playing
 at the buffer's position, not the live one; go live and it names the live song again.
+Song changes are announced in the buffer too, under the same Announce Song Titles
+setting as live ones: as playback moves forward through the buffer and the next song
+starts, it is spoken.
 
 The global hot keys work from any app. With NVDA running, announcements are spoken by
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio

@@ -90,6 +90,12 @@ pub fn play_pause<T>(playing: bool, remembered: Option<T>, selected: Option<T>) 
 	}
 }
 
+/// Whether the song at the time-shift position just changed to a new
+/// one worth announcing: a song (not the same one, not a gap) took over.
+fn shift_song_changed(prev: &Option<String>, next: &Option<String>) -> bool {
+	next.is_some() && prev != next
+}
+
 /// A station landed on in a list: Play/Pause after a stop plays it, not last session's station.
 fn landed<T: Clone>(selected: &mut Option<T>, remembered: &mut Option<T>, station: &T) {
 	*selected = Some(station.clone());
@@ -276,6 +282,9 @@ pub struct App {
 	pub hotkeys: Hotkeys,
 	/// The song playing, for Announce Now Playing.
 	song: Option<String>,
+	/// The song at the time-shift position, last tick: a change is a
+	/// song change the listener hears, announced like a live one.
+	shift_song: Option<String>,
 	/// When the playing station started sounding; drives the status line.
 	playing_since: Option<Instant>,
 	/// The status line without its time suffixes.
@@ -358,6 +367,7 @@ impl App {
 			speech,
 			hotkeys,
 			song: None,
+			shift_song: None,
 			playing_since: None,
 			status_base: RefCell::new(String::new()),
 			status_line: RefCell::new(String::new()),
@@ -472,6 +482,7 @@ impl App {
 		}
 		self.dial = true;
 		self.song = None;
+		self.shift_song = None;
 		landed(&mut self.selected, &mut self.remembered, station);
 		self.history.station_changed(&station.id);
 		// The window title follows focus at once; the song is added when known.
@@ -1080,6 +1091,7 @@ impl App {
 		self.finish_recording();
 		self.dial = false;
 		self.song = None;
+		self.shift_song = None;
 		self.now_playing(Some(&station.name));
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
@@ -1099,6 +1111,7 @@ impl App {
 		}
 		self.tuner.stop();
 		self.song = None;
+		self.shift_song = None;
 		self.playing_since = None;
 		self.now_playing(None);
 		if announce && self.settings.announce_status {
@@ -1199,21 +1212,35 @@ impl App {
 	/// back, the song at the buffer's moment is what is playing, not
 	/// the live one — titles are timestamped as they arrive, so the
 	/// session history names the song of any moment in the buffer.
+	/// A song change at the position is announced like a live one.
 	fn sync_title_song(&mut self, behind: f32) {
-		let Some(station) = self.tuner.playing() else {
+		// The name is cloned up front: announcing below needs &mut self.
+		let Some(name) = self.tuner.playing().map(|s| s.name.clone()) else {
 			return;
 		};
 		let song = if behind >= 1.0 {
 			let when = SystemTime::now()
 				.checked_sub(Duration::from_secs_f32(behind))
 				.unwrap_or(SystemTime::UNIX_EPOCH);
-			self.history.title_at(when)
+			let song = self.history.title_at(when);
+			// Shifted listening hears song changes too: as playback
+			// moves through the buffer, crossing into the next song
+			// announces it, the way a live change is announced. Live
+			// listening is the tuner's own Announce event, so this
+			// only speaks while shifted.
+			if shift_song_changed(&self.shift_song, &song) {
+				let text = song.clone().unwrap_or_default();
+				self.say_kind(Kind::Title, &text);
+			}
+			self.shift_song = song.clone();
+			song
 		} else {
+			self.shift_song = None;
 			self.song.clone()
 		};
 		let base = match &song {
-			Some(song) => format!("{} - {}", station.name, song),
-			None => station.name.clone(),
+			Some(song) => format!("{name} - {song}"),
+			None => name,
 		};
 		if *self.status_base.borrow() != base {
 			self.now_playing(Some(&base));
@@ -1720,6 +1747,17 @@ fn set_label(button: Button, label: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn shift_song_changes_announce_once_per_song() {
+		let a = Some("Song A".to_string());
+		let b = Some("Song B".to_string());
+		assert!(shift_song_changed(&None, &a), "first song in the buffer");
+		assert!(!shift_song_changed(&a, &a), "same song keeps playing");
+		assert!(shift_song_changed(&a, &b), "next song takes over");
+		assert!(!shift_song_changed(&a, &None), "a gap announces nothing");
+		assert!(!shift_song_changed(&None, &None), "still no song");
+	}
 
 	#[test]
 	fn behind_after_seek_math() {

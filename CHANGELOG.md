@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.27
+
+- Song changes are now announced while listening back in the time-shift buffer, not only live: as playback moves forward through the buffer and the next song starts, it is spoken under the same Announce Song Titles setting as live announcements.
+
 ## 0.2.26
 
 - Browse gains the BlindRadio Directory: community-submitted stations kept in the BlindRadio-directory repository on GitHub, starting with 14 playlists and 1,270 stations (UK, Germany, France, Canada, Public Radio, Classical Music, and more). Each playlist is a folder; stations keep their names and groups, and the app reads the repository live, so stations merged there appear in Browse without an app update. Submissions are welcome by pull request to that repository.
