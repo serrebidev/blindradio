@@ -172,9 +172,12 @@ played, otherwise what you have heard since you tuned in. Copy and Enter copy th
 ## Recording
 
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
-folder, in the format Settings chooses. Playback, Write Buffer writes the whole time-shift
-buffer — everything the station has played since you tuned in, up to the buffer's length —
-to a WAV file in the same folder, named like a recording.
+folder, in the format Settings chooses. While a recording is in progress, the window title
+ends with the word Recording. Changing stations ends a recording, so the app asks first:
+a confirmation names what happens — the recording stops, what is recorded so far is
+saved — and only your Yes changes the station. Playback, Write Buffer writes the whole
+time-shift buffer — everything the station has played since you tuned in, up to the
+buffer's length — to a WAV file in the same folder, named like a recording.
 
 Playback, Record Each Song Separately is a recording mode for stations that name their
 songs: while it is checked, a recording closes the current file when a new song starts
@@ -198,10 +201,12 @@ due, playback stops.
 
 Ctrl+T opens Settings (File menu). The General checkboxes are Announce Song Titles, Announce
 Connection Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as
-I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, and Check
-for Updates Automatically (the daily update check; Help, Check for Updates always works). With
-Play a Station as I Move to It off, moving through a list only selects the station; Enter
-plays it. The Startup List chooses what the main list shows when the app starts: the default
+I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, Check
+for Updates Automatically (the daily update check; Help, Check for Updates always works), and
+Expand All Directories in the Main Window. With Play a Station as I Move to It off, moving
+through a list only selects the station; Enter plays it. With Expand All Directories off,
+the main window's directories start collapsed, so a long list opens as a short list of
+directories to walk into; a directory you open or close by hand keeps its state either way. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
 is a tree: All Playlists shows one folder per playlist with its directories inside, and a

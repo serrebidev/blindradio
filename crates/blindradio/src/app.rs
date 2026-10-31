@@ -17,7 +17,7 @@ use blindradio_core::tuner::{LiveFactory, Sink, Tuner, TunerEvent};
 use blindradio_core::{Engine, import, store};
 use crossbeam_channel::Receiver;
 use ship_shape::ui::CheckTrigger;
-use wx_utils::set_menu_item_label;
+use wx_utils::{confirm, set_menu_item_label};
 use wxdragon::prelude::*;
 
 use crate::action::Action;
@@ -446,10 +446,29 @@ impl App {
 	}
 
 	/// Dial tuning: a user-driven focus move in a station list.
+	/// Moving to another station ends any recording in progress:
+	/// play_now finishes it, and a tuner focus change drops the
+	/// recorder with the old station's taps. Ask first (Brandon's
+	/// rule), so an arrow key or a stray Enter cannot kill a
+	/// recording by accident. No recording, or the same station
+	/// again, never asks.
+	fn may_change_station(&self, next: &Station) -> bool {
+		if !self.tuner.is_recording() {
+			return true;
+		}
+		if self.tuner.playing().is_some_and(|p| p.id == next.id) {
+			return true;
+		}
+		confirm(&self.win.frame, s::REC_CHANGE_ASK, s::REC_CHANGE_TITLE)
+	}
+
 	pub fn tune(&mut self, stations: &[Station], index: usize) {
 		let Some(station) = stations.get(index) else {
 			return;
 		};
+		if !self.may_change_station(station) {
+			return;
+		}
 		self.dial = true;
 		self.song = None;
 		landed(&mut self.selected, &mut self.remembered, station);
@@ -999,6 +1018,11 @@ impl App {
 	}
 
 	pub fn play(&mut self, station: Station) {
+		// Guard before note_played: a cancelled change must not
+		// enter the played history either.
+		if !self.may_change_station(&station) {
+			return;
+		}
 		self.note_played(&station);
 		self.play_now(station);
 	}
@@ -1048,6 +1072,9 @@ impl App {
 	}
 
 	fn play_now(&mut self, station: Station) {
+		if !self.may_change_station(&station) {
+			return;
+		}
 		self.finish_recording();
 		self.dial = false;
 		self.song = None;
@@ -1133,6 +1160,14 @@ impl App {
 			s::APP_NAME.to_string()
 		} else {
 			format!("{} - {}", s::APP_NAME, base)
+		};
+		// Brandon's one addition to the title: while a recording is
+		// in progress the word Recording rides at the end, so Alt+Tab
+		// and the taskbar say it too. Nothing else goes up here.
+		let title = if self.tuner.is_recording() {
+			format!("{} - {}", title, s::TITLE_RECORDING)
+		} else {
+			title
 		};
 		if self.win.frame.get_title() != title {
 			self.win.frame.set_title(&title);
@@ -1298,6 +1333,7 @@ impl App {
 			.and_then(|id| stations.iter().position(|s| s.id == id))
 			.or(current)
 			.unwrap_or(0);
+		list.set_expand_default(self.settings.expand_dial_folders);
 		list.set_dial(&nodes, stations, focus);
 	}
 

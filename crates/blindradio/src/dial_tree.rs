@@ -51,8 +51,14 @@ pub struct DialTree {
 	stations: Rc<RefCell<Rc<[Station]>>>,
 	/// Station rows in tree order: item and flat index.
 	rows: Rc<RefCell<Vec<(TreeItemId, usize)>>>,
-	/// Folder path keys the user collapsed; everything else opens expanded.
-	collapsed: Rc<RefCell<HashSet<String>>>,
+	/// Folder path keys whose open state differs from the default:
+	/// collapsed ones while the default is expanded, opened ones
+	/// while it is collapsed. Toggling a folder by hand records the
+	/// exception, so its state sticks across rebuilds either way.
+	overrides: Rc<RefCell<HashSet<String>>>,
+	/// The default open state for folders: Settings' "Expand all
+	/// directories" — on, every folder opens; off, they start shut.
+	expand_default: Rc<Cell<bool>>,
 	/// Set while the program changes the selection: only the user's moves tune.
 	quiet: Rc<Cell<bool>>,
 }
@@ -76,7 +82,8 @@ impl DialTree {
 			root,
 			stations: Rc::new(RefCell::new(Rc::from([]))),
 			rows: Rc::new(RefCell::new(Vec::new())),
-			collapsed: Rc::new(RefCell::new(HashSet::new())),
+			overrides: Rc::new(RefCell::new(HashSet::new())),
+			expand_default: Rc::new(Cell::new(true)),
 			quiet: Rc::new(Cell::new(false)),
 		}
 	}
@@ -180,10 +187,33 @@ impl DialTree {
 				for kid in kids {
 					self.add_node(&item, kid, stations, &key);
 				}
-				if !self.collapsed.borrow().contains(&key) {
+				let open = self.expand_default.get()
+					!= self.overrides.borrow().contains(&key);
+				if open {
 					self.list.expand(&item);
 				}
 			}
+		}
+	}
+
+	/// The Settings default for folder state, applied on the next
+	/// rebuild. Flipping it forgets the per-folder exceptions: they
+	/// were recorded against the old default and invert under the
+	/// new one.
+	pub fn set_expand_default(&self, expand: bool) {
+		if self.expand_default.get() != expand {
+			self.expand_default.set(expand);
+			self.overrides.borrow_mut().clear();
+		}
+	}
+
+	/// A folder opened or closed by hand: record it as an exception
+	/// to the default exactly when it differs from the default.
+	fn note_state(&self, key: String, open: bool) {
+		if open == self.expand_default.get() {
+			self.overrides.borrow_mut().remove(&key);
+		} else {
+			self.overrides.borrow_mut().insert(key);
 		}
 	}
 
@@ -269,7 +299,7 @@ impl DialTree {
 			if let Some(item) = e.get_item()
 				&& let Some(Row::Folder(key)) = me.row(&item)
 			{
-				me.collapsed.borrow_mut().insert(key);
+				me.note_state(key, false);
 			}
 		});
 		let me = self.clone();
@@ -277,7 +307,7 @@ impl DialTree {
 			if let Some(item) = e.get_item()
 				&& let Some(Row::Folder(key)) = me.row(&item)
 			{
-				me.collapsed.borrow_mut().remove(&key);
+				me.note_state(key, true);
 			}
 		});
 

@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.24
+
+- New Settings checkbox: Expand All Directories in the Main Window. Until now the main window's tree always opened with every directory and subdirectory expanded, which can make a long list hard to walk; untick it and directories start collapsed — the list opens as its top-level directories, and you open the ones you want. A directory you open or close by hand keeps its state across restarts of the list either way, and changing the setting takes effect as soon as Settings closes.
+- Changing stations no longer ends a recording silently. A recording in progress now brings up a confirmation first — it names that the recording stops and what is recorded so far is saved — and only Yes changes the station; No leaves the station and the recording alone. This covers arrow-key tuning with Play On Move, Enter, Next/Previous, and picking a station anywhere else.
+- While a recording is in progress, the window title ends with the word Recording, so the taskbar and Alt+Tab show it.
+
 ## 0.2.23
 
 - The window title is back as it was. 0.2.22 put the whole status line in the title as a workaround; that was the wrong trade, and it is reverted — the title shows the app name, station and song, nothing more.

@@ -189,6 +189,11 @@ pub struct Settings {
 	pub play_last_at_startup: bool,
 	/// Moving to a station in a list plays it (dial tuning). Off: only Enter plays.
 	pub play_on_move: bool,
+	/// The main window's tree opens every directory at startup and on
+	/// rebuilds. Off: directories start collapsed (a folder the user
+	/// opens or closes by hand keeps its state across rebuilds, as
+	/// always). BlindRSS has the same choice.
+	pub expand_dial_folders: bool,
 	/// Closing the window hides it to the tray instead of quitting.
 	pub close_to_tray: bool,
 	/// Start with the main window maximized.
@@ -231,6 +236,7 @@ impl Default for Settings {
 			close_lists_when_playing: false,
 			play_last_at_startup: false,
 			play_on_move: true,
+			expand_dial_folders: true,
 			close_to_tray: false,
 			maximize_on_start: false,
 			audio_device: None,
@@ -345,6 +351,7 @@ mod tests {
 		assert!(s.announce_titles && s.announce_status && s.announce_actions && s.check_updates);
 		assert!(!s.close_lists_when_playing && !s.play_last_at_startup && !s.muted);
 		assert!(s.play_on_move && !s.close_to_tray && !s.maximize_on_start);
+		assert!(s.expand_dial_folders);
 		assert_eq!(s.audio_device, None);
 		assert_eq!(s.volume, 0.8);
 		assert_eq!(
