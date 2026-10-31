@@ -3,16 +3,24 @@
 //!
 //! Why: NVDA's status line command (NVDA+End) asks for the object at
 //! the foreground window's bottom-left corner and walks UP from it to
-//! a status bar. A status bar inside the frame is a child window
-//! clipped to the client area, and the corner point sits on the
-//! frame's border, below and left of the client area, so the walk
-//! starts at the frame itself and never reaches the bar — "Status
-//! line not found", however the in-frame bar is built or raised
-//! (tried in 0.2.16 and 0.2.19). Brandon's rule: no NVDA add-on, it
-//! has to just work. So the bar's window covers the frame's whole
-//! bottom edge, border included: the corner point lands on the bar
-//! itself. The strip is an owned window (always just above its
-//! owner), never activates, and the 50 ms poll keeps it glued.
+//! a status bar (source/api.py getStatusBar: objectFromPoint(left,
+//! top+height-1), then parents until role STATUSBAR). A status bar
+//! inside the frame is a child window clipped to the client area, and
+//! the corner point sits on the frame's border, below and left of the
+//! client area, so the walk starts at the frame itself and never
+//! reaches the bar — "Status line not found", however the in-frame
+//! bar is built or raised (tried in 0.2.16 and 0.2.19). Brandon's
+//! rule: no NVDA add-on, it has to just work. So the bar's window
+//! covers the frame's whole bottom edge, border included.
+//!
+//! The strip must be TRULY borderless — 0.2.20/0.2.21 shipped it as
+//! a framed window, and the corner point landed on the strip's own
+//! bottom border instead of the bar. build() strips every frame bit
+//! from the window style, so the window rect is the client rect and
+//! the bar (a native msctls_statusbar32 under wxMSW, whose own MSAA
+//! identity is a textbook status bar) fills it corner to corner. The
+//! strip is an owned window (always just above its owner), never
+//! activates, and the 50 ms poll keeps it glued.
 
 use std::sync::Mutex;
 
@@ -42,10 +50,24 @@ const GWL_STYLE: i32 = -16;
 const GWL_EXSTYLE: i32 = -20;
 const GWLP_HWNDPARENT: i32 = -8;
 const WS_CHILD: isize = 0x4000_0000;
+const WS_POPUP: isize = 0x8000_0000;
+const WS_CAPTION: isize = 0x00C0_0000;
+const WS_THICKFRAME: isize = 0x0004_0000;
+const WS_SYSMENU: isize = 0x0008_0000;
+const WS_MINIMIZEBOX: isize = 0x0002_0000;
+const WS_MAXIMIZEBOX: isize = 0x0001_0000;
+const WS_EX_DLGMODALFRAME: isize = 0x0000_0001;
+const WS_EX_WINDOWEDGE: isize = 0x0000_0100;
+const WS_EX_CLIENTEDGE: isize = 0x0000_0200;
+const WS_EX_STATICEDGE: isize = 0x0002_0000;
 const WS_EX_NOACTIVATE: isize = 0x0800_0000;
 const SW_HIDE: i32 = 0;
 const SW_SHOWNA: i32 = 8;
+const SWP_NOSIZE: u32 = 0x0001;
+const SWP_NOMOVE: u32 = 0x0002;
+const SWP_NOZORDER: u32 = 0x0004;
 const SWP_NOACTIVATE: u32 = 0x0010;
+const SWP_FRAMECHANGED: u32 = 0x0020;
 
 #[link(name = "user32")]
 unsafe extern "system" {
@@ -74,8 +96,9 @@ pub fn build(frame: &Frame) -> (Option<Frame>, StatusBar, i32) {
 		.with_style(FrameStyle::NoTaskbar)
 		.build();
 	let bar = strip.create_status_bar(1, 0x10131, ID_ANY as i32, "statusBar");
-	uia::install(bar.get_handle(), strip.get_handle());
 	let strip_hwnd = strip.get_handle();
+	uia::install(bar.get_handle(), strip_hwnd);
+	uia::install(strip_hwnd, strip_hwnd);
 	let frame_hwnd = frame.get_handle();
 	// SAFETY: both handles are live windows of this thread. wx may
 	// have made the strip a child of the frame; a child is clipped to
@@ -86,8 +109,35 @@ pub fn build(frame: &Frame) -> (Option<Frame>, StatusBar, i32) {
 			SetParent(strip_hwnd, std::ptr::null_mut());
 		}
 		SetWindowLongPtrW(strip_hwnd, GWLP_HWNDPARENT, frame_hwnd as isize);
+		// No chrome at all — this is the fix 0.2.20/0.2.21 missed.
+		// The strip was a framed window, and NVDA's hit point (the
+		// foreground window's bottom-left corner) lands on the
+		// strip's bottom row, which was the frame's own border:
+		// objectFromPoint returned the strip frame (a pane), its
+		// ancestry holds no status bar, and the walk failed before
+		// it ever reached the bar inside. Borderless, the window
+		// rect IS the client rect, the bar (a real msctls_statusbar32
+		// under wxMSW, with a native status-bar MSAA identity) fills
+		// it, and the corner point lands on the bar itself.
+		let style = GetWindowLongPtrW(strip_hwnd, GWL_STYLE);
+		let bare = (style
+			& !(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX))
+			| WS_POPUP;
+		SetWindowLongPtrW(strip_hwnd, GWL_STYLE, bare);
 		let ex = GetWindowLongPtrW(strip_hwnd, GWL_EXSTYLE);
-		SetWindowLongPtrW(strip_hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE);
+		let bare_ex = (ex
+			& !(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE))
+			| WS_EX_NOACTIVATE;
+		SetWindowLongPtrW(strip_hwnd, GWL_EXSTYLE, bare_ex);
+		SetWindowPos(
+			strip_hwnd,
+			std::ptr::null_mut(),
+			0,
+			0,
+			0,
+			0,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
+		);
 	}
 	let pad = bar.get_size().height.max(20) + bottom_border(frame);
 	(Some(strip), bar, pad)
@@ -129,7 +179,9 @@ pub fn sync(win: &MainWindow) {
 			ShowWindow(strip_hwnd, SW_HIDE);
 			return;
 		}
-		let height = win.status_bar.get_size().height.max(1) + bottom_border(&win.frame);
+		// The strip is exactly the bar's height now: borderless, the
+		// bar fills the whole window, top row to the corner row.
+		let height = win.status_bar.get_size().height.max(1);
 		let mut current = Rect::default();
 		GetWindowRect(strip_hwnd, &mut current);
 		if current.left != window.left
@@ -173,17 +225,17 @@ fn current_text() -> Vec<u16> {
 		.unwrap_or_default()
 }
 
-/// A UIA provider for the strip's status bar window, hand-rolled COM.
+/// A UIA provider for the strip's windows, hand-rolled COM.
 ///
-/// The strip covers NVDA's hit-test when NVDA walks the window tree,
-/// but if NVDA asks UIA for the element at that corner, the element
-/// comes from a provider — and the system proxy for the bar reports
-/// the bar's own small rect with the bar as a child of the strip,
-/// which is the same geometry that failed inside the frame. This
-/// provider answers for the bar window instead: control type Status
-/// Bar, name = the live status line, and a bounding rectangle
-/// covering the whole strip — the frame's bottom edge, corner
-/// included — so an element-from-point query lands on it directly.
+/// The bar's own MSAA identity is the primary path (see the module
+/// comment), but if NVDA asks UIA for the element at that corner,
+/// the element comes from a provider — and the system proxy for the
+/// bar reports a non-native element NVDA then ignores in favour of
+/// MSAA. These providers answer instead, one for the bar window and
+/// one for the strip window itself: control type Status Bar, name =
+/// the live status line, and a bounding rectangle covering the whole
+/// strip — the frame's bottom edge, corner included — so an
+/// element-from-point query lands on a status bar directly.
 mod uia {
 	use std::ffi::c_void;
 	use std::sync::atomic::{AtomicU32, Ordering};
@@ -332,12 +384,14 @@ mod uia {
 	/// One allocation, two interfaces: Simple at offset 0, Fragment
 	/// behind the second vtable pointer. Lives for the app's whole
 	/// run (the reference count never reaches zero by design), like
-	/// the window it serves.
+	/// the window it serves. One provider serves the bar window and
+	/// a second the strip window itself, so whichever of the two a
+	/// UIA element-from-point lands on, it reports a status bar.
 	struct Provider {
 		simple_vtbl: *const SimpleVtbl,
 		fragment_vtbl: *const FragmentVtbl,
 		refs: AtomicU32,
-		bar: Hwnd,
+		hwnd: Hwnd,
 		strip: Hwnd,
 	}
 
@@ -362,20 +416,10 @@ mod uia {
 		unsafe { (p as *mut u8).add(8) as *mut c_void }
 	}
 
-	// The two interface pointers of one provider differ only by the
-	// 8-byte offset; the shared AddRef/Release receive either, so the
-	// fragment interface's address is remembered at install and the
-	// base is recoverable from either pointer exactly.
-	static FRAGMENT_IFACE_MARKER: std::sync::atomic::AtomicUsize =
-		std::sync::atomic::AtomicUsize::new(0);
-
-	fn from_any(this: *mut c_void) -> *mut Provider {
-		if this as usize == FRAGMENT_IFACE_MARKER.load(Ordering::Relaxed) {
-			from_fragment(this)
-		} else {
-			from_simple(this)
-		}
-	}
+	// AddRef/Release exist per interface (the fragment wrappers
+	// recover the base through from_fragment), because several
+	// providers are alive at once and no global can tell two
+	// interface pointers apart.
 
 	unsafe fn qi_on(p: *mut Provider, iid: *const Guid, out: *mut *mut c_void) -> i32 {
 		// SAFETY: iid points at a caller-owned GUID; out was checked.
@@ -420,17 +464,15 @@ mod uia {
 		unsafe { qi_on(from_fragment(this), iid, out) }
 	}
 
-	unsafe extern "system" fn add_ref(this: *mut c_void) -> u32 {
-		// SAFETY: `this` is one of the provider's two interfaces.
-		let p = from_any(this);
+	unsafe fn add_ref_on(p: *mut Provider) -> u32 {
+		// SAFETY: p is a live provider.
 		unsafe { (*p).refs.fetch_add(1, Ordering::Relaxed) + 1 }
 	}
 
-	unsafe extern "system" fn release(this: *mut c_void) -> u32 {
+	unsafe fn release_on(p: *mut Provider) -> u32 {
 		// The provider is never freed: one reference is held for the
 		// app's lifetime, and the count floors at it.
-		let p = from_any(this);
-		// SAFETY: `this` is one of the provider's two interfaces.
+		// SAFETY: p is a live provider.
 		let refs = unsafe { &(*p).refs };
 		let mut cur = refs.load(Ordering::Relaxed);
 		while cur > 1 {
@@ -440,6 +482,26 @@ mod uia {
 			}
 		}
 		1
+	}
+
+	unsafe extern "system" fn add_ref(this: *mut c_void) -> u32 {
+		// SAFETY: `this` is the provider's Simple interface.
+		unsafe { add_ref_on(from_simple(this)) }
+	}
+
+	unsafe extern "system" fn release(this: *mut c_void) -> u32 {
+		// SAFETY: `this` is the provider's Simple interface.
+		unsafe { release_on(from_simple(this)) }
+	}
+
+	unsafe extern "system" fn add_ref_fragment(this: *mut c_void) -> u32 {
+		// SAFETY: `this` is the provider's Fragment interface.
+		unsafe { add_ref_on(from_fragment(this)) }
+	}
+
+	unsafe extern "system" fn release_fragment(this: *mut c_void) -> u32 {
+		// SAFETY: `this` is the provider's Fragment interface.
+		unsafe { release_on(from_fragment(this)) }
 	}
 
 	unsafe extern "system" fn provider_options(
@@ -497,7 +559,7 @@ mod uia {
 		}
 		let p = from_simple(this);
 		// SAFETY: delegates to UIA's own host provider for the window.
-		unsafe { UiaHostProviderFromHwnd((*p).bar, out) }
+		unsafe { UiaHostProviderFromHwnd((*p).hwnd, out) }
 	}
 
 	unsafe extern "system" fn navigate(
@@ -519,7 +581,7 @@ mod uia {
 		// SAFETY: every handle names a live window of this process.
 		unsafe {
 			let mut host: *mut c_void = std::ptr::null_mut();
-			if UiaHostProviderFromHwnd((*p).bar, &mut host) != S_OK || host.is_null() {
+			if UiaHostProviderFromHwnd((*p).hwnd, &mut host) != S_OK || host.is_null() {
 				return S_OK;
 			}
 			let mut host_fragment: *mut c_void = std::ptr::null_mut();
@@ -558,7 +620,7 @@ mod uia {
 		unsafe {
 			let mut r = Rect::default();
 			if GetWindowRect((*p).strip, &mut r) == 0 {
-				GetWindowRect((*p).bar, &mut r);
+				GetWindowRect((*p).hwnd, &mut r);
 			}
 			*out = UiaRect {
 				left: r.left as f64,
@@ -615,8 +677,8 @@ mod uia {
 
 	static FRAGMENT_VTBL: FragmentVtbl = FragmentVtbl {
 		qi: qi_fragment,
-		add_ref,
-		release,
+		add_ref: add_ref_fragment,
+		release: release_fragment,
 		navigate,
 		runtime_id,
 		bounding_rect,
@@ -645,27 +707,22 @@ mod uia {
 		unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
 	}
 
-	static INSTALLED: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-
-	/// Serve the provider for the bar window. Called once, from the
-	/// strip's construction.
-	pub fn install(bar: Hwnd, strip: Hwnd) {
-		INSTALLED.get_or_init(|| {
-			let provider = Box::new(Provider {
-				simple_vtbl: &SIMPLE_VTBL,
-				fragment_vtbl: &FRAGMENT_VTBL,
-				refs: AtomicU32::new(1),
-				bar,
-				strip,
-			});
-			let raw = Box::into_raw(provider);
-			FRAGMENT_IFACE_MARKER.store(fragment_iface(raw) as usize, Ordering::Relaxed);
-			// SAFETY: bar is a live window of this thread; the
-			// subclass only intercepts the UIA root-object request.
-			unsafe {
-				SetWindowSubclass(bar, subclass_proc, 1, raw as usize);
-			}
-			raw as usize
+	/// Serve a provider for `hwnd` (the bar window, and the strip
+	/// window itself). Called from the strip's construction, once
+	/// per window; each call creates that window's own provider.
+	pub fn install(hwnd: Hwnd, strip: Hwnd) {
+		let provider = Box::new(Provider {
+			simple_vtbl: &SIMPLE_VTBL,
+			fragment_vtbl: &FRAGMENT_VTBL,
+			refs: AtomicU32::new(1),
+			hwnd,
+			strip,
 		});
+		let raw = Box::into_raw(provider);
+		// SAFETY: hwnd is a live window of this thread; the subclass
+		// only intercepts the UIA root-object request.
+		unsafe {
+			SetWindowSubclass(hwnd, subclass_proc, 1, raw as usize);
+		}
 	}
 }

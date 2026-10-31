@@ -237,17 +237,16 @@ and playback continues.
 ## Now playing
 
 The now-playing line shows `Station` or `Station - Song`, with how long it has played and
-the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. The window title carries
-the whole line — `BlindRadio`, then the line itself — so a screen reader's title command
-and Alt+Tab hear everything it says, played time and format included. Ctrl+Alt+Shift+N
-says it whatever your announcement settings are.
+the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. The window title shows
+the app's name and the station and song, as it always has. Ctrl+Alt+Shift+N says the
+whole line whatever your announcement settings are.
 
 The global hot keys work from any app. With NVDA running, announcements are spoken by
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
-window. The status bar itself still holds the line: on Windows it sits in its own thin
-window along the main window's bottom edge and answers UI Automation queries as a
-status bar named with the current line, and on Linux it is a standard part of the main
-window, which Orca reads the same way.
+window. The status bar holds the line: on Windows it is the standard Windows status
+bar control in its own borderless window along the main window's bottom edge, so
+NVDA's status line command (NVDA+End) reads it like any other app's status bar, and
+on Linux it is a standard part of the main window, which Orca reads the same way.
 
 ## Keyboard shortcuts
 

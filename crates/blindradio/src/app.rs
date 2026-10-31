@@ -1123,15 +1123,13 @@ impl App {
 	}
 
 	fn show_line(&self, text: &str) {
-		// The frame title carries the whole status line (Brandon's
-		// call after NVDA+End kept missing the bar): the app's name,
-		// then the line itself — station, song, played time, format.
-		// A screen reader's title command and Alt+Tab read it from
-		// anywhere. Stopped, the title falls back to the base.
+		// The title stays as it has always been: the app's name and
+		// the base line (station and song), never the status
+		// suffixes — the played time and format live on the status
+		// bar, not up here (Brandon, explicit, after 0.2.22 tried
+		// putting the whole line in the title and he rejected it).
 		let base = self.status_base.borrow().clone();
-		let title = if !text.is_empty() {
-			format!("{} - {}", s::APP_NAME, text)
-		} else if base.is_empty() {
+		let title = if base.is_empty() {
 			s::APP_NAME.to_string()
 		} else {
 			format!("{} - {}", s::APP_NAME, base)

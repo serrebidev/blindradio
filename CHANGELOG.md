@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.23
+
+- The window title is back as it was. 0.2.22 put the whole status line in the title as a workaround; that was the wrong trade, and it is reverted — the title shows the app name, station and song, nothing more.
+- The status bar itself is fixed instead. On Windows the bar lives in its own thin window along the main window's bottom edge so NVDA's status line command (NVDA+End) can find it — but that window still had a frame border, and NVDA's search starts at the window's bottom-left corner, which landed on the border (a plain pane) instead of the bar. The window is now truly borderless: the bar fills it corner to corner, and NVDA+End reads the line — station, song, played time, and the stream's format — the way it does in any other app.
+
 ## 0.2.22
 
 - Fixed a serious startup regression from 0.2.21: as the app started, NVDA announced "Pane" and the station tree would not take focus until Alt+Tab was pressed a few times, and the same theft could recur later. The status strip was being shown through wx as well as directly, and showing a window through wx activates it — the nameless strip kept taking the foreground from the main window. The strip is shown directly again, as in 0.2.20, which never activates it.
