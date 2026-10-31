@@ -230,6 +230,48 @@ fn export_tree_round_trip_rebuilds_folders() {
 }
 
 #[test]
+fn export_tree_round_trip_rebuilds_nested_folders() {
+	let mut lib = Library::default();
+	let id = lib.create_collection("Mix");
+	let a = lib.add_custom("A", "http://x.example/a");
+	let b = lib.add_custom("B", "http://x.example/b");
+	lib.toggle_in_collection(&id, &a);
+	lib.toggle_in_collection(&id, &b);
+	{
+		let c = lib.collections.iter_mut().find(|c| c.id == id).unwrap();
+		let st = c.stations.remove(1);
+		// News inside Public: two levels down.
+		c.child_mut("Public")
+			.child_mut("News")
+			.stations
+			.push(st);
+		// A slash without spaces is a name, not a path.
+		let st = c.stations.remove(0);
+		c.child_mut("Top 40/Pop").stations.push(st);
+	}
+	let dir = tempfile::tempdir().unwrap();
+	let p = dir.path().join("tree.m3u");
+	{
+		let c = lib.collections.iter().find(|c| c.id == id).unwrap();
+		export_m3u_tree(&c.stations, &c.folders, &p).unwrap();
+	}
+	let body = std::fs::read_to_string(&p).unwrap();
+	assert!(body.contains("group-title=\"Public / News\""), "{body}");
+	assert!(body.contains("group-title=\"Top 40/Pop\""), "{body}");
+	let mut other = Library::default();
+	let r = import_playlist(&mut other, &p, collection("Copy")).unwrap();
+	assert_eq!(r.added, 2);
+	let c = other.collections.iter().find(|c| c.name == "Copy").unwrap();
+	assert_eq!(c.folders.len(), 2);
+	let public = c.folders.iter().find(|f| f.name == "Public").unwrap();
+	assert_eq!(public.folders.len(), 1);
+	assert_eq!(public.folders[0].name, "News");
+	assert_eq!(public.folders[0].stations[0].name, "B");
+	let pop = c.folders.iter().find(|f| f.name == "Top 40/Pop").unwrap();
+	assert_eq!(pop.stations[0].name, "A");
+}
+
+#[test]
 fn report_message_exact() {
 	let r = ImportReport {
 		added: 12,

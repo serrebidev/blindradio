@@ -46,7 +46,8 @@ holds the BlindRadio Directory, Radio Browser, TuneIn, iHeartRadio, Icecast, SHO
 Internet-Radio, laut.fm
 and Radio.net. The BlindRadio Directory is the community's own submitted stations,
 kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
-folder (a country or a category), and the app reads the repository live, so new
+folder (a country or a category), each playlist's groups are its subfolders, and the
+app reads the repository live, so new
 submissions appear in Browse without an app update;
 Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
 that is still loading says
@@ -95,7 +96,8 @@ On the main window, Alt+1 to Alt+0 play favorites one to ten.
 ## Importing
 
 Ctrl+I imports a playlist into Custom Stations as a folder named after the file; Ctrl+Shift+I
-imports it as a collection named after the file. The playlist's groups become subfolders and
+imports it as a collection named after the file. The playlist's groups become subfolders —
+a group written as a path (News / World) becomes subfolders inside subfolders — and
 its order is kept. M3U, M3U8 and PLS files are read.
 
 For one stream right now, File → Open URL plays an address you paste without adding it
@@ -107,7 +109,9 @@ Played, and from there it can be favorited or added to a collection like any sta
 Favorites and Collections each have an Export button that writes an M3U through a save dialog.
 The main window's tree exports too: a station from its menu, and a folder — a directory,
 a subdirectory, or a whole collection in the All Lists view — from the folder's own menu,
-with everything under it written as M3U groups, the way Browse exports them.
+with everything under it written as M3U groups — a subfolder's group is its full path
+(News / World) — the way Browse exports them, so importing the file rebuilds the same
+folders.
 
 ## Your own stations
 

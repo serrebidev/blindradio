@@ -117,6 +117,12 @@ async fn children_dispatch_by_prefix() {
 		src.children("brdir/Public%20Radio", Sort::default())
 			.await
 			.unwrap(),
+		vec![folder("brdir/Public%20Radio/NPR", "NPR")]
+	);
+	assert_eq!(
+		src.children("brdir/Public%20Radio/NPR", Sort::default())
+			.await
+			.unwrap(),
 		vec![Node::Station(Station {
 			id: "brdir:Public Radio:0".into(),
 			name: "WNYC".into(),

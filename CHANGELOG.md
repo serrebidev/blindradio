@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.28
+
+- The BlindRadio Directory shows each playlist's subdirectories again: a playlist's groups (BBC in UK, NPR, AZPM and the rest in Public Radio) are folders in Browse, instead of every station lumped into one flat list.
+- Exporting a collection or folder to M3U now writes each folder's full path as the group, and importing splits it back into nested folders, so subfolders inside subfolders survive an export and re-import instead of flattening to the innermost folder's name. A folder name holding a bare slash (Top 40/Pop) still stays a single folder.
+
 ## 0.2.27
 
 - Song changes are now announced while listening back in the time-shift buffer, not only live: as playback moves forward through the buffer and the next song starts, it is spoken under the same Announce Song Titles setting as live announcements.

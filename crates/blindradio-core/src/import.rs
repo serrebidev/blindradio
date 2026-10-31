@@ -102,7 +102,8 @@ impl Root<'_> {
 /// target collection counts as had. New stations are `custom:` stations.
 ///
 /// Groups become folders. An M3U `group-title` names the group its entry belongs to;
-/// exporters that tag only the first entry of a block rely on the group running on
+/// a group holding `GROUP_PATH_SEP` is a folder path and builds nested folders.
+/// Exporters that tag only the first entry of a block rely on the group running on
 /// until the next tag, so an untagged entry joins the group in progress. Entries
 /// before any tag stay at the root. Entry order is kept throughout.
 pub fn import_playlist_text(
@@ -158,7 +159,24 @@ pub fn import_playlist_text(
 			info: e.group,
 		};
 		match &group {
-			Some(g) => root.child(g).stations.push(station),
+			Some(g) => {
+				// A group path builds its folder chain, segment by segment.
+				let mut folder: Option<&mut Folder> = None;
+				for seg in g
+					.split(GROUP_PATH_SEP)
+					.map(str::trim)
+					.filter(|s| !s.is_empty())
+				{
+					folder = Some(match folder.take() {
+						None => root.child(seg),
+						Some(f) => f.child_mut(seg),
+					});
+				}
+				match folder {
+					Some(f) => f.stations.push(station),
+					None => root.stations().push(station),
+				}
+			}
 			None => root.stations().push(station),
 		}
 		report.added += 1;
@@ -195,22 +213,32 @@ pub fn export_m3u(stations: &[Station], path: &Path) -> Result<()> {
 	Ok(())
 }
 
-/// Root stations plus folders, each folder's stations tagged with its name as
-/// `group-title`, so re-importing rebuilds the same folders.
+/// How a folder path is written into a `group-title`: segments joined by
+/// `" / "`, so nested folders survive the round trip and re-importing
+/// rebuilds the same tree. A folder whose own name holds a bare `/`
+/// (Top 40/Pop) is untouched — only the spaced separator splits.
+pub const GROUP_PATH_SEP: &str = " / ";
+
+/// Root stations plus folders, each folder's stations tagged with the
+/// folder's full path as `group-title`, so re-importing rebuilds the
+/// same folders, nested ones included.
 pub fn export_m3u_tree(stations: &[Station], folders: &[Folder], path: &Path) -> Result<()> {
 	let mut out = String::from("#EXTM3U\n");
 	for s in stations {
 		write_entry(&mut out, s, None);
 	}
-	fn walk(out: &mut String, folders: &[Folder]) {
+	fn walk(out: &mut String, folders: &[Folder], trail: &mut Vec<String>) {
 		for f in folders {
+			trail.push(f.name.clone());
+			let group = trail.join(GROUP_PATH_SEP);
 			for s in &f.stations {
-				write_entry(out, s, Some(&f.name));
+				write_entry(out, s, Some(&group));
 			}
-			walk(out, &f.folders);
+			walk(out, &f.folders, trail);
+			trail.pop();
 		}
 	}
-	walk(&mut out, folders);
+	walk(&mut out, folders, &mut Vec::new());
 	std::fs::write(path, out)?;
 	Ok(())
 }

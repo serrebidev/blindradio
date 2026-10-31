@@ -54,21 +54,56 @@ fn folders(entries: Vec<Entry>) -> Vec<Node> {
 		.collect()
 }
 
-/// One playlist file's stations, in file order.
-fn stations(stem: &str, body: &str) -> Vec<Node> {
-	parse_m3u(body)
-		.into_iter()
-		.enumerate()
-		.map(|(i, e)| {
-			Node::Station(Station {
-				id: format!("brdir:{stem}:{i}"),
-				name: e.title.unwrap_or_else(|| e.url.clone()),
-				url: e.url,
-				source: Source::Directory,
-				info: e.group,
-			})
-		})
-		.collect()
+/// A group's folder path: segments split on the shared path separator,
+/// so a group exported from nested folders browses as nested folders.
+fn group_path(group: &Option<String>) -> Vec<String> {
+	match group {
+		Some(g) => g
+			.split(crate::import::GROUP_PATH_SEP)
+			.map(|s| s.trim().to_owned())
+			.filter(|s| !s.is_empty())
+			.collect(),
+		None => Vec::new(),
+	}
+}
+
+fn station_of(stem: &str, i: usize, e: &crate::playlist::PlaylistEntry) -> Node {
+	Node::Station(Station {
+		id: format!("brdir:{stem}:{i}"),
+		name: e.title.clone().unwrap_or_else(|| e.url.clone()),
+		url: e.url.clone(),
+		source: Source::Directory,
+		info: e.group.clone(),
+	})
+}
+
+/// One browse level of a playlist file: the stations whose group path
+/// is exactly `prefix`, plus a folder per next segment under it, all in
+/// file order — the groups a playlist carries are its subdirectories.
+fn level(stem: &str, body: &str, prefix: &[String]) -> Vec<Node> {
+	let entries = parse_m3u(body);
+	let mut nodes = Vec::new();
+	let mut seen: Vec<String> = Vec::new();
+	for (i, e) in entries.iter().enumerate() {
+		let path = group_path(&e.group);
+		if path.len() < prefix.len() || path[..prefix.len()] != *prefix {
+			continue;
+		}
+		if path.len() == prefix.len() {
+			nodes.push(station_of(stem, i, e));
+		} else {
+			let next = &path[prefix.len()];
+			if !seen.contains(next) {
+				seen.push(next.clone());
+				let mut id = format!("brdir/{}", enc(stem));
+				for seg in prefix.iter().chain(std::iter::once(next)) {
+					id += &format!("/{}", enc(seg));
+				}
+				nodes.push(folder(id, next.clone()));
+			}
+		}
+	}
+	nodes
 }
 
 pub struct Directory {
@@ -89,10 +124,15 @@ impl Directory {
 				crate::net::get_json(client, &format!("{}/contents", self.base)).await?;
 			return Ok(folders(entries));
 		}
-		let Some(enc_stem) = id.strip_prefix("brdir/") else {
+		let mut segments = id.split('/');
+		let _ = segments.next(); // "brdir"
+		let Some(enc_stem) = segments.next() else {
 			return Ok(vec![]);
 		};
-		let stem = percent_decode_str(enc_stem).decode_utf8_lossy();
+		let stem = percent_decode_str(enc_stem).decode_utf8_lossy().into_owned();
+		let prefix: Vec<String> = segments
+			.map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
+			.collect();
 		let url = format!("{}/contents/{}", self.base, enc(&format!("{stem}.m3u")));
 		// The raw media type answers with the file itself, not base64 JSON.
 		let response = client
@@ -108,7 +148,7 @@ impl Directory {
 			return Err(CoreError::Http(format!("HTTP {status}")));
 		}
 		let bytes = response.bytes().await.map_err(http_err)?;
-		Ok(stations(&stem, &String::from_utf8_lossy(&bytes)))
+		Ok(level(&stem, &String::from_utf8_lossy(&bytes), &prefix))
 	}
 }
 
@@ -142,22 +182,48 @@ mod tests {
 		);
 	}
 
+	const BODY: &str = "#EXTM3U\n#EXTINF:-1 group-title=\"BBC\",BBC Radio 1\nhttp://x/1\n#EXTINF:-1,Loose\nhttp://x/2\n#EXTINF:-1 group-title=\"BBC\",BBC Radio 2\nhttp://x/3\n#EXTINF:-1 group-title=\"News / World\",World News\nhttp://x/4\n";
+
 	#[test]
-	fn stations_carry_name_group_and_directory_source() {
-		let body = "#EXTM3U\n#EXTINF:-1 group-title=\"BBC\",BBC Radio 1\nhttp://x/1\n#EXTINF:-1,Loose\nhttp://x/2\nhttp://x/3\n";
-		let got = stations("UK", body);
+	fn groups_are_folders_loose_stations_stay_at_the_top() {
+		let got = level("UK", BODY, &[]);
 		assert_eq!(got.len(), 3);
+		assert_eq!(got[0], folder("brdir/UK/BBC", "BBC"));
+		let Node::Station(loose) = &got[1] else {
+			panic!("station row")
+		};
+		assert_eq!(loose.id, "brdir:UK:1");
+		assert_eq!(loose.name, "Loose");
+		assert_eq!(loose.source, Source::Directory);
+		assert_eq!(got[2], folder("brdir/UK/News", "News"));
+	}
+
+	#[test]
+	fn a_folder_level_lists_its_stations() {
+		let got = level("UK", BODY, &["BBC".to_string()]);
+		assert_eq!(got.len(), 2);
 		let Node::Station(first) = &got[0] else {
 			panic!("station row")
 		};
 		assert_eq!(first.id, "brdir:UK:0");
 		assert_eq!(first.name, "BBC Radio 1");
 		assert_eq!(first.info.as_deref(), Some("BBC"));
-		assert_eq!(first.source, Source::Directory);
-		let Node::Station(third) = &got[2] else {
+		let Node::Station(second) = &got[1] else {
 			panic!("station row")
 		};
-		assert_eq!(third.name, "http://x/3", "a bare URL names itself");
-		assert_eq!(third.info, None);
+		assert_eq!(second.name, "BBC Radio 2");
+	}
+
+	#[test]
+	fn a_group_path_browses_as_nested_folders() {
+		let got = level("UK", BODY, &["News".to_string()]);
+		assert_eq!(got, vec![folder("brdir/UK/News/World", "World")]);
+		let got = level("UK", BODY, &["News".to_string(), "World".to_string()]);
+		assert_eq!(got.len(), 1);
+		let Node::Station(only) = &got[0] else {
+			panic!("station row")
+		};
+		assert_eq!(only.name, "World News");
+		assert_eq!(only.info.as_deref(), Some("News / World"));
 	}
 }
