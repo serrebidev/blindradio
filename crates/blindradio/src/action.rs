@@ -1,6 +1,7 @@
 //! Everything a menu item, button or key can do. Menus, buttons and keys only produce these.
 
-use blindradio_core::sleep::SLEEP_MINUTES;
+use blindradio_core::settings::Settings;
+#[cfg(test)]
 use wxdragon::prelude::{
 	WXK_DOWN, WXK_ESCAPE, WXK_F1, WXK_F5, WXK_F6, WXK_F7, WXK_F8, WXK_LEFT, WXK_RIGHT, WXK_UP,
 };
@@ -59,6 +60,8 @@ pub enum Action {
 	SetDevice(Option<String>),
 	/// File > Global Hotkeys…: the chord editor.
 	GlobalHotkeys,
+	/// File > Keyboard Shortcuts…: the in-app chord editor.
+	KeyboardShortcuts,
 	/// Playback feature settings dialog.
 	FeatureSettings,
 	/// Per-station overrides dialog (context menu).
@@ -81,94 +84,19 @@ pub enum Action {
 	Close,
 }
 
-/// The app-wide key table. `main_window` is false inside dialogs, where the main-window-only keys
-/// fall through to the focused control.
-pub fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main_window: bool) -> Option<Action> {
-	let letter = u8::try_from(code).ok().map(char::from);
-	let digit = letter.and_then(|c| c.to_digit(10));
-	match (ctrl, alt, shift) {
-		(true, false, false) => {
-			if let Some(d) = digit {
-				return Some(match d {
-					0 => Action::SleepOff,
-					1..=6 => Action::Sleep(SLEEP_MINUTES[d as usize - 1]),
-					_ => return None,
-				});
-			}
-			match code {
-				WXK_UP => return Some(Action::VolumeUp),
-				WXK_DOWN => return Some(Action::VolumeDown),
-				WXK_LEFT => return Some(Action::SeekBack),
-				WXK_RIGHT => return Some(Action::SeekForward),
-				_ => {}
-			}
-			Some(match letter? {
-				'P' => Action::PlayPause,
-				'S' => Action::Stop,
-				'R' => Action::Record,
-				'J' => Action::GoLive,
-				'M' => Action::Mute,
-				'D' => Action::ToggleFavorite,
-				'F' => Action::OpenSearch,
-				'G' => Action::OpenBrowse,
-				'B' => Action::OpenFavorites,
-				'H' => Action::OpenRecent,
-				'N' => Action::NewCustomStation,
-				'U' => Action::CopyUrl,
-				'C' => Action::CopyStation,
-				'X' => Action::CutStation,
-				'V' => Action::PasteStation,
-				'Y' => Action::SongHistory,
-				'L' => Action::OpenCollections,
-				'E' => Action::Equalizer,
-				'T' => Action::FeatureSettings,
-				'I' if main_window => Action::Import,
-				_ => return None,
-			})
-		}
-		(true, false, true) => {
-			match code {
-				WXK_LEFT => return Some(Action::SeekStart),
-				WXK_RIGHT => return Some(Action::GoLive),
-				_ => {}
-			}
-			// Like Ctrl+R, pausing a recording works from dialogs too.
-			if letter == Some('R') {
-				return Some(Action::RecordPause);
-			}
-			if !main_window {
-				return None;
-			}
-			Some(match letter? {
-				'I' => Action::ImportAsCollection,
-				'L' => Action::AddToCollection,
-				_ => return None,
-			})
-		}
-		(false, true, false) if main_window => match code {
-			// Back and forward through the stations played this session.
-			WXK_LEFT => Some(Action::PreviousStation),
-			WXK_RIGHT => Some(Action::NextStation),
-			_ => match (digit, letter) {
-				(Some(0), _) => Some(Action::PlayFavorite(9)),
-				(Some(d), _) => Some(Action::PlayFavorite(d as usize - 1)),
-				(_, Some('V')) => Some(Action::FocusVolume),
-				_ => None,
-			},
-		},
-		(false, false, false) => match code {
-			WXK_F1 => Some(Action::Help),
-			// The transport row: buffer start, skip back, skip forward, live.
-			WXK_F5 => Some(Action::SeekStart),
-			WXK_F6 => Some(Action::SeekBack),
-			WXK_F7 => Some(Action::SeekForward),
-			WXK_F8 => Some(Action::GoLive),
-			// The main window has nothing to close.
-			WXK_ESCAPE if !main_window => Some(Action::Close),
-			_ => None,
-		},
-		_ => None,
-	}
+/// The app-wide key table, now the user's data: `keys::lookup` over
+/// Settings.keys and the defaults in keys.rs. `main_window` is false
+/// inside dialogs, where the main-window-only keys fall through to
+/// the focused control.
+pub fn app_key(
+	settings: &Settings,
+	code: i32,
+	ctrl: bool,
+	alt: bool,
+	shift: bool,
+	main_window: bool,
+) -> Option<Action> {
+	crate::keys::lookup(settings, code, ctrl, alt, shift, main_window)
 }
 
 /// The text-editing chords: copy, cut and paste inside a text field. The
@@ -187,6 +115,12 @@ pub fn is_text_edit_chord(code: i32, ctrl: bool, alt: bool, shift: bool) -> bool
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// The old signature over a fresh install's defaults.
+	fn app_key(code: i32, ctrl: bool, alt: bool, shift: bool, main: bool) -> Option<Action> {
+		super::app_key(&Settings::default(), code, ctrl, alt, shift, main)
+	}
+
 	fn key(c: char) -> i32 {
 		c as i32
 	}

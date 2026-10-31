@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.25
+
+- The status bar no longer repeats the station and song: it carries the played time, live or how far behind live, the recording state and the stream format. The station and song stay in the title and the now-playing line, where they no longer crowd the bar.
+- The title's song now follows the time-shift buffer: shifted back, the title and the now-playing line name the song playing at the buffer's position instead of the live one, and going live names the live song again.
+- Every in-app keyboard shortcut is now customizable: File, Keyboard Shortcuts lists all of them under Playback, Stations and App — rebind any key, clear one, or give a key to an action that had none, such as Write Buffer or Scheduled Recordings. The menus print the keys as they are now set, and the defaults are unchanged.
+- The FM sound — the soft hiss between stations while tuning — is now optional: Settings has FM Sound Between Stations, on by default. Off, tuning gaps are silent.
+
 ## 0.2.24
 
 - New Settings checkbox: Expand All Directories in the Main Window. Until now the main window's tree always opened with every directory and subdirectory expanded, which can make a long list hard to walk; untick it and directories start collapsed — the list opens as its top-level directories, and you open the ones you want. A directory you open or close by hand keeps its state across restarts of the list either way, and changing the setting takes effect as soon as Settings closes.

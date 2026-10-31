@@ -138,6 +138,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		s::EXPAND_DIAL_FOLDERS,
 		current.expand_dial_folders,
 	);
+	let fm_sound = check(&dialog, &sizer, s::FM_SOUND, current.fm_sound);
 	let updates_auto = check(&dialog, &sizer, s::CHECK_UPDATES_AUTO, current.check_updates);
 	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
 	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
@@ -270,6 +271,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.check_updates = updates_auto.get_value();
 			st.play_on_move = play_move.get_value();
 			st.expand_dial_folders = expand_dial.get_value();
+			st.fm_sound = fm_sound.get_value();
 			st.close_to_tray = tray.get_value();
 			st.maximize_on_start = max_start.get_value();
 			st.timeshift.enabled = ts_on.get_value();
@@ -302,6 +304,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.scrobble.lastfm_session_key = blank_none(&fm_session.get_value());
 			st.scrobble.lastfm_base = blank_none(&fm_base.get_value());
 			app.save_settings();
+			app.apply_fm_sound();
 			app.refresh_dial();
 			d.end_modal(ID_OK);
 		});

@@ -10,6 +10,7 @@ mod dialogs;
 mod help;
 mod hotkeys;
 mod instance;
+mod keys;
 mod dial_tree;
 mod main_window;
 mod menus;

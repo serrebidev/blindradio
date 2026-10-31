@@ -25,7 +25,8 @@ const TAIL_MS: u64 = 5;
 /// Target stream buffer when the device range allows it.
 const BUFFER_MS: u32 = 10;
 /// Peak of the hiss between stations, before volume: soft, like a dial between stations.
-// ponytail: fixed level and tone; make it a setting if listeners want it louder, quieter or off.
+// ponytail: fixed level and tone; the on/off setting listeners asked for exists
+// (MixerCmd::Hiss, Settings' FM sound), louder/quieter would ride the same path.
 const HISS_LEVEL: f32 = 0.08;
 /// One-pole lowpass on the hiss: dulls white noise toward a radio's softer static.
 const HISS_TONE: f32 = 0.3;
@@ -38,6 +39,8 @@ pub enum MixerCmd {
 	Volume(f32),
 	Mute(bool),
 	Eq(EqSettings),
+	/// The FM sound: whether the between-stations hiss sounds at all.
+	Hiss(bool),
 	/// Leave the active station for the space between stations: it fades out into soft hiss,
 	/// which lasts until a `SetActive` ring has audio, so tuning never has dead air.
 	/// `SetActive { ring: None }` (stop) is silence.
@@ -104,6 +107,8 @@ pub struct MixerCore {
 	eq_settings: EqSettings,
 	/// Between stations or waiting on the active one: hiss fills the gap.
 	hiss: bool,
+	/// The FM sound setting: off, the gap between stations is silent.
+	hiss_enabled: bool,
 	hiss_level: f32,
 	hiss_gain: f32,
 	hiss_step: f32,
@@ -139,6 +144,7 @@ impl MixerCore {
 			eq: Eq::new(rate),
 			eq_settings: EqSettings::default(),
 			hiss: false,
+			hiss_enabled: true,
 			hiss_level: HISS_LEVEL,
 			hiss_gain: 0.0,
 			hiss_step: 0.0,
@@ -167,6 +173,7 @@ impl MixerCore {
 
 	pub fn handle(&mut self, cmd: MixerCmd) {
 		match cmd {
+			MixerCmd::Hiss(on) => self.hiss_enabled = on,
 			MixerCmd::Tune => {
 				self.handle(MixerCmd::SetActive {
 					ring: None,
@@ -368,7 +375,11 @@ impl MixerCore {
 
 		// Hiss covers every frame the active station does not, easing in and out over a crossfade.
 		for f in 0..frames {
-			let want = if self.hiss && !self.shift_paused && f >= got { 1.0 } else { 0.0 };
+			let want = if self.hiss && self.hiss_enabled && !self.shift_paused && f >= got {
+				1.0
+			} else {
+				0.0
+			};
 			self.hiss_gain += (want - self.hiss_gain).clamp(-self.hiss_step, self.hiss_step);
 			if self.hiss_gain > 0.0 {
 				// xorshift32 white noise, lowpassed.
@@ -934,6 +945,37 @@ mod tests {
 			[-0.5; 8],
 			"only the station once it plays"
 		);
+	}
+
+	#[test]
+	fn fm_sound_off_tunes_in_silence() {
+		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(0.5, 2000)),
+			token: 1,
+		});
+		render_frames(&mut mixer, 100);
+		mixer.handle(MixerCmd::Hiss(false));
+		mixer.handle(MixerCmd::Tune);
+		// Past the old station's crossfade, the gap the hiss filled
+		// is silent (bar the EQ's dying ring, far under audibility),
+		// and the station still lands.
+		let out = render_frames(&mut mixer, 200);
+		assert!(
+			out[100..].iter().all(|s| s.abs() < 0.001),
+			"no hiss when the FM sound is off"
+		);
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(-0.5, 2000)),
+			token: 2,
+		});
+		render_frames(&mut mixer, 30);
+		assert_eq!(render_frames(&mut mixer, 4), [-0.5; 8]);
+		// Back on, the hiss returns.
+		mixer.handle(MixerCmd::Hiss(true));
+		mixer.handle(MixerCmd::Tune);
+		let out = render_frames(&mut mixer, 200);
+		assert!(out[100..].iter().any(|s| s.abs() > 0.001), "hiss back on");
 	}
 
 	#[test]

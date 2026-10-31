@@ -33,6 +33,18 @@ impl SessionHistory {
 	pub fn items(&self) -> Vec<HistoryItem> {
 		self.oldest_first.iter().rev().cloned().collect()
 	}
+
+	/// The title playing at `when`: the latest one heard at or before
+	/// it. The time-shift buffer's position is a moment like this, so
+	/// the title can name the song the buffer is actually playing
+	/// instead of the live one.
+	pub fn title_at(&self, when: SystemTime) -> Option<String> {
+		self.oldest_first
+			.iter()
+			.rev()
+			.find(|i| i.played_at.is_some_and(|t| t <= when))
+			.map(|i| i.title.clone())
+	}
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,6 +121,20 @@ mod tests {
 		let titles: Vec<_> = s.items().into_iter().map(|i| i.title).collect();
 		assert_eq!(titles, ["one", "two", "one"]);
 		assert_eq!(s.items()[0].played_at, Some(t(5)));
+	}
+
+	#[test]
+	fn title_at_finds_the_song_of_the_moment() {
+		let mut s = SessionHistory::default();
+		s.station_changed("a");
+		assert_eq!(s.title_at(t(10)), None, "nothing heard yet");
+		s.title(Some("one"), t(100));
+		s.title(Some("two"), t(200));
+		assert_eq!(s.title_at(t(99)), None, "before the first title");
+		assert_eq!(s.title_at(t(100)).as_deref(), Some("one"));
+		assert_eq!(s.title_at(t(150)).as_deref(), Some("one"));
+		assert_eq!(s.title_at(t(200)).as_deref(), Some("two"));
+		assert_eq!(s.title_at(t(999)).as_deref(), Some("two"), "after the last");
 	}
 
 	#[test]

@@ -203,10 +203,12 @@ Ctrl+T opens Settings (File menu). The General checkboxes are Announce Song Titl
 Connection Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as
 I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, Check
 for Updates Automatically (the daily update check; Help, Check for Updates always works), and
-Expand All Directories in the Main Window. With Play a Station as I Move to It off, moving
+Expand All Directories in the Main Window, and FM Sound Between Stations. With Play a Station as I Move to It off, moving
 through a list only selects the station; Enter plays it. With Expand All Directories off,
 the main window's directories start collapsed, so a long list opens as a short list of
-directories to walk into; a directory you open or close by hand keeps its state either way. The Startup List chooses what the main list shows when the app starts: the default
+directories to walk into; a directory you open or close by hand keeps its state either way.
+FM Sound is the soft hiss BlindRadio plays while a new station tunes in, like a dial
+crossing the band, so tuning never has dead air; turn it off and the gap is silent. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
 is a tree: All Playlists shows one folder per playlist with its directories inside, and a
@@ -246,14 +248,24 @@ the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. The window title
 the app's name and the station and song, as it always has. Ctrl+Alt+Shift+N says the
 whole line whatever your announcement settings are.
 
+When you are listening back in the time-shift buffer, the title names the song playing
+at the buffer's position, not the live one; go live and it names the live song again.
+
 The global hot keys work from any app. With NVDA running, announcements are spoken by
 NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
-window. The status bar holds the line: on Windows it is the standard Windows status
-bar control in its own borderless window along the main window's bottom edge, so
-NVDA's status line command (NVDA+End) reads it like any other app's status bar, and
-on Linux it is a standard part of the main window, which Orca reads the same way.
+window. The status bar holds the position line — how long the station has played, live
+or how far behind, whether a recording is running, and the stream's format; the station
+and song stay in the title, where they do not crowd it out. On Windows it is the standard
+Windows status bar control in its own borderless window along the main window's bottom
+edge, so NVDA's status line command (NVDA+End) reads it like any other app's status bar,
+and on Linux it is a standard part of the main window, which Orca reads the same way.
 
 ## Keyboard shortcuts
+
+These are the defaults. Every one can be changed, cleared, or given to an action that
+has none — Write Buffer, for example — in File, Keyboard Shortcuts, which lists them
+under Playback, Stations and App. The menus always print the keys as they are now.
+Global Hotkeys, below, are the separate set that works from other apps.
 
 | Key | Action |
 | --- | --- |

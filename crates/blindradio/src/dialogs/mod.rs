@@ -9,6 +9,7 @@ pub mod favorites;
 pub mod features;
 pub mod history;
 pub mod hotkeys;
+pub mod keys;
 pub mod recent;
 pub mod schedules;
 pub mod search;
@@ -48,6 +49,7 @@ fn opens_window(a: &Action) -> bool {
 			| Action::SongHistory
 			| Action::Equalizer
 			| Action::GlobalHotkeys
+			| Action::KeyboardShortcuts
 			| Action::FeatureSettings
 	)
 }
@@ -55,6 +57,7 @@ fn opens_window(a: &Action) -> bool {
 /// Route with the focused control in mind: in a text field, the
 /// clipboard trio edits text; everywhere else it works on stations.
 pub fn route_focused(
+	settings: &blindradio_core::settings::Settings,
 	own: &Action,
 	code: i32,
 	ctrl: bool,
@@ -65,7 +68,7 @@ pub fn route_focused(
 	if in_text && crate::action::is_text_edit_chord(code, ctrl, alt, shift) {
 		return Route::Pass;
 	}
-	route(own, code, ctrl, alt, shift)
+	route(settings, own, code, ctrl, alt, shift)
 }
 
 /// Whether the key event started in a text field. A char hook's event
@@ -82,8 +85,15 @@ pub(crate) fn event_in_text(e: &WindowEventData) -> bool {
 }
 
 /// `own` is the shortcut that opens this window.
-pub fn route(own: &Action, code: i32, ctrl: bool, alt: bool, shift: bool) -> Route {
-	match app_key(code, ctrl, alt, shift, false) {
+pub fn route(
+	settings: &blindradio_core::settings::Settings,
+	own: &Action,
+	code: i32,
+	ctrl: bool,
+	alt: bool,
+	shift: bool,
+) -> Route {
+	match app_key(settings, code, ctrl, alt, shift, false) {
 		None => Route::Pass,
 		Some(Action::Close) => Route::Close,
 		Some(a) if a == *own => Route::FocusFirst,
@@ -110,6 +120,7 @@ pub fn run(
 		};
 		let route = key.get_key_code().map_or(Route::Pass, |code| {
 			route_focused(
+				&a.borrow().settings,
 				&own,
 				code,
 				key.control_down(),
@@ -151,6 +162,18 @@ pub fn run(
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// The old signature over a fresh install's defaults.
+	fn route(own: &Action, code: i32, ctrl: bool, alt: bool, shift: bool) -> Route {
+		super::route(
+			&blindradio_core::settings::Settings::default(),
+			own,
+			code,
+			ctrl,
+			alt,
+			shift,
+		)
+	}
 
 	#[test]
 	fn app_keys_in_text_field() {

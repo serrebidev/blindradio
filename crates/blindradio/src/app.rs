@@ -316,6 +316,7 @@ impl App {
 		output.send(MixerCmd::Volume(settings.volume));
 		output.send(MixerCmd::Mute(settings.muted));
 		output.send(MixerCmd::Eq(settings.eq.clone()));
+		output.send(MixerCmd::Hiss(settings.fm_sound));
 		let engine = Engine::new(&data.join(store::RESOLVE_FILE), output.sample_rate)?;
 		let rendered = output.rendered().clone();
 		let output = Rc::new(RefCell::new(output));
@@ -622,6 +623,7 @@ impl App {
 			| Action::Equalizer
 			| Action::ScheduledRecordings
 			| Action::GlobalHotkeys
+			| Action::KeyboardShortcuts
 			| Action::FeatureSettings
 			| Action::StationSettings
 			| Action::EditStation => {}
@@ -717,7 +719,7 @@ impl App {
 	}
 
 	/// The menu bar is built from the settings: device events and a switch rebuild it.
-	fn refresh_menus(&mut self) {
+	pub fn refresh_menus(&mut self) {
 		if self.dialog_open {
 			return;
 		}
@@ -1146,10 +1148,15 @@ impl App {
 	/// The window title and the now playing line; `None` is stopped.
 	fn now_playing(&self, text: Option<&str>) {
 		*self.status_base.borrow_mut() = text.unwrap_or("").to_string();
-		self.show_line(text.unwrap_or(""));
+		self.show_line(text.unwrap_or(""), text.unwrap_or(""));
 	}
 
-	fn show_line(&self, text: &str) {
+	/// `text` is the full line (the now-playing label and what the
+	/// announce chord speaks); `bar` is what the status bar carries.
+	/// They differ: the bar drops the station and song — those are in
+	/// the title already, and on the bar they crowd out the played
+	/// time, the position and the format (Brandon's call).
+	fn show_line(&self, text: &str, bar: &str) {
 		// The title stays as it has always been: the app's name and
 		// the base line (station and song), never the status
 		// suffixes — the played time and format live on the status
@@ -1178,13 +1185,39 @@ impl App {
 		if self.win.now_playing.get_label() != line {
 			self.win.now_playing.set_label(&line);
 		}
-		self.win.status_bar.set_status_text(plain, 0);
+		let bar = if bar.is_empty() { plain } else { bar };
+		self.win.status_bar.set_status_text(bar, 0);
 		#[cfg(windows)]
-		crate::status_strip::set_text(plain);
+		crate::status_strip::set_text(bar);
 		// NVDA's status text assembly reads the bar object's own name
 		// first; mirror the line so it lives on the bar itself, not
 		// only in its pane.
-		self.win.status_bar.set_name(plain);
+		self.win.status_bar.set_name(bar);
+	}
+
+	/// The title's song follows the time-shift position: shifted
+	/// back, the song at the buffer's moment is what is playing, not
+	/// the live one — titles are timestamped as they arrive, so the
+	/// session history names the song of any moment in the buffer.
+	fn sync_title_song(&mut self, behind: f32) {
+		let Some(station) = self.tuner.playing() else {
+			return;
+		};
+		let song = if behind >= 1.0 {
+			let when = SystemTime::now()
+				.checked_sub(Duration::from_secs_f32(behind))
+				.unwrap_or(SystemTime::UNIX_EPOCH);
+			self.history.title_at(when)
+		} else {
+			self.song.clone()
+		};
+		let base = match &song {
+			Some(song) => format!("{} - {}", station.name, song),
+			None => station.name.clone(),
+		};
+		if *self.status_base.borrow() != base {
+			self.now_playing(Some(&base));
+		}
 	}
 
 	/// Once a second: the status line gains how long the station has played,
@@ -1194,43 +1227,64 @@ impl App {
 			return;
 		}
 		self.last_status_tick = now;
-		let base = self.status_base.borrow().clone();
-		if base.is_empty() || self.tuner.playing().is_none() {
+		if self.tuner.playing().is_none() {
 			return;
 		}
-		let mut line = base;
-		if let Some(since) = self.playing_since {
-			line += &format!(" - {}{}", fmt_dur(since.elapsed().as_secs_f32()), s::PLAYED_FOR);
-		}
-		let mut live = true;
+		let mut behind = 0.0;
+		let mut paused = false;
 		if let Some((buffer, status)) = self.tuner.shift() {
-			let behind = status.behind_seconds(&buffer);
-			if behind >= 1.0 {
-				line += &format!(" - {}{}", fmt_dur(behind), s::BEHIND_LIVE);
-				live = false;
-			}
-			if status.paused.load(std::sync::atomic::Ordering::Relaxed) {
-				line += s::STATUS_PAUSED;
-				live = false;
-			}
+			behind = status.behind_seconds(&buffer);
+			paused = status.paused.load(std::sync::atomic::Ordering::Relaxed);
 		}
-		if live {
-			line += s::STATUS_LIVE;
+		self.sync_title_song(behind);
+		let base = self.status_base.borrow().clone();
+		if base.is_empty() {
+			return;
+		}
+		// The parts after the station and song. The full line joins
+		// them onto the base; the status bar carries the parts alone.
+		let mut parts: Vec<String> = Vec::new();
+		if let Some(since) = self.playing_since {
+			parts.push(format!(
+				"{}{}",
+				fmt_dur(since.elapsed().as_secs_f32()),
+				s::PLAYED_FOR
+			));
+		}
+		if behind >= 1.0 {
+			parts.push(format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+		}
+		if paused {
+			parts.push(s::STATUS_PAUSED.trim_start_matches(" - ").to_string());
+		}
+		if behind < 1.0 && !paused {
+			parts.push(s::STATUS_LIVE.trim_start_matches(" - ").to_string());
 		}
 		if self.tuner.is_recording() {
-			line += if self.tuner.recording_paused() {
-				s::STATUS_REC_PAUSED
-			} else {
-				s::STATUS_RECORDING
-			};
+			parts.push(
+				if self.tuner.recording_paused() {
+					s::STATUS_REC_PAUSED
+				} else {
+					s::STATUS_RECORDING
+				}
+				.trim_start_matches(" - ")
+				.to_string(),
+			);
 		}
 		if let Some(format) = self.tuner.format() {
 			let described = format.describe();
 			if !described.is_empty() {
-				line += &format!(" - {described}");
+				parts.push(described);
 			}
 		}
-		self.show_line(&line);
+		let joined = parts.join(" - ");
+		let line = if joined.is_empty() {
+			base.clone()
+		} else {
+			format!("{base} - {joined}")
+		};
+		let bar = if joined.is_empty() { base } else { joined };
+		self.show_line(&line, &bar);
 	}
 
 	/// Button labels, the favorites menu item and the volume slider follow the state.
@@ -1260,7 +1314,12 @@ impl App {
 		if set_label(win.favorite, &menus::plain(label))
 			&& let Some(bar) = win.frame.get_menu_bar()
 		{
-			set_menu_item_label(&bar, self.menus.favorite, label, menus::FAVORITE_KEYS);
+			set_menu_item_label(
+				&bar,
+				self.menus.favorite,
+				label,
+				&crate::keys::menu_chord(&self.settings, &Action::ToggleFavorite),
+			);
 		}
 		if win.volume.get_value() != self.volume() {
 			win.volume.set_value(self.volume());
@@ -1634,6 +1693,11 @@ impl App {
 		self.settings.eq = eq;
 		self.mixer(MixerCmd::Eq(self.settings.eq.clone()));
 		self.save_settings();
+	}
+
+	/// The FM sound toggled in Settings: the mixer hears it at once.
+	pub fn apply_fm_sound(&self) {
+		self.mixer(MixerCmd::Hiss(self.settings.fm_sound));
 	}
 
 	pub fn save_library(&mut self) {

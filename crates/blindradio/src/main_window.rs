@@ -241,6 +241,11 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
+		Action::KeyboardShortcuts => {
+			if let Some(next) = dialogs::keys::show(app) {
+				dispatch(app, next);
+			}
+		}
 		Action::FeatureSettings => {
 			if let Some(next) = dialogs::features::show(app) {
 				dispatch(app, next);
@@ -380,6 +385,7 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		};
 		let action = key.get_key_code().and_then(|code| {
 			app_key(
+				&a.borrow().settings,
 				code,
 				key.control_down(),
 				key.alt_down(),

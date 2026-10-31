@@ -194,6 +194,9 @@ pub struct Settings {
 	/// opens or closes by hand keeps its state across rebuilds, as
 	/// always). BlindRSS has the same choice.
 	pub expand_dial_folders: bool,
+	/// The FM sound: the soft hiss between stations while tuning,
+	/// like a dial crossing the band. On unless turned off.
+	pub fm_sound: bool,
 	/// Closing the window hides it to the tray instead of quitting.
 	pub close_to_tray: bool,
 	/// Start with the main window maximized.
@@ -205,6 +208,9 @@ pub struct Settings {
 	pub eq: EqSettings,
 	/// Action id to chord text; empty means defaults.
 	pub hotkeys: BTreeMap<String, String>,
+	/// In-app shortcut overrides, KeyAction id to chord text; a
+	/// missing id is its default, an empty chord is unbound.
+	pub keys: BTreeMap<String, String>,
 	pub last_station: Option<Station>,
 	/// Collection id the main window list shows; None is the SerrebiRadio collection.
 	pub main_list: Option<String>,
@@ -237,6 +243,7 @@ impl Default for Settings {
 			play_last_at_startup: false,
 			play_on_move: true,
 			expand_dial_folders: true,
+			fm_sound: true,
 			close_to_tray: false,
 			maximize_on_start: false,
 			audio_device: None,
@@ -244,6 +251,7 @@ impl Default for Settings {
 			muted: false,
 			eq: EqSettings::default(),
 			hotkeys: BTreeMap::new(),
+			keys: BTreeMap::new(),
 			last_station: None,
 			main_list: None,
 			last_update_check: None,
@@ -352,6 +360,7 @@ mod tests {
 		assert!(!s.close_lists_when_playing && !s.play_last_at_startup && !s.muted);
 		assert!(s.play_on_move && !s.close_to_tray && !s.maximize_on_start);
 		assert!(s.expand_dial_folders);
+		assert!(s.fm_sound, "the FM sound is on by default");
 		assert_eq!(s.audio_device, None);
 		assert_eq!(s.volume, 0.8);
 		assert_eq!(
