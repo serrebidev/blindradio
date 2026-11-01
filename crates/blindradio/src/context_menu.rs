@@ -582,11 +582,16 @@ mod tests {
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: false }, &lib, false),
-			Ok(vec![Item::Rename, Item::Delete, Item::Export])
+			Ok(vec![
+				Item::NewFolder,
+				Item::Rename,
+				Item::Delete,
+				Item::Export
+			])
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: true }, &lib, false),
-			Ok(vec![Item::Export])
+			Ok(vec![Item::NewFolder, Item::Export])
 		);
 		assert_eq!(
 			items_for(&Target::Other, &lib, false),
