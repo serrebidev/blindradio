@@ -300,6 +300,8 @@ pub const RECOG_PROVIDER: &str = "Recognition &Service";
 pub const RECOG_TOKEN: &str = "AudD &Token";
 pub const RECOG_ONLY_META: &str = "Only when the stream gives no &title";
 pub const RECOG_ANNOUNCE: &str = "&Announce Recognized Songs";
+pub const RECOG_NO_TOKEN: &str =
+	"Song recognition is on, but no AudD token is set, so nothing will be recognized. Add a token in Settings.";
 pub const PROV_METADATA: &str = "Stream metadata only";
 pub const PROV_AUDD: &str = "AudD";
 pub const SCROB_ENABLE: &str = "S&crobble Listened Songs";

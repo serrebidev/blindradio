@@ -303,9 +303,15 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.scrobble.lastfm_secret = blank_none(&fm_secret.get_value());
 			st.scrobble.lastfm_session_key = blank_none(&fm_session.get_value());
 			st.scrobble.lastfm_base = blank_none(&fm_base.get_value());
+			let recog_no_token = st.recognition.enabled
+				&& st.recognition.provider == RecognitionProvider::Audd
+				&& st.recognition.audd_token.is_none();
 			app.save_settings();
 			app.apply_fm_sound();
 			app.refresh_dial();
+			if recog_no_token {
+				app.say_announced(s::RECOG_NO_TOKEN);
+			}
 			d.end_modal(ID_OK);
 		});
 	}

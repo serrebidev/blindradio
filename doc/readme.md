@@ -246,6 +246,17 @@ Collections themselves are renamed in the Collections window (Rename button, or 
 the context menu). The time-shift, recording, recognition and scrobbling options live in
 the same window.
 
+## Recognizing a song when a station sends no title
+
+BlindRadio does not use Shazam. It uses AudD, and only when you turn it on: open
+Settings (Ctrl+T), check Recognize Songs Without Metadata, set Recognition Service
+to AudD, and paste an AudD token. A token is free from audd.io: sign up there and
+copy the API token from your account. Without a token nothing is recognized, and
+saving Settings with recognition on but no token says so. With a token, a short
+sample of the playing station is sent to AudD every few minutes; the recognized
+song shows where stream titles show, and Announce Recognized Songs speaks it as
+it changes. Recognition can also be switched per station in Station Settings.
+
 ## When a stream drops
 
 `Connection lost. Reconnecting.` is always spoken, then `Reconnected`, or `Failed: <station>`.
