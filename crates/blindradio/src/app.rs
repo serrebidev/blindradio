@@ -632,6 +632,14 @@ impl App {
 			Action::GetStarter => self.get_starter(false),
 			Action::FocusVolume => self.win.volume.set_focus(),
 			Action::Exit => {
+				// A recording in progress is the one thing quitting
+				// destroys: ask first. What is recorded so far is
+				// saved either way (the shutdown stops the tuner).
+				if self.tuner.is_recording()
+					&& !confirm(&self.win.frame, s::REC_CLOSE_ASK, s::REC_CHANGE_TITLE)
+				{
+					return;
+				}
 				self.prepare_exit();
 				self.win.frame.close(true);
 			}

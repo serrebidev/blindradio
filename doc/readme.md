@@ -189,7 +189,8 @@ played, otherwise what you have heard since you tuned in. Copy and Enter copy th
 
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
 folder, in the format Settings chooses. While a recording is in progress, the window title
-ends with the word Recording. Changing stations ends a recording, so the app asks first:
+ends with the word Recording. Closing the app ends a recording too, so closing (or Exit)
+asks first the same way; hiding to the tray keeps recording and never asks. Changing stations ends a recording, so the app asks first:
 a confirmation names what happens — the recording stops, what is recorded so far is
 saved — and only your Yes changes the station. The Recording menu holds it all: Record,
 Pause Recording, Record Each Song to Its Own File, Write Buffer and Scheduled Recordings.

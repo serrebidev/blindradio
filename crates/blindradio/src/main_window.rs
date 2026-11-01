@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use blindradio_core::station::{Source, Station};
-use wx_utils::prompt_text;
+use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
@@ -420,6 +420,18 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 			e.veto();
 			e.skip(false);
 			a.borrow().win.frame.hide();
+			return;
+		}
+		// A recording in progress is the one thing a close destroys:
+		// ask before ending it (what is recorded so far is saved).
+		// Hiding to the tray above keeps recording, so it never asks;
+		// Action::Exit asks first itself, and by the time it reaches
+		// here the tuner is stopped and this stays quiet.
+		if a.borrow().tuner.is_recording()
+			&& !confirm(&a.borrow().win.frame, s::REC_CLOSE_ASK, s::REC_CHANGE_TITLE)
+		{
+			e.veto();
+			e.skip(false);
 			return;
 		}
 		// Exit already prepared the quit and still holds the app.

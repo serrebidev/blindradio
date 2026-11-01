@@ -75,6 +75,7 @@ pub const RECORD_PAUSE: &str = "P&ause Recording";
 pub const RECORD_SONGS: &str = "Record Each Song to Its Own &File";
 pub const REC_CHANGE_TITLE: &str = "Recording in Progress";
 pub const REC_CHANGE_ASK: &str = "A recording is in progress. Changing stations stops the recording; what has been recorded so far is saved. Change stations anyway?";
+pub const REC_CLOSE_ASK: &str = "A recording is in progress. Closing BlindRadio stops the recording; what has been recorded so far is saved. Close anyway?";
 pub const TITLE_RECORDING: &str = "Recording";
 pub const REC_SONGS_ON: &str = "Record each song to its own file on";
 pub const REC_SONGS_OFF: &str = "Record each song to its own file off";
