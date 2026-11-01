@@ -96,6 +96,20 @@ fn shift_song_changed(prev: &Option<String>, next: &Option<String>) -> bool {
 	next.is_some() && prev != next
 }
 
+/// One second of slack: below it the mixer sounds the live edge, above
+/// it the listener is hearing the time-shift buffer.
+pub const SHIFTED_SLACK: f32 = 1.0;
+
+/// Hearing the buffer rather than the live edge.
+pub fn is_shifted(behind: f32) -> bool {
+	behind >= SHIFTED_SLACK
+}
+
+/// What a mute toggle says: the state it left playback in.
+pub fn mute_message(muted: bool) -> &'static str {
+	if muted { s::MUTED } else { s::UNMUTED }
+}
+
 /// A station landed on in a list: Play/Pause after a stop plays it, not last session's station.
 fn landed<T: Clone>(selected: &mut Option<T>, remembered: &mut Option<T>, station: &T) {
 	*selected = Some(station.clone());
@@ -529,7 +543,10 @@ impl App {
 				if self.tuner.is_recording() {
 					self.finish_recording();
 				} else {
-					match self.tuner.start_recording() {
+					// The first file is named for the song being heard: the
+					// playhead's in the buffer, the live one at the edge.
+					let song = self.heard_song_at(self.behind());
+					match self.tuner.start_recording(song.as_deref()) {
 						Ok(_) => self.say(s::REC_STARTED),
 						Err(e) => self.say(&e.to_string()),
 					}
@@ -567,6 +584,8 @@ impl App {
 				self.settings.muted = !self.settings.muted;
 				self.mixer(MixerCmd::Mute(self.settings.muted));
 				self.save_settings();
+				// The toggle says what it did, like every other action.
+				self.say(mute_message(self.settings.muted));
 			}
 			Action::VolumeUp => self.set_volume(self.volume() + VOLUME_STEP),
 			Action::VolumeDown => self.set_volume(self.volume() - VOLUME_STEP),
@@ -867,10 +886,15 @@ impl App {
 				}
 				self.history.station_changed(&station_id);
 				self.history.title(title.as_deref(), SystemTime::now());
-				// Song-split recording rides the same event: the tuner
-				// closes the finished song's file and opens the new
-				// one when the mode is on; off, this does nothing.
+				// Song-split recording rides the same event at the live
+				// edge: the tuner closes the finished song's file and
+				// opens the new one when the mode is on; off, this does
+				// nothing. While shifted, the recorded audio is the
+				// playhead's and the live title is still ahead of it, so
+				// this split would cut the song at the wrong place;
+				// `sync_title_song` splits there instead.
 				if let Some(song) = &title
+					&& !is_shifted(self.behind())
 					&& let Some(done) = self.tuner.split_recording(song)
 					&& let Err(e) = done
 				{
@@ -1019,7 +1043,7 @@ impl App {
 			}
 			let name = entry.station.name.clone();
 			self.play(entry.station.clone());
-			match self.tuner.start_recording() {
+			match self.tuner.start_recording(None) {
 				Ok(_) => {
 					self.say(&format!("{}{name}", s::SCHEDULE_STARTED));
 					self.sched_active = Some((entry.id.clone(), occ));
@@ -1208,6 +1232,26 @@ impl App {
 		self.win.status_bar.set_name(bar);
 	}
 
+	/// How far playback trails the live edge; 0 at live, and 0 with no
+	/// time-shift buffer.
+	fn behind(&self) -> f32 {
+		self.tuner
+			.shift()
+			.map_or(0.0, |(buffer, status)| status.behind_seconds(&buffer))
+	}
+
+	/// The song heard `behind` seconds short of live: the playhead's in
+	/// the buffer, the live one at the live edge.
+	fn heard_song_at(&self, behind: f32) -> Option<String> {
+		if !is_shifted(behind) {
+			return self.song.clone();
+		}
+		let when = SystemTime::now()
+			.checked_sub(Duration::from_secs_f32(behind))
+			.unwrap_or(SystemTime::UNIX_EPOCH);
+		self.history.title_at(when)
+	}
+
 	/// The title's song follows the time-shift position: shifted
 	/// back, the song at the buffer's moment is what is playing, not
 	/// the live one — titles are timestamped as they arrive, so the
@@ -1218,11 +1262,9 @@ impl App {
 		let Some(name) = self.tuner.playing().map(|s| s.name.clone()) else {
 			return;
 		};
-		let song = if behind >= 1.0 {
-			let when = SystemTime::now()
-				.checked_sub(Duration::from_secs_f32(behind))
-				.unwrap_or(SystemTime::UNIX_EPOCH);
-			let song = self.history.title_at(when);
+		let shifted = is_shifted(behind);
+		let song = if shifted {
+			let song = self.heard_song_at(behind);
 			// Shifted listening hears song changes too: as playback
 			// moves through the buffer, crossing into the next song
 			// announces it, the way a live change is announced. Live
@@ -1238,6 +1280,18 @@ impl App {
 			self.shift_song = None;
 			self.song.clone()
 		};
+		// A split recording follows the audio it is writing, and in the
+		// buffer that audio is the playhead's song — the live title is
+		// still ahead of it, so splitting on that cut each song early
+		// and left its start in the next file. The split therefore
+		// happens here while shifted, and at the live title at the edge.
+		if shifted
+			&& let Some(song) = &song
+			&& let Some(done) = self.tuner.split_recording(song)
+			&& let Err(e) = done
+		{
+			self.say(&e.to_string());
+		}
 		let base = match &song {
 			Some(song) => format!("{name} - {song}"),
 			None => name,
@@ -1747,6 +1801,23 @@ fn set_label(button: Button, label: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn mute_toggle_says_the_state_it_left() {
+		assert_eq!(mute_message(true), "Muted");
+		assert_eq!(mute_message(false), "Unmuted");
+	}
+
+	#[test]
+	fn shifted_means_hearing_the_buffer() {
+		// At the live edge the mixer's cushion is under a second.
+		assert!(!is_shifted(0.0));
+		assert!(!is_shifted(0.4));
+		// A skip back is plainly the buffer.
+		assert!(is_shifted(1.0));
+		assert!(is_shifted(15.0));
+		assert!(is_shifted(600.0));
+	}
 
 	#[test]
 	fn shift_song_changes_announce_once_per_song() {

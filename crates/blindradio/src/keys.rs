@@ -103,7 +103,7 @@ pub enum KeyAction {
 use KeyAction as K;
 
 impl KeyAction {
-	/// Editor order: Playback tab, Stations tab, App tab.
+	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
 	pub const ALL: [KeyAction; 68] = [
 		K::PlayPause,
 		K::Play,
@@ -175,9 +175,10 @@ impl KeyAction {
 		K::Close,
 	];
 
-	/// The editor tab: 0 Playback, 1 Stations, 2 App.
+	/// The editor tab: 0 Playback, 1 Stations, 2 Recording, 3 App.
 	pub fn tab(self) -> usize {
 		match self {
+			K::Record | K::RecordPause | K::RecordSongs | K::SaveBuffer | K::ScheduledRecordings => 2,
 			K::OpenSearch
 			| K::OpenBrowse
 			| K::OpenFavorites
@@ -211,7 +212,7 @@ impl KeyAction {
 			| K::Help
 			| K::About
 			| K::Exit
-			| K::Close => 2,
+			| K::Close => 3,
 			_ => 0,
 		}
 	}
@@ -659,6 +660,7 @@ impl wx_utils::shortcuts::ShortcutModel for Model {
 		vec![
 			plain(s::MENU_PLAYBACK),
 			plain(s::MENU_STATIONS),
+			plain(s::MENU_RECORDING),
 			s::KB_TAB_APP.to_string(),
 		]
 	}
@@ -715,11 +717,21 @@ mod tests {
 		ids.sort_unstable();
 		ids.dedup();
 		assert_eq!(ids.len(), KeyAction::ALL.len());
-		for tab in 0..3 {
+		for tab in 0..4 {
 			assert!(
 				KeyAction::ALL.iter().any(|k| k.tab() == tab),
 				"tab {tab} empty"
 			);
+		}
+		// Recording's own tab, like its menu.
+		for key in [
+			K::Record,
+			K::RecordPause,
+			K::RecordSongs,
+			K::SaveBuffer,
+			K::ScheduledRecordings,
+		] {
+			assert_eq!(key.tab(), 2, "{}", key.id());
 		}
 	}
 

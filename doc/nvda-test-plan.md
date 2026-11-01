@@ -20,12 +20,17 @@ Expected speech is quoted. Numbered steps are one pass; note the step number wit
 
 ## Menus
 
-9. Alt+F, Alt+S, Alt+P, Alt+H open on their first item.
-10. File: the four check items tick and stay ticked; Audio Device opens on `Default`, the
-    active device is checked.
-11. Stations: every item reads with its shortcut (`Search… Ctrl+F`, and so on).
-12. Playback: `Add to Favorites Ctrl+D` reads `Remove from Favorites Ctrl+D` while a favorite
-    is focused or playing.
+9. Alt+F, Alt+S, Alt+P, Alt+R, Alt+H open on their first item.
+10. File: Open URL, the two import items, Settings, Global Hotkeys, Keyboard Shortcuts and
+    Exit; no check items.
+11. Stations: every item reads with its shortcut (`Search… Ctrl+F`, and so on), including
+    `Previous Station Alt+Left` and `Next Station Alt+Right`. `Add to Favorites Ctrl+D` reads
+    `Remove from Favorites Ctrl+D` while a favorite is focused or playing.
+12. Playback: Play/Pause, Stop, the seek items, Mute, the volumes, Song History, Sleep Timer,
+    Equalizer, and Audio Device, which opens on `Default` with the active device checked.
+    Ctrl+M reads `Muted`, then `Unmuted`. Recording: `Record Ctrl+R`, `Pause Recording
+    Ctrl+Shift+R`, `Record Each Song to Its Own File` (a check item that ticks and stays
+    ticked), `Write Buffer…`, `Scheduled Recordings…`.
 13. Help: `About BlindRadio` opens the about box; Escape closes it.
 
 ## Dial tuning and lists

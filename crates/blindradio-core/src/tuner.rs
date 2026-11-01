@@ -889,9 +889,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	/// Starts recording the playing station; returns the file path.
-	/// In song-split mode the first file is already named for the
-	/// song playing, when the station has said what it is.
-	pub fn start_recording(&mut self) -> Result<PathBuf> {
+	/// `song` is what the listener is hearing right now — the playhead's
+	/// song in the buffer, the live one at the edge — and in song-split
+	/// mode it names the first file. `None` records under the station's
+	/// own name, as a station that names no songs does.
+	pub fn start_recording(&mut self, song: Option<&str>) -> Result<PathBuf> {
 		let station = self
 			.playing
 			.clone()
@@ -903,7 +905,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let (dir, ext, settings) = self
 			.recording_plan()
 			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
-		let song = self.song.as_ref().map(|(title, _)| title.clone());
+		let song = song.map(str::to_string);
 		let (rec, record_song) = if settings.recording.split_songs {
 			match &song {
 				Some(song) => (

@@ -134,8 +134,8 @@ category it says `Nothing to do here`.
 
 ## Sound card
 
-File, Audio Device lists the default device and every output device, with the active one
-checked. If a device disappears the app says `Device lost. Using default.` and keeps playing
+Playback, Audio Device lists the default device and every output device, with the active
+one checked. If a device disappears the app says `Device lost. Using default.` and keeps playing
 through the default.
 
 ## Equalizer
@@ -185,17 +185,25 @@ Ctrl+R starts and stops a recording of the playing station; files land in the re
 folder, in the format Settings chooses. While a recording is in progress, the window title
 ends with the word Recording. Changing stations ends a recording, so the app asks first:
 a confirmation names what happens — the recording stops, what is recorded so far is
-saved — and only your Yes changes the station. Playback, Write Buffer writes the whole
-time-shift buffer — everything the station has played since you tuned in, up to the
-buffer's length — to a WAV file in the same folder, named like a recording.
+saved — and only your Yes changes the station. The Recording menu holds it all: Record,
+Pause Recording, Record Each Song to Its Own File, Write Buffer and Scheduled Recordings.
+Recording, Write Buffer writes the whole time-shift buffer — everything the station has
+played since you tuned in, up to the buffer's length — to a WAV file in the same folder,
+named like a recording.
 
-Playback, Record Each Song Separately is a recording mode for stations that name their
-songs: while it is checked, a recording closes the current file when a new song starts
-and opens one named for the station and the song, and so on until you stop the recording.
-Stations that never name a song simply record as one file, as usual. Pausing a recording
-carries across a song change.
+Recording, Record Each Song to Its Own File is a recording mode for stations that name
+their songs: while it is checked, a recording closes the current file when a new song
+starts and opens one named for the station and the song, and so on until you stop the
+recording. Stations that never name a song simply record as one file, as usual. Pausing
+a recording carries across a song change.
 
-Playback, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
+Listen back in the time-shift buffer and the recording still follows what you hear: a file
+ends and the next begins where the song changes at the buffer's position, so each file
+holds a whole song taken from the buffer itself. Live, the split happens at the live edge
+as the songs come in. The exact boundary carries the station's own timing — its song
+information arrives when the station sends it — so a second either side is normal.
+
+Recording, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
 a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage the list;
 an entry can be switched off without deleting it. When the time comes the app tunes to
 the station and records, and stops when the duration is up; a recording already running
@@ -277,14 +285,15 @@ and on Linux it is a standard part of the main window, which Orca reads the same
 
 These are the defaults. Every one can be changed, cleared, or given to an action that
 has none — Write Buffer, for example — in File, Keyboard Shortcuts, which lists them
-under Playback, Stations and App. The menus always print the keys as they are now.
+under Playback, Stations, Recording and App. The menus always print the keys as they
+are now.
 Global Hotkeys, below, are the separate set that works from other apps.
 
 | Key | Action |
 | --- | --- |
 | Ctrl+P | Play or pause |
 | Ctrl+S | Stop |
-| Ctrl+M | Mute |
+| Ctrl+M | Mute, saying `Muted` or `Unmuted` |
 | Ctrl+Up, Ctrl+Down | Volume up, down |
 | Ctrl+D | Add to or remove from Favorites |
 | Ctrl+F | Search |

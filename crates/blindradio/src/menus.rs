@@ -64,8 +64,13 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::RECENT, keys(&A::OpenRecent), A::OpenRecent),
 				Item(s::COLLECTIONS, keys(&A::OpenCollections), A::OpenCollections),
 				Separator,
+				Item(s::PREVIOUS_STATION, keys(&A::PreviousStation), A::PreviousStation),
+				Item(s::NEXT_STATION, keys(&A::NextStation), A::NextStation),
+				Separator,
 				Item(s::ADD_CUSTOM, keys(&A::NewCustomStation), A::NewCustomStation),
 				Item(s::COPY_URL, keys(&A::CopyUrl), A::CopyUrl),
+				Item(favorite_label(false), keys(&A::ToggleFavorite), A::ToggleFavorite),
+				Item(s::ADD_TO_COLLECTION, keys(&A::AddToCollection), A::AddToCollection),
 				Separator,
 				Item(s::GET_STARTER, keys(&A::GetStarter), A::GetStarter),
 			],
@@ -75,13 +80,6 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 			vec![
 				Item(s::PLAY_PAUSE, keys(&A::PlayPause), A::PlayPause),
 				Item(s::STOP_MENU, keys(&A::Stop), A::Stop),
-				Item(s::PREVIOUS_STATION, keys(&A::PreviousStation), A::PreviousStation),
-				Item(s::NEXT_STATION, keys(&A::NextStation), A::NextStation),
-				Item(s::RECORD, keys(&A::Record), A::Record),
-				Item(s::RECORD_PAUSE, keys(&A::RecordPause), A::RecordPause),
-				Item(s::RECORD_SONGS, keys(&A::RecordSongs), A::RecordSongs),
-				Item(s::SAVE_BUFFER, keys(&A::SaveBuffer), A::SaveBuffer),
-				Item(s::SCHEDULED_RECORDINGS, keys(&A::ScheduledRecordings), A::ScheduledRecordings),
 				Separator,
 				Item(s::SKIP_BACK, keys(&A::SeekBack), A::SeekBack),
 				Item(s::SKIP_FORWARD, keys(&A::SeekForward), A::SeekForward),
@@ -92,13 +90,22 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::VOLUME_UP, keys(&A::VolumeUp), A::VolumeUp),
 				Item(s::VOLUME_DOWN, keys(&A::VolumeDown), A::VolumeDown),
 				Separator,
-				Item(favorite_label(false), keys(&A::ToggleFavorite), A::ToggleFavorite),
-				Item(s::ADD_TO_COLLECTION, keys(&A::AddToCollection), A::AddToCollection),
 				Item(s::SONG_HISTORY, keys(&A::SongHistory), A::SongHistory),
-				Separator,
 				Sub(s::SLEEP_TIMER, sleep),
 				Item(s::EQUALIZER, keys(&A::Equalizer), A::Equalizer),
 				Entry::Devices,
+			],
+		),
+		(
+			s::MENU_RECORDING,
+			vec![
+				Item(s::RECORD, keys(&A::Record), A::Record),
+				Item(s::RECORD_PAUSE, keys(&A::RecordPause), A::RecordPause),
+				Item(s::RECORD_SONGS, keys(&A::RecordSongs), A::RecordSongs),
+				Separator,
+				Item(s::SAVE_BUFFER, keys(&A::SaveBuffer), A::SaveBuffer),
+				Separator,
+				Item(s::SCHEDULED_RECORDINGS, keys(&A::ScheduledRecordings), A::ScheduledRecordings),
 			],
 		),
 		(
@@ -287,9 +294,11 @@ mod tests {
 			("Get SerrebiRadio Stations", ""),
 			("Play/Pause", "Ctrl+P"),
 			("Stop", "Ctrl+S"),
+			("Previous Station", "Alt+Left"),
+			("Next Station", "Alt+Right"),
 			("Record", "Ctrl+R"),
 			("Pause Recording", "Ctrl+Shift+R"),
-			("Record Each Song Separately", ""),
+			("Record Each Song to Its Own File", ""),
 			("Skip Back", "F6"),
 			("Skip Forward", "F7"),
 			("Jump to Start of Buffer", "F5"),
@@ -334,23 +343,87 @@ mod tests {
 			);
 		}
 		let titles: Vec<_> = menus(&Settings::default()).into_iter().map(|(t, _)| t).collect();
-		assert_eq!(titles, ["&File", "&Stations", "&Playback", "&Help"]);
+		assert_eq!(
+			titles,
+			["&File", "&Stations", "&Playback", "&Recording", "&Help"]
+		);
 	}
 
 	#[test]
 	fn favorite_label_flips() {
-		assert_eq!(favorite_label(false), "Add to &Favorites");
-		assert_eq!(favorite_label(true), "Remove from &Favorites");
+		assert_eq!(favorite_label(false), "&Add to Favorites");
+		assert_eq!(favorite_label(true), "Re&move from Favorites");
 		assert_eq!(plain(favorite_label(false)), "Add to Favorites");
 		assert_eq!(plain(favorite_label(true)), "Remove from Favorites");
 	}
 
+	/// One menu's entries, by title.
+	fn menu(title: &str) -> Vec<Entry> {
+		menus(&Settings::default())
+			.into_iter()
+			.find(|(t, _)| *t == title)
+			.map(|(_, entries)| entries)
+			.unwrap_or_else(|| panic!("{title} missing"))
+	}
+
+	/// The items' labels without their Alt letters.
+	fn labels(entries: &[Entry]) -> Vec<String> {
+		entries
+			.iter()
+			.filter_map(|e| match e {
+				Entry::Item(l, ..) | Entry::Sub(l, _) => Some(plain(l)),
+				Entry::Devices => Some(plain(crate::strings::AUDIO_DEVICE)),
+				Entry::Separator => None,
+			})
+			.collect()
+	}
+
+	#[test]
+	fn recording_and_station_items_live_where_they_belong() {
+		let recording = labels(&menu(s::MENU_RECORDING));
+		for want in [
+			"Record",
+			"Pause Recording",
+			"Record Each Song to Its Own File",
+			"Write Buffer…",
+			"Scheduled Recordings…",
+		] {
+			assert!(recording.iter().any(|l| l == want), "{want}");
+		}
+		let stations = labels(&menu(s::MENU_STATIONS));
+		for want in [
+			"Previous Station",
+			"Next Station",
+			"Add to Favorites",
+			"Add to Collection…",
+		] {
+			assert!(stations.iter().any(|l| l == want), "{want}");
+		}
+		let playback = labels(&menu(s::MENU_PLAYBACK));
+		for gone in [
+			"Record",
+			"Pause Recording",
+			"Record Each Song to Its Own File",
+			"Write Buffer…",
+			"Scheduled Recordings…",
+			"Previous Station",
+			"Next Station",
+			"Add to Favorites",
+			"Add to Collection…",
+		] {
+			assert!(
+				!playback.iter().any(|l| l == gone),
+				"{gone} moved out of Playback"
+			);
+		}
+	}
+
 	#[test]
 	fn file_menu_has_no_checks() {
-		let (_, file) = &menus(&Settings::default())[0];
+		let file = menu(s::MENU_FILE);
 		// The audio device submenu lives in Playback now, not File.
 		assert!(!file.iter().any(|e| matches!(e, Entry::Devices)));
-		let (_, playback) = &menus(&Settings::default())[2];
+		let playback = menu(s::MENU_PLAYBACK);
 		assert!(playback.iter().any(|e| matches!(e, Entry::Devices)));
 		let labels: Vec<String> = file
 			.iter()

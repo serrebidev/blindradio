@@ -5,6 +5,14 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.31
+
+- Ctrl+M now says what it did: `Muted` or `Unmuted`, under the same Announce Actions setting as every other action. The mute button says it too.
+- Recording has its own menu. Record, Pause Recording, Record Each Song to Its Own File, Write Buffer and Scheduled Recordings moved out of Playback into a new Recording menu, where a keyboard or screen reader user looks for them first. The Keyboard Shortcuts editor gained the same Recording tab.
+- Stations holds the station items: Previous Station and Next Station moved there from Playback, and so did Add to Favorites and Add to Collection, since they act on stations rather than on playback.
+- Record Each Song Separately is now Record Each Song to Its Own File, and its announcement says the same: screen readers mangled the old word where the checked item was read out.
+- Song-split recording no longer cuts songs in the wrong place when you listen back in the time-shift buffer. It split at the live song change while the recorder was writing the buffer's audio, which was some seconds behind, so every file began mid-song, ended mid-song, or held one song in pieces. The split now follows the song at the buffer's position — the audio actually being recorded — and the file names follow it too, from the first file a recording opens.
+
 ## 0.2.30
 
 - Enter now always plays the focused station, even the one already playing: it reconnects fresh, so after editing a station's URL you can press Enter on it and hear the new address at once, without switching to another station and back. Moving focus onto the playing station still leaves it sounding untouched.
