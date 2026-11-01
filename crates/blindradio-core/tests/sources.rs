@@ -57,6 +57,38 @@ fn folder(id: &str, name: &str) -> Node {
 	}
 }
 
+#[tokio::test]
+async fn tree_keeps_the_folder_structure() {
+	let (_s, src) = sources(vec![
+		json(
+			"/contents",
+			r#"[{"name":"Public Radio.m3u","type":"file"}]"#,
+		),
+		Route::Static {
+			path: "/contents/Public%20Radio.m3u".into(),
+			content_type: "text/plain".into(),
+			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",AAA\nhttp://pr.test/1\n#EXTINF:-1 group-title=\"NPR / Local\",BBB\nhttp://pr.test/2\n#EXTINF:-1,CCC\nhttp://pr.test/3\n"
+				.as_bytes()
+				.to_vec(),
+		},
+	]);
+	let (stations, folders) = src.tree("brdir/Public%20Radio", Sort::default()).await.unwrap();
+	let names: Vec<&str> = stations.iter().map(|s| s.name.as_str()).collect();
+	assert_eq!(names, ["CCC"], "ungrouped stations stay at the top");
+	assert_eq!(folders.len(), 1);
+	assert_eq!(folders[0].name, "NPR");
+	let names: Vec<&str> = folders[0].stations.iter().map(|s| s.name.as_str()).collect();
+	assert_eq!(names, ["AAA"]);
+	assert_eq!(folders[0].folders.len(), 1);
+	assert_eq!(folders[0].folders[0].name, "Local");
+	let names: Vec<&str> = folders[0].folders[0]
+		.stations
+		.iter()
+		.map(|s| s.name.as_str())
+		.collect();
+	assert_eq!(names, ["BBB"]);
+}
+
 #[test]
 fn roots_in_order() {
 	assert_eq!(

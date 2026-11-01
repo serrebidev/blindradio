@@ -656,7 +656,6 @@ impl App {
 			| Action::GlobalHotkeys
 			| Action::KeyboardShortcuts
 			| Action::FeatureSettings
-			| Action::StationSettings
 			| Action::EditStation => {}
 			Action::CopyUrl => self.copy_url(),
 			Action::CopyStation => {

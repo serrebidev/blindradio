@@ -75,7 +75,6 @@ pub enum KeyAction {
 	CutStation,
 	PasteStation,
 	EditStation,
-	StationSettings,
 	OpenUrl,
 	GetStarter,
 	PlayFavorite1,
@@ -104,7 +103,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 68] = [
+	pub const ALL: [KeyAction; 67] = [
 		K::PlayPause,
 		K::Play,
 		K::Stop,
@@ -150,7 +149,6 @@ impl KeyAction {
 		K::CutStation,
 		K::PasteStation,
 		K::EditStation,
-		K::StationSettings,
 		K::OpenUrl,
 		K::GetStarter,
 		K::PlayFavorite1,
@@ -190,7 +188,6 @@ impl KeyAction {
 			| K::CutStation
 			| K::PasteStation
 			| K::EditStation
-			| K::StationSettings
 			| K::OpenUrl
 			| K::GetStarter
 			| K::PlayFavorite1
@@ -265,7 +262,6 @@ impl KeyAction {
 			K::CutStation => "cut_station",
 			K::PasteStation => "paste_station",
 			K::EditStation => "edit_station",
-			K::StationSettings => "station_settings",
 			K::OpenUrl => "open_url",
 			K::GetStarter => "get_starter",
 			K::PlayFavorite1 => "play_favorite_1",
@@ -347,7 +343,6 @@ impl KeyAction {
 			K::CutStation => plain(s::CUT_STATION_ITEM),
 			K::PasteStation => plain(s::PASTE_STATION_ITEM),
 			K::EditStation => plain(s::EDIT_STATION_ITEM),
-			K::StationSettings => plain(s::STATION_SETTINGS_ITEM),
 			K::OpenUrl => plain(s::OPEN_URL),
 			K::GetStarter => plain(s::GET_STARTER),
 			K::PlayFavorite1 => favorite(1),
@@ -478,7 +473,6 @@ impl KeyAction {
 			K::CutStation => Action::CutStation,
 			K::PasteStation => Action::PasteStation,
 			K::EditStation => Action::EditStation,
-			K::StationSettings => Action::StationSettings,
 			K::OpenUrl => Action::OpenUrl,
 			K::GetStarter => Action::GetStarter,
 			K::PlayFavorite1 => Action::PlayFavorite(0),

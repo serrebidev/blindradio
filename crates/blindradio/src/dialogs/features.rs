@@ -1,11 +1,10 @@
-//! Feature Settings (Ctrl+T) and Station Settings (context menu): the
+//! Feature Settings (Ctrl+T): the
 //! time-shift, recording, recognition and scrobble options, applied on OK.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use blindradio_core::settings::{RecordFormat, RecognitionProvider, StationSettings};
-use blindradio_core::station::Station;
+use blindradio_core::settings::{RecordFormat, RecognitionProvider};
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
 
@@ -16,7 +15,7 @@ use crate::strings as s;
 
 const OK_ID: Id = ID_HIGHEST + 7001;
 
-fn field(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: &str) -> TextCtrl {
+pub(crate) fn field(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: &str) -> TextCtrl {
 	let text = StaticText::builder(dialog).with_label(label).build();
 	let control = TextCtrl::builder(dialog).build();
 	control.set_value(value);
@@ -37,7 +36,7 @@ fn check(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: bool) -> CheckBo
 	control
 }
 
-fn choice(
+pub(crate) fn choice(
 	dialog: &Dialog,
 	sizer: &BoxSizer,
 	label: &str,
@@ -80,7 +79,7 @@ fn parse_or<T: std::str::FromStr>(text: &str, fallback: T) -> T {
 	text.trim().parse().unwrap_or(fallback)
 }
 
-fn blank_none(text: &str) -> Option<String> {
+pub(crate) fn blank_none(text: &str) -> Option<String> {
 	let t = text.trim();
 	if t.is_empty() { None } else { Some(t.to_string()) }
 }
@@ -321,7 +320,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 }
 
 /// A tri-state override as a choice index: 0 global, 1 on, 2 off.
-fn tri(value: Option<bool>) -> usize {
+pub(crate) fn tri(value: Option<bool>) -> usize {
 	match value {
 		None => 0,
 		Some(true) => 1,
@@ -329,78 +328,10 @@ fn tri(value: Option<bool>) -> usize {
 	}
 }
 
-fn untri(at: Option<u32>) -> Option<bool> {
+pub(crate) fn untri(at: Option<u32>) -> Option<bool> {
 	match at {
 		Some(1) => Some(true),
 		Some(2) => Some(false),
 		_ => None,
 	}
-}
-
-pub fn show_station(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
-	let frame = app.borrow().win.frame;
-	let current = app
-		.borrow()
-		.settings
-		.station_overrides
-		.get(&station.id)
-		.cloned()
-		.unwrap_or_default();
-	let title = format!("{}: {}", s::STATION_SETTINGS_TITLE, station.name);
-	let dialog = Dialog::builder(&frame, &title).build();
-	let sizer = BoxSizer::builder(Orientation::Vertical).build();
-
-	let minutes = field(
-		&dialog,
-		&sizer,
-		s::ST_TS_MINUTES,
-		&current
-			.timeshift_minutes
-			.map(|m| m.to_string())
-			.unwrap_or_default(),
-	);
-	let recog = choice(
-		&dialog,
-		&sizer,
-		s::ST_RECOG,
-		&[s::USE_GLOBAL, s::ON, s::OFF],
-		tri(current.recognition),
-	);
-	let scrob = choice(
-		&dialog,
-		&sizer,
-		s::ST_SCROB,
-		&[s::USE_GLOBAL, s::ON, s::OFF],
-		tri(current.scrobble),
-	);
-	let ok = footer(&dialog, sizer);
-	dialog.set_sizer_and_fit(sizer, true);
-
-	let token = WindowToken::new();
-	let id = station.id.clone();
-	{
-		let (a, d) = (app.clone(), dialog);
-		ok.on_click(move |_| {
-			let entry = StationSettings {
-				timeshift_minutes: blank_none(&minutes.get_value())
-					.and_then(|t| t.parse().ok()),
-				recognition: untri(recog.get_selection()),
-				scrobble: untri(scrob.get_selection()),
-				// Not this dialog's to touch: the level the station
-				// remembers from playing it.
-				volume: current.volume,
-			};
-			let mut app = a.borrow_mut();
-			if entry == StationSettings::default() {
-				app.settings.station_overrides.remove(&id);
-			} else {
-				app.settings.station_overrides.insert(id.clone(), entry);
-			}
-			app.save_settings();
-			d.end_modal(ID_OK);
-		});
-	}
-
-	minutes.set_focus();
-	crate::dialogs::run(app, dialog, Action::StationSettings, minutes, &token)
 }

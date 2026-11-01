@@ -65,7 +65,6 @@ pub enum Action {
 	/// Playback feature settings dialog.
 	FeatureSettings,
 	/// Per-station overrides dialog (context menu).
-	StationSettings,
 	EditStation,
 	OpenUrl,
 	CopyStation,

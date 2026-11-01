@@ -63,7 +63,9 @@ collection. Delete on a folder there removes the folder too — after asking, an
 naming how many stations go with it; a directory's folders are the directory's
 own and cannot be deleted. A folder in Collections or Custom Stations also
 renames from its context menu (Rename), at any depth; a remote directory's
-folders are the directory's own and cannot be renamed.
+folders are the directory's own and cannot be renamed. New Folder, on a
+collection's name or inside one of its folders, creates a folder there — the
+way to make a home for stations someone suggests for a playlist.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured
@@ -126,7 +128,10 @@ default is Custom Stations, where new stations went before the choice existed.
 ## Context menu
 
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
-Collection, Station Settings and, when you have favorites folders, Add to Favorites Folder.
+Collection, Edit Station and, when you have favorites folders, Add to Favorites Folder.
+Edit Station holds the station's name and stream URL and its own settings — buffer
+minutes, song recognition and scrobbling for that station alone; there is no separate
+Station Settings dialog anymore.
 When a collection has folders it also offers Add to Collection Folder, which files the
 station straight into one — Custom Stations' folders included, so a station found in
 Search or Browse can be filed into an imported playlist's folder, the same places
@@ -255,7 +260,7 @@ copy the API token from your account. Without a token nothing is recognized, and
 saving Settings with recognition on but no token says so. With a token, a short
 sample of the playing station is sent to AudD every few minutes; the recognized
 song shows where stream titles show, and Announce Recognized Songs speaks it as
-it changes. Recognition can also be switched per station in Station Settings.
+it changes. Recognition can also be switched per station in Edit Station.
 
 ## When a stream drops
 

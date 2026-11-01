@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use blindradio_core::library::StationDest;
+use blindradio_core::settings::StationSettings;
 use blindradio_core::station::Station;
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
@@ -11,6 +12,7 @@ use wxdragon::prelude::*;
 use crate::action::Action;
 use crate::app::App;
 use crate::bridge::WindowToken;
+use crate::dialogs::features::{blank_none, choice, field, tri, untri};
 use crate::strings as s;
 
 const OK_ID: Id = ID_HIGHEST + 7000;
@@ -125,10 +127,20 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 }
 
 /// Edit Station: the Add Custom fields filled in with the station's name and
-/// URL. Saving rewrites every held copy (collections, favorites), so an
-/// imported playlist's station can be renamed and re-pointed in place.
+/// URL, and the station's own settings (buffer minutes, recognition,
+/// scrobbling) below them — one dialog since the merge; there is no
+/// separate Station Settings anymore. Saving rewrites every held copy
+/// (collections, favorites), so an imported playlist's station can be
+/// renamed and re-pointed in place.
 pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let frame = app.borrow().win.frame;
+	let current = app
+		.borrow()
+		.settings
+		.station_overrides
+		.get(&station.id)
+		.cloned()
+		.unwrap_or_default();
 	let dialog = Dialog::builder(&frame, s::EDIT_STATION_TITLE).build();
 	let name_label = StaticText::builder(&dialog).with_label(s::NAME).build();
 	let name = TextCtrl::builder(&dialog).build();
@@ -148,6 +160,29 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		);
 		sizer.add(control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	}
+	let minutes = field(
+		&dialog,
+		&sizer,
+		s::ST_TS_MINUTES,
+		&current
+			.timeshift_minutes
+			.map(|m| m.to_string())
+			.unwrap_or_default(),
+	);
+	let recog = choice(
+		&dialog,
+		&sizer,
+		s::ST_RECOG,
+		&[s::USE_GLOBAL, s::ON, s::OFF],
+		tri(current.recognition),
+	);
+	let scrob = choice(
+		&dialog,
+		&sizer,
+		s::ST_SCROB,
+		&[s::USE_GLOBAL, s::ON, s::OFF],
+		tri(current.scrobble),
+	);
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
 		.with_label(s::OK)
@@ -178,12 +213,27 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			} else {
 				typed
 			};
+			let entry = StationSettings {
+				timeshift_minutes: blank_none(&minutes.get_value())
+					.and_then(|t| t.parse().ok()),
+				recognition: untri(recog.get_selection()),
+				scrobble: untri(scrob.get_selection()),
+				// Not this dialog's to set: the level the station
+				// remembers from playing it.
+				volume: current.volume,
+			};
 			{
 				let mut app = a.borrow_mut();
 				if app.library.update_station(&id, &typed, &link) {
 					app.save_library();
 					app.refresh_dial();
 				}
+				if entry == StationSettings::default() {
+					app.settings.station_overrides.remove(&id);
+				} else {
+					app.settings.station_overrides.insert(id.clone(), entry);
+				}
+				app.save_settings();
 			}
 			a.borrow_mut().say(&format!("{}{}", s::SAVED, typed));
 			d.end_modal(ID_OK);

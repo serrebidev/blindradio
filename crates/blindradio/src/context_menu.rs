@@ -37,7 +37,6 @@ pub enum Item {
 	PasteStation,
 	EditStation,
 	Export,
-	StationSettings,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
 	/// The same collections alone, as top-level check items (Add to Collection).
@@ -55,6 +54,9 @@ pub enum Item {
 	DeleteCustom,
 	Rename,
 	Delete,
+	/// A new folder inside the collection or folder the menu is on;
+	/// the views that offer it own the prompt and the save.
+	NewFolder,
 }
 
 /// What the user chose.
@@ -68,7 +70,6 @@ pub enum Choice {
 	PasteStation,
 	EditStation,
 	Export,
-	StationSettings,
 	/// Into or out of the collection with this id.
 	Toggle(String),
 	NewCollection,
@@ -83,6 +84,7 @@ pub enum Choice {
 	DeleteCustom,
 	Rename,
 	Delete,
+	NewFolder,
 }
 
 /// The menu's items, or the message said instead of a menu.
@@ -101,7 +103,6 @@ pub fn items_for(
 				Item::CopyUrl,
 				Item::CopyStation,
 				Item::Export,
-				Item::StationSettings,
 				Item::AddToCollection(
 					lib.collections
 						.iter()
@@ -138,11 +139,14 @@ pub fn items_for(
 			}
 			Ok(items)
 		}
-		Target::Collection { custom: false } => {
-			Ok(vec![Item::Rename, Item::Delete, Item::Export])
-		}
+		Target::Collection { custom: false } => Ok(vec![
+			Item::NewFolder,
+			Item::Rename,
+			Item::Delete,
+			Item::Export,
+		]),
 		// Custom Stations cannot be renamed or deleted, but it exports.
-		Target::Collection { custom: true } => Ok(vec![Item::Export]),
+		Target::Collection { custom: true } => Ok(vec![Item::NewFolder, Item::Export]),
 		Target::Other => Err(s::NOTHING_TO_DO),
 	}
 }
@@ -242,10 +246,10 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::Export => {
 				menu.append(add(Choice::Export), s::EXPORT, "", ItemKind::Normal);
 			}
-			Item::StationSettings => {
+			Item::NewFolder => {
 				menu.append(
-					add(Choice::StationSettings),
-					s::STATION_SETTINGS_ITEM,
+					add(Choice::NewFolder),
+					s::NEW_FOLDER,
 					"",
 					ItemKind::Normal,
 				);
@@ -441,7 +445,6 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::CutStation => return app.borrow_mut().copy_station(station, true),
 		Choice::PasteStation => return app.borrow_mut().paste_near(station),
 		Choice::EditStation => Action::EditStation,
-		Choice::StationSettings => Action::StationSettings,
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
 		Choice::NewCollection => {
 			// Modal: outside the borrow.
@@ -471,7 +474,11 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 			);
 		}
 		// Collection owners handle their own.
-		Choice::Rename | Choice::Delete | Choice::AddAllTo(_) | Choice::MoveToFolder(_) => return,
+		Choice::Rename
+		| Choice::Delete
+		| Choice::NewFolder
+		| Choice::AddAllTo(_)
+		| Choice::MoveToFolder(_) => return,
 	};
 	app.borrow_mut().selected = Some(station.clone());
 	dispatch(app, action);
@@ -512,7 +519,6 @@ mod tests {
 				Item::CopyStation,
 				Item::CutStation,
 				Item::Export,
-				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), true),
@@ -531,7 +537,6 @@ mod tests {
 				Item::CutStation,
 				Item::PasteStation,
 				Item::Export,
-				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), true),
@@ -551,7 +556,6 @@ mod tests {
 				Item::CopyUrl,
 				Item::CopyStation,
 				Item::Export,
-				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz.clone(), "Jazz".into(), false),
 					(news.clone(), "News".into(), false),
@@ -569,7 +573,6 @@ mod tests {
 				Item::CopyStation,
 				Item::CutStation,
 				Item::Export,
-				Item::StationSettings,
 				Item::AddToCollection(vec![
 					(jazz, "Jazz".into(), false),
 					(news, "News".into(), false),

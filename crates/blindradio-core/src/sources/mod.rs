@@ -1,6 +1,7 @@
 //! Station directories and the browse tree they share.
 
 use crate::Result;
+use crate::library::Folder;
 use crate::station::{Source, Station};
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -417,6 +418,53 @@ impl Sources {
 			"net" => Ok(networks::children(id)),
 			_ => Ok(vec![]),
 		}
+	}
+
+	/// The whole subtree under `id` as export material: the level's
+	/// own stations, and its folders as library folders with their
+	/// subtrees inside, so an export keeps the structure instead of
+	/// flattening every station into one group named after the root.
+	/// Load More rows are followed to the end of their list. A folder
+	/// id already visited is not walked again, so a looping source
+	/// cannot spin forever.
+	pub async fn tree(&self, id: &str, sort: Sort) -> Result<(Vec<Station>, Vec<Folder>)> {
+		let mut seen = HashSet::new();
+		seen.insert(id.to_string());
+		self.tree_walk(id, sort, &mut seen).await
+	}
+
+	fn tree_walk<'a>(
+		&'a self,
+		id: &'a str,
+		sort: Sort,
+		seen: &'a mut HashSet<String>,
+	) -> std::pin::Pin<
+		Box<dyn std::future::Future<Output = Result<(Vec<Station>, Vec<Folder>)>> + Send + 'a>,
+	> {
+		Box::pin(async move {
+			let mut stations = Vec::new();
+			let mut folders = Vec::new();
+			let mut level = vec![id.to_string()];
+			while let Some(next) = level.pop() {
+				for node in self.children(&next, sort).await? {
+					match node {
+						Node::Station(s) => stations.push(s),
+						Node::Folder { id, name } => {
+							if seen.insert(id.clone()) {
+								let (inner_s, inner_f) = self.tree_walk(&id, sort, seen).await?;
+								folders.push(Folder {
+									name,
+									stations: inner_s,
+									folders: inner_f,
+								});
+							}
+						}
+						Node::LoadMore { id } => level.push(id),
+					}
+				}
+			}
+			Ok((stations, folders))
+		})
 	}
 
 	/// A directory that fails or is slow is left out. Without a name only Radio Browser can

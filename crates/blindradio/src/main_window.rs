@@ -251,17 +251,6 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				dispatch(app, next);
 			}
 		}
-		Action::StationSettings => {
-			let station = app.borrow().selected_or_playing();
-			match station {
-				Some(st) => {
-					if let Some(next) = dialogs::features::show_station(app, &st) {
-						dispatch(app, next);
-					}
-				}
-				None => app.borrow_mut().say(s::NOTHING_PLAYING),
-			}
-		}
 		Action::EditStation => {
 			let station = app.borrow().selected_or_playing();
 			match station {
@@ -401,6 +390,21 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 				dispatch(&a, action);
 			}
 			None => key.event.skip(true),
+		}
+	});
+
+	// Coming back to the window (Alt+Tab) lands on the station tree.
+	// Sometimes Windows hands the returning focus to the menu bar
+	// instead, and the whole menu reads as one line; the tree is
+	// where the user left off, so put it back there. A dialog keeps
+	// its own focus.
+	let a = app.clone();
+	win.frame.on_activate(move |e| {
+		let WindowEventData::Activate(data) = e else {
+			return;
+		};
+		if data.is_active() && !a.borrow().dialog_open {
+			a.borrow().win.stations.list.set_focus();
 		}
 	});
 

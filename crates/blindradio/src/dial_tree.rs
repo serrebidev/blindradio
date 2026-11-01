@@ -393,9 +393,17 @@ fn folder_export(
 			));
 		}
 		let folder = folder_by_names(&collection.folders, &names[1..])?;
-		return Some((folder.name.clone(), Vec::new(), vec![folder.clone()]));
+		return Some((
+			folder.name.clone(),
+			folder.stations.clone(),
+			folder.folders.clone(),
+		));
 	}
 	let collection = dial_collection(lib, main_list)?;
 	let folder = folder_by_names(&collection.folders, &names)?;
-	Some((folder.name.clone(), Vec::new(), vec![folder.clone()]))
+	Some((
+		folder.name.clone(),
+		folder.stations.clone(),
+		folder.folders.clone(),
+	))
 }

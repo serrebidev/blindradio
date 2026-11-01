@@ -1201,18 +1201,31 @@ impl View {
 		app.borrow_mut().selected = m.focus().and_then(|f| m.station(f)).cloned();
 	}
 
-	fn context_menu(&self, app: &Rc<RefCell<App>>) {
+	fn context_menu(self: &Rc<Self>, app: &Rc<RefCell<App>>, token: &WindowToken) {
 		let Some(f) = self.model.borrow().focus() else {
 			return;
 		};
-		let (items, station, collection, local_folder) = {
+		let (items, station, collection, local_folder, new_folder_in) = {
 			let m = self.model.borrow();
 			let a = app.borrow();
+			// Where a New Folder would land: inside a local folder,
+			// or at the root of the collection whose row this is (the
+			// Custom Stations root is not under Collections, so its
+			// own key names it). Remote rows get neither.
+			let new_folder_in = m.local_folder(f).or_else(|| {
+				let key = m.key(f)?;
+				a.library
+					.collections
+					.iter()
+					.any(|c| c.id == key)
+					.then(|| (key.to_owned(), Vec::new()))
+			});
 			(
 				context_menu::items_for(&m.target(f), &a.library, a.station_clip.is_some()),
 				m.station(f).cloned(),
 				m.collection(f),
 				m.local_folder(f),
+				new_folder_in,
 			)
 		};
 		let items = match items {
@@ -1223,7 +1236,11 @@ impl View {
 				// header — a category, network or section — only
 				// exports, and only when it holds something.
 				if local_folder.is_some() {
-					vec![context_menu::Item::Rename, context_menu::Item::Export]
+					vec![
+						context_menu::Item::NewFolder,
+						context_menu::Item::Rename,
+						context_menu::Item::Export,
+					]
 				} else {
 					let m = self.model.borrow();
 					if m.stations_under(f).is_empty() {
@@ -1248,6 +1265,33 @@ impl View {
 				};
 				context_menu::export_playlist(app, &self.tree, &name, &stations, &folders);
 			}
+			(None, Some((id, _)), Choice::NewFolder) => {
+				if let Some(name) =
+					prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE)
+				{
+					let mut a = app.borrow_mut();
+					if a.library
+						.collection_mut(&id)
+						.is_some_and(|c| c.add_folder(&[], &name).is_some())
+					{
+						a.save_library();
+					}
+				}
+			}
+			(None, None, Choice::NewFolder) => {
+				if let Some((id, parent)) = &new_folder_in
+					&& let Some(name) =
+						prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE)
+				{
+					let mut a = app.borrow_mut();
+					if a.library
+						.collection_mut(id)
+						.is_some_and(|c| c.add_folder(parent, &name).is_some())
+					{
+						a.save_library();
+					}
+				}
+			}
 			(None, None, Choice::Rename) => {
 				if let Some((id, path)) = &local_folder
 					&& let Some(name) =
@@ -1264,16 +1308,59 @@ impl View {
 				}
 			}
 			(None, None, Choice::Export) => {
-				let (name, stations) = {
+				// A local folder exports from the library itself:
+				// complete, however little of it the view has loaded,
+				// and grouped by its real subfolders.
+				if let Some((id, path)) = &local_folder {
+					let data = {
+						let a = app.borrow();
+						a.library
+							.collections
+							.iter()
+							.find(|c| c.id == *id)
+							.and_then(|c| c.folder_at(path))
+							.map(|f| (f.stations.clone(), f.folders.clone()))
+					};
+					if let Some((stations, folders)) = data {
+						let name = self.model.borrow().label(f).to_owned();
+						return context_menu::export_playlist(
+							app,
+							&self.tree,
+							&name,
+							&stations,
+							&folders,
+						);
+					}
+				}
+				// A remote folder: gather its whole subtree from the
+				// source first, then the save dialog gets it with the
+				// structure intact — never flattened into one group
+				// named after the folder (the Germany export bug).
+				let (name, key) = {
 					let m = self.model.borrow();
-					(m.label(f).to_owned(), m.stations_under(f))
+					(m.label(f).to_owned(), m.key(f).map(str::to_owned))
 				};
-				let folder = blindradio_core::library::Folder {
-					name: name.clone(),
-					stations,
-					folders: Vec::new(),
-				};
-				context_menu::export_playlist(app, &self.tree, &name, &[], &[folder]);
+				let Some(key) = key else { return };
+				let sources = app.borrow().sources.clone();
+				let sort = self.sort.get();
+				let (v, a) = (self.clone(), app.clone());
+				app.borrow().bridge.spawn(
+					token.clone(),
+					async move { sources.tree(&key, sort).await },
+					move |_: &mut App, r| match r {
+						Ok((stations, folders)) => context_menu::export_playlist(
+							&a,
+							&v.tree,
+							&name,
+							&stations,
+							&folders,
+						),
+						Err(e) => {
+							eprintln!("browse export {name}: {e}");
+							a.borrow_mut().say(s::NOT_SAVED);
+						}
+					},
+				);
 			}
 			(None, Some((id, _)), Choice::Rename) => {
 				if let Some(name) =
@@ -1509,10 +1596,10 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, token: &WindowT
 	});
 
 	// The Applications key, Shift+F10 and a right click.
-	let (v, a) = (view.clone(), app.clone());
+	let (v, a, tok) = (view.clone(), app.clone(), token.clone());
 	tree.bind_internal(EventType::CONTEXT_MENU, move |e: Event| {
 		e.skip(false);
-		v.context_menu(&a);
+		v.context_menu(&a, &tok);
 	});
 }
 
