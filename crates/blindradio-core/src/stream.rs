@@ -473,6 +473,18 @@ async fn play(
 /// no attribute pairs passes through untouched.
 pub fn clean_title(raw: &str) -> String {
 	let t = raw.trim();
+	// iHeart's other record shape is comma-separated and leads with the
+	// attributes themselves: `title="Song",artist="Artist",url="..." ...`.
+	// The result is `Artist - Song`.
+	if t.starts_with("title=\"") || t.starts_with("artist=\"") {
+		let title = comma_attr(t, "title").filter(|v| !v.is_empty());
+		if let Some(title) = title {
+			return match comma_attr(t, "artist").filter(|v| !v.is_empty()) {
+				Some(artist) => format!("{artist} - {title}"),
+				None => title.to_string(),
+			};
+		}
+	}
 	if let Some(start) = attr_start(t, "text")
 		&& let Some(value) = attr_value(t, start)
 	{
@@ -490,6 +502,18 @@ pub fn clean_title(raw: &str) -> String {
 		}
 	}
 	t.to_string()
+}
+
+/// The quoted value of a comma-separated attribute: `name="value"` at the
+/// string's start or right after a comma.
+fn comma_attr<'a>(t: &'a str, name: &str) -> Option<&'a str> {
+	let needle = format!("{name}=\"");
+	for (i, _) in t.match_indices(&needle) {
+		if i == 0 || t.as_bytes()[i - 1] == b',' {
+			return attr_value(t, i);
+		}
+	}
+	None
 }
 
 /// Where the attribute `name="..."` starts: at the string's start or right
@@ -820,6 +844,15 @@ mod tests {
 			"USHER / LIL' JON / LUDACRIS - Yeah!"
 		);
 		assert_eq!(clean_title("text=\"Yeah!\" song_spot=\"M\""), "Yeah!");
+		// WLIT (iHeart zc853), verbatim from the live stream 2026-11-01:
+		// comma-separated title=/artist= attributes, no free-text lead.
+		assert_eq!(
+			clean_title(
+				"title=\"Before You Go\",artist=\"LEWIS CAPALDI\",url=\"song_spot=\"F\" MediaBaseId=\"0\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"0\" TPID=\"84013339\" cartcutId=\"0\" length=\"00:03:29\" unsID=\"-1\" spotInstanceId=\"815dc172-f775-4c60-8e27-4ac580fb30a5\""
+			),
+			"LEWIS CAPALDI - Before You Go"
+		);
+		assert_eq!(clean_title("title=\"Solo Song\",artist=\"\""), "Solo Song");
 		assert_eq!(
 			clean_title("Artist - Song length=\"00:03:00\" spot=\"M\""),
 			"Artist - Song"

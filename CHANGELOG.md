@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.34
+
+- iHeart stations whose stream metadata arrives as a comma-separated attribute record (WLIT 93.9 Lite FM in Chicago is one) now show and announce the song properly: the title is read from the record's own title and artist fields instead of the whole record arriving as one unreadable blob, so Announce Song Titles works on them like everywhere else.
+
 ## 0.2.33
 
 - Song recognition no longer fails silently: it uses AudD, not Shazam, and needs a free token from audd.io — the README and the user guide now say so and give the steps. Saving Settings with recognition switched on, AudD chosen, and no token now speaks a warning that nothing will be recognized until a token is added, instead of leaving it looking broken.
