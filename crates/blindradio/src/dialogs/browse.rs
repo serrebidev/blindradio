@@ -889,6 +889,18 @@ impl View {
 		r
 	}
 
+	/// The wx children of `parent`, in the tree's own order.
+	fn wx_children(&self, parent: &TreeItemId) -> Vec<TreeItemId> {
+		let mut out = Vec::new();
+		if let Some((first, mut cookie)) = self.tree.get_first_child(parent) {
+			out.push(first);
+			while let Some(next) = self.tree.get_next_child(parent, &mut cookie) {
+				out.push(next);
+			}
+		}
+		out
+	}
+
 	/// Makes the wx children of `parent` match the model.
 	fn sync(&self, parent: Option<usize>) {
 		self.quietly(|| {
@@ -902,17 +914,31 @@ impl View {
 			};
 			let want = m.children(parent);
 			let keep: HashSet<usize> = want.iter().copied().collect();
-			let mut existing = Vec::new();
-			if let Some((first, mut cookie)) = self.tree.get_first_child(&wx_parent) {
-				existing.push(first);
-				while let Some(next) = self.tree.get_next_child(&wx_parent, &mut cookie) {
-					existing.push(next);
-				}
-			}
-			for item in existing {
+			for item in self.wx_children(&wx_parent) {
 				let i = self.index(&item);
 				if i.is_none_or(|i| !keep.contains(&i)) {
 					if let Some(i) = i {
+						self.forget(&m, i);
+					}
+					self.tree.delete(&item);
+				}
+			}
+			// A reorder leaves the same rows in a new order, and the
+			// tree cannot move a row: updating labels in place showed
+			// the old order until the dialog reopened (the folder
+			// move only looked right because a folder's key carries
+			// its index, so the names swapped instead). When the
+			// tree's order differs from the model's, rebuild the
+			// level in the model's order; folders the model holds
+			// open are expanded again below.
+			let have: Vec<usize> = self
+				.wx_children(&wx_parent)
+				.iter()
+				.filter_map(|item| self.index(item))
+				.collect();
+			if have.as_slice() != want {
+				for item in self.wx_children(&wx_parent) {
+					if let Some(i) = self.index(&item) {
 						self.forget(&m, i);
 					}
 					self.tree.delete(&item);
@@ -941,6 +967,15 @@ impl View {
 				};
 				self.tree.set_item_has_children(&item, m.has_children(c));
 				prev = Some(item);
+			}
+			// Rows rebuilt by the reorder pass come back collapsed;
+			// open the ones the model holds open again.
+			for &c in want {
+				if m.expanded(c)
+					&& let Some(item) = self.item(c)
+				{
+					self.tree.expand(&item);
+				}
 			}
 		});
 	}

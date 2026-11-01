@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.38
+
+- Fixed Browse showing the old order after a reorder: moving a station (or a folder) updated the library and the main window, but the Browse tree itself kept displaying the previous order until the dialog was closed and reopened. The tree now rebuilds a level whose order changed, so a move shows where the row landed the moment it happens.
+
 ## 0.2.37
 
 - Stations in Browse can now be reordered: Shift+Up and Shift+Down (Alt+Up and Alt+Down too) move the focused station one step among the stations in its playlist or subfolder, the same gesture folders already had. A pasted or newly created station lands last in its folder; now it can be walked up into place. The library itself is reordered, so the main window's list takes the new order as soon as Browse closes. Reported by Amir Soleimani.
