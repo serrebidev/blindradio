@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.36
+
+- Closing BlindRadio while a recording is in progress now asks first — the window's close button, Alt+F4, and File, Exit all confirm before ending the recording, and what has been recorded so far is saved when you go ahead. A paused recording counts. Hiding to the tray never asks: the recording continues there.
+
 ## 0.2.35
 
 - Fixed playlist exports flattening folders: exporting a folder from Browse gathered every station under it into one group named after the folder itself, so a playlist's subdirectories (the Germany directory's 37 of them) collapsed into a single "Germany" folder on re-import. Browse folder exports now carry the whole subtree with its groups intact, local folders export from the library itself, and the main window's folder export no longer wraps a folder in itself either. Exporting and re-importing rebuilds the same folders.
