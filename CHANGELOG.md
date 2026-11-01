@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.35
+
+- Fixed playlist exports flattening folders: exporting a folder from Browse gathered every station under it into one group named after the folder itself, so a playlist's subdirectories (the Germany directory's 37 of them) collapsed into a single "Germany" folder on re-import. Browse folder exports now carry the whole subtree with its groups intact, local folders export from the library itself, and the main window's folder export no longer wraps a folder in itself either. Exporting and re-importing rebuilds the same folders.
+- Returning to the window with Alt+Tab now lands on the station tree. Windows sometimes handed the returning focus to the menu bar, which read as one line of menu names; the window puts focus back on the tree whenever it becomes active again (a dialog keeps its own focus).
+- Browse can create folders: New Folder is in the context menu on a collection, on Custom Stations, and inside any local folder — a home for stations someone suggests for a playlist, without leaving Browse.
+- Edit Station and Station Settings are one dialog: Edit Station now holds the name, the stream URL, and the per-station buffer minutes, song recognition and scrobbling. The separate Station Settings menu item and shortcut are gone; the Edit Station shortcut opens the merged dialog.
+
 ## 0.2.34
 
 - iHeart stations whose stream metadata arrives as a comma-separated attribute record (WLIT 93.9 Lite FM in Chicago is one) now show and announce the song properly: the title is read from the record's own title and artist fields instead of the whole record arriving as one unreadable blob, so Announce Song Titles works on them like everywhere else.
