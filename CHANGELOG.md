@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.30
+
+- Enter now always plays the focused station, even the one already playing: it reconnects fresh, so after editing a station's URL you can press Enter on it and hear the new address at once, without switching to another station and back. Moving focus onto the playing station still leaves it sounding untouched.
+
 ## 0.2.29
 
 - Folders inside playlists can now be renamed in Browse: the context menu on a folder in Collections or Custom Stations offers Rename next to Export, at any depth — including an imported playlist's subfolders and folders inside them. Remote directories' folders stay the directory's own.

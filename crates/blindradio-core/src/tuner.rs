@@ -369,6 +369,14 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	pub fn play(&mut self, station: &Station, now: Instant) {
 		// A focus right after this is key repeat relative to the play, not to an older focus.
 		self.last_focus = Some(now);
+		// An explicit play always connects afresh: dropping the
+		// station's open stream makes tune() take the cold path, so
+		// Enter on the station already playing restarts it — the way
+		// to hear an edited URL without switching away and back. The
+		// taps are keyed by station and re-attach, so the time-shift
+		// buffer carries over. Focus moves keep the warm path and
+		// never restart a sounding station.
+		self.open.retain(|o| o.station.id != station.id);
 		self.tune(station, Vec::new(), false, now);
 	}
 

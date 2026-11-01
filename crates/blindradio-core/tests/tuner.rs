@@ -380,6 +380,21 @@ fn stop_then_focus_plays_again() {
 }
 
 #[test]
+fn play_restarts_the_playing_station() {
+	let mut f = fixture();
+	let list = stations(3);
+	f.tuner.focus(&list, 1, f.t0);
+	assert_eq!(f.fake.start_count(1), 1);
+	// Focus again: the sounding station is left alone.
+	f.tuner.focus(&list, 1, f.t0 + ms(1000));
+	assert_eq!(f.fake.start_count(1), 1, "focus never restarts");
+	// Play is explicit: it connects afresh, so an edited URL is heard.
+	f.tuner.play(&list[1], f.t0 + ms(2000));
+	assert_eq!(f.fake.start_count(1), 2, "play restarts the playing station");
+	assert_eq!(f.tuner.playing().map(|s| s.id.as_str()), Some("s1"));
+}
+
+#[test]
 fn warm_streams_close_after_25_s_idle() {
 	let mut f = fixture();
 	let list = stations(7);

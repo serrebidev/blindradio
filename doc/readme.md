@@ -23,7 +23,7 @@ under focus at once, with no speech beyond your screen reader's own. Opening a l
 station and plays it.
 
 - Letters jump to the next name starting with that letter.
-- Enter plays the focused station.
+- Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once.
 - Delete removes it from that list.
 - Alt+Up and Alt+Down reorder where the list allows it.
 - The Applications key opens the station's menu.
