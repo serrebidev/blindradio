@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.37
+
+- Stations in Browse can now be reordered: Shift+Up and Shift+Down (Alt+Up and Alt+Down too) move the focused station one step among the stations in its playlist or subfolder, the same gesture folders already had. A pasted or newly created station lands last in its folder; now it can be walked up into place. The library itself is reordered, so the main window's list takes the new order as soon as Browse closes. Reported by Amir Soleimani.
+
 ## 0.2.36
 
 - Closing BlindRadio while a recording is in progress now asks first — the window's close button, Alt+F4, and File, Exit all confirm before ending the recording, and what has been recorded so far is saved when you go ahead. A paused recording counts. Hiding to the tray never asks: the recording continues there.

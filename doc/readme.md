@@ -53,10 +53,12 @@ submissions appear in Browse without an app update;
 Networks holds the curated networks. Right opens a folder, Left closes it, and a folder
 that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
-Shift+Up and Shift+Down move a folder among the folders on its level (Alt+Up and
-Alt+Down work too). A folder in Collections or Custom Stations moves in your library
-itself; a directory folder keeps the order you give it, remembered between sessions,
-since the directory's own order is not yours to change. The main window's list takes
+Shift+Up and Shift+Down move the focused row among its own kind on its level: a folder
+among the folders, a station among the stations (Alt+Up and Alt+Down work too). Rows in
+Collections or Custom Stations move in your library itself — a pasted or new station
+lands last in its folder, and Shift+Up walks it up into place; a directory folder keeps
+the order you give it, remembered between sessions, since the directory's own order is
+not yours to change, and a directory's stations keep the source's order. The main window's list takes
 the new order as soon as Browse closes — no restart.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and

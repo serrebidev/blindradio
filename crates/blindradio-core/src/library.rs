@@ -190,6 +190,12 @@ impl Collection {
 	pub fn move_folder(&mut self, path: &[usize], up: bool) -> Option<Vec<usize>> {
 		move_folder_in(&mut self.folders, path, up)
 	}
+
+	/// Moves the station at `index` in the station list at `path` one
+	/// step among its fellow stations; its new index. None at an edge.
+	pub fn move_station(&mut self, path: &[usize], index: usize, up: bool) -> Option<usize> {
+		move_station_in(&mut self.stations, &mut self.folders, path, index, up)
+	}
 }
 
 /// The folder at `path` in a folder list: the first index picks from the
@@ -300,6 +306,28 @@ pub fn move_folder_in(folders: &mut Vec<Folder>, path: &[usize], up: bool) -> Op
 	let mut new_path = parent.to_vec();
 	new_path.push(next);
 	Some(new_path)
+}
+
+/// Moves the station at `index` in the station list at `path` (under a
+/// root list and its folders) one step; its new index. None when the
+/// index or the step lands outside the list.
+pub fn move_station_in(
+	root: &mut Vec<Station>,
+	folders: &mut Vec<Folder>,
+	path: &[usize],
+	index: usize,
+	up: bool,
+) -> Option<usize> {
+	let list = stations_in(root, folders, path)?;
+	if index >= list.len() {
+		return None;
+	}
+	let next = if up { index.checked_sub(1)? } else { index + 1 };
+	if next >= list.len() {
+		return None;
+	}
+	list.swap(index, next);
+	Some(next)
 }
 
 /// Every folder under `folders` with its path, parents first, names joined

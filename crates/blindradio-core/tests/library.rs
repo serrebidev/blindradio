@@ -371,6 +371,32 @@ fn folders_move_among_siblings() {
 }
 
 #[test]
+fn stations_move_among_their_fellows() {
+	let mut lib = Library::default();
+	let jazz = lib.create_collection("Jazz");
+	let c = lib.collection_mut(&jazz).unwrap();
+	for id in ["a", "b", "c"] {
+		c.stations_at_mut(&[]).unwrap().push(st(id));
+	}
+	// The middle station steps up, then back down; the ends refuse.
+	assert_eq!(c.move_station(&[], 1, true), Some(0));
+	assert_eq!(c.stations[0].id, "b");
+	assert_eq!(c.move_station(&[], 0, true), None);
+	assert_eq!(c.move_station(&[], 0, false), Some(1));
+	assert_eq!(c.stations[1].id, "b");
+	assert_eq!(c.move_station(&[], 2, false), None);
+	assert_eq!(c.move_station(&[], 9, true), None, "off the end");
+	// Stations inside a folder move within that folder only.
+	let sub = c.add_folder(&[], "Sub").unwrap();
+	for id in ["x", "y"] {
+		c.stations_at_mut(&sub).unwrap().push(st(id));
+	}
+	assert_eq!(c.move_station(&sub, 1, true), Some(0));
+	assert_eq!(c.stations_at(&sub).unwrap()[0].id, "y");
+	assert_eq!(c.stations[0].id, "a", "the root list is untouched");
+}
+
+#[test]
 fn custom_stations_file_where_the_picker_says() {
 	let mut lib = Library::default();
 	let jazz = lib.create_collection("Jazz");

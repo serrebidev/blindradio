@@ -767,6 +767,42 @@ impl BrowseModel {
 		}
 	}
 
+	/// A local station's place in the library: its collection, the
+	/// path of the folder holding it (empty at the collection's own
+	/// level), and its index among the stations there. None for
+	/// remote stations, whose order is the source's.
+	pub fn local_station(&self, i: usize) -> Option<(String, Vec<usize>, usize)> {
+		if self.station(i).is_none() || !self.is_local(i) {
+			return None;
+		}
+		let parent = self.items[i].parent?;
+		let index = self
+			.children(Some(parent))
+			.iter()
+			.filter(|&&x| self.station(x).is_some())
+			.position(|&x| x == i)?;
+		if parent == self.custom || self.items[parent].parent == Some(self.collections) {
+			Some((self.key(parent)?.to_owned(), Vec::new(), index))
+		} else {
+			let (collection, path) = self.local_folder(parent)?;
+			Some((collection, path, index))
+		}
+	}
+
+	/// The row of a local folder, or of the collection itself for an
+	/// empty path, found by the key its level builder gives it.
+	pub fn local_row(&self, collection: &str, path: &[usize]) -> Option<usize> {
+		let mut key = collection.to_owned();
+		for i in path {
+			key += &format!("/f{i}");
+		}
+		self.items
+			.iter()
+			.enumerate()
+			.find(|(i, _)| self.is_local(*i) && self.key(*i) == Some(key.as_str()))
+			.map(|(i, _)| i)
+	}
+
 	pub fn delete_target(&self, i: usize) -> Delete {
 		// A folder inside a local root is the user's own too, empty or
 		// not — it was NotOwn before, so an imported playlist's folders
@@ -1139,6 +1175,52 @@ impl View {
 			}
 			self.sync(parent);
 			self.show_focus();
+		}
+	}
+
+	/// Shift+Up / Shift+Down (Alt works too) on a station: move it
+	/// one step among the stations on its level, the same gesture
+	/// folders already had. Only local stations move — a remote
+	/// directory's order is the source's, not ours to change. The
+	/// library itself is reordered, so the main window's list takes
+	/// the new order as soon as Browse closes.
+	fn move_station(&self, app: &Rc<RefCell<App>>, up: bool) {
+		let spot = {
+			let m = self.model.borrow();
+			let Some(f) = m.focus() else { return };
+			m.local_station(f)
+		};
+		let Some((collection, path, index)) = spot else {
+			return;
+		};
+		let landed = {
+			let mut a = app.borrow_mut();
+			let r = a
+				.library
+				.collection_mut(&collection)
+				.and_then(|c| c.move_station(&path, index, up));
+			if r.is_some() {
+				a.save_library();
+			}
+			r
+		};
+		let Some(landed) = landed else { return };
+		self.refresh_local(app);
+		// Focus follows the station to its new slot on the level.
+		let to = {
+			let m = self.model.borrow();
+			m.local_row(&collection, &path).and_then(|parent| {
+				m.children(Some(parent))
+					.iter()
+					.filter(|&&x| m.station(x).is_some())
+					.nth(landed)
+					.copied()
+			})
+		};
+		if let Some(to) = to {
+			self.model.borrow_mut().set_focus(to);
+			self.show_focus();
+			self.focused(app, to);
 		}
 	}
 
@@ -1558,8 +1640,9 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, token: &WindowT
 		};
 		let ctrl = e.control_down();
 		let plain = !(e.alt_down() || e.shift_down());
-		// Shift+Up / Shift+Down moves a folder among its level's
-		// folders (Alt+Up / Alt+Down too, as in Collections).
+		// Shift+Up / Shift+Down moves the focused row among its own
+		// kind on its level: a folder among folders, a station among
+		// stations (Alt+Up / Alt+Down too, as in Collections).
 		let move_dir = match (code, ctrl) {
 			(WXK_UP, false) if !plain => Some(true),
 			(WXK_DOWN, false) if !plain => Some(false),
@@ -1567,7 +1650,15 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, token: &WindowT
 		};
 		if let Some(up) = move_dir {
 			e.skip(false);
-			v.move_folder(&a, up);
+			let folder = {
+				let m = v.model.borrow();
+				m.focus().is_some_and(|f| m.is_folder(f))
+			};
+			if folder {
+				v.move_folder(&a, up);
+			} else {
+				v.move_station(&a, up);
+			}
 			return;
 		}
 		let to = {
@@ -2084,5 +2175,36 @@ mod tests {
 		let collections = find(&m, None, "collections");
 		assert!(m.is_local(collections));
 		assert!(!m.is_local(find(&m, None, "dir")));
+	}
+
+	#[test]
+	fn browse_local_station_places() {
+		let mut lib = Library::default();
+		let p = lib.create_collection("List");
+		{
+			let c = lib.collection_mut(&p).unwrap();
+			for id in ["one", "two"] {
+				c.stations_at_mut(&[]).unwrap().push(st(id));
+			}
+			let sub = c.add_folder(&[], "Sub").unwrap();
+			for id in ["x", "y"] {
+				c.stations_at_mut(&sub).unwrap().push(st(id));
+			}
+		}
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let list = find(&m, Some(collections), &p);
+		// A station at the collection's own level: empty path, its
+		// index among the stations there (folders do not count).
+		let two = find(&m, Some(list), "two");
+		assert_eq!(m.local_station(two), Some((p.clone(), Vec::new(), 1)));
+		// A station inside a subfolder: the folder's path and index.
+		let sub = find(&m, Some(list), &format!("{p}/f0"));
+		let y = find(&m, Some(sub), "y");
+		assert_eq!(m.local_station(y), Some((p.clone(), vec![0], 1)));
+		assert_eq!(m.local_row(&p, &[0]), Some(sub));
+		assert_eq!(m.local_row(&p, &[]), Some(list));
+		// A folder is not a station, and remote rows have no place.
+		assert_eq!(m.local_station(sub), None);
 	}
 }
