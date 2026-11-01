@@ -502,6 +502,7 @@ impl App {
 		// The window title follows focus at once; the song is added when known.
 		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
+		self.apply_station_volume(station);
 		if self.settings.play_on_move {
 			self.note_played(station);
 		}
@@ -1028,6 +1029,26 @@ impl App {
 			if !entry.enabled {
 				continue;
 			}
+			if entry.alarm {
+				// An alarm plays its station at its start; the
+				// recording below owns the window logic.
+				let Some(occ) = entry.alarm_due(now) else {
+					continue;
+				};
+				if self.sched_fired.contains(&(entry.id.clone(), occ)) {
+					continue;
+				}
+				self.sched_fired.insert((entry.id.clone(), occ));
+				self.say(&format!("{}{}", s::ALARM_STARTED, entry.station.name));
+				self.play(entry.station.clone());
+				if entry.repeat == Repeat::Once
+					&& let Some(e) = self.settings.schedules.iter_mut().find(|e| e.id == entry.id)
+				{
+					e.enabled = false;
+					self.save_settings();
+				}
+				continue;
+			}
 			let Some(occ) = entry.occurrence_at(now) else {
 				continue;
 			};
@@ -1120,6 +1141,7 @@ impl App {
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
 		self.tuner.play(&station, Instant::now());
+		self.apply_station_volume(&station);
 		self.library.add_recent(&station);
 		self.save_library();
 		if self.settings.last_station.as_ref() != Some(&station) {
@@ -1443,7 +1465,28 @@ impl App {
 	fn set_volume(&mut self, points: i32) {
 		self.settings.volume = points.clamp(0, 100) as f32 / 100.0;
 		self.mixer(MixerCmd::Volume(self.settings.volume));
+		// The level set while a station plays is that station's
+		// remembered volume, applied again when it starts.
+		if let Some(playing) = self.tuner.playing() {
+			let id = playing.id.clone();
+			self.settings
+				.station_overrides
+				.entry(id)
+				.or_default()
+				.volume = Some(self.settings.volume);
+		}
 		self.save_settings();
+	}
+
+	/// Landing on a station with a remembered volume makes it the
+	/// current volume; one without keeps the level as it is.
+	fn apply_station_volume(&mut self, station: &Station) {
+		let v = self.settings.volume_for(&station.id);
+		if v != self.settings.volume {
+			self.settings.volume = v;
+			self.mixer(MixerCmd::Volume(v));
+			self.save_settings();
+		}
 	}
 
 	fn mixer(&self, cmd: MixerCmd) {

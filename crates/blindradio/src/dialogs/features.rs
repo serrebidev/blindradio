@@ -380,6 +380,9 @@ pub fn show_station(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action>
 					.and_then(|t| t.parse().ok()),
 				recognition: untri(recog.get_selection()),
 				scrobble: untri(scrob.get_selection()),
+				// Not this dialog's to touch: the level the station
+				// remembers from playing it.
+				volume: current.volume,
 			};
 			let mut app = a.borrow_mut();
 			if entry == StationSettings::default() {

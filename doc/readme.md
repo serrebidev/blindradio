@@ -24,6 +24,7 @@ station and plays it.
 
 - Letters jump to the next name starting with that letter.
 - Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once.
+- Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
 - Delete removes it from that list.
 - Alt+Up and Alt+Down reorder where the list allows it.
 - The Applications key opens the station's menu.
@@ -209,6 +210,11 @@ an entry can be switched off without deleting it. When the time comes the app tu
 the station and records, and stops when the duration is up; a recording already running
 by hand is never interrupted, and a Once entry switches itself off after it has run.
 Start times are your local time.
+
+An entry can be an alarm instead of a recording: set its Kind to Alarm and it just plays
+its station at the start time — wake up to it. Duration does not apply to alarms. An
+alarm that comes due while the app is closed is not replayed later; if the app starts
+within five minutes of the alarm time, it still plays.
 
 ## Sleep timer
 

@@ -175,6 +175,9 @@ pub struct StationSettings {
 	pub timeshift_minutes: Option<u32>,
 	pub recognition: Option<bool>,
 	pub scrobble: Option<bool>,
+	/// The volume last set while this station played; applied again
+	/// whenever the station starts.
+	pub volume: Option<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -297,6 +300,9 @@ impl Settings {
 			if let Some(m) = o.timeshift_minutes {
 				o.timeshift_minutes = Some(m.clamp(1, 240));
 			}
+			if let Some(v) = o.volume {
+				o.volume = Some(v.clamp(0.0, 1.0));
+			}
 		}
 		s
 	}
@@ -333,6 +339,14 @@ impl Settings {
 			.get(station_id)
 			.and_then(|o| o.recognition)
 			.unwrap_or(self.recognition.enabled)
+	}
+
+	/// Volume for a station: its remembered level, else the global one.
+	pub fn volume_for(&self, station_id: &str) -> f32 {
+		self.station_overrides
+			.get(station_id)
+			.and_then(|o| o.volume)
+			.unwrap_or(self.volume)
 	}
 
 	pub fn scrobble_enabled_for(&self, station_id: &str) -> bool {
@@ -429,8 +443,11 @@ mod tests {
 				timeshift_minutes: Some(5),
 				recognition: Some(true),
 				scrobble: None,
+				volume: Some(0.4),
 			},
 		);
+		assert_eq!(s.volume_for("st:1"), 0.4);
+		assert_eq!(s.volume_for("st:2"), s.volume);
 		assert_eq!(s.timeshift_minutes_for("st:1"), 5);
 		assert!(s.recognition_enabled_for("st:1"));
 		assert!(!s.recognition_enabled_for("st:2"));

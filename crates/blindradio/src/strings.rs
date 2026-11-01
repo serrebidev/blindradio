@@ -236,6 +236,11 @@ pub const ADD_BUTTON: &str = "&Add…";
 pub const EDIT_BUTTON: &str = "&Edit…";
 pub const DELETE_BUTTON: &str = "&Delete";
 pub const SCHEDULE_STATION: &str = "Station";
+pub const SCHEDULE_KIND: &str = "Kind";
+pub const KIND_RECORDING: &str = "Recording";
+pub const KIND_ALARM: &str = "Alarm";
+/// Prefix: `Alarm: <station>`.
+pub const ALARM_STARTED: &str = "Alarm: ";
 pub const SCHEDULE_START: &str = "Start (YYYY-MM-DD HH:MM, local)";
 pub const SCHEDULE_DURATION: &str = "Duration (minutes)";
 pub const SCHEDULE_REPEAT: &str = "Repeat";

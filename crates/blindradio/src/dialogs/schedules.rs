@@ -101,10 +101,14 @@ fn entry_label(e: &ScheduledRecording) -> String {
 		.next_after(update::now().saturating_sub(1))
 		.unwrap_or(e.start_unix);
 	format!(
-		"{} - {} - {} min - {} - {}",
+		"{} - {} - {} - {} - {}",
 		e.station.name,
 		format_local(shown),
-		e.duration_minutes,
+		if e.alarm {
+			s::KIND_ALARM.to_string()
+		} else {
+			format!("{} min", e.duration_minutes)
+		},
 		e.repeat.label(),
 		if e.enabled { "on" } else { "off" }
 	)
@@ -233,6 +237,12 @@ fn form(
 ) -> Option<ScheduledRecording> {
 	let stations: Rc<Vec<Station>> = Rc::new(stations_in.to_vec());
 	let dialog = Dialog::builder(parent, s::SCHEDULES_TITLE).build();
+	let kind_label = StaticText::builder(&dialog)
+		.with_label(s::SCHEDULE_KIND)
+		.build();
+	let kind = Choice::builder(&dialog).build();
+	kind.append(s::KIND_RECORDING);
+	kind.append(s::KIND_ALARM);
 	let station_label = StaticText::builder(&dialog)
 		.with_label(s::SCHEDULE_STATION)
 		.build();
@@ -266,8 +276,10 @@ fn form(
 			duration_minutes: 60,
 			repeat: Repeat::Once,
 			enabled: true,
+			alarm: false,
 		},
 	};
+	kind.set_selection(if entry.alarm { 1 } else { 0 });
 	if let Some(i) = stations.iter().position(|st| st.id == entry.station.id) {
 		station.set_selection(i as u32, true);
 	} else {
@@ -292,6 +304,7 @@ fn form(
 		);
 		sizer.add(control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	}
+	row(&sizer, &kind_label, &kind);
 	row(&sizer, &station_label, &station);
 	row(&sizer, &start_label, &start);
 	row(&sizer, &duration_label, &duration);
@@ -324,13 +337,17 @@ fn form(
 				return;
 			};
 			entry.station = st.clone();
+			entry.alarm = kind.get_selection() == Some(1);
 			match parse_local(&start.get_value()) {
 				Some(unix) => entry.start_unix = unix,
 				None => return a.borrow_mut().say(s::BAD_SCHEDULE_TIME),
 			}
-			match duration.get_value().trim().parse::<u32>() {
-				Ok(m) if (1..=1440).contains(&m) => entry.duration_minutes = m,
-				_ => return a.borrow_mut().say(s::BAD_SCHEDULE_DURATION),
+			// An alarm plays; it has no duration to validate.
+			if !entry.alarm {
+				match duration.get_value().trim().parse::<u32>() {
+					Ok(m) if (1..=1440).contains(&m) => entry.duration_minutes = m,
+					_ => return a.borrow_mut().say(s::BAD_SCHEDULE_DURATION),
+				}
 			}
 			entry.repeat = match repeat.get_selection() {
 				Some(1) => Repeat::Daily,

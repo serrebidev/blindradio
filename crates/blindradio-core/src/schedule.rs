@@ -38,6 +38,10 @@ pub struct ScheduledRecording {
 	pub duration_minutes: u32,
 	pub repeat: Repeat,
 	pub enabled: bool,
+	/// An alarm plays its station instead of recording it; the
+	/// duration is ignored.
+	#[serde(default)]
+	pub alarm: bool,
 }
 
 impl Default for ScheduledRecording {
@@ -55,6 +59,7 @@ impl Default for ScheduledRecording {
 			duration_minutes: 60,
 			repeat: Repeat::Once,
 			enabled: true,
+			alarm: false,
 		}
 	}
 }
@@ -106,7 +111,18 @@ impl ScheduledRecording {
 			None => false,
 		}
 	}
+
+	/// The occurrence an alarm fires for at `now`: one that started
+	/// within the grace — the app starting a little late still wakes
+	/// you; one from long ago is missed, never a blast hours later.
+	pub fn alarm_due(&self, now: u64) -> Option<u64> {
+		let occ = self.occurrence_at(now)?;
+		(now - occ <= ALARM_GRACE).then_some(occ)
+	}
 }
+
+/// How long after its start an alarm may still fire, in seconds.
+pub const ALARM_GRACE: u64 = 300;
 
 #[cfg(test)]
 mod tests {
@@ -127,6 +143,7 @@ mod tests {
 			duration_minutes: 30,
 			repeat,
 			enabled: true,
+			alarm: false,
 		}
 	}
 
@@ -139,6 +156,17 @@ mod tests {
 		assert!(!e.is_due(1_000 + 30 * 60));
 		assert_eq!(e.next_after(999), Some(1_000));
 		assert_eq!(e.next_after(1_000), None);
+	}
+
+	#[test]
+	fn alarm_fires_at_its_start_and_within_grace_only() {
+		let mut e = entry(1_000, Repeat::Daily);
+		e.alarm = true;
+		assert_eq!(e.alarm_due(999), None);
+		assert_eq!(e.alarm_due(1_000), Some(1_000));
+		assert_eq!(e.alarm_due(1_000 + ALARM_GRACE), Some(1_000));
+		assert_eq!(e.alarm_due(1_000 + ALARM_GRACE + 1), None);
+		assert_eq!(e.alarm_due(1_000 + DAY + 60), Some(1_000 + DAY));
 	}
 
 	#[test]

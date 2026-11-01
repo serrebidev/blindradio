@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.32
+
+- Scheduled entries can be alarms: in Scheduled Recordings, set an entry's Kind to Alarm and it plays its station at the start time instead of recording it — wake up to a station. Daily and Weekly alarms repeat; a Once alarm switches itself off after firing, and an alarm missed by more than five minutes (the app was closed) is skipped, not replayed late.
+- Volume is remembered per station: the level you set while a station plays becomes that station's level, applied automatically whenever it starts — the loud station stays turned down, the quiet one stays up. Stations without a remembered level use the current volume.
+
 ## 0.2.31
 
 - Ctrl+M now says what it did: `Muted` or `Unmuted`, under the same Announce Actions setting as every other action. The mute button says it too.
