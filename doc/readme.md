@@ -60,7 +60,9 @@ the new order as soon as Browse closes — no restart.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and
 naming how many stations go with it; a directory's folders are the directory's
-own and cannot be deleted.
+own and cannot be deleted. A folder in Collections or Custom Stations also
+renames from its context menu (Rename), at any depth; a remote directory's
+folders are the directory's own and cannot be renamed.
 
 Icecast offers All Stations and By Genre. Its live directory stays cached for fifteen
 minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featured

@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.29
+
+- Folders inside playlists can now be renamed in Browse: the context menu on a folder in Collections or Custom Stations offers Rename next to Export, at any depth — including an imported playlist's subfolders and folders inside them. Remote directories' folders stay the directory's own.
+
 ## 0.2.28
 
 - The BlindRadio Directory shows each playlist's subdirectories again: a playlist's groups (BBC in UK, NPR, AZPM and the rest in Public Radio) are folders in Browse, instead of every station lumped into one flat list.

@@ -755,16 +755,28 @@ impl BrowseModel {
 		out
 	}
 
+	/// The local folder row `i` names, as (collection id, folder path):
+	/// a folder inside Collections or Custom Stations, at any depth.
+	/// A collection row itself is not one, and neither is a remote
+	/// directory's folder.
+	pub fn local_folder(&self, i: usize) -> Option<(String, Vec<usize>)> {
+		if self.station(i).is_none() && self.is_folder(i) && self.is_local(i) {
+			self.key(i).and_then(local_path)
+		} else {
+			None
+		}
+	}
+
 	pub fn delete_target(&self, i: usize) -> Delete {
 		// A folder inside a local root is the user's own too, empty or
 		// not — it was NotOwn before, so an imported playlist's folders
 		// could never be removed here (Brandon's report). A collection
 		// row itself stays NotOwn: whole collections are deleted in
 		// the Collections window.
+		if let Some((collection, path)) = self.local_folder(i) {
+			return Delete::RemoveFolder { collection, path };
+		}
 		if self.station(i).is_none() && self.is_folder(i) && self.is_local(i) {
-			if let Some((collection, path)) = self.key(i).and_then(local_path) {
-				return Delete::RemoveFolder { collection, path };
-			}
 			return Delete::NotOwn;
 		}
 		// A station in a folder belongs to the collection above the folder.
@@ -1193,25 +1205,32 @@ impl View {
 		let Some(f) = self.model.borrow().focus() else {
 			return;
 		};
-		let (items, station, collection) = {
+		let (items, station, collection, local_folder) = {
 			let m = self.model.borrow();
 			let a = app.borrow();
 			(
 				context_menu::items_for(&m.target(f), &a.library, a.station_clip.is_some()),
 				m.station(f).cloned(),
 				m.collection(f),
+				m.local_folder(f),
 			)
 		};
 		let items = match items {
 			Ok(items) => items,
 			Err(text) => {
-				// A category, network or section header has no menu of
-				// its own, but everything under it exports.
-				let m = self.model.borrow();
-				if m.stations_under(f).is_empty() {
-					return app.borrow_mut().say(text);
+				// A folder inside a playlist is the user's own: it
+				// renames, and everything under it exports. Any other
+				// header — a category, network or section — only
+				// exports, and only when it holds something.
+				if local_folder.is_some() {
+					vec![context_menu::Item::Rename, context_menu::Item::Export]
+				} else {
+					let m = self.model.borrow();
+					if m.stations_under(f).is_empty() {
+						return app.borrow_mut().say(text);
+					}
+					vec![context_menu::Item::Export]
 				}
-				vec![context_menu::Item::Export]
 			}
 		};
 		let Some(choice) = context_menu::popup(&self.tree, &items) else {
@@ -1228,6 +1247,21 @@ impl View {
 					}
 				};
 				context_menu::export_playlist(app, &self.tree, &name, &stations, &folders);
+			}
+			(None, None, Choice::Rename) => {
+				if let Some((id, path)) = &local_folder
+					&& let Some(name) =
+						prompt_text(&self.tree, s::FOLDER_NAME, &plain(s::RENAME_ITEM))
+				{
+					let mut a = app.borrow_mut();
+					let renamed = a
+						.library
+						.collection_mut(id)
+						.is_some_and(|c| c.rename_folder(path, &name));
+					if renamed {
+						a.save_library();
+					}
+				}
 			}
 			(None, None, Choice::Export) => {
 				let (name, stations) = {
@@ -1871,6 +1905,37 @@ mod tests {
 				path: vec![0]
 			},
 			"an imported playlist's folder in Custom Stations"
+		);
+	}
+
+	#[test]
+	fn browse_local_folder_resolves_at_any_depth() {
+		// Rename needs the same resolution Delete uses: the folder's
+		// collection and index path, nested folders included — and
+		// nothing for the collection row itself.
+		let mut lib = Library::default();
+		let jazz = lib.create_collection("Jazz");
+		lib.collection_mut(&jazz)
+			.unwrap()
+			.add_folder(&[], "Sub");
+		lib.collection_mut(&jazz)
+			.unwrap()
+			.add_folder(&[0], "Inner");
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let jazz_row = find(&m, Some(collections), &jazz);
+		assert_eq!(m.local_folder(jazz_row), None, "the collection itself");
+		let sub = find(&m, Some(jazz_row), &format!("{jazz}/f0"));
+		assert_eq!(
+			m.local_folder(sub),
+			Some((jazz.clone(), vec![0])),
+			"a playlist's subfolder"
+		);
+		let inner = find(&m, Some(sub), &format!("{jazz}/f0/f0"));
+		assert_eq!(
+			m.local_folder(inner),
+			Some((jazz.clone(), vec![0, 0])),
+			"a subfolder inside the subfolder"
 		);
 	}
 
