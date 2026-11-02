@@ -179,7 +179,9 @@ fn stream_fails_on_silent_server() {
 		path: "/live".into(),
 	}]);
 	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
-	let seen = events_until(&rx, Duration::from_secs(6), |e| {
+	// The failure lands when the start budget (15 s) gives up on the
+	// first bytes; the wait must clear it.
+	let seen = events_until(&rx, Duration::from_secs(20), |e| {
 		matches!(e, StreamEvent::Failed(_))
 	});
 	assert_eq!(seen, [StreamEvent::Failed("No data".into())]);
@@ -403,7 +405,9 @@ fn stream_fails_on_endless_junk() {
 		close_after: None,
 	}]);
 	let (_s, rx) = play(&server.url("/live"), &ctx(Duration::from_secs(60)));
-	let seen = events_until(&rx, Duration::from_secs(8), |e| {
+	// Undecodable bytes fail at the decode deadline, which rides on
+	// the same 15 s start budget; the wait must clear it.
+	let seen = events_until(&rx, Duration::from_secs(20), |e| {
 		matches!(e, StreamEvent::Failed(_))
 	});
 	assert!(
