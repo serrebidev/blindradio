@@ -91,7 +91,13 @@ pub fn taps_for(taps: &TapMap, station_id: &str) -> Taps {
 }
 
 /// Connect, open and the first body bytes must all fit in this.
-const START_BUDGET: Duration = Duration::from_secs(5);
+/// Fifteen seconds, not five: a playlist URL can chain a redirect,
+/// a master playlist, a variant playlist and a first segment, each
+/// hop slow on a far CDN (the MediaWorks/StreamGuys chain measures
+/// seconds per hop), and the sum used to blow a five-second budget
+/// on a healthy stream, which the first connect reports as failed
+/// at once — there is no retry until a stream has played.
+const START_BUDGET: Duration = Duration::from_secs(15);
 /// A cached final URL gets this much before the station URL is tried instead.
 const CACHED_BUDGET: Duration = Duration::from_secs(2);
 const MIN_STATION_BUDGET: Duration = Duration::from_secs(3);

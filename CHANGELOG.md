@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.41
+
+- Slow-opening streams are no longer announced as failed while they are still opening. The first connect had five seconds for everything — connect, redirects, playlist fetches and the first audio — and a first connect that runs out of time fails at once, with no retry. A chained HLS address like MediaWorks' (a redirect, a master playlist, a variant playlist, then the first segment, each hop slow on a far server) could pass five seconds on a healthy stream. The start budget is now fifteen seconds. A stream that has played and then drops still reconnects under the existing sixty-second window.
+
 ## 0.2.40
 
 - Fixed pasting into a parent directory for real this time. The 0.2.39 fix put Paste Station on the playlist and folder menus, but Paste itself (Ctrl+V) still only knew the selected station: from a folder row in Browse it pasted into the main list's root instead of the row you were standing on — answering "already in Custom Stations" when the station already lived there — and from a folder row in the main window, with the main list set to All Lists, it answered "Nowhere to paste". Paste now follows the focused row in both windows: on a folder or playlist row it lands at that row's level; on a station it lands beside it, as before.
