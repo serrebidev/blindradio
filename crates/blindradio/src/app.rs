@@ -1267,12 +1267,12 @@ impl App {
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
 		self.tuner.play(&station, Instant::now());
-		self.remembered = None;
-		// A modal's selection and paste home must describe the same row, and
-		// a station with no row leaves the focused row selected.
-		if self.reveal_station(&station) {
+		// A modal's selection and paste home must describe the same row.
+		if !self.dialog_open {
 			self.selected = Some(station.clone());
 		}
+		self.remembered = None;
+		self.reveal_station(&station);
 		if !self.dialog_open
 			&& (self.win.frame.has_focus()
 				|| self.win.filter.has_focus()
@@ -1723,13 +1723,26 @@ impl App {
 		true
 	}
 
-	/// A modal closed: what it left playing gets its row, once.
+	/// A modal closed: what it left playing gets its row, once, and is what
+	/// Add to Favorites and the like act on until the user moves.
 	pub fn reveal_after_dialog(&mut self) {
 		if std::mem::take(&mut self.reveal_on_close)
 			&& let Some(station) = self.tuner.playing().cloned()
 		{
 			self.reveal_station(&station);
+			self.selected = Some(station);
 		}
+	}
+
+	/// Edit Station: every held copy, Recently Played, and what later playback reuses.
+	pub fn update_station(&mut self, id: &str, name: &str, url: &str, info: Option<&str>) -> bool {
+		let copies = self.played.iter_mut().chain(self.settings.last_station.as_mut());
+		for st in copies.filter(|st| st.id == id) {
+			st.name = name.to_string();
+			st.url = url.to_string();
+			st.info = info.map(str::to_string);
+		}
+		self.library.update_station(id, name, url, info)
 	}
 
 	/// Return to the playing row without restarting it or changing playback history.
@@ -1741,7 +1754,7 @@ impl App {
 			return;
 		};
 		if !self.reveal_station(&station) {
-			return;
+			return self.say(s::PLAYING_NOT_LISTED);
 		}
 		if !self.win.stations.list.has_focus() {
 			self.win.stations.list.set_focus();
@@ -1839,18 +1852,21 @@ impl App {
 		self.save_library();
 		self.refresh_dial();
 		if was_focused {
-			self.play_focused_replacement();
+			self.play_focused_replacement(&st.id);
 		}
 	}
 
 	/// Play on Move: the station that took a deleted one's place has the
-	/// focus now, so it plays, like moving onto it would.
-	fn play_focused_replacement(&mut self) {
+	/// focus now, so it plays, like moving onto it would. Nothing took the
+	/// place of a row that stayed: another copy of `deleted` kept it listed.
+	fn play_focused_replacement(&mut self, deleted: &str) {
 		if self.settings.play_on_move
 			&& let Some(i) = self.win.stations.current()
 		{
 			let stations = self.win.stations.stations();
-			self.tune(&stations, i);
+			if stations.get(i).is_some_and(|st| st.id != deleted) {
+				self.tune(&stations, i);
+			}
 		}
 	}
 
@@ -2070,7 +2086,7 @@ impl App {
 		self.save_library();
 		self.refresh_dial();
 		if was_focused {
-			self.play_focused_replacement();
+			self.play_focused_replacement(id);
 		}
 	}
 

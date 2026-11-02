@@ -164,21 +164,35 @@ pub fn run_with_refresh(
 		}
 	});
 	dialog.centre();
-	app.borrow_mut().dialog_open = true;
+	// Edit Station can open over Browse, Collections or Favorites: closing
+	// it hands everything back to the window still open underneath.
+	let outer = {
+		let mut a = app.borrow_mut();
+		let outer = a
+			.dialog_open
+			.then(|| (a.selected.clone(), a.paste_home.clone()));
+		a.dialog_open = true;
+		outer
+	};
 	dialog.show_modal();
 	token.close();
 	{
 		let mut a = app.borrow_mut();
-		a.dialog_open = false;
-		a.reveal_after_dialog();
-		a.selected = a
-			.win
-			.stations
-			.current()
-			.and_then(|i| a.win.stations.stations().get(i).cloned());
-		// A paste home belongs to the dialog that stated it.
-		a.paste_home = None;
-		a.tuner.list_closed();
+		if let Some((selected, home)) = outer {
+			a.selected = selected;
+			a.paste_home = home;
+		} else {
+			a.dialog_open = false;
+			a.selected = a
+				.win
+				.stations
+				.current()
+				.and_then(|i| a.win.stations.stations().get(i).cloned());
+			a.reveal_after_dialog();
+			// A paste home belongs to the dialog that stated it.
+			a.paste_home = None;
+			a.tuner.list_closed();
+		}
 	}
 	dialog.destroy();
 	next.take()

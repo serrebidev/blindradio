@@ -12,6 +12,7 @@ use blindradio_core::station::{Source, Station};
 use uiautomation::actions::{ExpandCollapse, SelectionItem};
 use uiautomation::controls::{ListItemControl, TreeItemControl, WindowControl};
 use uiautomation::inputs::Keyboard;
+use uiautomation::patterns::{UIInvokePattern, UIValuePattern};
 use uiautomation::types::ControlType;
 use uiautomation::{UIAutomation, UIElement};
 
@@ -152,6 +153,49 @@ impl App {
 			keyboard.send_keys(keys).expect("keys");
 		}
 		std::thread::sleep(Duration::from_millis(400));
+	}
+
+	/// One Down with no wait after it, for timing what follows.
+	fn tap_down(&self) {
+		// SAFETY: inject a matched extended-key down/up pair on this test's desktop.
+		unsafe {
+			keybd_event(0x28, 0x50, 1, 0);
+			keybd_event(0x28, 0x50, 3, 0);
+		}
+	}
+
+	fn main_tree(&self) -> UIElement {
+		self.automation
+			.create_matcher()
+			.from(self.window.clone())
+			.control_type(ControlType::Tree)
+			.timeout(5000)
+			.find_first()
+			.expect("main tree")
+	}
+
+	/// An item of the open menu.
+	fn menu_item(&self, name: &str) -> UIElement {
+		self.automation
+			.create_matcher()
+			.from(self.automation.get_root_element().unwrap())
+			.filter_fn(Box::new({
+				let pid = self.child.id();
+				move |e: &UIElement| Ok(e.get_process_id()? == pid)
+			}))
+			.control_type(ControlType::MenuItem)
+			.name(name)
+			.timeout(5000)
+			.find_first()
+			.unwrap_or_else(|e| panic!("menu item {name}: {e}"))
+	}
+
+	fn invoke(&self, element: &UIElement) {
+		element
+			.get_pattern::<UIInvokePattern>()
+			.expect("invokable")
+			.invoke()
+			.expect("invoke");
 	}
 
 	fn row(&self, parent: &UIElement, name: &str) -> UIElement {
@@ -513,6 +557,278 @@ fn deleting_the_last_main_row_plays_the_one_before() {
 	);
 }
 
+#[test]
+#[ignore = "needs a desktop"]
+fn deleting_from_the_main_context_menu_plays_the_replacement() {
+	let mut library = Library::default();
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	let app = App::with_settings(
+		"delete-menu",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	app.select_row(&tree, "One");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Delete Custom Station"));
+	std::thread::sleep(Duration::from_millis(600));
+	app.assert_selected(&tree, "Two");
+	assert!(
+		app.window.get_name().unwrap().contains("Two"),
+		"the station that took its place plays"
+	);
+	assert!(!Library::load(&app.data).collections[0].contains_id("custom:one"));
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn edit_station_shows_and_clears_the_info() {
+	let mut library = Library::default();
+	let mut wnyc = station("custom:wnyc", "WNYC Operavore");
+	wnyc.info = Some("Operavore, The United States Of America, AAC+ 47k".into());
+	library.collections[0].stations = vec![wnyc];
+	let app = App::with_settings(
+		"edit-info",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	let long = "WNYC Operavore - Operavore, The United States Of America, AAC+ 47k";
+	app.select_row(&tree, long);
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Edit Station…"));
+	let dialog = app.find("Edit Station", WAIT).expect("Edit Station");
+	let info = app
+		.automation
+		.create_matcher()
+		.from(dialog.clone())
+		.name("Info")
+		.control_type(ControlType::Edit)
+		.timeout(5000)
+		.find_first()
+		.expect("Info field");
+	let value = info.get_pattern::<UIValuePattern>().expect("editable");
+	assert_eq!(
+		value.get_value().unwrap(),
+		"Operavore, The United States Of America, AAC+ 47k"
+	);
+	value.set_value("").unwrap();
+	let ok = app
+		.automation
+		.create_matcher()
+		.from(dialog)
+		.name("OK")
+		.control_type(ControlType::Button)
+		.timeout(5000)
+		.find_first()
+		.expect("OK");
+	app.invoke(&ok);
+	std::thread::sleep(Duration::from_millis(600));
+	let saved = Library::load(&app.data);
+	assert_eq!(saved.collections[0].stations[0].name, "WNYC Operavore");
+	assert_eq!(saved.collections[0].stations[0].info, None);
+	app.assert_selected(&tree, "WNYC Operavore");
+}
+
+/// Ctrl+V used to ignore the focused row here and land in the main list's root.
+#[test]
+#[ignore = "needs a desktop"]
+fn collections_paste_follows_the_focused_row_and_refreshes() {
+	let mut library = Library::default();
+	let copy = station("custom:copy", "Copy me");
+	library.collections[0].stations = vec![copy.clone()];
+	library.collections[0].folders.push(Folder {
+		name: "English".into(),
+		stations: Vec::new(),
+		folders: vec![Folder {
+			name: "Misc".into(),
+			stations: vec![copy],
+			folders: Vec::new(),
+		}],
+	});
+	let app = App::with_settings(
+		"paste-collections",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	app.press("{ctrl}l");
+	let window = app.find("Collections", WAIT).expect("Collections");
+	let expand = |row: &UIElement| {
+		TreeItemControl::try_from(row.clone())
+			.unwrap()
+			.expand()
+			.unwrap();
+	};
+	expand(&app.row(&window, "Custom Stations"));
+	let english = app.row(&window, "English");
+	expand(&english);
+	let misc = app.row(&english, "Misc");
+	expand(&misc);
+	app.select_row(&misc, "Copy me");
+	app.press("{ctrl}c");
+	app.select_row(&window, "English");
+	app.press("{ctrl}v");
+	std::thread::sleep(Duration::from_millis(500));
+	let saved = Library::load(&app.data);
+	let folder = &saved.collections[0].folders[0];
+	assert_eq!(folder.stations.len(), 1, "it reaches the focused folder");
+	assert_eq!(folder.folders[0].stations.len(), 1, "a copy leaves Misc alone");
+	assert_eq!(saved.collections[0].stations.len(), 1, "and the root");
+	let english = app.row(&window, "English");
+	expand(&english);
+	let misc = app.row(&english, "Misc");
+	assert!(
+		app.automation
+			.create_tree_walker()
+			.unwrap()
+			.get_first_child(&english)
+			.is_ok_and(|first| first.get_name().unwrap() == "Copy me"),
+		"the window shows it at once, ahead of {}",
+		misc.get_name().unwrap()
+	);
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn favorites_paste_follows_the_focused_row_and_refreshes() {
+	let library = Library {
+		fav_folders: vec![
+			Folder {
+				name: "First".into(),
+				stations: vec![station("custom:one", "One")],
+				folders: Vec::new(),
+			},
+			Folder {
+				name: "Second".into(),
+				stations: Vec::new(),
+				folders: Vec::new(),
+			},
+		],
+		..Library::default()
+	};
+	let app = App::start("paste-favorites", library);
+	app.press("{ctrl}b");
+	let window = app.find("Favorites", WAIT).expect("Favorites");
+	let first = app.row(&window, "First");
+	TreeItemControl::try_from(first.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.select_row(&first, "One");
+	app.press("{ctrl}x");
+	app.select_row(&window, "Second");
+	app.press("{ctrl}v");
+	std::thread::sleep(Duration::from_millis(500));
+	let saved = Library::load(&app.data);
+	assert!(saved.fav_folders[0].stations.is_empty(), "the cut left First");
+	assert_eq!(saved.fav_folders[1].stations.len(), 1, "it reached Second");
+	let second = app.row(&window, "Second");
+	TreeItemControl::try_from(second.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.row(&second, "One");
+}
+
+/// Each arrow used to rebuild the hidden main tree, however long it was.
+#[test]
+#[ignore = "needs a desktop"]
+fn arrows_in_a_modal_ignore_the_size_of_the_main_tree() {
+	// The favorites take turns between two long lists, the costliest reveal:
+	// each one would switch the main list and rebuild the whole tree.
+	let mut library = Library::default();
+	let other = library.create_collection("Other");
+	let rows = |prefix: &str| -> Vec<Station> {
+		(0..6000)
+			.map(|i| station(&format!("{prefix}:{i}"), &format!("Row {i}")))
+			.collect()
+	};
+	library.collections[0].stations = rows("custom");
+	library.collection_mut(&other).unwrap().stations = rows("other");
+	library.favorites = (0..6)
+		.map(|i| station(&format!("url:{i}"), &format!("Loose {i}")))
+		.collect();
+	for (i, favorite) in library.favorites.clone().into_iter().enumerate() {
+		let list = if i % 2 == 0 { "custom" } else { other.as_str() };
+		library.collection_mut(list).unwrap().stations.push(favorite);
+	}
+	let app = App::with_settings(
+		"modal-speed",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	app.press("{ctrl}b");
+	app.find("Favorites", WAIT).expect("Favorites");
+	std::thread::sleep(Duration::from_millis(500));
+	let began = std::time::Instant::now();
+	for _ in 0..5 {
+		app.tap_down();
+	}
+	while !app.window.get_name().unwrap().contains("Loose 5") {
+		assert!(began.elapsed() < WAIT, "the last favorite never played");
+		std::thread::sleep(Duration::from_millis(10));
+	}
+	let took = began.elapsed();
+	println!("five arrows over 6000 rows: {took:?}");
+	assert!(took < Duration::from_millis(1500), "took {took:?}");
+}
+
+/// The report itself, against the live directories: the first result plays
+/// and keeps focus, and Down moves on from it.
+#[test]
+#[ignore = "needs a desktop and the network"]
+fn search_keeps_focus_when_its_first_result_plays() {
+	let mut library = Library::default();
+	library.collections[0].stations = (0..6000)
+		.map(|i| station(&format!("custom:{i}"), &format!("Row {i}")))
+		.collect();
+	let app = App::with_settings(
+		"search-focus",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	app.press("{ctrl}f");
+	let search = app.find("Search", WAIT).expect("Search");
+	app.press("WNYC{enter}");
+	let first = app
+		.automation
+		.create_matcher()
+		.from(search.clone())
+		.control_type(ControlType::ListItem)
+		.timeout(WAIT.as_millis() as u64)
+		.find_first()
+		.expect("results");
+	std::thread::sleep(Duration::from_millis(1000));
+	assert!(first.has_keyboard_focus().unwrap(), "the first result has focus");
+	let began = std::time::Instant::now();
+	let title = app.window.get_name().unwrap();
+	app.tap_down();
+	while app.window.get_name().unwrap() == title {
+		assert!(began.elapsed() < WAIT, "Down never moved on");
+		std::thread::sleep(Duration::from_millis(10));
+	}
+	println!("Down in Search: {:?}", began.elapsed());
+	assert!(began.elapsed() < Duration::from_millis(300));
+	assert!(!first.has_keyboard_focus().unwrap(), "focus went with the arrow");
+}
+
 /// An arrow in a modal tunes at once; the hidden tree follows when it closes.
 #[test]
 #[ignore = "needs a desktop"]
@@ -592,6 +908,49 @@ fn a_station_no_list_holds_gets_no_row() {
 			.is_err(),
 		"no temporary row"
 	);
+	app.assert_selected(&tree, "Two");
+	// Until the user moves, it is the station commands act on, not the row.
+	app.press("{ctrl}d");
+	let saved = Library::load(&app.data);
+	assert!(!saved.is_favorite("url:loose"), "Ctrl+D took the playing one");
+	assert!(!saved.is_favorite("custom:two"), "the row was left alone");
+}
+
+/// Edit Station over Browse: closing it must leave Browse's modal state whole.
+#[test]
+#[ignore = "needs a desktop"]
+fn a_dialog_over_browse_leaves_the_main_tree_waiting() {
+	let mut library = Library::default();
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	let app = App::with_settings(
+		"nested-dialog",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	app.select_row(&tree, "One");
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	let custom = app.row(&browse, "Custom Stations 2");
+	TreeItemControl::try_from(custom.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.select_row(&custom, "One");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Edit Station…"));
+	app.find("Edit Station", WAIT).expect("Edit Station");
+	app.press("{esc}");
+	std::thread::sleep(Duration::from_millis(500));
+	app.select_row(&custom, "Two");
+	assert!(app.window.get_name().unwrap().contains("Two"));
+	app.assert_selected(&tree, "One");
+	app.press("{esc}");
+	std::thread::sleep(Duration::from_millis(500));
 	app.assert_selected(&tree, "Two");
 }
 

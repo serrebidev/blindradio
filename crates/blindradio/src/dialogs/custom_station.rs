@@ -235,10 +235,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			{
 				let mut app = a.borrow_mut();
 				let info = blank_none(&info.get_value());
-				if app
-					.library
-					.update_station(&id, &typed, &link, info.as_deref())
-				{
+				if app.update_station(&id, &typed, &link, info.as_deref()) {
 					app.save_library();
 					app.refresh_dial();
 				}

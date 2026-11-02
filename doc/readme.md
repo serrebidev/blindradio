@@ -33,7 +33,8 @@ Stations > Move to Playing Station reveals and focuses the station that is playi
 restarting it. Previous Station, Next Station, the favorite shortcuts, and playback from
 Browse, Favorites or Recently Played also select the playing station in the main tree.
 A station no list holds, such as an opened URL or a search result, plays without a row there.
-Focus stays on the row you were on.
+Focus stays on the row you were on, and until you move, commands such as Add to Favorites act
+on the playing station. Move to Playing Station then says the station is in no list.
 
 ## Searching
 

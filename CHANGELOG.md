@@ -5,6 +5,16 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.45
+
+- After playing a station with no row in the main window's list, Add to Favorites, Copy Stream URL and Edit Station act on that station until you move, not on the row that still has focus. In 0.2.44 Add to Favorites could remove the row's station from your favorites instead.
+- Move to Playing Station now says "The playing station is in no list" when there is no row to move to.
+- Closing Edit Station opened from Browse, Collections or Favorites no longer makes the app think the window underneath has closed. That brought back slow arrow keys and could misplace the next paste.
+- Copy, Cut and Paste in Collections and Favorites work on the row you land on when the window opens, and follow it after a folder is moved or deleted. Pasting keeps focus on the same copy of a station filed in several folders.
+- Delete Custom Station no longer starts a station when another copy keeps the same row in the list.
+- Edit Station also updates Recently Played and the station played at startup, so an edited name or info no longer comes back.
+- A station played through a global hotkey while Keyboard Shortcuts or Global Hotkeys is open gets its row when that window closes.
+
 ## 0.2.44
 
 - With "Play a station as I move to it" on, deleting a station now plays the station that takes its place in the two cases 0.2.42 missed: the Delete key in Browse, and deleting the last row of the main window's list. The Delete item on the main window's context menu does the same.

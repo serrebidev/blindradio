@@ -26,7 +26,9 @@ fn edit_replaces_the_info_of_every_copy() {
 	let id = l.create_collection("Mine");
 	l.toggle_in_collection(&id, &wnyc);
 	l.toggle_favorite(&wnyc);
+	l.add_recent(&wnyc);
 	assert!(l.update_station("wnyc", "WNYC Operavore", &wnyc.url, Some("Opera")));
+	assert_eq!(l.recent[0].info.as_deref(), Some("Opera"));
 	assert_eq!(l.favorites[0].info.as_deref(), Some("Opera"));
 	assert!(l.update_station("wnyc", "Operavore", &wnyc.url, None));
 	let copy = l.collections.iter().find(|c| c.id == id).unwrap();

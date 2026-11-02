@@ -7,6 +7,7 @@ pub const RECONNECTING: &str = "Connection lost. Reconnecting.";
 pub const RECONNECTED: &str = "Reconnected";
 pub const STOPPED: &str = "Stopped";
 pub const NOTHING_TO_PLAY: &str = "Nothing to play";
+pub const PLAYING_NOT_LISTED: &str = "The playing station is in no list";
 pub const NOTHING_PLAYING: &str = "Nothing playing";
 /// Prefix: `No favorite <n>`.
 pub const NO_FAVORITE: &str = "No favorite ";

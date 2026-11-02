@@ -526,6 +526,7 @@ impl Library {
 			url,
 			info,
 		);
+		hit |= walk(&mut self.recent, &mut [], id, name, url, info);
 		for c in &mut self.collections {
 			hit |= walk(&mut c.stations, &mut c.folders, id, name, url, info);
 		}

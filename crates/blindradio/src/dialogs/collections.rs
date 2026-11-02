@@ -82,6 +82,8 @@ enum Focus {
 	Collection(String),
 	Folder(String, Vec<usize>),
 	Station(String, String),
+	/// One copy of a station filed in several folders: collection, path, index.
+	At(String, Vec<usize>, usize),
 }
 
 /// Every folder of a collection with its path, parents first, names joined.
@@ -211,8 +213,14 @@ impl View {
 				self.tree.ensure_visible(item);
 			}
 		});
-		// What Ctrl+D and Enter act on next.
-		app.borrow_mut().selected = landed_station;
+		// What Ctrl+D, Enter and Ctrl+V act on next.
+		let home = self
+			.selected_row()
+			.and_then(|row| self.at(app, row))
+			.map(|at| PasteDest::Collection(at.id, at.path));
+		let mut a = app.borrow_mut();
+		a.selected = landed_station;
+		a.paste_home = home;
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -242,7 +250,9 @@ impl View {
 			self.tree
 				.set_custom_data_direct(&child, Row::Station(li));
 			self.items.borrow_mut().push((Row::Station(li), child.clone()));
-			if *focus == Some(Focus::Station(c.id.clone(), st.id.clone())) {
+			if *focus == Some(Focus::Station(c.id.clone(), st.id.clone()))
+				|| *focus == Some(Focus::At(c.id.clone(), path.to_vec(), si))
+			{
 				*landed = Some(child);
 				*landed_station = Some(st.clone());
 			}
@@ -913,7 +923,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				Some(match row {
 					Row::Collection(_) => Focus::Collection(at.id),
 					Row::Folder(_) => Focus::Folder(at.id, at.path),
-					Row::Station(_) => Focus::Station(at.id, at.station?),
+					Row::Station(_) => Focus::At(at.id, at.path, v.loc(row)?.station?),
 				})
 			});
 			v.refresh(&a, focus);

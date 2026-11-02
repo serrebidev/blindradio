@@ -47,6 +47,8 @@ struct Loc {
 enum Focus {
 	Folder(Vec<usize>),
 	Station(String),
+	/// One copy of a station filed in several folders: path, index.
+	At(Vec<usize>, usize),
 }
 
 struct View {
@@ -137,7 +139,13 @@ impl View {
 				self.tree.ensure_visible(item);
 			}
 		});
-		app.borrow_mut().selected = landed_station;
+		let home = self
+			.selected_row()
+			.and_then(|row| self.loc(row))
+			.map(|loc| PasteDest::Favorites(loc.path));
+		let mut a = app.borrow_mut();
+		a.selected = landed_station;
+		a.paste_home = home;
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -165,7 +173,9 @@ impl View {
 			self.tree
 				.set_custom_data_direct(&child, Row::Station(li));
 			self.items.borrow_mut().push((Row::Station(li), child.clone()));
-			if *focus == Some(Focus::Station(st.id.clone())) {
+			if *focus == Some(Focus::Station(st.id.clone()))
+				|| *focus == Some(Focus::At(path.to_vec(), si))
+			{
 				*landed = Some(child);
 				*landed_station = Some(st.clone());
 			}
@@ -636,9 +646,12 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		view.tree,
 		&token,
 		move || {
-			let focus = v.selected_row().and_then(|row| match row {
-				Row::Station(_) => v.station_at(&a, row).map(|st| Focus::Station(st.id)),
-				Row::Folder(_) => v.loc(row).map(|loc| Focus::Folder(loc.path)),
+			let focus = v.selected_row().and_then(|row| {
+				let loc = v.loc(row)?;
+				Some(match (row, loc.station) {
+					(Row::Station(_), Some(si)) => Focus::At(loc.path, si),
+					_ => Focus::Folder(loc.path),
+				})
 			});
 			v.refresh(&a, focus);
 		},

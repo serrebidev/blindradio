@@ -17,6 +17,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let edited = prompt_for_shortcuts(&frame, &model);
 	let mut app = app.borrow_mut();
 	app.dialog_open = false;
+	app.reveal_after_dialog();
 	if let Some(edited) = edited {
 		app.settings.hotkeys = edited.to_settings();
 		app.save_settings();
