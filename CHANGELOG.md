@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.39
+
+- Stations can now live at a playlist's own level: Paste Station appears on playlist and folder rows in Browse and in the main window's list, and pastes the copied or cut station at that row's level, beside its folders — so a station can be moved out of a subfolder directly into the parent playlist, with no subfolder having to hold it. (A new station's destination picker already offered every playlist itself.)
+- Playlist and folder names now show how many stations live under them — "English 24", "Misc 15" — in Browse and in the main window's list. Remote directories stay bare: their count is not known until every level under them has loaded.
+- Fixed the remaining Alt+Tab case where focus landed on the menu bar and NVDA read "File Stations Playback Recording Help": the activation fix in 0.2.35 missed some return paths, so the app now also watches for the frame itself holding the keyboard focus while no dialog or menu is open, and hands the focus to the station tree.
+
 ## 0.2.38
 
 - Fixed Browse showing the old order after a reorder: moving a station (or a folder) updated the library and the main window, but the Browse tree itself kept displaying the previous order until the dialog was closed and reopened. The tree now rebuilds a level whose order changed, so a move shows where the row landed the moment it happens.

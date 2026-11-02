@@ -58,7 +58,14 @@ among the folders, a station among the stations (Alt+Up and Alt+Down work too). 
 Collections or Custom Stations move in your library itself — a pasted or new station
 lands last in its folder, and Shift+Up walks it up into place; a directory folder keeps
 the order you give it, remembered between sessions, since the directory's own order is
-not yours to change, and a directory's stations keep the source's order. The main window's list takes
+not yours to change, and a directory's stations keep the source's order.
+A playlist's or folder's name shows how many stations live under it — English 24,
+Misc 15 — in Browse and in the main window's list alike; a remote directory's name
+stays bare, since its full count is not known until every level under it has loaded.
+Paste Station on a playlist or folder row puts the clipboard station at that row's own
+level, beside its folders: a station copied or cut out of a subfolder can be pasted
+straight into the parent playlist, without a subfolder having to hold it. A new
+station's destination picker offers every playlist itself as well as its folders. The main window's list takes
 the new order as soon as Browse closes — no restart.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and

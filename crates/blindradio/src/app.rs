@@ -268,6 +268,8 @@ pub struct App {
 	pub browse: browse::Memory,
 	/// A modal window is open.
 	pub dialog_open: bool,
+	/// A menu (the menu bar's or a popup) is open on the main window.
+	pub menu_open: bool,
 	pub bridge: Bridge<App>,
 	pub tuner: Tuner<LiveFactory, SharedOutput>,
 	output: Rc<RefCell<Output>>,
@@ -357,6 +359,7 @@ impl App {
 			filters: None,
 			browse: browse::Memory::default(),
 			dialog_open: false,
+			menu_open: false,
 			bridge: Bridge::new(engine.ctx.rt.clone()),
 			tuner: Tuner::new(
 				LiveFactory(engine.ctx.clone()),
@@ -694,6 +697,18 @@ impl App {
 	pub fn poll(&mut self) {
 		#[cfg(windows)]
 		crate::status_strip::sync(&self.win);
+		// Alt+Tab back in occasionally leaves the keyboard focus on
+		// the frame itself — no control holds it, and NVDA reads the
+		// menu bar ("File Stations Playback Recording Help"). The
+		// activation handler catches most returns, but not all the
+		// paths Windows takes. Whenever the frame itself holds the
+		// focus and neither a dialog nor a menu is open, the focus
+		// belongs on the station tree: hand it over. A control that
+		// holds the focus (the tree, the volume slider) is never
+		// taken from.
+		if !self.dialog_open && !self.menu_open && self.win.frame.has_focus() {
+			self.win.stations.list.set_focus();
+		}
 		let now = Instant::now();
 		let rendered: Vec<_> = self.rendered.try_iter().collect();
 		self.tuner.poll(now, &rendered);

@@ -179,7 +179,10 @@ impl DialTree {
 				} else {
 					format!("{path}/{name}")
 				};
-				let Some(item) = self.list.append_item(parent, name, None, None) else {
+				// The name carries how many stations live under it,
+				// as in Browse ("English 24").
+				let text = format!("{name} {}", count_nodes(kids));
+				let Some(item) = self.list.append_item(parent, &text, None, None) else {
 					return;
 				};
 				self.list
@@ -319,19 +322,45 @@ impl DialTree {
 				// A folder row exports, like Browse's folders do; the
 				// main window used to offer a folder nothing at all.
 				if let Some(Row::Folder(key)) = me.selected_row() {
-					let data = {
+					let (data, home, has_clip) = {
 						let held = a.borrow();
-						folder_export(&held.library, held.settings.main_list.as_deref(), &key)
+						(
+							folder_export(
+								&held.library,
+								held.settings.main_list.as_deref(),
+								&key,
+							),
+							folder_home(
+								&held.library,
+								held.settings.main_list.as_deref(),
+								&key,
+							),
+							held.station_clip.is_some(),
+						)
 					};
 					match data {
 						Some((name, stations, folders)) => {
-							let items = [context_menu::Item::Export];
-							if let Some(context_menu::Choice::Export) =
-								context_menu::popup(&me.list, &items)
-							{
-								context_menu::export_playlist(
-									&a, &me.list, &name, &stations, &folders,
-								);
+							let mut items = Vec::new();
+							// Paste lands at this row's own level: on a
+							// collection row, beside its folders.
+							if has_clip && home.is_some() {
+								items.push(context_menu::Item::PasteStation);
+							}
+							items.push(context_menu::Item::Export);
+							match context_menu::popup(&me.list, &items) {
+								Some(context_menu::Choice::Export) => {
+									context_menu::export_playlist(
+										&a, &me.list, &name, &stations, &folders,
+									);
+								}
+								Some(context_menu::Choice::PasteStation) => {
+									if let Some((id, path)) = home {
+										a.borrow_mut().paste_into(
+											crate::app::PasteDest::Collection(id, path),
+										);
+									}
+								}
+								_ => {}
 							}
 						}
 						None => a.borrow_mut().say(s::NOTHING_TO_DO),
@@ -406,4 +435,40 @@ fn folder_export(
 		folder.stations.clone(),
 		folder.folders.clone(),
 	))
+}
+
+/// Where Paste lands for a dial folder row: its collection and the
+/// folder's index path — empty for a collection row itself, at the
+/// top of the All Lists view. Name-walked like `folder_export`.
+fn folder_home(
+	lib: &Library,
+	main_list: Option<&str>,
+	key: &str,
+) -> Option<(String, Vec<usize>)> {
+	let names: Vec<&str> = key.split('/').collect();
+	let (collection, rest): (&blindradio_core::library::Collection, &[&str]) =
+		if main_list == Some(ALL_LISTS) {
+			let c = lib.collections.iter().find(|c| c.name == names[0])?;
+			(c, &names[1..])
+		} else {
+			(dial_collection(lib, main_list)?, &names[..])
+		};
+	let mut path = Vec::new();
+	let mut level = &collection.folders;
+	for name in rest {
+		let i = level.iter().position(|f| f.name == *name)?;
+		path.push(i);
+		level = &level[i].folders;
+	}
+	Some((collection.id.clone(), path))
+}
+
+/// How many stations live under a folder node, its subfolders included.
+fn count_nodes(kids: &[DialNode]) -> usize {
+	kids.iter()
+		.map(|k| match k {
+			DialNode::Station(_) => 1,
+			DialNode::Folder(_, sub) => count_nodes(sub),
+		})
+		.sum()
 }

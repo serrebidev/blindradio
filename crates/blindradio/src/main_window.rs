@@ -408,6 +408,13 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		}
 	});
 
+	// The poll loop's focus rescue stands down while a menu is open:
+	// during menu navigation the frame holds the focus legitimately.
+	let a = app.clone();
+	win.frame.track_menu_lifecycle(move |_, opening| {
+		a.borrow_mut().menu_open = opening;
+	});
+
 	let a = app.clone();
 	win.frame.on_close(move |e| {
 		let WindowEventData::General(e) = e else {

@@ -139,14 +139,25 @@ pub fn items_for(
 			}
 			Ok(items)
 		}
-		Target::Collection { custom: false } => Ok(vec![
-			Item::NewFolder,
-			Item::Rename,
-			Item::Delete,
-			Item::Export,
-		]),
+		Target::Collection { custom: false } => {
+			let mut items = vec![Item::NewFolder];
+			// Paste lands at the collection's own level, beside its
+			// folders: a station need not live in a subfolder.
+			if has_clip {
+				items.push(Item::PasteStation);
+			}
+			items.extend([Item::Rename, Item::Delete, Item::Export]);
+			Ok(items)
+		}
 		// Custom Stations cannot be renamed or deleted, but it exports.
-		Target::Collection { custom: true } => Ok(vec![Item::NewFolder, Item::Export]),
+		Target::Collection { custom: true } => {
+			let mut items = vec![Item::NewFolder];
+			if has_clip {
+				items.push(Item::PasteStation);
+			}
+			items.push(Item::Export);
+			Ok(items)
+		}
 		Target::Other => Err(s::NOTHING_TO_DO),
 	}
 }
@@ -592,6 +603,22 @@ mod tests {
 		assert_eq!(
 			items_for(&Target::Collection { custom: true }, &lib, false),
 			Ok(vec![Item::NewFolder, Item::Export])
+		);
+		// A station on the clipboard can be pasted at a collection's
+		// own level, not only beside another station.
+		assert_eq!(
+			items_for(&Target::Collection { custom: false }, &lib, true),
+			Ok(vec![
+				Item::NewFolder,
+				Item::PasteStation,
+				Item::Rename,
+				Item::Delete,
+				Item::Export
+			])
+		);
+		assert_eq!(
+			items_for(&Target::Collection { custom: true }, &lib, true),
+			Ok(vec![Item::NewFolder, Item::PasteStation, Item::Export])
 		);
 		assert_eq!(
 			items_for(&Target::Other, &lib, false),

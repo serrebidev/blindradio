@@ -340,6 +340,21 @@ impl BrowseModel {
 		}
 	}
 
+	/// The tree text for a row. A local collection's or folder's
+	/// name carries how many stations live under it ("English 24",
+	/// "Misc 15"): the library's levels are fully built, so the
+	/// count is exact. Remote rows keep the source's name alone —
+	/// their count is unknowable until every level under them has
+	/// loaded. The Collections header itself is a grouping, not a
+	/// playlist, and stays bare.
+	pub fn display_label(&self, i: usize) -> String {
+		if i != self.collections && self.is_folder(i) && self.is_local(i) {
+			format!("{} {}", self.label(i), self.stations_under(i).len())
+		} else {
+			self.label(i).to_owned()
+		}
+	}
+
 	pub fn key(&self, i: usize) -> Option<&str> {
 		self.items[i].kind.key()
 	}
@@ -946,18 +961,18 @@ impl View {
 			}
 			let mut prev: Option<TreeItemId> = None;
 			for &c in want {
-				let label = m.label(c);
+				let label = m.display_label(c);
 				let item = match self.item(c) {
 					Some(item) => {
-						if self.tree.get_item_text(&item).as_deref() != Some(label) {
-							self.tree.set_item_text(&item, label);
+						if self.tree.get_item_text(&item).as_deref() != Some(label.as_str()) {
+							self.tree.set_item_text(&item, &label);
 						}
 						item
 					}
 					None => {
 						let item = match &prev {
-							Some(p) => self.tree.insert_item(&wx_parent, p, label, None, None),
-							None => self.tree.prepend_item(&wx_parent, label, None, None),
+							Some(p) => self.tree.insert_item(&wx_parent, p, &label, None, None),
+							None => self.tree.prepend_item(&wx_parent, &label, None, None),
 						};
 						let Some(item) = item else { continue };
 						self.tree.set_custom_data_direct(&item, c);
@@ -1322,7 +1337,7 @@ impl View {
 		let Some(f) = self.model.borrow().focus() else {
 			return;
 		};
-		let (items, station, collection, local_folder, new_folder_in) = {
+		let (items, station, collection, local_folder, new_folder_in, has_clip, paste_dest) = {
 			let m = self.model.borrow();
 			let a = app.borrow();
 			// Where a New Folder would land: inside a local folder,
@@ -1337,12 +1352,26 @@ impl View {
 					.any(|c| c.id == key)
 					.then(|| (key.to_owned(), Vec::new()))
 			});
+			let has_clip = a.station_clip.is_some();
+			// Where Paste would land: inside a local folder, or at
+			// the level of the collection whose row this is (the
+			// Custom Stations root included, by its own key).
+			let paste_dest = m.local_folder(f).or_else(|| {
+				let key = m.key(f)?;
+				a.library
+					.collections
+					.iter()
+					.any(|c| c.id == key)
+					.then(|| (key.to_owned(), Vec::new()))
+			});
 			(
-				context_menu::items_for(&m.target(f), &a.library, a.station_clip.is_some()),
+				context_menu::items_for(&m.target(f), &a.library, has_clip),
 				m.station(f).cloned(),
 				m.collection(f),
 				m.local_folder(f),
 				new_folder_in,
+				has_clip,
+				paste_dest,
 			)
 		};
 		let items = match items {
@@ -1353,11 +1382,15 @@ impl View {
 				// header — a category, network or section — only
 				// exports, and only when it holds something.
 				if local_folder.is_some() {
-					vec![
-						context_menu::Item::NewFolder,
+					let mut items = vec![context_menu::Item::NewFolder];
+					if has_clip {
+						items.push(context_menu::Item::PasteStation);
+					}
+					items.extend([
 						context_menu::Item::Rename,
 						context_menu::Item::Export,
-					]
+					]);
+					items
 				} else {
 					let m = self.model.borrow();
 					if m.stations_under(f).is_empty() {
@@ -1422,6 +1455,24 @@ impl View {
 					if renamed {
 						a.save_library();
 					}
+				}
+			}
+			(None, Some((id, _)), Choice::PasteStation) => {
+				// At the collection's own level, beside its folders:
+				// a station need not live in a subfolder.
+				app.borrow_mut().paste_into(crate::app::PasteDest::Collection(
+					id,
+					Vec::new(),
+				));
+				self.refresh_local(app);
+			}
+			(None, None, Choice::PasteStation) => {
+				if let Some((id, path)) = &paste_dest {
+					app.borrow_mut().paste_into(crate::app::PasteDest::Collection(
+						id.clone(),
+						path.clone(),
+					));
+					self.refresh_local(app);
 				}
 			}
 			(None, None, Choice::Export) => {
@@ -2241,5 +2292,31 @@ mod tests {
 		assert_eq!(m.local_row(&p, &[]), Some(list));
 		// A folder is not a station, and remote rows have no place.
 		assert_eq!(m.local_station(sub), None);
+	}
+
+	#[test]
+	fn browse_display_labels_count_local_stations() {
+		let mut lib = Library::default();
+		let p = lib.create_collection("English");
+		{
+			let c = lib.collection_mut(&p).unwrap();
+			c.stations_at_mut(&[]).unwrap().push(st("root-one"));
+			let sub = c.add_folder(&[], "Misc").unwrap();
+			for id in ["x", "y"] {
+				c.stations_at_mut(&sub).unwrap().push(st(id));
+			}
+		}
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let english = find(&m, Some(collections), &p);
+		// The collection counts everything under it, subfolders
+		// included; the folder counts its own.
+		assert_eq!(m.display_label(english), "English 3");
+		let misc = find(&m, Some(english), &format!("{p}/f0"));
+		assert_eq!(m.display_label(misc), "Misc 2");
+		// Stations and the Collections header itself stay bare.
+		let x = find(&m, Some(misc), "x");
+		assert_eq!(m.display_label(x), "x");
+		assert_eq!(m.display_label(collections), m.label(collections));
 	}
 }
