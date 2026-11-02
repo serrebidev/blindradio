@@ -186,21 +186,6 @@ pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
 		.unwrap_or_default()
 }
 
-/// Directory results and old favorites may have no collection row to reveal.
-fn include_playing_station(
-	stations: &mut Vec<Station>,
-	nodes: &mut Vec<DialNode>,
-	station: &Station,
-) -> usize {
-	if let Some(i) = stations.iter().position(|s| s.id == station.id) {
-		return i;
-	}
-	let i = stations.len();
-	stations.push(station.clone());
-	nodes.push(DialNode::Station(i));
-	i
-}
-
 /// The main window's tree: the dial stations (in exactly
 /// [`dial_stations`] order) plus the folder structure the flat list
 /// dropped. A non-empty `filter` flattens the tree to matching stations.
@@ -364,8 +349,8 @@ pub struct App {
 	played_at: Option<usize>,
 	/// The station tree's filter, typed in the filter box; empty shows all.
 	dial_filter: String,
-	/// A revealed directory result that has no saved collection row.
-	dial_extra: Option<Station>,
+	/// Playback changed behind a modal: the main tree catches up when it closes.
+	reveal_on_close: bool,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
 	dial: bool,
 	pub win: MainWindow,
@@ -473,7 +458,7 @@ impl App {
 			played: Vec::new(),
 			played_at: None,
 			dial_filter: String::new(),
-			dial_extra: None,
+			reveal_on_close: false,
 			dial: false,
 			win,
 			menus,
@@ -1282,12 +1267,12 @@ impl App {
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
 		self.tuner.play(&station, Instant::now());
-		// A modal's selection and paste home must describe the same row.
-		if !self.dialog_open {
+		self.remembered = None;
+		// A modal's selection and paste home must describe the same row, and
+		// a station with no row leaves the focused row selected.
+		if self.reveal_station(&station) {
 			self.selected = Some(station.clone());
 		}
-		self.remembered = None;
-		self.reveal_station(&station);
 		if !self.dialog_open
 			&& (self.win.frame.has_focus()
 				|| self.win.filter.has_focus()
@@ -1663,35 +1648,35 @@ impl App {
 
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
-		let (mut stations, mut nodes) = dial_tree(
+		let (stations, nodes) = dial_tree(
 			&self.library,
 			self.settings.main_list.as_deref(),
 			&self.dial_filter,
 		);
-		if let Some(station) = self
-			.dial_extra
-			.as_ref()
-			.filter(|station| self.tuner.playing().is_some_and(|p| p.id == station.id))
-		{
-			include_playing_station(&mut stations, &mut nodes, station);
-		}
 		let list = &self.win.stations;
 		let current = list.current();
+		// Past the end when the last row was the one deleted: the row before it.
 		let focus = current
 			.and_then(|i| list.stations().get(i).map(|s| s.id.clone()))
 			.and_then(|id| stations.iter().position(|s| s.id == id))
 			.or(current)
-			.unwrap_or(0);
+			.unwrap_or(0)
+			.min(stations.len().saturating_sub(1));
 		list.set_expand_default(self.settings.expand_dial_folders);
 		list.set_dial(&nodes, stations, focus);
 	}
 
 	/// Select quietly, so revealing playback cannot tune the station again.
-	fn reveal_station(&mut self, station: &Station) {
-		let mut rebuild = self.dial_extra.as_ref().is_some_and(|s| s.id != station.id);
-		if rebuild {
-			self.dial_extra = None;
+	/// False when no row shows it: an opened URL, a search result, a favorite
+	/// no list holds. The tree and its selection stay as they were.
+	/// Behind a modal the hidden tree waits for the dialog to close: rebuilding
+	/// it on every arrow key slows the dialog and takes its focus.
+	fn reveal_station(&mut self, station: &Station) -> bool {
+		if self.dialog_open {
+			self.reveal_on_close = true;
+			return false;
 		}
+		let mut rebuild = false;
 		let present = self
 			.win
 			.stations
@@ -1699,13 +1684,16 @@ impl App {
 			.iter()
 			.any(|s| s.id == station.id);
 		if !present {
-			match self.library.collections_containing(&station.id).first() {
-				Some(id) => {
-					self.settings.main_list = Some(id.clone());
-					self.save_settings();
-				}
-				None => self.dial_extra = Some(station.clone()),
-			}
+			let Some(id) = self
+				.library
+				.collections_containing(&station.id)
+				.first()
+				.cloned()
+			else {
+				return false;
+			};
+			self.settings.main_list = Some(id);
+			self.save_settings();
 			rebuild = true;
 		}
 		if !self.dial_filter.is_empty()
@@ -1732,6 +1720,16 @@ impl App {
 		{
 			self.win.stations.select(i, false);
 		}
+		true
+	}
+
+	/// A modal closed: what it left playing gets its row, once.
+	pub fn reveal_after_dialog(&mut self) {
+		if std::mem::take(&mut self.reveal_on_close)
+			&& let Some(station) = self.tuner.playing().cloned()
+		{
+			self.reveal_station(&station);
+		}
 	}
 
 	/// Return to the playing row without restarting it or changing playback history.
@@ -1742,7 +1740,9 @@ impl App {
 		let Some(station) = self.tuner.playing().cloned() else {
 			return;
 		};
-		self.reveal_station(&station);
+		if !self.reveal_station(&station) {
+			return;
+		}
 		if !self.win.stations.list.has_focus() {
 			self.win.stations.list.set_focus();
 		}
@@ -1835,21 +1835,18 @@ impl App {
 			return;
 		};
 		let was_focused = self.win.stations.current() == Some(index);
-		if self
-			.dial_extra
-			.as_ref()
-			.is_some_and(|extra| extra.id == st.id)
-		{
-			self.dial_extra = None;
-		}
 		self.library.remove_from_collection(&id, &st.id);
 		self.save_library();
 		self.refresh_dial();
-		// Play on Move: the station that took the deleted one's
-		// place has the focus now, so it plays, like moving onto
-		// it would. Deleting any other station changes nothing.
-		if was_focused
-			&& self.settings.play_on_move
+		if was_focused {
+			self.play_focused_replacement();
+		}
+	}
+
+	/// Play on Move: the station that took a deleted one's place has the
+	/// focus now, so it plays, like moving onto it would.
+	fn play_focused_replacement(&mut self) {
+		if self.settings.play_on_move
 			&& let Some(i) = self.win.stations.current()
 		{
 			let stations = self.win.stations.stations();
@@ -1915,7 +1912,10 @@ impl App {
 				};
 				(
 					list.iter().any(|x| x.id == st.id),
-					c.name.clone(),
+					// The list itself, not the collection around it: a playlist
+					// imported into Custom Stations is a folder there.
+					c.folder_at(path)
+						.map_or_else(|| c.name.clone(), |f| f.name.clone()),
 				)
 			}
 			PasteDest::Favorites(path) => {
@@ -2059,9 +2059,19 @@ impl App {
 
 	/// The context menu's Delete Custom Station where the list has no delete of its own.
 	pub fn delete_custom(&mut self, id: &str) {
+		// Behind a modal the dialog tunes its own replacement.
+		let list = &self.win.stations;
+		let was_focused = !self.dialog_open
+			&& list
+				.current()
+				.and_then(|i| list.stations().get(i).map(|s| s.id == id))
+				.unwrap_or(false);
 		self.library.delete_custom(id);
 		self.save_library();
 		self.refresh_dial();
+		if was_focused {
+			self.play_focused_replacement();
+		}
 	}
 
 	/// Out of Favorites; the playing station plays on.
@@ -2155,31 +2165,6 @@ mod tests {
 		assert!(
 			playlist_export_data(&Library::default(), None, &Action::ExportCurrentList).is_none()
 		);
-	}
-
-	#[test]
-	fn playing_station_reuses_its_dial_row_or_gets_a_temporary_one() {
-		let station = Station {
-			id: "custom:playing".into(),
-			name: "Playing".into(),
-			url: "http://x".into(),
-			source: blindradio_core::station::Source::RadioBrowser,
-			info: None,
-		};
-		let mut stations = Vec::new();
-		let mut nodes = Vec::new();
-		assert_eq!(
-			include_playing_station(&mut stations, &mut nodes, &station),
-			0
-		);
-		assert_eq!(stations, std::slice::from_ref(&station));
-		assert!(matches!(nodes.as_slice(), [DialNode::Station(0)]));
-		assert_eq!(
-			include_playing_station(&mut stations, &mut nodes, &station),
-			0
-		);
-		assert_eq!(stations.len(), 1, "revealing again never duplicates a row");
-		assert_eq!(nodes.len(), 1);
 	}
 
 	#[test]

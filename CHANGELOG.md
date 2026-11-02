@@ -5,6 +5,16 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.44
+
+- With "Play a station as I move to it" on, deleting a station now plays the station that takes its place in the two cases 0.2.42 missed: the Delete key in Browse, and deleting the last row of the main window's list. The Delete item on the main window's context menu does the same.
+- The Edit Station dialog has a new Info field. It holds the text after the name in the lists, such as "Operavore, The United States Of America, AAC+ 47k" on a station added from Search. Edit it or clear it, and the long name goes away everywhere the station appears.
+- A station with no row in the main window's list no longer gets a temporary one. An opened URL, a search result or a favorite no list holds plays without touching the tree, and focus stays on the row you were on.
+- Moving through Search results, Favorites and other windows is fast again, and Search keeps focus when its first result starts to play. Each arrow key was rebuilding the hidden main window's list. It now catches up once, when the window closes.
+- A stream that has played now gets fifteen seconds of silence before it counts as lost, not five. A slow or bursty connection, such as KCRW's 256 kbps AAC on some networks, could drop and reconnect over and over while a longer wait would have carried on.
+- Copy, Cut and Paste by keyboard now follow the focused row in the Collections and Favorites windows, as they do in Browse, and those windows update at once. A paste there used to land in the main window's list, answering "already in Custom Stations".
+- "Already in" now names the list the station is in, not the collection around it, so a playlist imported into Custom Stations reads as itself.
+
 ## 0.2.43
 
 - Fixed empty Original stream format recordings when listening behind live in the time-shift buffer, including Record Each Song to Its Own File. Buffered recording now retains and writes the original compressed audio at the listening position.

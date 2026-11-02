@@ -129,6 +129,7 @@ impl App {
 		// UIAutomation's sender omits extended-key flags, turning arrows into numpad keys.
 		let arrow = match keys {
 			"{down}" => Some((0x28, 0x50, false)),
+			"{left}" => Some((0x25, 0x4b, false)),
 			"{delete}" => Some((0x2e, 0x53, false)),
 			"{alt}{left}" => Some((0x25, 0x4b, true)),
 			"{alt}{right}" => Some((0x27, 0x4d, true)),
@@ -394,6 +395,204 @@ fn browse_pastes_from_the_selected_collection_and_refreshes_in_place() {
 		);
 		app.row(&browse, &format!("Misc {remaining}"));
 	}
+}
+
+/// Ctrl+I's layout: the playlist is a folder inside Custom Stations, a copy of
+/// the station also sits at the Custom root, and Play on Move is on. Pasting
+/// onto the playlist row must not answer "already in Custom Stations".
+#[test]
+#[ignore = "needs a desktop"]
+fn browse_pastes_into_an_imported_playlist_folder() {
+	let mut library = Library::default();
+	let copy = station("custom:copy", "Copy me");
+	let cut = station("custom:cut", "Cut me");
+	library.collections[0].stations = vec![copy.clone(), cut.clone()];
+	library.collections[0].folders.push(Folder {
+		name: "English".into(),
+		stations: Vec::new(),
+		folders: vec![Folder {
+			name: "Misc".into(),
+			stations: vec![copy, cut],
+			folders: Vec::new(),
+		}],
+	});
+	let app = App::start("paste-import", library);
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	let expand = |row: &UIElement| {
+		TreeItemControl::try_from(row.clone())
+			.unwrap()
+			.expand()
+			.unwrap();
+	};
+	expand(&app.row(&browse, "Custom Stations 4"));
+	expand(&app.row(&browse, "English 2"));
+	expand(&app.row(&browse, "Misc 2"));
+	for (name, chord) in [("Copy me", "{ctrl}c"), ("Cut me", "{ctrl}x")] {
+		let misc = app.row(&browse, "Misc 2");
+		expand(&misc);
+		app.select_row(&misc, name);
+		app.press(chord);
+		// By keyboard, as it is used: up to Misc, close it, up to English.
+		app.press("{left}");
+		app.press("{left}");
+		app.press("{left}");
+		app.press("{ctrl}v");
+		std::thread::sleep(Duration::from_millis(500));
+		let saved = Library::load(&app.data);
+		let folder = &saved.collections[0].folders[0];
+		assert!(
+			folder.stations.iter().any(|s| s.name == name),
+			"{name} reaches the playlist folder"
+		);
+		assert!(
+			saved.collections[0].stations.iter().any(|s| s.name == name),
+			"{name}: the Custom root copy stays"
+		);
+	}
+	let saved = Library::load(&app.data);
+	assert_eq!(
+		saved.collections[0].folders[0].folders[0].stations.len(),
+		1,
+		"the cut left Misc, the copy did not"
+	);
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn deleting_in_browse_plays_the_replacement() {
+	let mut library = Library::default();
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	let app = App::start("delete-browse", library);
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	let custom = app.row(&browse, "Custom Stations 2");
+	TreeItemControl::try_from(custom.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.select_row(&custom, "One");
+	assert!(app.window.get_name().unwrap().contains("One"));
+	app.press("{delete}");
+	assert!(
+		app.window.get_name().unwrap().contains("Two"),
+		"the station that took its place plays"
+	);
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn deleting_the_last_main_row_plays_the_one_before() {
+	let mut library = Library::default();
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	let app = App::with_settings(
+		"delete-last",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	let tree = app
+		.automation
+		.create_matcher()
+		.from(app.window.clone())
+		.control_type(ControlType::Tree)
+		.timeout(5000)
+		.find_first()
+		.expect("main tree");
+	app.select_row(&tree, "Two");
+	assert!(app.window.get_name().unwrap().contains("Two"));
+	app.press("{delete}");
+	app.assert_selected(&tree, "One");
+	assert!(
+		app.window.get_name().unwrap().contains("One"),
+		"the row before plays"
+	);
+}
+
+/// An arrow in a modal tunes at once; the hidden tree follows when it closes.
+#[test]
+#[ignore = "needs a desktop"]
+fn modal_navigation_leaves_the_main_tree_until_it_closes() {
+	let mut library = Library::default();
+	let (one, two) = (station("custom:one", "One"), station("custom:two", "Two"));
+	library.collections[0].stations =
+		vec![station("custom:zero", "Zero"), one.clone(), two.clone()];
+	library.favorites = vec![one, two];
+	let app = App::with_settings(
+		"modal-reveal",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	let tree = app
+		.automation
+		.create_matcher()
+		.from(app.window.clone())
+		.control_type(ControlType::Tree)
+		.timeout(5000)
+		.find_first()
+		.expect("main tree");
+	// Opening lands on the first favorite and the tree shows it, before the dialog is up.
+	app.press("{ctrl}b");
+	let favorites = app.find("Favorites", WAIT).expect("Favorites");
+	app.press("{down}");
+	assert!(app.window.get_name().unwrap().contains("Two"));
+	app.assert_selected(&tree, "One");
+	assert!(
+		app.row(&favorites, "Two").has_keyboard_focus().unwrap(),
+		"the dialog keeps focus"
+	);
+	app.press("{esc}");
+	std::thread::sleep(Duration::from_millis(400));
+	app.assert_selected(&tree, "Two");
+}
+
+/// Nothing holds the station: it plays, but it gets no row and the focused row stays.
+#[test]
+#[ignore = "needs a desktop"]
+fn a_station_no_list_holds_gets_no_row() {
+	let mut library = Library::default();
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	library.favorites = vec![station("url:loose", "Loose")];
+	let app = App::with_settings(
+		"no-row",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	let tree = app
+		.automation
+		.create_matcher()
+		.from(app.window.clone())
+		.control_type(ControlType::Tree)
+		.timeout(5000)
+		.find_first()
+		.expect("main tree");
+	app.select_row(&tree, "Two");
+	app.press("{alt}1");
+	assert!(app.window.get_name().unwrap().contains("Loose"), "it plays");
+	assert!(
+		app.automation
+			.create_matcher()
+			.from(tree.clone())
+			.name("Loose")
+			.control_type(ControlType::TreeItem)
+			.timeout(800)
+			.find_first()
+			.is_err(),
+		"no temporary row"
+	);
+	app.assert_selected(&tree, "Two");
 }
 
 #[test]

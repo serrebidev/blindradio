@@ -32,6 +32,8 @@ station and plays it.
 Stations > Move to Playing Station reveals and focuses the station that is playing without
 restarting it. Previous Station, Next Station, the favorite shortcuts, and playback from
 Browse, Favorites or Recently Played also select the playing station in the main tree.
+A station no list holds, such as an opened URL or a search result, plays without a row there.
+Focus stays on the row you were on.
 
 ## Searching
 
@@ -150,7 +152,7 @@ default is Custom Stations, where new stations went before the choice existed.
 
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Edit Station and, when you have favorites folders, Add to Favorites Folder.
-Edit Station holds the station's name and stream URL and its own settings — buffer
+Edit Station holds the station's name, its info (the text after the name in the lists, which you can change or clear), its stream URL and its own settings — buffer
 minutes, song recognition and scrobbling for that station alone; there is no separate
 Station Settings dialog anymore.
 When a collection has folders it also offers Add to Collection Folder, which files the
@@ -272,7 +274,7 @@ to the stations whose names contain what you type; clearing the box brings the w
 back. In the tree itself, typing a letter jumps to the next station starting with it, the
 way lists usually work. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
-Edit Station on its context menu edits its name and stream URL everywhere it appears.
+Edit Station on its context menu edits its name, info and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on
 the context menu). The time-shift, recording, recognition and scrobbling options live in
 the same window.

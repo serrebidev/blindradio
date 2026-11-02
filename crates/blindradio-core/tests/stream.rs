@@ -2,7 +2,7 @@ mod common;
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, LazyLock, mpsc};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -282,6 +282,39 @@ fn scripted(script: impl Fn(usize, Duration) -> Reply + Send + 'static) -> Strin
 		}
 	});
 	url
+}
+
+#[test]
+fn pause_on_a_playing_connection_is_waited_out() {
+	// Seven seconds of silence mid-stream: past the five a new connection
+	// gets, and a slow link can do it. The same connection must carry on.
+	let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+	let url = format!("http://{}/live", listener.local_addr().unwrap());
+	let connections = Arc::new(AtomicUsize::new(0));
+	let counted = connections.clone();
+	std::thread::spawn(move || {
+		let mut held = Vec::new();
+		for sock in listener.incoming() {
+			let Ok(mut sock) = sock else { continue };
+			counted.fetch_add(1, Ordering::Relaxed);
+			let mut req = [0u8; 1024];
+			let _ = sock.read(&mut req);
+			let _ = sock.write_all(
+				b"HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nConnection: close\r\n\r\n",
+			);
+			let _ = sock.write_all(&tone()[..16_000]);
+			std::thread::sleep(Duration::from_secs(7));
+			let _ = sock.write_all(&tone()[16_000..32_000]);
+			held.push(sock);
+		}
+	});
+	let (s, rx) = play(&url, &ctx(Duration::from_secs(60)));
+	events_until(&rx, Duration::from_secs(1), |e| {
+		*e == StreamEvent::FirstAudio
+	});
+	std::thread::sleep(Duration::from_secs(8));
+	assert_eq!(connections.load(Ordering::Relaxed), 1, "it reconnected");
+	drop(s);
 }
 
 #[test]

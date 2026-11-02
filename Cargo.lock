@@ -4035,6 +4035,7 @@ dependencies = [
  "minisign-verify",
  "ship-shape",
  "shipfitter",
+ "wxdragon",
 ]
 
 [[package]]

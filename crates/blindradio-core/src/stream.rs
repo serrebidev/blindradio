@@ -103,6 +103,10 @@ const CACHED_BUDGET: Duration = Duration::from_secs(2);
 const MIN_STATION_BUDGET: Duration = Duration::from_secs(3);
 /// A connection that sends nothing for this long is treated as lost.
 const STALL: Duration = Duration::from_secs(5);
+/// The same once it has played: a connection that works and pauses is worth
+/// waiting for. Dropping it costs a new connection, a burst of audio already
+/// heard, and on a slow link the next pause too (KCRW's 256 kbps AAC).
+const PLAYING_STALL: Duration = Duration::from_secs(15);
 /// Decoded-audio room per stream. Deliberately far above the mixer's starting
 /// cushion: a stream that keeps running dry earns a much bigger refill before
 /// it may sound again (see MixerCore), and the ring must be able to hold it.
@@ -646,11 +650,24 @@ async fn pump(
 			return Some("Not a stream".into());
 		}
 		chunk = match &mut conn.source {
-			Source::Http { response, .. } => match timeout(STALL, response.chunk()).await {
-				Ok(Ok(Some(c))) => c,
-				Ok(Ok(None)) | Err(_) => return Some("No data".into()),
-				Ok(Err(_)) => return Some("Unreachable".into()),
-			},
+			Source::Http { response, .. } => {
+				// Asked when the wait runs out, not before it: the decoder
+				// can still be on its first packet when the wait begins.
+				let stalled = async {
+					sleep(STALL).await;
+					if produced.load(Ordering::Relaxed) {
+						sleep(PLAYING_STALL - STALL).await;
+					}
+				};
+				tokio::select! {
+					read = response.chunk() => match read {
+						Ok(Some(c)) => c,
+						Ok(None) => return Some("No data".into()),
+						Err(_) => return Some("Unreachable".into()),
+					},
+					() = stalled => return Some("No data".into()),
+				}
+			}
 			// run_hls has its own stall limit, since segments arrive a target duration apart.
 			Source::Hls(hls) => match hls.next().await {
 				Some(c) => c,

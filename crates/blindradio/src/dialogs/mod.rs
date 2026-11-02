@@ -170,6 +170,7 @@ pub fn run_with_refresh(
 	{
 		let mut a = app.borrow_mut();
 		a.dialog_open = false;
+		a.reveal_after_dialog();
 		a.selected = a
 			.win
 			.stations

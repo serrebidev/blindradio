@@ -900,7 +900,25 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	bind(&view, app, dialog, &token);
 
 	view.tree.set_focus();
-	crate::dialogs::run(app, dialog, Action::OpenCollections, view.tree, &token)
+	let (v, a) = (view.clone(), app.clone());
+	crate::dialogs::run_with_refresh(
+		app,
+		dialog,
+		Action::OpenCollections,
+		view.tree,
+		&token,
+		move || {
+			let focus = v.selected_row().and_then(|row| {
+				let at = v.at(&a, row)?;
+				Some(match row {
+					Row::Collection(_) => Focus::Collection(at.id),
+					Row::Folder(_) => Focus::Folder(at.id, at.path),
+					Row::Station(_) => Focus::Station(at.id, at.station?),
+				})
+			});
+			v.refresh(&a, focus);
+		},
+	)
 }
 
 fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &WindowToken) {
@@ -914,6 +932,11 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		let Some(row) = e.get_item().and_then(|item| v.row(&item)) else {
 			return;
 		};
+		// Copy, Cut and Paste follow the row the user is standing on.
+		let home = v
+			.at(&a, row)
+			.map(|at| PasteDest::Collection(at.id, at.path));
+		a.borrow_mut().paste_home = home;
 		match row {
 			Row::Station(_) => {
 				if let Some((stations, si)) = v.level_of(&a, row) {

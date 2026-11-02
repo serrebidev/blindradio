@@ -628,7 +628,21 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	bind(&view, app, dialog, &token);
 
 	view.tree.set_focus();
-	crate::dialogs::run(app, dialog, Action::OpenFavorites, view.tree, &token)
+	let (v, a) = (view.clone(), app.clone());
+	crate::dialogs::run_with_refresh(
+		app,
+		dialog,
+		Action::OpenFavorites,
+		view.tree,
+		&token,
+		move || {
+			let focus = v.selected_row().and_then(|row| match row {
+				Row::Station(_) => v.station_at(&a, row).map(|st| Focus::Station(st.id)),
+				Row::Folder(_) => v.loc(row).map(|loc| Focus::Folder(loc.path)),
+			});
+			v.refresh(&a, focus);
+		},
+	)
 }
 
 fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &WindowToken) {
@@ -642,6 +656,8 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		let Some(row) = e.get_item().and_then(|item| v.row(&item)) else {
 			return;
 		};
+		// Copy, Cut and Paste follow the row the user is standing on.
+		a.borrow_mut().paste_home = v.loc(row).map(|loc| PasteDest::Favorites(loc.path));
 		match row {
 			Row::Station(_) => {
 				if let Some((stations, si)) = v.level_of(&a, row) {

@@ -16,6 +16,26 @@ fn ids(v: &[Station]) -> Vec<&str> {
 }
 
 #[test]
+fn edit_replaces_the_info_of_every_copy() {
+	let mut l = Library::default();
+	let wnyc = Station {
+		name: "WNYC Operavore".into(),
+		info: Some("Operavore, The United States Of America, AAC+ 47k".into()),
+		..st("wnyc")
+	};
+	let id = l.create_collection("Mine");
+	l.toggle_in_collection(&id, &wnyc);
+	l.toggle_favorite(&wnyc);
+	assert!(l.update_station("wnyc", "WNYC Operavore", &wnyc.url, Some("Opera")));
+	assert_eq!(l.favorites[0].info.as_deref(), Some("Opera"));
+	assert!(l.update_station("wnyc", "Operavore", &wnyc.url, None));
+	let copy = l.collections.iter().find(|c| c.id == id).unwrap();
+	assert_eq!(copy.stations[0].name, "Operavore");
+	assert_eq!(copy.stations[0].info, None);
+	assert_eq!(l.favorites[0].info, None);
+}
+
+#[test]
 fn favorites_toggle_order_and_move() {
 	let mut l = Library::default();
 	assert!(l.toggle_favorite(&st("a")));

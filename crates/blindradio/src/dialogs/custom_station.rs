@@ -126,8 +126,8 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	crate::dialogs::run(app, dialog, Action::NewCustomStation, name, &token)
 }
 
-/// Edit Station: the Add Custom fields filled in with the station's name and
-/// URL, and the station's own settings (buffer minutes, recognition,
+/// Edit Station: the Add Custom fields filled in with the station's name,
+/// info and URL, and the station's own settings (buffer minutes, recognition,
 /// scrobbling) below them — one dialog since the merge; there is no
 /// separate Station Settings anymore. Saving rewrites every held copy
 /// (collections, favorites), so an imported playlist's station can be
@@ -145,13 +145,23 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let name_label = StaticText::builder(&dialog).with_label(s::NAME).build();
 	let name = TextCtrl::builder(&dialog).build();
 	name.set_value(&station.name);
+	// The text after the name in the lists ("Station - Country, AAC+ 47k").
+	let info_label = StaticText::builder(&dialog)
+		.with_label(s::COLUMN_INFO)
+		.build();
+	let info = TextCtrl::builder(&dialog).build();
+	info.set_value(station.info.as_deref().unwrap_or_default());
 	let url_label = StaticText::builder(&dialog)
 		.with_label(s::STREAM_URL)
 		.build();
 	let url = TextCtrl::builder(&dialog).build();
 	url.set_value(&station.url);
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
-	for (label, control) in [(&name_label, &name), (&url_label, &url)] {
+	for (label, control) in [
+		(&name_label, &name),
+		(&info_label, &info),
+		(&url_label, &url),
+	] {
 		sizer.add(
 			label,
 			0,
@@ -224,7 +234,11 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			};
 			{
 				let mut app = a.borrow_mut();
-				if app.library.update_station(&id, &typed, &link) {
+				let info = blank_none(&info.get_value());
+				if app
+					.library
+					.update_station(&id, &typed, &link, info.as_deref())
+				{
 					app.save_library();
 					app.refresh_dial();
 				}

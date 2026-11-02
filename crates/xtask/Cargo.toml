@@ -8,6 +8,10 @@ version.workspace = true
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
 ship-shape = "0.5.0"
 minisign = "0.10.0"
+# Unused here: keeps wxdragon's features the same as the app's. ship-shape alone asks for
+# fewer, that build shares target/debug's CMake folder with the app's, and the features it
+# turns off stay off in the CMake cache: the app stops linking (wxd_PrintData_* unresolved).
+wxdragon = "*"
 
 [dev-dependencies]
 # The check the updater itself makes on a download.

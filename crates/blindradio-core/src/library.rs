@@ -497,28 +497,37 @@ impl Library {
 		None
 	}
 
-	pub fn update_station(&mut self, id: &str, name: &str, url: &str) -> bool {
+	pub fn update_station(&mut self, id: &str, name: &str, url: &str, info: Option<&str>) -> bool {
 		fn walk(
 			stations: &mut [Station],
 			folders: &mut [Folder],
 			id: &str,
 			name: &str,
 			url: &str,
+			info: Option<&str>,
 		) -> bool {
 			let mut hit = false;
 			for s in stations.iter_mut().filter(|s| s.id == id) {
 				s.name = name.to_string();
 				s.url = url.to_string();
+				s.info = info.map(str::to_string);
 				hit = true;
 			}
 			for f in folders {
-				hit |= walk(&mut f.stations, &mut f.folders, id, name, url);
+				hit |= walk(&mut f.stations, &mut f.folders, id, name, url, info);
 			}
 			hit
 		}
-		let mut hit = walk(&mut self.favorites, &mut self.fav_folders, id, name, url);
+		let mut hit = walk(
+			&mut self.favorites,
+			&mut self.fav_folders,
+			id,
+			name,
+			url,
+			info,
+		);
 		for c in &mut self.collections {
-			hit |= walk(&mut c.stations, &mut c.folders, id, name, url);
+			hit |= walk(&mut c.stations, &mut c.folders, id, name, url, info);
 		}
 		hit
 	}

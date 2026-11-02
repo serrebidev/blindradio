@@ -1310,6 +1310,7 @@ impl View {
 					a.refresh_dial();
 				}
 				self.refresh_local(app);
+				self.tune_focus(app);
 			}
 			Delete::RemoveFolder { collection, path } => {
 				// The Collections window's rule: deleting a folder is
@@ -1568,14 +1569,20 @@ impl View {
 		}
 		self.refresh_local(app);
 		if deleted {
-			// Play on Move: the station that took the deleted one's
-			// place has the focus now, so it plays, like moving onto
-			// it would (focus_station checks the setting itself).
-			if let Some(f) = self.model.borrow().focus()
-				&& let Some((stations, k)) = self.model.borrow().dial(f)
-			{
-				app.borrow_mut().focus_station(&stations, k);
-			}
+			self.tune_focus(app);
+		}
+	}
+
+	/// Play on Move: the station that took a deleted one's place has the
+	/// focus now, so it plays, like moving onto it would (focus_station
+	/// checks the setting itself).
+	fn tune_focus(&self, app: &Rc<RefCell<App>>) {
+		let dial = {
+			let m = self.model.borrow();
+			m.focus().and_then(|f| m.dial(f))
+		};
+		if let Some((stations, k)) = dial {
+			app.borrow_mut().focus_station(&stations, k);
 		}
 	}
 }
