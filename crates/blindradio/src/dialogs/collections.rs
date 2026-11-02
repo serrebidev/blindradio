@@ -377,11 +377,7 @@ impl View {
 		let Some(name) = prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE) else {
 			return;
 		};
-		let parent = if at.station.is_some() {
-			at.path.clone()
-		} else {
-			at.path.clone()
-		};
+		let parent = at.path.clone();
 		let made = {
 			let mut a = app.borrow_mut();
 			let made = a
@@ -751,9 +747,8 @@ impl View {
 					.iter()
 					.map(|s| s.name.as_str())
 					.collect();
-				letter_jump(&names, loc.station, c).and_then(|si| {
-					self.row_for(loc.collection, &loc.path, Some(si))
-				})
+				letter_jump(&names, loc.station, c)
+					.and_then(|si| self.row_for(loc.collection, &loc.path, Some(si)))
 			}
 			Row::Folder(_) => {
 				let loc = self.loc(row)?;
@@ -971,9 +966,7 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 					dialog.end_modal(ID_OK);
 				}
 			}
-			Some(Row::Folder(_)) | Some(Row::Collection(_)) => {
-				v.quietly(|| v.tree.toggle(&item))
-			}
+			Some(Row::Folder(_)) | Some(Row::Collection(_)) => v.quietly(|| v.tree.toggle(&item)),
 			None => {}
 		}
 	});

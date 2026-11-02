@@ -111,6 +111,18 @@ pub fn run(
 	first: impl WxWidget + Copy + 'static,
 	token: &WindowToken,
 ) -> Option<Action> {
+	run_with_refresh(app, dialog, own, first, token, || {})
+}
+
+/// A dialog whose local view follows library changes made by app shortcuts.
+pub fn run_with_refresh(
+	app: &Rc<RefCell<App>>,
+	dialog: Dialog,
+	own: Action,
+	first: impl WxWidget + Copy + 'static,
+	token: &WindowToken,
+	refresh: impl Fn() + 'static,
+) -> Option<Action> {
 	let next = Rc::new(RefCell::new(None));
 	let (a, n) = (app.clone(), next.clone());
 	dialog.on_char_hook(move |e| {
@@ -135,7 +147,13 @@ pub fn run(
 		// Consumed, or the focused control gets it too.
 		key.event.skip(false);
 		match route {
-			Route::Run(action) => dispatch(&a, action),
+			Route::Run(action) => {
+				let pasted = action == Action::PasteStation;
+				dispatch(&a, action);
+				if pasted {
+					refresh();
+				}
+			}
 			Route::FocusFirst => first.set_focus(),
 			Route::Switch(action) => {
 				*n.borrow_mut() = Some(action);
@@ -152,7 +170,11 @@ pub fn run(
 	{
 		let mut a = app.borrow_mut();
 		a.dialog_open = false;
-		a.selected = None;
+		a.selected = a
+			.win
+			.stations
+			.current()
+			.and_then(|i| a.win.stations.stations().get(i).cloned());
 		// A paste home belongs to the dialog that stated it.
 		a.paste_home = None;
 		a.tuner.list_closed();

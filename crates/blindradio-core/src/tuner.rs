@@ -295,6 +295,9 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	/// Song-split recording: the song the current file is recording,
 	/// so a title event for the same song does not split it again.
 	record_song: Option<String>,
+	/// Last completed encoded chunk and playhead time written to Original.
+	record_after: Option<u64>,
+	record_at: Option<u64>,
 	/// The playing station's current song title and when it started.
 	song: Option<(String, Instant)>,
 	last_recog: Option<Instant>,
@@ -330,6 +333,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			capture: None,
 			record_slot: None,
 			record_song: None,
+			record_after: None,
+			record_at: None,
 			song: None,
 			last_recog: None,
 			recog_in_flight: false,
@@ -390,6 +395,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn poll(&mut self, now: Instant, rendered: &[(u64, Instant)]) {
+		self.record_buffered();
 		while let Ok((serial, event)) = self.stream_rx.try_recv() {
 			self.stream_event(serial, event, now);
 		}
@@ -645,7 +651,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		tap: Arc<crate::stream::RingTap>,
 	) {
 		let status = Arc::new(ShiftStatus::new());
-		let feed = RingFeed::new(ring, tap, status.clone(), self.record_slot.clone(), rate);
+		let feed = RingFeed::new(ring, tap, status.clone(), rate);
 		let buffer = feed.window();
 		self.sink.send(MixerCmd::ShiftAttach {
 			buffer: buffer.clone(),
@@ -741,6 +747,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// Stops any recording and unregisters the taps of the station they
 	/// belonged to.
 	fn detach_taps(&mut self) {
+		self.record_buffered();
 		if let Some(slot) = &self.record_slot
 			&& let Some(rec) = slot.lock().take()
 		{
@@ -760,6 +767,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.capture = None;
 		self.record_slot = None;
 		self.record_song = None;
+		self.record_at = None;
+		self.record_after = None;
 		self.song = None;
 	}
 
@@ -796,6 +805,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn shift_seek(&mut self, seconds: i32) {
+		self.record_buffered();
+		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			let target = (feed.cursor_time() as i64 + seconds as i64 * 1000)
 				.max(feed.ring_start_ms() as i64) as u64;
@@ -826,6 +837,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	/// Jumps to the oldest audio the buffer still holds.
 	pub fn shift_start(&mut self) {
+		self.record_buffered();
+		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			self.ring_paused_at = None;
 			let buffer = feed.prime(feed.ring_start_ms());
@@ -843,6 +856,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn shift_live(&mut self) {
+		self.record_buffered();
+		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			self.ring_paused_at = None;
 			let buffer = feed.prime_live();
@@ -862,11 +877,61 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.is_some_and(|slot| slot.lock().is_some())
 	}
 
+	/// Original recordings follow the playhead in both buffer modes.
+	/// Polling here keeps recording independent of replay decoder read-ahead.
+	fn record_buffered(&mut self) {
+		let Some((buffer, status)) = &self.shift else {
+			return;
+		};
+		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
+		if cursor == u64::MAX {
+			self.record_at = None;
+			return;
+		}
+		let Some(slot) = &self.record_slot else {
+			return;
+		};
+		let mut guard = slot.lock();
+		let Some(rec) = guard.as_mut().filter(|rec| rec.is_original()) else {
+			return;
+		};
+		let (ring, time) = if let Some(feed) = &self.ring_feed {
+			let Some(ring) = &self.encoded_ring else {
+				return;
+			};
+			(ring.as_ref(), feed.cursor_time())
+		} else {
+			(&buffer.encoded, cursor * 1000 / buffer.rate() as u64)
+		};
+		if self.record_at.is_none_or(|last| time < last) {
+			self.record_after = ring.seq_at(time).and_then(|seq| seq.checked_sub(1));
+		}
+		self.record_at = Some(time);
+		if status.paused.load(std::sync::atomic::Ordering::Relaxed) {
+			return;
+		}
+		// Whole finished chunks only: never copy future audio at the live edge.
+		let (bytes, last) = ring.chunks_ended_after_seq(self.record_after, time);
+		if !bytes.is_empty() {
+			let _ = rec.write_bytes(&bytes);
+			self.record_after = last;
+		}
+	}
+
 	/// Where a recording goes, its source extension, and the settings
 	/// snapshot: everything starting or splitting one needs.
 	fn recording_plan(&self) -> Option<(PathBuf, String, crate::settings::Settings)> {
 		let station = self.playing.as_ref()?;
-		let settings = self.settings.as_ref()?.lock().clone();
+		let mut settings = self.settings.as_ref()?.lock().clone();
+		// Containers needing opening headers cannot form valid buffered or
+		// song-split source files; keep every part of this recording as WAV.
+		if settings.recording.format == crate::settings::RecordFormat::Original
+			&& self
+				.open_format(&station.id)
+				.is_some_and(|format| !format.replayable)
+		{
+			settings.recording.format = crate::settings::RecordFormat::Wav;
+		}
 		let dir = settings
 			.recording
 			.dir
@@ -945,6 +1010,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let path = rec.path().to_path_buf();
 		*slot.lock() = Some(rec);
 		self.record_song = record_song;
+		self.record_at = None;
+		self.record_buffered();
 		Ok(path)
 	}
 
@@ -959,6 +1026,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if self.record_song.as_deref() == Some(song) {
 			return None;
 		}
+		self.record_buffered();
 		let (dir, ext, settings) = self.recording_plan()?;
 		if !settings.recording.split_songs {
 			return None;
@@ -995,7 +1063,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	/// Stops the recording, returning its file path.
 	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
+		self.record_buffered();
 		self.record_song = None;
+		self.record_at = None;
 		let slot = self.record_slot.clone()?;
 		slot.lock().take().map(|rec| rec.stop())
 	}
@@ -1004,6 +1074,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// A paused recording drops the audio written to it, so the file
 	/// holds only the spans the user let through.
 	pub fn set_recording_paused(&mut self, paused: bool) -> bool {
+		self.record_buffered();
 		let Some(slot) = &self.record_slot else {
 			return false;
 		};
@@ -1209,5 +1280,89 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	fn emit(&self, event: TunerEvent) {
 		let _ = self.events.send(event);
+	}
+}
+
+#[cfg(test)]
+mod recording_tests {
+	use super::*;
+	use std::sync::atomic::Ordering;
+
+	struct NoStreams;
+	impl StreamFactory for NoStreams {
+		fn start(
+			&self,
+			_: &Station,
+			_: Box<dyn Fn(StreamEvent) + Send + Sync>,
+		) -> (Arc<PcmRing>, Box<dyn Send>) {
+			unreachable!()
+		}
+		fn rate(&self) -> u32 {
+			1000
+		}
+	}
+	struct NoSink;
+	impl Sink for NoSink {
+		fn send(&self, _: MixerCmd) {}
+	}
+
+	#[test]
+	fn original_recording_paces_chunks_and_split_pause_and_seek_follow_the_playhead() {
+		for encoded_mode in [false, true] {
+			let dir = tempfile::tempdir().unwrap();
+			let mut settings = Settings::default();
+			settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+			settings.recording.split_songs = true;
+			let station = Station {
+				id: "test".into(),
+				name: "Test".into(),
+				url: "http://test/stream.mp3".into(),
+				source: crate::station::Source::Custom,
+				info: None,
+			};
+			let (tx, _) = crossbeam_channel::unbounded();
+			let mut tuner = Tuner::new(NoStreams, NoSink, tx);
+			tuner.set_settings(Arc::new(Mutex::new(settings)));
+			tuner.playing = Some(station.clone());
+			tuner.attach_taps(&station);
+			let (buffer, status) = tuner.shift().unwrap();
+			for byte in 0..6 {
+				buffer.push_encoded(&[byte]);
+				buffer.push(&vec![0.0; 2000]);
+			}
+			if encoded_mode {
+				let ring = Arc::new(crate::encoded_ring::EncodedRing::new(100));
+				for byte in 0..6 {
+					ring.push(byte as u64 * 1000, &[byte]);
+				}
+				let tap = Arc::new(crate::stream::RingTap::new(ring.clone()));
+				let feed = RingFeed::new(ring.clone(), tap, status.clone(), 1000);
+				feed.stop(); // Recording must progress even when replay decoding stops.
+				tuner.encoded_ring = Some(ring);
+				tuner.ring_feed = Some(feed);
+			}
+			status.cursor.store(0, Ordering::Relaxed);
+			tuner.start_recording(Some("First")).unwrap();
+			status.cursor.store(1000, Ordering::Relaxed);
+			let first = tuner.split_recording("Second").unwrap().unwrap();
+			assert_eq!(std::fs::read(first).unwrap(), [0]);
+			status.cursor.store(2500, Ordering::Relaxed);
+			tuner.set_recording_paused(true);
+			status.cursor.store(3500, Ordering::Relaxed);
+			tuner.set_recording_paused(false);
+			status.cursor.store(4000, Ordering::Relaxed);
+			let second = tuner.stop_recording().unwrap().unwrap();
+			assert_eq!(std::fs::read(second).unwrap(), [1, 3]);
+			// A new recording and backwards seek restart from their own cursor.
+			status.cursor.store(1000, Ordering::Relaxed);
+			tuner.start_recording(None).unwrap();
+			status.cursor.store(2000, Ordering::Relaxed);
+			tuner.poll(Instant::now(), &[]);
+			status.cursor.store(0, Ordering::Relaxed);
+			tuner.poll(Instant::now(), &[]);
+			status.cursor.store(1000, Ordering::Relaxed);
+			let third = tuner.stop_recording().unwrap().unwrap();
+			assert_eq!(std::fs::read(third).unwrap(), [1, 0]);
+		}
 	}
 }

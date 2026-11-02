@@ -33,6 +33,7 @@ pub enum Action {
 	PreviousStation,
 	/// Forward through them again (Alt+Right).
 	NextStation,
+	MoveToPlayingStation,
 	Mute,
 	VolumeUp,
 	VolumeDown,
@@ -50,6 +51,9 @@ pub enum Action {
 	AddToCollection,
 	Import,
 	ImportAsCollection,
+	ExportCurrentList,
+	ExportAllPlaylists,
+	ExportFavorites,
 	/// Minutes.
 	Sleep(u32),
 	SleepOff,

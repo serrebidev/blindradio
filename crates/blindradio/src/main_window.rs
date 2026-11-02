@@ -11,10 +11,10 @@ use wxdragon::prelude::*;
 
 use crate::action::{Action, app_key};
 use crate::app::App;
+use crate::dial_tree::{DialHooks, DialTree};
 use crate::dialogs;
 use crate::help;
 use crate::menus;
-use crate::dial_tree::{DialHooks, DialTree};
 use crate::strings as s;
 
 const POLL_MS: i32 = 50;
@@ -221,6 +221,9 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 		}
 		Action::Import => dialogs::collections::import(app, false),
 		Action::ImportAsCollection => dialogs::collections::import(app, true),
+		Action::ExportCurrentList | Action::ExportAllPlaylists | Action::ExportFavorites => {
+			App::export_playlist(app, &action);
+		}
 		Action::SongHistory => {
 			if let Some(next) = dialogs::history::show(app) {
 				dispatch(app, next);
@@ -287,13 +290,12 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 	win.stations.bind(app, hooks);
 
 	// The filter box narrows the tree as it changes; Escape empties it.
-	let (a, filter) = (app.clone(), win.filter.clone());
-	win.filter
-		.bind_internal(EventType::TEXT, move |e: Event| {
-			e.skip(true);
-			a.borrow_mut().dial_filter_set(filter.get_value());
-		});
-	let filter = win.filter.clone();
+	let (a, filter) = (app.clone(), win.filter);
+	win.filter.bind_internal(EventType::TEXT, move |e: Event| {
+		e.skip(true);
+		a.borrow_mut().dial_filter_set(filter.get_value());
+	});
+	let filter = win.filter;
 	win.filter
 		.bind_internal(EventType::KEY_DOWN, move |e: Event| {
 			if e.get_key_code() == Some(WXK_ESCAPE) {
@@ -356,18 +358,17 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		}
 		// The Filter box is a text field in this window: the clipboard
 		// trio edits its text, not the station list.
-		if dialogs::event_in_text(&e) {
-			if let WindowEventData::Keyboard(key) = &e
-				&& let Some(code) = key.get_key_code()
-				&& crate::action::is_text_edit_chord(
-					code,
-					key.control_down(),
-					key.alt_down(),
-					key.shift_down(),
-				) {
-				key.event.skip(true);
-				return;
-			}
+		if dialogs::event_in_text(&e)
+			&& let WindowEventData::Keyboard(key) = &e
+			&& let Some(code) = key.get_key_code()
+			&& crate::action::is_text_edit_chord(
+				code,
+				key.control_down(),
+				key.alt_down(),
+				key.shift_down(),
+			) {
+			key.event.skip(true);
+			return;
 		}
 		let WindowEventData::Keyboard(key) = e else {
 			return;
@@ -403,8 +404,16 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		let WindowEventData::Activate(data) = e else {
 			return;
 		};
-		if data.is_active() && !a.borrow().dialog_open {
-			a.borrow().win.stations.list.set_focus();
+		if data.is_active() {
+			// Raising the frame during poll can activate it while App is borrowed.
+			let tree = a
+				.try_borrow()
+				.ok()
+				.filter(|a| !a.dialog_open)
+				.map(|a| a.win.stations.list);
+			if let Some(tree) = tree {
+				tree.set_focus();
+			}
 		}
 	});
 

@@ -5,6 +5,15 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.43
+
+- Fixed empty Original stream format recordings when listening behind live in the time-shift buffer, including Record Each Song to Its Own File. Buffered recording now retains and writes the original compressed audio at the listening position.
+- Original recordings of header-dependent streams such as Ogg and FLAC use WAV so seeking and song splits produce playable files. MPEG audio and ADTS AAC keep their original compressed format.
+- Fixed copying and cutting stations from a Browse subfolder into its parent playlist, including stations filed in more than one list. Paste follows the selected destination, and Browse updates immediately after a paste.
+- Added Stations > Move to Playing Station to reveal and focus the playing station without restarting it. Previous Station, Next Station, favorite shortcuts, and playback from Browse, Favorites and Recently Played also select the playing station in the main tree.
+- Added File > Export Current Playlist, Export All Playlists and Export Favorites, preserving playlist folders in the exported M3U.
+- Fixed a crash when a second instance raises the existing window while its timer is handling an event.
+
 ## 0.2.42
 
 - With "Play a station as I move to it" on, deleting a station now plays the station that takes its place. Focus landed on the next station after a deletion, but nothing played it — you had to press Enter. The station that gains focus after a deletion is treated like moving onto it, in the main window's list, in Browse, and in Favorites. With the setting off, nothing changes, and deleting a station you are not standing on never disturbs what is playing.

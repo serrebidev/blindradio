@@ -29,6 +29,10 @@ station and plays it.
 - Alt+Up and Alt+Down reorder where the list allows it.
 - The Applications key opens the station's menu.
 
+Stations > Move to Playing Station reveals and focuses the station that is playing without
+restarting it. Previous Station, Next Station, the favorite shortcuts, and playback from
+Browse, Favorites or Recently Played also select the playing station in the main tree.
+
 ## Searching
 
 Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any. Enter in the
@@ -70,7 +74,7 @@ Ctrl+V pastes where you are standing, in Browse and in the main window alike: on
 folder or playlist row, into that row's level; on a station, beside it. Cutting a
 station and pasting it where a copy of it already lives completes the move instead of
 refusing: the source copy goes away and the station stays filed where it already was. The main window's list takes
-the new order as soon as Browse closes — no restart.
+the new order immediately, and Browse updates after a paste without reopening it.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and
 naming how many stations go with it; a directory's folders are the directory's
@@ -123,6 +127,10 @@ anywhere — handy for a quick listen or testing a stream. It still appears unde
 Played, and from there it can be favorited or added to a collection like any station.
 
 ## Exporting
+
+File > Export Current Playlist exports the selected playlist, Export All Playlists exports
+all collections including Custom Stations, and Export Favorites exports Favorites. Each
+opens a save dialog and preserves folders in the M3U file.
 
 Favorites and Collections each have an Export button that writes an M3U through a save dialog.
 The main window's tree exports too: a station from its menu, and a folder — a directory,
@@ -210,6 +218,10 @@ Pause Recording, Record Each Song to Its Own File, Write Buffer and Scheduled Re
 Recording, Write Buffer writes the whole time-shift buffer — everything the station has
 played since you tuned in, up to the buffer's length — to a WAV file in the same folder,
 named like a recording.
+
+Original stream format keeps the compressed MPEG audio or ADTS AAC bytes, including
+when recording from the buffer. Header-dependent formats such as Ogg and FLAC use WAV
+so recordings remain playable after seeking or splitting into separate songs.
 
 Recording, Record Each Song to Its Own File is a recording mode for stations that name
 their songs: while it is checked, a recording closes the current file when a new song

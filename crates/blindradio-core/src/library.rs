@@ -210,7 +210,7 @@ pub fn folder_in<'a>(folders: &'a mut [Folder], path: &[usize]) -> Option<&'a mu
 /// The station list at `path` under a root list and its folders.
 pub fn stations_in<'a>(
 	root: &'a mut Vec<Station>,
-	folders: &'a mut Vec<Folder>,
+	folders: &'a mut [Folder],
 	path: &[usize],
 ) -> Option<&'a mut Vec<Station>> {
 	if path.is_empty() {
@@ -313,7 +313,7 @@ pub fn move_folder_in(folders: &mut Vec<Folder>, path: &[usize], up: bool) -> Op
 /// index or the step lands outside the list.
 pub fn move_station_in(
 	root: &mut Vec<Station>,
-	folders: &mut Vec<Folder>,
+	folders: &mut [Folder],
 	path: &[usize],
 	index: usize,
 	up: bool,

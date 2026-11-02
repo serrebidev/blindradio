@@ -687,7 +687,7 @@ fn decode(
 	station_id: &str,
 	bitrate_kbps: Option<u32>,
 ) -> Result<()> {
-	let mut decoder = Decoder::new(Box::new(reader), hint)?;
+	let mut decoder = Decoder::with_source(Box::new(reader), hint)?;
 	let format_of = |d: &Decoder| crate::decode::StreamFormat {
 		codec: d.codec().to_string(),
 		bitrate_kbps,
@@ -701,7 +701,15 @@ fn decode(
 	// actually changes (a chained Ogg stream can switch rates mid-stream).
 	let mut reported: Option<crate::decode::StreamFormat> = None;
 	let (mut pcm, mut out) = (Vec::new(), Vec::new());
-	while decoder.next_stereo(&mut pcm)? {
+	loop {
+		let has_audio = decoder.next_stereo(&mut pcm)?;
+		let source = decoder.take_source_bytes();
+		if let Some(buffer) = taps_for(taps, station_id).shift {
+			buffer.push_encoded(&source);
+		}
+		if !has_audio {
+			break;
+		}
 		if decoder.sample_rate() != rate {
 			rate = decoder.sample_rate();
 			resampler = Resampler::new(rate, out_rate);

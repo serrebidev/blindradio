@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
+use crate::encoded_ring::EncodedRing;
+
 /// Decoded audio kept behind live for time-shifting, as interleaved stereo
 /// i16: about 11 MB per minute at 48 kHz, half the f32 cost. Frames are
 /// addressed absolutely (frames pushed since the buffer was created), so a
@@ -11,6 +13,8 @@ pub struct ShiftBuffer {
 	rate: u32,
 	capacity_frames: u64,
 	inner: Mutex<ShiftInner>,
+	/// Source bytes retained for Original recordings from decoded history.
+	pub(crate) encoded: EncodedRing,
 }
 
 struct ShiftInner {
@@ -29,6 +33,7 @@ impl ShiftBuffer {
 		ShiftBuffer {
 			rate,
 			capacity_frames: rate as u64 * seconds.max(1),
+			encoded: EncodedRing::new(usize::MAX),
 			inner: Mutex::new(ShiftInner {
 				buf: VecDeque::new(),
 				pushed: 0,
@@ -69,8 +74,18 @@ impl ShiftBuffer {
 		inner.pushed += frames as u64;
 		let held = (inner.buf.len() / 2) as u64;
 		if held > self.capacity_frames {
-			inner.buf.drain(..(held - self.capacity_frames) as usize * 2);
+			inner
+				.buf
+				.drain(..(held - self.capacity_frames) as usize * 2);
+			let start = inner.pushed - (inner.buf.len() / 2) as u64;
+			self.encoded.trim_before(start * 1000 / self.rate as u64);
 		}
+	}
+
+	/// Stamp source bytes on this buffer's frame-time axis, before decoding.
+	pub(crate) fn push_encoded(&self, bytes: &[u8]) {
+		self.encoded
+			.push(self.live_edge() * 1000 / self.rate as u64, bytes);
 	}
 
 	/// Copies up to `out.len()/2` frames starting at absolute frame `at` into
@@ -140,6 +155,17 @@ impl ShiftStatus {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn encoded_history_keeps_the_same_time_range_as_decoded_audio() {
+		let buffer = ShiftBuffer::with_seconds(1, 2);
+		for byte in 0..5 {
+			buffer.push_encoded(&[byte]);
+			buffer.push(&[0.0, 0.0]);
+		}
+		assert_eq!(buffer.start(), 3);
+		assert_eq!(buffer.encoded.span(0, u64::MAX), [3, 4]);
+	}
 
 	fn ramp(from: usize, frames: usize) -> Vec<f32> {
 		(from..from + frames)

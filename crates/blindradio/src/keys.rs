@@ -35,6 +35,7 @@ pub enum KeyAction {
 	Stop,
 	PreviousStation,
 	NextStation,
+	MoveToPlayingStation,
 	Record,
 	RecordPause,
 	RecordSongs,
@@ -89,6 +90,9 @@ pub enum KeyAction {
 	PlayFavorite10,
 	Import,
 	ImportAsCollection,
+	ExportCurrentList,
+	ExportAllPlaylists,
+	ExportFavorites,
 	FeatureSettings,
 	GlobalHotkeys,
 	KeyboardShortcuts,
@@ -103,12 +107,13 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 67] = [
+	pub const ALL: [KeyAction; 71] = [
 		K::PlayPause,
 		K::Play,
 		K::Stop,
 		K::PreviousStation,
 		K::NextStation,
+		K::MoveToPlayingStation,
 		K::Record,
 		K::RecordPause,
 		K::RecordSongs,
@@ -163,6 +168,9 @@ impl KeyAction {
 		K::PlayFavorite10,
 		K::Import,
 		K::ImportAsCollection,
+		K::ExportCurrentList,
+		K::ExportAllPlaylists,
+		K::ExportFavorites,
 		K::FeatureSettings,
 		K::GlobalHotkeys,
 		K::KeyboardShortcuts,
@@ -182,6 +190,7 @@ impl KeyAction {
 			| K::OpenFavorites
 			| K::OpenRecent
 			| K::OpenCollections
+			| K::MoveToPlayingStation
 			| K::NewCustomStation
 			| K::CopyUrl
 			| K::CopyStation
@@ -202,6 +211,9 @@ impl KeyAction {
 			| K::PlayFavorite10 => 1,
 			K::Import
 			| K::ImportAsCollection
+			| K::ExportCurrentList
+			| K::ExportAllPlaylists
+			| K::ExportFavorites
 			| K::FeatureSettings
 			| K::GlobalHotkeys
 			| K::KeyboardShortcuts
@@ -221,6 +233,7 @@ impl KeyAction {
 			K::Play => "play",
 			K::Stop => "stop",
 			K::PreviousStation => "previous_station",
+			K::MoveToPlayingStation => "move_to_playing_station",
 			K::NextStation => "next_station",
 			K::Record => "record",
 			K::RecordPause => "record_pause",
@@ -275,6 +288,9 @@ impl KeyAction {
 			K::PlayFavorite9 => "play_favorite_9",
 			K::PlayFavorite10 => "play_favorite_10",
 			K::Import => "import",
+			K::ExportCurrentList => "export_current_list",
+			K::ExportAllPlaylists => "export_all_playlists",
+			K::ExportFavorites => "export_favorites",
 			K::ImportAsCollection => "import_as_collection",
 			K::FeatureSettings => "feature_settings",
 			K::GlobalHotkeys => "global_hotkeys",
@@ -290,19 +306,14 @@ impl KeyAction {
 	/// The row name in the editor.
 	pub fn label(self) -> String {
 		let alt = |base: &'static str| format!("{}{}", plain(base), s::KB_ALTERNATE);
-		let sleep = |i: usize| {
-			format!(
-				"{}: {}",
-				plain(s::SLEEP_TIMER),
-				plain(s::SLEEP_ITEMS[i])
-			)
-		};
+		let sleep = |i: usize| format!("{}: {}", plain(s::SLEEP_TIMER), plain(s::SLEEP_ITEMS[i]));
 		let favorite = |n: usize| format!("{} {n}", s::KB_PLAY_FAVORITE);
 		match self {
 			K::PlayPause => plain(s::PLAY_PAUSE),
 			K::Play => s::PLAY.to_string(),
 			K::Stop => plain(s::STOP_MENU),
 			K::PreviousStation => plain(s::PREVIOUS_STATION),
+			K::MoveToPlayingStation => plain(s::MOVE_TO_PLAYING_STATION),
 			K::NextStation => plain(s::NEXT_STATION),
 			K::Record => plain(s::RECORD),
 			K::RecordPause => plain(s::RECORD_PAUSE),
@@ -356,6 +367,9 @@ impl KeyAction {
 			K::PlayFavorite9 => favorite(9),
 			K::PlayFavorite10 => favorite(10),
 			K::Import => plain(s::IMPORT),
+			K::ExportCurrentList => plain(s::EXPORT_CURRENT_LIST),
+			K::ExportAllPlaylists => plain(s::EXPORT_ALL_PLAYLISTS),
+			K::ExportFavorites => plain(s::EXPORT_FAVORITES),
 			K::ImportAsCollection => plain(s::IMPORT_AS_COLLECTION),
 			K::FeatureSettings => plain(s::FEATURE_SETTINGS),
 			K::GlobalHotkeys => plain(s::GLOBAL_HOTKEYS),
@@ -437,6 +451,7 @@ impl KeyAction {
 			K::Play => Action::Play,
 			K::Stop => Action::Stop,
 			K::PreviousStation => Action::PreviousStation,
+			K::MoveToPlayingStation => Action::MoveToPlayingStation,
 			K::NextStation => Action::NextStation,
 			K::Record => Action::Record,
 			K::RecordPause => Action::RecordPause,
@@ -486,6 +501,9 @@ impl KeyAction {
 			K::PlayFavorite9 => Action::PlayFavorite(8),
 			K::PlayFavorite10 => Action::PlayFavorite(9),
 			K::Import => Action::Import,
+			K::ExportCurrentList => Action::ExportCurrentList,
+			K::ExportAllPlaylists => Action::ExportAllPlaylists,
+			K::ExportFavorites => Action::ExportFavorites,
 			K::ImportAsCollection => Action::ImportAsCollection,
 			K::FeatureSettings => Action::FeatureSettings,
 			K::GlobalHotkeys => Action::GlobalHotkeys,
@@ -502,10 +520,14 @@ impl KeyAction {
 		match self {
 			K::PreviousStation
 			| K::NextStation
+			| K::MoveToPlayingStation
 			| K::AddToCollection
 			| K::FocusVolume
 			| K::Import
 			| K::ImportAsCollection
+			| K::ExportCurrentList
+			| K::ExportAllPlaylists
+			| K::ExportFavorites
 			| K::PlayFavorite1
 			| K::PlayFavorite2
 			| K::PlayFavorite3
@@ -560,6 +582,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::PlayPause => K::PlayPause,
 		Action::Stop => K::Stop,
 		Action::PreviousStation => K::PreviousStation,
+		Action::MoveToPlayingStation => K::MoveToPlayingStation,
 		Action::NextStation => K::NextStation,
 		Action::Record => K::Record,
 		Action::RecordPause => K::RecordPause,
@@ -596,6 +619,9 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::OpenUrl => K::OpenUrl,
 		Action::GetStarter => K::GetStarter,
 		Action::Import => K::Import,
+		Action::ExportCurrentList => K::ExportCurrentList,
+		Action::ExportAllPlaylists => K::ExportAllPlaylists,
+		Action::ExportFavorites => K::ExportFavorites,
 		Action::ImportAsCollection => K::ImportAsCollection,
 		Action::FeatureSettings => K::FeatureSettings,
 		Action::GlobalHotkeys => K::GlobalHotkeys,
@@ -788,6 +814,26 @@ mod tests {
 		assert_eq!(menu_chord(&settings, &Action::SeekBack), "F6");
 		settings.keys.remove(K::Record.id());
 		assert_eq!(menu_chord(&settings, &Action::Record), "Ctrl+R");
+	}
+
+	#[test]
+	fn new_menu_actions_can_be_bound_without_stealing_default_keys() {
+		for action in [
+			K::MoveToPlayingStation,
+			K::ExportCurrentList,
+			K::ExportAllPlaylists,
+			K::ExportFavorites,
+		] {
+			assert_eq!(action.default_chord(), None);
+			let mut settings = Settings::default();
+			settings.keys.insert(action.id().into(), "Ctrl+W".into());
+			assert_eq!(
+				lookup(&settings, key('W'), true, false, false, true),
+				Some(action.action())
+			);
+			assert_eq!(menu_chord(&settings, &action.action()), "Ctrl+W");
+			assert_eq!(lookup(&settings, key('W'), true, false, false, false), None);
+		}
 	}
 
 	#[test]

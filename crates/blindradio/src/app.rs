@@ -137,6 +137,42 @@ pub fn dial_collection<'a>(lib: &'a Library, main_list: Option<&str>) -> Option<
 		})
 }
 
+/// Snapshot an export scope before opening a modal save dialog.
+fn playlist_export_data(
+	lib: &Library,
+	main_list: Option<&str>,
+	action: &Action,
+) -> Option<(String, Vec<Station>, Vec<Folder>)> {
+	match action {
+		Action::ExportFavorites => Some((
+			menus::plain(s::FAVORITES).trim_end_matches('…').to_string(),
+			lib.favorites.clone(),
+			lib.fav_folders.clone(),
+		)),
+		Action::ExportAllPlaylists | Action::ExportCurrentList
+			if *action == Action::ExportAllPlaylists || main_list == Some(ALL_LISTS) =>
+		{
+			let mut collections: Vec<&Collection> = lib.collections.iter().collect();
+			collections.sort_by_key(|c| c.name.to_lowercase());
+			Some((
+				s::EXPORT_ALL_NAME.to_string(),
+				Vec::new(),
+				collections
+					.into_iter()
+					.map(|c| Folder {
+						name: c.name.clone(),
+						stations: c.stations.clone(),
+						folders: c.folders.clone(),
+					})
+					.collect(),
+			))
+		}
+		Action::ExportCurrentList => dial_collection(lib, main_list)
+			.map(|c| (c.name.clone(), c.stations.clone(), c.folders.clone())),
+		_ => None,
+	}
+}
+
 /// The stations the main window lists: one collection, or every collection
 /// merged in name order under [`ALL_LISTS`].
 pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
@@ -148,6 +184,21 @@ pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
 	dial_collection(lib, main_list)
 		.map(|c| c.all_stations())
 		.unwrap_or_default()
+}
+
+/// Directory results and old favorites may have no collection row to reveal.
+fn include_playing_station(
+	stations: &mut Vec<Station>,
+	nodes: &mut Vec<DialNode>,
+	station: &Station,
+) -> usize {
+	if let Some(i) = stations.iter().position(|s| s.id == station.id) {
+		return i;
+	}
+	let i = stations.len();
+	stations.push(station.clone());
+	nodes.push(DialNode::Station(i));
+	i
 }
 
 /// The main window's tree: the dial stations (in exactly
@@ -261,6 +312,20 @@ pub enum PasteDest {
 	Favorites(Vec<usize>),
 }
 
+impl PasteDest {
+	fn for_station(lib: &Library, id: &str, focused: Option<&Self>) -> Option<Self> {
+		// A station can belong to several lists; the view knows which copy is focused.
+		if let Some(home) = focused {
+			return Some(home.clone());
+		}
+		match lib.station_home(id) {
+			Some(Home::Collection { id, path }) => Some(Self::Collection(id, path)),
+			Some(Home::Favorite { path }) => Some(Self::Favorites(path)),
+			None => None,
+		}
+	}
+}
+
 pub struct App {
 	pub data: PathBuf,
 	pub settings: Settings,
@@ -299,6 +364,8 @@ pub struct App {
 	played_at: Option<usize>,
 	/// The station tree's filter, typed in the filter box; empty shows all.
 	dial_filter: String,
+	/// A revealed directory result that has no saved collection row.
+	dial_extra: Option<Station>,
 	/// The last tune was dial tuning (a focus move), not an explicit play.
 	dial: bool,
 	pub win: MainWindow,
@@ -344,6 +411,22 @@ pub struct App {
 }
 
 impl App {
+	pub fn export_playlist(app: &Rc<RefCell<App>>, action: &Action) {
+		let (data, parent) = {
+			let held = app.borrow();
+			(
+				playlist_export_data(&held.library, held.settings.main_list.as_deref(), action),
+				held.win.frame,
+			)
+		};
+		match data {
+			Some((name, stations, folders)) => {
+				crate::context_menu::export_playlist(app, &parent, &name, &stations, &folders)
+			}
+			None => app.borrow_mut().say(s::NOTHING_TO_PLAY),
+		}
+	}
+
 	pub fn new(win: MainWindow) -> blindradio_core::Result<App> {
 		let data = data_dir();
 		let settings = Settings::load(&data);
@@ -390,6 +473,7 @@ impl App {
 			played: Vec::new(),
 			played_at: None,
 			dial_filter: String::new(),
+			dial_extra: None,
 			dial: false,
 			win,
 			menus,
@@ -521,6 +605,7 @@ impl App {
 		if self.settings.play_on_move {
 			self.note_played(station);
 		}
+		self.reveal_station(station);
 	}
 
 	pub fn run(&mut self, a: Action) {
@@ -555,6 +640,7 @@ impl App {
 			Action::Stop => self.stop(true),
 			Action::PreviousStation => self.played_step(-1),
 			Action::NextStation => self.played_step(1),
+			Action::MoveToPlayingStation => self.move_to_playing_station(),
 			Action::Record => {
 				if self.tuner.is_recording() {
 					self.finish_recording();
@@ -672,6 +758,9 @@ impl App {
 			| Action::AddToCollection
 			| Action::Import
 			| Action::ImportAsCollection
+			| Action::ExportCurrentList
+			| Action::ExportAllPlaylists
+			| Action::ExportFavorites
 			| Action::OpenUrl
 			| Action::SongHistory
 			| Action::Equalizer
@@ -707,17 +796,14 @@ impl App {
 				} else {
 					match self.selected.clone() {
 						Some(st) => self.paste_near(&st),
-						None => match dial_collection(
-							&self.library,
-							self.settings.main_list.as_deref(),
-						)
-						.map(|c| c.id.clone())
-						{
-							Some(id) => {
-								self.paste_into(PasteDest::Collection(id, Vec::new()))
+						None => {
+							match dial_collection(&self.library, self.settings.main_list.as_deref())
+								.map(|c| c.id.clone())
+							{
+								Some(id) => self.paste_into(PasteDest::Collection(id, Vec::new())),
+								None => self.say(s::NOWHERE_TO_PASTE),
 							}
-							None => self.say(s::NOWHERE_TO_PASTE),
-						},
+						}
 					}
 				}
 			}
@@ -1196,6 +1282,24 @@ impl App {
 		// Clears the songs heard on the last station, even if this one never sends a title.
 		self.history.station_changed(&station.id);
 		self.tuner.play(&station, Instant::now());
+		// A modal's selection and paste home must describe the same row.
+		if !self.dialog_open {
+			self.selected = Some(station.clone());
+		}
+		self.remembered = None;
+		self.reveal_station(&station);
+		if !self.dialog_open
+			&& (self.win.frame.has_focus()
+				|| self.win.filter.has_focus()
+				|| self.win.stations.list.has_focus()
+				|| self.win.volume.has_focus()
+				|| self.win.play.has_focus()
+				|| self.win.stop.has_focus()
+				|| self.win.mute.has_focus()
+				|| self.win.favorite.has_focus())
+		{
+			self.win.stations.list.set_focus();
+		}
 		self.apply_station_volume(&station);
 		self.library.add_recent(&station);
 		self.save_library();
@@ -1559,11 +1663,18 @@ impl App {
 
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
-		let (stations, nodes) = dial_tree(
+		let (mut stations, mut nodes) = dial_tree(
 			&self.library,
 			self.settings.main_list.as_deref(),
 			&self.dial_filter,
 		);
+		if let Some(station) = self
+			.dial_extra
+			.as_ref()
+			.filter(|station| self.tuner.playing().is_some_and(|p| p.id == station.id))
+		{
+			include_playing_station(&mut stations, &mut nodes, station);
+		}
 		let list = &self.win.stations;
 		let current = list.current();
 		let focus = current
@@ -1573,6 +1684,69 @@ impl App {
 			.unwrap_or(0);
 		list.set_expand_default(self.settings.expand_dial_folders);
 		list.set_dial(&nodes, stations, focus);
+	}
+
+	/// Select quietly, so revealing playback cannot tune the station again.
+	fn reveal_station(&mut self, station: &Station) {
+		let mut rebuild = self.dial_extra.as_ref().is_some_and(|s| s.id != station.id);
+		if rebuild {
+			self.dial_extra = None;
+		}
+		let present = self
+			.win
+			.stations
+			.stations()
+			.iter()
+			.any(|s| s.id == station.id);
+		if !present {
+			match self.library.collections_containing(&station.id).first() {
+				Some(id) => {
+					self.settings.main_list = Some(id.clone());
+					self.save_settings();
+				}
+				None => self.dial_extra = Some(station.clone()),
+			}
+			rebuild = true;
+		}
+		if !self.dial_filter.is_empty()
+			&& !station
+				.name
+				.to_lowercase()
+				.contains(&self.dial_filter.to_lowercase())
+		{
+			self.dial_filter.clear();
+			self.win.filter.change_value("");
+			self.clear_message();
+			rebuild = true;
+		}
+		if rebuild {
+			self.refresh_dial();
+		}
+		if let Some(i) = self
+			.win
+			.stations
+			.stations()
+			.iter()
+			.position(|s| s.id == station.id)
+			&& self.win.stations.current() != Some(i)
+		{
+			self.win.stations.select(i, false);
+		}
+	}
+
+	/// Return to the playing row without restarting it or changing playback history.
+	pub fn move_to_playing_station(&mut self) {
+		if self.dialog_open {
+			return;
+		}
+		let Some(station) = self.tuner.playing().cloned() else {
+			return;
+		};
+		self.reveal_station(&station);
+		if !self.win.stations.list.has_focus() {
+			self.win.stations.list.set_focus();
+		}
+		self.selected = Some(station);
 	}
 
 	/// The filter box changed: the tree narrows to matching stations, or
@@ -1661,6 +1835,13 @@ impl App {
 			return;
 		};
 		let was_focused = self.win.stations.current() == Some(index);
+		if self
+			.dial_extra
+			.as_ref()
+			.is_some_and(|extra| extra.id == st.id)
+		{
+			self.dial_extra = None;
+		}
 		self.library.remove_from_collection(&id, &st.id);
 		self.save_library();
 		self.refresh_dial();
@@ -1698,9 +1879,9 @@ impl App {
 	/// where it is until Paste takes it out of its home.
 	pub fn copy_station(&mut self, station: &Station, cut: bool) {
 		let (from_collection, from_favorites, from_path) =
-			match self.library.station_home(&station.id) {
-				Some(Home::Collection { id, path }) => (Some(id), false, path),
-				Some(Home::Favorite { path }) => (None, true, path),
+			match PasteDest::for_station(&self.library, &station.id, self.paste_home.as_ref()) {
+				Some(PasteDest::Collection(id, path)) => (Some(id), false, path),
+				Some(PasteDest::Favorites(path)) => (None, true, path),
 				None => (None, false, Vec::new()),
 			};
 		self.station_clip = Some(Clip {
@@ -1755,9 +1936,7 @@ impl App {
 					clip.from_collection.as_deref() == Some(id.as_str())
 						&& clip.from_path == *path
 				}
-				PasteDest::Favorites(path) => {
-					clip.from_favorites && clip.from_path == *path
-				}
+				PasteDest::Favorites(path) => clip.from_favorites && clip.from_path == *path,
 			};
 		if held && (!clip.cut || same_home) {
 			return self.say(&format!("{}{}{}", st.name, s::IS_ALREADY_IN, dest_name));
@@ -1815,14 +1994,14 @@ impl App {
 	/// Paste beside `station`: into the folder that holds it, or the
 	/// dial's collection when it is held nowhere.
 	pub fn paste_near(&mut self, station: &Station) {
-		let dest = match self.library.station_home(&station.id) {
-			Some(Home::Collection { id, path }) => PasteDest::Collection(id, path),
-			Some(Home::Favorite { path }) => PasteDest::Favorites(path),
-			None => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
-				Some(c) => PasteDest::Collection(c.id.clone(), Vec::new()),
-				None => return self.say(s::NOWHERE_TO_PASTE),
-			},
-		};
+		let dest =
+			match PasteDest::for_station(&self.library, &station.id, self.paste_home.as_ref()) {
+				Some(dest) => dest,
+				None => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
+					Some(c) => PasteDest::Collection(c.id.clone(), Vec::new()),
+					None => return self.say(s::NOWHERE_TO_PASTE),
+				},
+			};
 		self.paste_into(dest);
 	}
 
@@ -1943,6 +2122,99 @@ fn set_label(button: Button, label: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn file_exports_preserve_scopes_and_nested_folders() {
+		let mut lib = Library::default();
+		let custom = lib.add_custom("Custom", "http://custom");
+		let id = lib.create_collection("Jazz");
+		let mut inner = Folder::new("Inside");
+		inner.stations.push(custom.clone());
+		let mut outer = Folder::new("Outside");
+		outer.folders.push(inner);
+		lib.collection_mut(&id).unwrap().folders.push(outer.clone());
+		lib.fav_folders.push(outer.clone());
+		let (name, stations, folders) =
+			playlist_export_data(&lib, Some(&id), &Action::ExportCurrentList).unwrap();
+		assert_eq!(name, "Jazz");
+		assert!(stations.is_empty());
+		assert_eq!(folders, vec![outer.clone()]);
+		let (_, stations, folders) =
+			playlist_export_data(&lib, Some(&id), &Action::ExportFavorites).unwrap();
+		assert!(stations.is_empty());
+		assert_eq!(folders, vec![outer.clone()]);
+		let all = playlist_export_data(&lib, Some(&id), &Action::ExportAllPlaylists).unwrap();
+		assert!(all.1.is_empty());
+		assert_eq!(all.2.len(), 2);
+		assert_eq!(all.2[0].stations, vec![custom]);
+		assert_eq!(all.2[1].folders, vec![outer]);
+		assert_eq!(
+			playlist_export_data(&lib, Some(ALL_LISTS), &Action::ExportCurrentList),
+			Some(all)
+		);
+		assert!(
+			playlist_export_data(&Library::default(), None, &Action::ExportCurrentList).is_none()
+		);
+	}
+
+	#[test]
+	fn playing_station_reuses_its_dial_row_or_gets_a_temporary_one() {
+		let station = Station {
+			id: "custom:playing".into(),
+			name: "Playing".into(),
+			url: "http://x".into(),
+			source: blindradio_core::station::Source::RadioBrowser,
+			info: None,
+		};
+		let mut stations = Vec::new();
+		let mut nodes = Vec::new();
+		assert_eq!(
+			include_playing_station(&mut stations, &mut nodes, &station),
+			0
+		);
+		assert_eq!(stations, std::slice::from_ref(&station));
+		assert!(matches!(nodes.as_slice(), [DialNode::Station(0)]));
+		assert_eq!(
+			include_playing_station(&mut stations, &mut nodes, &station),
+			0
+		);
+		assert_eq!(stations.len(), 1, "revealing again never duplicates a row");
+		assert_eq!(nodes.len(), 1);
+	}
+
+	#[test]
+	fn clipboard_home_prefers_the_browse_row_over_another_copy() {
+		let mut lib = Library::default();
+		let station = lib.add_custom("WRN Europe", "http://wrn");
+		let english = lib.create_collection("English");
+		let misc = lib
+			.collection_mut(&english)
+			.unwrap()
+			.add_folder(&[], "Misc")
+			.unwrap();
+		lib.collection_mut(&english)
+			.unwrap()
+			.stations_at_mut(&misc)
+			.unwrap()
+			.push(station.clone());
+		let source = PasteDest::Collection(english.clone(), misc);
+		let root = PasteDest::Collection(english, Vec::new());
+		assert_eq!(
+			PasteDest::for_station(&lib, &station.id, Some(&source)),
+			Some(source)
+		);
+		assert_eq!(
+			PasteDest::for_station(&lib, &station.id, Some(&root)),
+			Some(root)
+		);
+		assert_eq!(
+			PasteDest::for_station(&lib, &station.id, None),
+			Some(PasteDest::Collection(
+				blindradio_core::library::CUSTOM.into(),
+				Vec::new()
+			))
+		);
+	}
 
 	#[test]
 	fn mute_toggle_says_the_state_it_left() {

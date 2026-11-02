@@ -93,10 +93,8 @@ impl ScheduledRecording {
 		if now < self.start_unix {
 			return Some(self.start_unix);
 		}
-		match self.period() {
-			None => None,
-			Some(p) => Some(self.start_unix + (now - self.start_unix) / p * p + p),
-		}
+		self.period()
+			.map(|p| self.start_unix + (now - self.start_unix) / p * p + p)
 	}
 
 	/// When the recording of `occurrence` stops.

@@ -454,3 +454,124 @@ fn hls_vod_ends_once_without_refetching_playlist() {
 	);
 	assert_eq!(server.hits("/vod.m3u8"), 1, "open() read the playlist once");
 }
+
+fn buffered_original_recording(fixture: &str, content_type: &str, want_ext: &str) {
+	use blindradio_core::output::{MixerCmd, MixerCore};
+	use blindradio_core::settings::Settings;
+	use blindradio_core::tuner::{LiveFactory, Sink, Tuner};
+	use parking_lot::Mutex;
+
+	struct SilentSink(Arc<Mutex<MixerCore>>);
+	impl Sink for SilentSink {
+		fn send(&self, cmd: MixerCmd) {
+			self.0.lock().handle(cmd);
+		}
+	}
+
+	let server = serve(vec![Route::Stream {
+		path: "/live".into(),
+		content_type: content_type.into(),
+		data: std::fs::read(format!(
+			"{}/tests/fixtures/{fixture}",
+			env!("CARGO_MANIFEST_DIR")
+		))
+		.unwrap(),
+		metaint: None,
+		titles: vec![],
+		burst: 16_000,
+		bytes_per_sec: 16_000,
+		close_after: None,
+	}]);
+	let dir = tempfile::tempdir().unwrap();
+	let mut settings = Settings::default();
+	settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+	settings.recording.split_songs = true;
+	let (tx, _) = crossbeam_channel::unbounded();
+	let output = Arc::new(Mutex::new(MixerCore::new(OUT_RATE)));
+	let mut tuner = Tuner::new(
+		LiveFactory(ctx(Duration::from_secs(60))),
+		SilentSink(output.clone()),
+		tx,
+	);
+	tuner.set_settings(Arc::new(Mutex::new(settings)));
+	tuner.play(
+		&Station {
+			id: "test".into(),
+			name: "Buffered".into(),
+			url: server.url("/live"),
+			source: Source::Custom,
+			info: None,
+		},
+		Instant::now(),
+	);
+	let (buffer, _) = tuner.shift().unwrap();
+	let deadline = Instant::now() + Duration::from_secs(5);
+	while buffer.live_edge() < OUT_RATE as u64 * 3 {
+		assert!(
+			Instant::now() < deadline,
+			"stream did not fill the decoded buffer"
+		);
+		output
+			.lock()
+			.render(&mut vec![0.0; OUT_RATE as usize / 50 * 2]);
+		tuner.poll(Instant::now(), &[]);
+		std::thread::sleep(Duration::from_millis(10));
+	}
+	// The stream keeps running, but the recorder must take the old audio.
+	tuner.shift_start();
+	tuner.start_recording(Some("First")).unwrap();
+	let empty = tuner.stop_recording().unwrap().unwrap();
+	if want_ext == "mp3" {
+		assert_eq!(
+			std::fs::metadata(empty).unwrap().len(),
+			0,
+			"cursor zero must not copy future source bytes"
+		);
+	}
+	tuner.start_recording(Some("First")).unwrap();
+	for _ in 0..2 {
+		output.lock().render(&mut vec![0.0; OUT_RATE as usize]);
+		tuner.poll(Instant::now(), &[]);
+	}
+	let first = tuner.split_recording("Second").unwrap().unwrap();
+	for _ in 0..2 {
+		output.lock().render(&mut vec![0.0; OUT_RATE as usize]);
+		tuner.poll(Instant::now(), &[]);
+	}
+	let second = tuner.stop_recording().unwrap().unwrap();
+	tuner.stop();
+	for path in [first, second] {
+		assert_eq!(path.extension().unwrap(), want_ext);
+		let bytes = std::fs::read(&path).unwrap();
+		assert!(!bytes.is_empty(), "{} was empty", path.display());
+		if want_ext == "wav" {
+			let mut wav = hound::WavReader::new(std::io::Cursor::new(bytes)).unwrap();
+			assert!(
+				wav.samples::<i16>().any(|sample| sample.unwrap() != 0),
+				"WAV contains audio"
+			);
+			continue;
+		}
+		let mut decoder = blindradio_core::decode::Decoder::new(
+			Box::new(std::io::Cursor::new(bytes)),
+			Some(want_ext),
+		)
+		.unwrap();
+		assert!(decoder.next_stereo(&mut Vec::new()).unwrap());
+	}
+}
+
+#[test]
+fn original_recording_from_decoded_buffer_has_audio_in_each_song() {
+	buffered_original_recording("tone.mp3", "audio/mpeg", "mp3");
+}
+
+#[test]
+fn buffered_original_ogg_recording_uses_valid_wav_parts() {
+	buffered_original_recording("tone.ogg", "audio/ogg", "wav");
+}
+
+#[test]
+fn buffered_original_flac_recording_uses_valid_wav_parts() {
+	buffered_original_recording("tone.flac", "audio/flac", "wav");
+}

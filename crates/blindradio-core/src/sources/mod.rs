@@ -7,6 +7,10 @@ use serde::Deserialize;
 use std::collections::HashSet;
 use std::time::{Duration, UNIX_EPOCH};
 
+type TreeFuture<'a> = std::pin::Pin<
+	Box<dyn std::future::Future<Output = Result<(Vec<Station>, Vec<Folder>)>> + Send + 'a>,
+>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
 	Folder { id: String, name: String },
@@ -438,9 +442,7 @@ impl Sources {
 		id: &'a str,
 		sort: Sort,
 		seen: &'a mut HashSet<String>,
-	) -> std::pin::Pin<
-		Box<dyn std::future::Future<Output = Result<(Vec<Station>, Vec<Folder>)>> + Send + 'a>,
-	> {
+	) -> TreeFuture<'a> {
 		Box::pin(async move {
 			let mut stations = Vec::new();
 			let mut folders = Vec::new();

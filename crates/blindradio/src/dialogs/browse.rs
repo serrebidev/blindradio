@@ -182,7 +182,7 @@ impl BrowseModel {
 	/// in the list take the folder slots in that order, folders it does
 	/// not name keep their source order after them, and every other row
 	/// keeps its slot.
-	fn apply_order(&self, parent: Option<usize>, kids: &mut Vec<usize>) {
+	fn apply_order(&self, parent: Option<usize>, kids: &mut [usize]) {
 		let key = self.order_key(parent);
 		let Some(want) = self.order.get(&key) else {
 			return;
@@ -1534,13 +1534,9 @@ impl View {
 					token.clone(),
 					async move { sources.tree(&key, sort).await },
 					move |_: &mut App, r| match r {
-						Ok((stations, folders)) => context_menu::export_playlist(
-							&a,
-							&v.tree,
-							&name,
-							&stations,
-							&folders,
-						),
+						Ok((stations, folders)) => {
+							context_menu::export_playlist(&a, &v.tree, &name, &stations, &folders)
+						}
 						Err(e) => {
 							eprintln!("browse export {name}: {e}");
 							a.borrow_mut().say(s::NOT_SAVED);
@@ -1680,7 +1676,15 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	if let Some(f) = focus {
 		view.focused(app, f);
 	}
-	let next = crate::dialogs::run(app, dialog, Action::OpenBrowse, tree, &token);
+	let (v, a) = (view.clone(), app.clone());
+	let next = crate::dialogs::run_with_refresh(
+		app,
+		dialog,
+		Action::OpenBrowse,
+		tree,
+		&token,
+		move || v.refresh_local(&a),
+	);
 	app.borrow_mut().browse = view.model.borrow_mut().memory(view.sort.get());
 	next
 }
@@ -2178,7 +2182,7 @@ mod tests {
 		lib.collection_mut(CUSTOM)
 			.unwrap()
 			.add_folder(&[], "Imported");
-		let mut m = BrowseModel::new(Memory::default(), &lib);
+		let m = BrowseModel::new(Memory::default(), &lib);
 		let collections = find(&m, None, "collections");
 		let jazz_folder = find(&m, Some(collections), &jazz);
 		assert_eq!(

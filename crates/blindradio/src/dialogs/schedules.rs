@@ -136,8 +136,13 @@ fn station_choices(app: &App) -> Vec<Station> {
 		out.extend(c.all_stations());
 	}
 	out.extend(app.library.favorites.iter().cloned());
-	out.extend(app.library.fav_folders.iter().flat_map(|f| f.all_stations()));
-	out.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+	out.extend(
+		app.library
+			.fav_folders
+			.iter()
+			.flat_map(|f| f.all_stations()),
+	);
+	out.sort_by_key(|a| a.name.to_lowercase());
 	out.dedup_by(|a, b| a.id == b.id);
 	out
 }

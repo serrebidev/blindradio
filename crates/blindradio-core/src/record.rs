@@ -3,9 +3,9 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::Result;
 use crate::error::CoreError;
 use crate::settings::{RecordFormat, RecordSettings};
-use crate::Result;
 
 /// Seconds of audio per FLAC file. flacenc encodes a whole buffer in one
 /// pass, so FLAC recordings are written in parts to bound memory; the other
@@ -300,6 +300,10 @@ impl Recorder {
 
 	pub fn is_paused(&self) -> bool {
 		self.paused
+	}
+
+	pub(crate) fn is_original(&self) -> bool {
+		matches!(self.kind, Kind::Passthrough(_))
 	}
 
 	/// Encoded stream bytes; only `Original` recordings take them.

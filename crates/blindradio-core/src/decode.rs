@@ -1,4 +1,7 @@
+use parking_lot::Mutex;
+use std::collections::VecDeque;
 use std::io::Read;
+use std::sync::Arc;
 
 use bytes::{Buf, Bytes};
 use crossbeam_channel::{Receiver, Sender};
@@ -15,6 +18,30 @@ use crate::{CoreError, Result};
 
 /// Back-to-back unsupported packets tolerated after first audio before the stream counts as unsupported.
 const MAX_UNSUPPORTED_RUN: u32 = 4096;
+
+#[derive(Default)]
+struct SourceBytes {
+	read: u64,
+	taken: u64,
+	bytes: VecDeque<u8>,
+}
+
+struct SourceReader {
+	reader: Box<dyn Read + Send + Sync>,
+	source: Arc<Mutex<SourceBytes>>,
+}
+
+impl Read for SourceReader {
+	fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+		// Bound demuxer read-ahead so source-byte timing stays close to PCM.
+		let limit = out.len().min(512);
+		let n = self.reader.read(&mut out[..limit])?;
+		let mut source = self.source.lock();
+		source.bytes.extend(&out[..n]);
+		source.read += n as u64;
+		Ok(n)
+	}
+}
 
 /// Blocking `Read` over chunks sent from the async network side.
 pub struct ByteReader {
@@ -131,16 +158,41 @@ pub struct Decoder {
 	channels: u32,
 	scratch: Vec<f32>,
 	first: Vec<f32>,
+	source: Option<Arc<Mutex<SourceBytes>>>,
+	source_ready: u64,
 }
 
 impl Decoder {
-	pub fn new(mut reader: Box<dyn Read + Send + Sync>, ext_hint: Option<&str>) -> Result<Decoder> {
+	pub fn new(reader: Box<dyn Read + Send + Sync>, ext_hint: Option<&str>) -> Result<Decoder> {
+		Self::open(reader, ext_hint, false)
+	}
+
+	pub(crate) fn with_source(
+		reader: Box<dyn Read + Send + Sync>,
+		ext_hint: Option<&str>,
+	) -> Result<Decoder> {
+		Self::open(reader, ext_hint, true)
+	}
+
+	fn open(
+		mut reader: Box<dyn Read + Send + Sync>,
+		ext_hint: Option<&str>,
+		track_source: bool,
+	) -> Result<Decoder> {
 		// One byte read up front tells an empty stream apart from an unrecognised one.
 		let mut head = [0u8];
 		if reader.read(&mut head)? == 0 {
 			return Err(no_data());
 		}
 		let reader = Read::chain(std::io::Cursor::new(head), reader);
+		let source = track_source.then(|| Arc::new(Mutex::new(SourceBytes::default())));
+		let reader: Box<dyn Read + Send + Sync> = match &source {
+			Some(source) => Box::new(SourceReader {
+				reader: Box::new(reader),
+				source: source.clone(),
+			}),
+			None => Box::new(reader),
+		};
 		let mss = MediaSourceStream::new(Box::new(ReadOnlySource::new(reader)), Default::default());
 		let mut hint = Hint::new();
 		if let Some(ext) = ext_hint {
@@ -166,6 +218,8 @@ impl Decoder {
 			channels: 0,
 			scratch: Vec::new(),
 			first: Vec::new(),
+			source,
+			source_ready: 0,
 		};
 		// Decode one packet now so sample_rate() is right before the caller sizes its resampler.
 		let mut first = Vec::new();
@@ -203,18 +257,34 @@ impl Decoder {
 		self.channels
 	}
 
+	/// Source bytes known to have passed the demuxer's read-ahead buffer.
+	pub(crate) fn take_source_bytes(&mut self) -> Vec<u8> {
+		let Some(source) = &self.source else {
+			return Vec::new();
+		};
+		let mut source = source.lock();
+		let n = (self.source_ready - source.taken) as usize;
+		source.taken = self.source_ready;
+		source.bytes.drain(..n).collect()
+	}
+
 	/// Appends one packet as interleaved stereo at `sample_rate()`; `false` at end of stream.
 	pub fn next_stereo(&mut self, out: &mut Vec<f32>) -> Result<bool> {
 		if !self.first.is_empty() {
 			out.append(&mut self.first);
 			return Ok(true);
 		}
+		let before = self.source.as_ref().map_or(0, |source| source.lock().read);
 		let mut unsupported = 0;
 		loop {
 			let packet = match self.format.next_packet() {
 				Ok(Some(p)) => p,
-				Ok(None) => return Ok(false),
+				Ok(None) => {
+					self.source_ready = self.source.as_ref().map_or(0, |source| source.lock().read);
+					return Ok(false);
+				}
 				Err(Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+					self.source_ready = self.source.as_ref().map_or(0, |source| source.lock().read);
 					return Ok(false);
 				}
 				// Chained Ogg (a new logical stream per song on Icecast) needs a fresh decoder.
@@ -257,6 +327,15 @@ impl Decoder {
 				// Planes are in symphonia's canonical order, front left and right first.
 				n => out.extend(self.scratch.chunks_exact(n).flat_map(|f| [f[0], f[1]])),
 			}
+			if self
+				.source
+				.as_ref()
+				.is_some_and(|source| source.lock().read > before)
+			{
+				// A refill proves all previously read bytes were demuxed;
+				// publish them only after this packet's PCM is decoded too.
+				self.source_ready = before;
+			}
 			return Ok(true);
 		}
 	}
@@ -284,6 +363,31 @@ fn open_track(
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn tracked_source_waits_for_decoding_and_flushes_exact_bytes_at_eof() {
+		let source = std::fs::read(format!(
+			"{}/tests/fixtures/tone.mp3",
+			env!("CARGO_MANIFEST_DIR")
+		))
+		.unwrap();
+		let mut decoder =
+			Decoder::with_source(Box::new(std::io::Cursor::new(source.clone())), Some("mp3"))
+				.unwrap();
+		let mut captured = Vec::new();
+		let mut pcm = Vec::new();
+		loop {
+			let has_audio = decoder.next_stereo(&mut pcm).unwrap();
+			captured.extend(decoder.take_source_bytes());
+			if !has_audio {
+				break;
+			}
+			// This five-second CBR fixture must not be released by probe/read-ahead.
+			let decoded_ms = pcm.len() as u64 / 2 * 1000 / decoder.sample_rate() as u64;
+			assert!(captured.len() <= source.len() * decoded_ms as usize / 5000 + 1024);
+		}
+		assert_eq!(captured, source);
+	}
 
 	fn fixture(name: &str) -> std::fs::File {
 		let path = format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"));

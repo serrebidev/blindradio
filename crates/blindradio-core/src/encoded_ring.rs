@@ -85,6 +85,15 @@ impl EncodedRing {
 		self.inner.lock().chunks.is_empty()
 	}
 
+	/// Drop chunks ending before the decoded buffer's oldest frame.
+	pub fn trim_before(&self, time_ms: u64) {
+		let mut inner = self.inner.lock();
+		while inner.chunks.get(1).is_some_and(|c| c.start_ms <= time_ms) {
+			let gone = inner.chunks.pop_front().unwrap();
+			inner.bytes -= gone.data.len();
+		}
+	}
+
 	/// Where the chunk containing `time_ms` begins, as an offset into
 	/// the ring's concatenated bytes, with that chunk's start time.
 	/// The replay pump opens a decoder at this chunk and discards up to
@@ -153,18 +162,18 @@ impl EncodedRing {
 	/// qualifies. Returns the bytes and the last sequence included.
 	/// Paces an Original recording to a playhead: finished chunks are
 	/// written exactly once, in order.
-	pub fn chunks_ended_after_seq(&self, seq: u64, time_ms: u64) -> (Vec<u8>, u64) {
+	pub fn chunks_ended_after_seq(&self, seq: Option<u64>, time_ms: u64) -> (Vec<u8>, Option<u64>) {
 		let inner = self.inner.lock();
 		let mut out = Vec::new();
 		let mut last = seq;
 		let n = inner.chunks.len();
 		for (i, c) in inner.chunks.iter().enumerate() {
-			if c.seq <= seq || i + 1 >= n {
+			if seq.is_some_and(|seq| c.seq <= seq) || i + 1 >= n {
 				continue;
 			}
 			if inner.chunks[i + 1].start_ms <= time_ms {
 				out.extend_from_slice(&c.data);
-				last = c.seq;
+				last = Some(c.seq);
 			} else {
 				break;
 			}
@@ -268,13 +277,17 @@ mod tests {
 		assert_eq!(r.seq_at(0), Some(0));
 		// After chunk 0, only chunk 1 has ended by 2500 — chunk 2 is
 		// the newest and never ends.
-		let (bytes, last) = r.chunks_ended_after_seq(0, 2500);
+		let (bytes, last) = r.chunks_ended_after_seq(Some(0), 2500);
 		assert_eq!(bytes, vec![2u8; 10]);
-		assert_eq!(last, 1);
+		assert_eq!(last, Some(1));
 		// Nothing new ends by 1500 on a second call.
 		let (bytes, last) = r.chunks_ended_after_seq(last, 1500);
 		assert!(bytes.is_empty());
-		assert_eq!(last, 1);
+		assert_eq!(last, Some(1));
+		assert_eq!(
+			r.chunks_ended_after_seq(None, 1000),
+			(vec![1u8; 10], Some(0))
+		);
 	}
 
 	#[test]

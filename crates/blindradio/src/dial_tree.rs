@@ -110,7 +110,7 @@ impl DialTree {
 
 	/// The selected row itself, folder or station: the Applications
 	/// key acts on the row, not only on stations.
-	pub fn selected_row(&self) -> Option<Row> {
+	fn selected_row(&self) -> Option<Row> {
 		let item = self.list.get_selection()?;
 		self.row(&item)
 	}

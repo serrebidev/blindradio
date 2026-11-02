@@ -44,7 +44,27 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 					A::ImportAsCollection,
 				),
 				Separator,
-				Item(s::FEATURE_SETTINGS, keys(&A::FeatureSettings), A::FeatureSettings),
+				Item(
+					s::EXPORT_CURRENT_LIST,
+					keys(&A::ExportCurrentList),
+					A::ExportCurrentList,
+				),
+				Item(
+					s::EXPORT_ALL_PLAYLISTS,
+					keys(&A::ExportAllPlaylists),
+					A::ExportAllPlaylists,
+				),
+				Item(
+					s::EXPORT_FAVORITES,
+					keys(&A::ExportFavorites),
+					A::ExportFavorites,
+				),
+				Separator,
+				Item(
+					s::FEATURE_SETTINGS,
+					keys(&A::FeatureSettings),
+					A::FeatureSettings,
+				),
 				Item(s::GLOBAL_HOTKEYS, keys(&A::GlobalHotkeys), A::GlobalHotkeys),
 				Item(
 					s::KEYBOARD_SHORTCUTS,
@@ -66,6 +86,11 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 				Separator,
 				Item(s::PREVIOUS_STATION, keys(&A::PreviousStation), A::PreviousStation),
 				Item(s::NEXT_STATION, keys(&A::NextStation), A::NextStation),
+				Item(
+					s::MOVE_TO_PLAYING_STATION,
+					keys(&A::MoveToPlayingStation),
+					A::MoveToPlayingStation,
+				),
 				Separator,
 				Item(s::ADD_CUSTOM, keys(&A::NewCustomStation), A::NewCustomStation),
 				Item(s::COPY_URL, keys(&A::CopyUrl), A::CopyUrl),
@@ -296,6 +321,7 @@ mod tests {
 			("Stop", "Ctrl+S"),
 			("Previous Station", "Alt+Left"),
 			("Next Station", "Alt+Right"),
+			("Move to Playing Station", ""),
 			("Record", "Ctrl+R"),
 			("Pause Recording", "Ctrl+Shift+R"),
 			("Record Each Song to Its Own File", ""),
@@ -394,6 +420,7 @@ mod tests {
 		for want in [
 			"Previous Station",
 			"Next Station",
+			"Move to Playing Station",
 			"Add to Favorites",
 			"Add to Collection…",
 		] {
@@ -408,12 +435,29 @@ mod tests {
 			"Scheduled Recordings…",
 			"Previous Station",
 			"Next Station",
+			"Move to Playing Station",
 			"Add to Favorites",
 			"Add to Collection…",
 		] {
 			assert!(
 				!playback.iter().any(|l| l == gone),
 				"{gone} moved out of Playback"
+			);
+		}
+	}
+
+	#[test]
+	fn file_exports_route_to_their_scopes() {
+		let entries = menu(s::MENU_FILE);
+		for action in [
+			Action::ExportCurrentList,
+			Action::ExportAllPlaylists,
+			Action::ExportFavorites,
+		] {
+			assert!(
+				entries
+					.iter()
+					.any(|entry| matches!(entry, Entry::Item(_, _, bound) if *bound == action))
 			);
 		}
 	}

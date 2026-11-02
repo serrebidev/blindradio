@@ -388,8 +388,8 @@ mod uia {
 	/// a second the strip window itself, so whichever of the two a
 	/// UIA element-from-point lands on, it reports a status bar.
 	struct Provider {
-		simple_vtbl: *const SimpleVtbl,
-		fragment_vtbl: *const FragmentVtbl,
+		_simple_vtbl: *const SimpleVtbl,
+		_fragment_vtbl: *const FragmentVtbl,
 		refs: AtomicU32,
 		hwnd: Hwnd,
 		strip: Hwnd,
@@ -712,8 +712,8 @@ mod uia {
 	/// per window; each call creates that window's own provider.
 	pub fn install(hwnd: Hwnd, strip: Hwnd) {
 		let provider = Box::new(Provider {
-			simple_vtbl: &SIMPLE_VTBL,
-			fragment_vtbl: &FRAGMENT_VTBL,
+			_simple_vtbl: &SIMPLE_VTBL,
+			_fragment_vtbl: &FRAGMENT_VTBL,
 			refs: AtomicU32::new(1),
 			hwnd,
 			strip,
