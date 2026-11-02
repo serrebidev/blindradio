@@ -248,6 +248,10 @@ pub struct Clip {
 	pub cut: bool,
 	pub from_collection: Option<String>,
 	pub from_favorites: bool,
+	/// The folder path inside `from_collection` (or inside Favorites)
+	/// the station was taken from: a cut pasted back into the very
+	/// list it came from has nowhere to go.
+	pub from_path: Vec<usize>,
 }
 
 /// Where Paste puts the clipboard station.
@@ -279,6 +283,13 @@ pub struct App {
 	pub selected: Option<Station>,
 	/// The station clipboard: Copy/Cut hold a station here until Paste.
 	pub station_clip: Option<Clip>,
+	/// Where Paste lands, as stated by the view the user is standing
+	/// in: Browse sets this from its focused row while it is open (a
+	/// folder or playlist row included) and it is cleared when the
+	/// dialog closes. Without it, Paste only knew the selected
+	/// station, so pasting "into the parent folder" from a folder
+	/// row went to the dial collection's root — or nowhere.
+	pub paste_home: Option<PasteDest>,
 	/// What Play/Pause plays after a stop.
 	remembered: Option<Station>,
 	/// Stations played this session, oldest first, for Previous/Next
@@ -374,6 +385,7 @@ impl App {
 			history: SessionHistory::default(),
 			selected: None,
 			station_clip: None,
+			paste_home: None,
 			remembered: None,
 			played: Vec::new(),
 			played_at: None,
@@ -679,15 +691,36 @@ impl App {
 					self.copy_station(&st, true);
 				}
 			}
-			Action::PasteStation => match self.selected.clone() {
-				Some(st) => self.paste_near(&st),
-				None => match dial_collection(&self.library, self.settings.main_list.as_deref())
-					.map(|c| c.id.clone())
-				{
-					Some(id) => self.paste_into(PasteDest::Collection(id, Vec::new())),
-					None => self.say(s::NOWHERE_TO_PASTE),
-				},
-			},
+			Action::PasteStation => {
+				// Paste lands where the user is standing: the open
+				// dialog's focused row first (Browse states it), then
+				// the main tree's focused folder row, then beside the
+				// selected station as before.
+				if let Some(dest) = self.paste_home.clone() {
+					self.paste_into(dest);
+				} else if !self.dialog_open
+					&& let Some((id, path)) = self.win.stations.selected_folder_home(
+						&self.library,
+						self.settings.main_list.as_deref(),
+					) {
+					self.paste_into(PasteDest::Collection(id, path));
+				} else {
+					match self.selected.clone() {
+						Some(st) => self.paste_near(&st),
+						None => match dial_collection(
+							&self.library,
+							self.settings.main_list.as_deref(),
+						)
+						.map(|c| c.id.clone())
+						{
+							Some(id) => {
+								self.paste_into(PasteDest::Collection(id, Vec::new()))
+							}
+							None => self.say(s::NOWHERE_TO_PASTE),
+						},
+					}
+				}
+			}
 			Action::CheckForUpdates => update::check(&self.win.frame, CheckTrigger::Manual),
 		}
 		self.refresh();
@@ -1653,16 +1686,18 @@ impl App {
 	/// Copy or cut a station onto the clipboard. A cut station stays
 	/// where it is until Paste takes it out of its home.
 	pub fn copy_station(&mut self, station: &Station, cut: bool) {
-		let (from_collection, from_favorites) = match self.library.station_home(&station.id) {
-			Some(Home::Collection { id, .. }) => (Some(id), false),
-			Some(Home::Favorite { .. }) => (None, true),
-			None => (None, false),
-		};
+		let (from_collection, from_favorites, from_path) =
+			match self.library.station_home(&station.id) {
+				Some(Home::Collection { id, path }) => (Some(id), false, path),
+				Some(Home::Favorite { path }) => (None, true, path),
+				None => (None, false, Vec::new()),
+			};
 		self.station_clip = Some(Clip {
 			station: station.clone(),
 			cut,
 			from_collection,
 			from_favorites,
+			from_path,
 		});
 		let prefix = if cut { s::CUT_SAID } else { s::COPIED_STATION };
 		self.say(&format!("{prefix}{}", station.name));
@@ -1681,46 +1716,77 @@ impl App {
 				let Some(c) = self.library.collections.iter().find(|c| &c.id == id) else {
 					return self.say(s::NOWHERE_TO_PASTE);
 				};
+				// The destination list itself must exist before
+				// anything is taken out of anywhere for a cut.
+				let Some(list) = c.stations_at(path) else {
+					return self.say(s::NOWHERE_TO_PASTE);
+				};
 				(
-					c.stations_at(path)
-						.is_some_and(|v| v.iter().any(|x| x.id == st.id)),
+					list.iter().any(|x| x.id == st.id),
 					c.name.clone(),
 				)
 			}
-			PasteDest::Favorites(path) => (
-				self.library
-					.fav_stations_at(path)
-					.is_some_and(|v| v.iter().any(|x| x.id == st.id)),
-				s::FAVORITES_LIST.to_string(),
-			),
+			PasteDest::Favorites(path) => {
+				let Some(list) = self.library.fav_stations_at(path) else {
+					return self.say(s::NOWHERE_TO_PASTE);
+				};
+				(
+					list.iter().any(|x| x.id == st.id),
+					s::FAVORITES_LIST.to_string(),
+				)
+			}
 		};
-		if held {
+		// A cut pasted back into the very list it was taken from has
+		// nowhere to go; that is the one "already in" a cut keeps.
+		let same_home = clip.cut
+			&& match &dest {
+				PasteDest::Collection(id, path) => {
+					clip.from_collection.as_deref() == Some(id.as_str())
+						&& clip.from_path == *path
+				}
+				PasteDest::Favorites(path) => {
+					clip.from_favorites && clip.from_path == *path
+				}
+			};
+		if held && (!clip.cut || same_home) {
 			return self.say(&format!("{}{}{}", st.name, s::IS_ALREADY_IN, dest_name));
 		}
 		if clip.cut {
+			// Out of the list it was taken from, specifically: the
+			// same station may be filed in other lists too, and
+			// those copies are not the cut's to take.
 			if let Some(from) = &clip.from_collection
-				&& let Some(c) = self.library.collection_mut(from)
+				&& let Some(list) = self
+					.library
+					.collection_mut(from)
+					.and_then(|c| c.stations_at_mut(&clip.from_path))
 			{
-				c.remove_id(&st.id);
+				list.retain(|x| x.id != st.id);
 			}
-			if clip.from_favorites {
-				self.library.remove_favorite(&st.id);
+			if clip.from_favorites
+				&& let Some(list) = self.library.fav_stations_at_mut(&clip.from_path)
+			{
+				list.retain(|x| x.id != st.id);
 			}
 			self.station_clip = None;
 		}
-		let landed = match &dest {
-			PasteDest::Collection(id, path) => self
-				.library
-				.collection_mut(id)
-				.and_then(|c| c.stations_at_mut(path))
-				.map(|v| v.push(st.clone()))
-				.is_some(),
-			PasteDest::Favorites(path) => self
-				.library
-				.fav_stations_at_mut(path)
-				.map(|v| v.push(st.clone()))
-				.is_some(),
-		};
+		// A cut whose station already lives at the destination (filed
+		// there separately) is done once the source copy is out: the
+		// move has landed, and pushing would duplicate it.
+		let landed = held
+			|| match &dest {
+				PasteDest::Collection(id, path) => self
+					.library
+					.collection_mut(id)
+					.and_then(|c| c.stations_at_mut(path))
+					.map(|v| v.push(st.clone()))
+					.is_some(),
+				PasteDest::Favorites(path) => self
+					.library
+					.fav_stations_at_mut(path)
+					.map(|v| v.push(st.clone()))
+					.is_some(),
+			};
 		if !landed {
 			return self.say(s::NOWHERE_TO_PASTE);
 		}

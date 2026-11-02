@@ -804,6 +804,23 @@ impl BrowseModel {
 		}
 	}
 
+	/// Where Paste puts a station copied with this row in mind: a
+	/// local station's own folder, a local folder itself, or a
+	/// collection's own level (its row's key is the collection id).
+	/// None for remote rows and for the Collections header itself.
+	pub fn paste_home(&self, i: usize) -> Option<(String, Vec<usize>)> {
+		if let Some((collection, path, _)) = self.local_station(i) {
+			return Some((collection, path));
+		}
+		if let Some(home) = self.local_folder(i) {
+			return Some(home);
+		}
+		if i == self.collections || !self.is_local(i) {
+			return None;
+		}
+		self.key(i).map(|key| (key.to_owned(), Vec::new()))
+	}
+
 	/// The row of a local folder, or of the collection itself for an
 	/// empty path, found by the key its level builder gives it.
 	pub fn local_row(&self, collection: &str, path: &[usize]) -> Option<usize> {
@@ -1050,7 +1067,11 @@ impl View {
 			m.set_focus(i);
 			m.dial(i)
 		};
+		// Paste follows the row the user is standing on, folder and
+		// playlist rows included, not only stations.
+		let home = self.model.borrow().paste_home(i);
 		let mut a = app.borrow_mut();
+		a.paste_home = home.map(|(id, path)| crate::app::PasteDest::Collection(id, path));
 		match dial {
 			Some((stations, k)) => a.focus_station(&stations, k),
 			None => a.selected = None,
@@ -1330,7 +1351,12 @@ impl View {
 		}
 		self.show_focus();
 		let m = self.model.borrow();
-		app.borrow_mut().selected = m.focus().and_then(|f| m.station(f)).cloned();
+		let mut a = app.borrow_mut();
+		a.selected = m.focus().and_then(|f| m.station(f)).cloned();
+		a.paste_home = m
+			.focus()
+			.and_then(|f| m.paste_home(f))
+			.map(|(id, path)| crate::app::PasteDest::Collection(id, path));
 	}
 
 	fn context_menu(self: &Rc<Self>, app: &Rc<RefCell<App>>, token: &WindowToken) {
@@ -1353,17 +1379,8 @@ impl View {
 					.then(|| (key.to_owned(), Vec::new()))
 			});
 			let has_clip = a.station_clip.is_some();
-			// Where Paste would land: inside a local folder, or at
-			// the level of the collection whose row this is (the
-			// Custom Stations root included, by its own key).
-			let paste_dest = m.local_folder(f).or_else(|| {
-				let key = m.key(f)?;
-				a.library
-					.collections
-					.iter()
-					.any(|c| c.id == key)
-					.then(|| (key.to_owned(), Vec::new()))
-			});
+			// Where Paste would land for this row: the model's word.
+			let paste_dest = m.paste_home(f);
 			(
 				context_menu::items_for(&m.target(f), &a.library, has_clip),
 				m.station(f).cloned(),
@@ -2318,5 +2335,37 @@ mod tests {
 		let x = find(&m, Some(misc), "x");
 		assert_eq!(m.display_label(x), "x");
 		assert_eq!(m.display_label(collections), m.label(collections));
+	}
+
+	#[test]
+	fn browse_paste_homes_follow_the_row() {
+		let mut lib = Library::default();
+		let p = lib.create_collection("List");
+		{
+			let c = lib.collection_mut(&p).unwrap();
+			c.stations_at_mut(&[]).unwrap().push(st("root-one"));
+			let sub = c.add_folder(&[], "Sub").unwrap();
+			c.stations_at_mut(&sub).unwrap().push(st("deep"));
+		}
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let list = find(&m, Some(collections), &p);
+		let sub = find(&m, Some(list), &format!("{p}/f0"));
+		// A playlist row pastes at its own level; a folder row into
+		// itself; a station into the folder holding it.
+		assert_eq!(m.paste_home(list), Some((p.clone(), Vec::new())));
+		assert_eq!(m.paste_home(sub), Some((p.clone(), vec![0])));
+		let deep = find(&m, Some(sub), "deep");
+		assert_eq!(m.paste_home(deep), Some((p.clone(), vec![0])));
+		let root_one = find(&m, Some(list), "root-one");
+		assert_eq!(m.paste_home(root_one), Some((p.clone(), Vec::new())));
+		// The Custom Stations root is a level of its own; the
+		// Collections header is not a paste target at all.
+		let custom = find(&m, None, CUSTOM);
+		assert_eq!(
+			m.paste_home(custom),
+			Some((CUSTOM.to_string(), Vec::new()))
+		);
+		assert_eq!(m.paste_home(collections), None);
 	}
 }

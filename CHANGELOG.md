@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.40
+
+- Fixed pasting into a parent directory for real this time. The 0.2.39 fix put Paste Station on the playlist and folder menus, but Paste itself (Ctrl+V) still only knew the selected station: from a folder row in Browse it pasted into the main list's root instead of the row you were standing on — answering "already in Custom Stations" when the station already lived there — and from a folder row in the main window, with the main list set to All Lists, it answered "Nowhere to paste". Paste now follows the focused row in both windows: on a folder or playlist row it lands at that row's level; on a station it lands beside it, as before.
+- Cutting a station and pasting it where a copy of it already lives now completes the move instead of refusing with "already in": the copy in the source folder is removed and the station stays filed at the destination. A copy-paste into a list that already holds the station still says so, and a cut pasted back into its own list still has nowhere to go.
+
 ## 0.2.39
 
 - Stations can now live at a playlist's own level: Paste Station appears on playlist and folder rows in Browse and in the main window's list, and pastes the copied or cut station at that row's level, beside its folders — so a station can be moved out of a subfolder directly into the parent playlist, with no subfolder having to hold it. (A new station's destination picker already offered every playlist itself.)

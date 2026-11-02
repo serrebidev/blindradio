@@ -153,6 +153,8 @@ pub fn run(
 		let mut a = app.borrow_mut();
 		a.dialog_open = false;
 		a.selected = None;
+		// A paste home belongs to the dialog that stated it.
+		a.paste_home = None;
 		a.tuner.list_closed();
 	}
 	dialog.destroy();

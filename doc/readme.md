@@ -65,7 +65,11 @@ stays bare, since its full count is not known until every level under it has loa
 Paste Station on a playlist or folder row puts the clipboard station at that row's own
 level, beside its folders: a station copied or cut out of a subfolder can be pasted
 straight into the parent playlist, without a subfolder having to hold it. A new
-station's destination picker offers every playlist itself as well as its folders. The main window's list takes
+station's destination picker offers every playlist itself as well as its folders.
+Ctrl+V pastes where you are standing, in Browse and in the main window alike: on a
+folder or playlist row, into that row's level; on a station, beside it. Cutting a
+station and pasting it where a copy of it already lives completes the move instead of
+refusing: the source copy goes away and the station stays filed where it already was. The main window's list takes
 the new order as soon as Browse closes — no restart.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there removes the folder too — after asking, and

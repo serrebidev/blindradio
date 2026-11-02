@@ -115,6 +115,20 @@ impl DialTree {
 		self.row(&item)
 	}
 
+	/// Where Paste lands when a folder row is focused: its
+	/// collection and index path (empty for a collection row itself,
+	/// at the top of the All Lists view). None on a station row.
+	pub fn selected_folder_home(
+		&self,
+		lib: &Library,
+		main_list: Option<&str>,
+	) -> Option<(String, Vec<usize>)> {
+		match self.selected_row()? {
+			Row::Folder(key) => folder_home(lib, main_list, &key),
+			Row::Station(_) => None,
+		}
+	}
+
 	fn item_of(&self, index: usize) -> Option<TreeItemId> {
 		self.rows
 			.borrow()
