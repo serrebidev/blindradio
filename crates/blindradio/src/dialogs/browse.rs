@@ -1420,6 +1420,7 @@ impl View {
 		let Some(choice) = context_menu::popup(&self.tree, &items) else {
 			return;
 		};
+		let deleted = station.is_some() && choice == Choice::DeleteCustom;
 		match (station, collection, choice) {
 			(Some(st), _, choice) => context_menu::apply(app, &self.tree, &st, choice),
 			(None, Some((id, name)), Choice::Export) => {
@@ -1570,6 +1571,16 @@ impl View {
 			_ => {}
 		}
 		self.refresh_local(app);
+		if deleted {
+			// Play on Move: the station that took the deleted one's
+			// place has the focus now, so it plays, like moving onto
+			// it would (focus_station checks the setting itself).
+			if let Some(f) = self.model.borrow().focus()
+				&& let Some((stations, k)) = self.model.borrow().dial(f)
+			{
+				app.borrow_mut().focus_station(&stations, k);
+			}
+		}
 	}
 }
 

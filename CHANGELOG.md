@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.42
+
+- With "Play a station as I move to it" on, deleting a station now plays the station that takes its place. Focus landed on the next station after a deletion, but nothing played it — you had to press Enter. The station that gains focus after a deletion is treated like moving onto it, in the main window's list, in Browse, and in Favorites. With the setting off, nothing changes, and deleting a station you are not standing on never disturbs what is playing.
+
 ## 0.2.41
 
 - Slow-opening streams are no longer announced as failed while they are still opening. The first connect had five seconds for everything — connect, redirects, playlist fetches and the first audio — and a first connect that runs out of time fails at once, with no retry. A chained HLS address like MediaWorks' (a redirect, a master playlist, a variant playlist, then the first segment, each hop slow on a far server) could pass five seconds on a healthy stream. The start budget is now fifteen seconds. A stream that has played and then drops still reconnects under the existing sixty-second window.

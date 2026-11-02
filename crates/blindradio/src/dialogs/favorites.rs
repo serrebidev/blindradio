@@ -295,6 +295,13 @@ impl View {
 					a.say(s::REMOVED_FROM_FAVORITES);
 				}
 				self.refresh(app, next.map(Focus::Station));
+				// Play on Move: the station that took the removed
+				// one's place has the focus now, so it plays, like
+				// moving onto it would (focus_station checks the
+				// setting itself).
+				if let Some(i) = focus {
+					app.borrow_mut().focus_station(&remaining, i);
+				}
 			}
 			_ => {
 				let name = {

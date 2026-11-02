@@ -1660,9 +1660,20 @@ impl App {
 		let Some(st) = self.win.stations.stations().get(index).cloned() else {
 			return;
 		};
+		let was_focused = self.win.stations.current() == Some(index);
 		self.library.remove_from_collection(&id, &st.id);
 		self.save_library();
 		self.refresh_dial();
+		// Play on Move: the station that took the deleted one's
+		// place has the focus now, so it plays, like moving onto
+		// it would. Deleting any other station changes nothing.
+		if was_focused
+			&& self.settings.play_on_move
+			&& let Some(i) = self.win.stations.current()
+		{
+			let stations = self.win.stations.stations();
+			self.tune(&stations, i);
+		}
 	}
 
 	/// Add to Collection: says which way it went.
