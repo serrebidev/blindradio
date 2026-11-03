@@ -20,6 +20,19 @@ pub enum Route {
 		content_type: String,
 		body: Vec<u8>,
 	},
+	/// Like Static, with extra header lines (raw bytes, so tests can send Latin-1).
+	Headers {
+		path: String,
+		content_type: String,
+		headers: Vec<u8>,
+		body: Vec<u8>,
+	},
+	/// Like Static, answering a `Range: bytes=a-b` request with that part alone.
+	Ranged {
+		path: String,
+		content_type: String,
+		body: Vec<u8>,
+	},
 	/// Like Static, but each request gets the next body; the last one repeats.
 	Sequence {
 		path: String,
@@ -54,6 +67,8 @@ impl Route {
 		match self {
 			Route::Static { path, .. }
 			| Route::Gzip { path, .. }
+			| Route::Ranged { path, .. }
+			| Route::Headers { path, .. }
 			| Route::Sequence { path, .. }
 			| Route::Stream { path, .. }
 			| Route::Silent { path }
@@ -193,6 +208,37 @@ async fn handle(
 		Route::Static {
 			content_type, body, ..
 		} => static_reply(&mut sock, content_type, &fill(body, base)).await,
+		Route::Headers {
+			content_type,
+			headers,
+			body,
+			..
+		} => {
+			let mut head = format!(
+				"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n",
+				body.len()
+			)
+			.into_bytes();
+			head.extend_from_slice(headers);
+			head.extend_from_slice(b"\r\n\r\n");
+			sock.write_all(&head).await?;
+			sock.write_all(body).await
+		}
+		Route::Ranged {
+			content_type, body, ..
+		} => {
+			let range = line
+				.lines()
+				.filter_map(|l| l.split_once(':'))
+				.find(|(k, _)| k.eq_ignore_ascii_case("range"))
+				.and_then(|(_, v)| v.trim().strip_prefix("bytes=")?.split_once('-'))
+				.and_then(|(a, b)| Some((a.parse::<usize>().ok()?, b.parse::<usize>().ok()?)));
+			let part = match range {
+				Some((first, last)) => &body[first..=last],
+				None => &body[..],
+			};
+			static_reply(&mut sock, content_type, part).await
+		}
 		Route::Gzip {
 			content_type, body, ..
 		} => {

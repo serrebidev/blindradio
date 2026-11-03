@@ -464,6 +464,60 @@ fn stream_plays_raw_ts_however_it_is_labeled() {
 	}
 }
 
+fn fixture_bytes(name: &str) -> Vec<u8> {
+	std::fs::read(format!(
+		"{}/tests/fixtures/{name}",
+		env!("CARGO_MANIFEST_DIR")
+	))
+	.unwrap()
+}
+
+#[test]
+fn stream_plays_every_ts_audio_format() {
+	// ATSC's stream type, DVB's descriptors, and AAC in LATM.
+	for name in ["ts_ac3_atsc.ts", "ts_ac3_dvb.ts", "ts_eac3_dvb.ts", "ts_latm.ts"] {
+		let server = serve(vec![Route::Stream {
+			path: "/live.ts".into(),
+			content_type: "video/mp2t".into(),
+			data: fixture_bytes(name),
+			metaint: None,
+			titles: vec![],
+			burst: 64_000,
+			bytes_per_sec: 64_000,
+			close_after: None,
+		}]);
+		let (s, rx) = play(&server.url("/live.ts"), &ctx(Duration::from_secs(60)));
+		let seen = events_until(&rx, Duration::from_secs(5), |e| {
+			matches!(e, StreamEvent::FirstAudio | StreamEvent::Failed(_))
+		});
+		assert_eq!(seen.last(), Some(&StreamEvent::FirstAudio), "{name}");
+		drop(s);
+	}
+}
+
+#[test]
+fn stream_reports_opus_tags_as_titles() {
+	let mut data = fixture_bytes("song1.opus");
+	data.extend(fixture_bytes("song2.opus"));
+	let server = serve(vec![Route::Stream {
+		path: "/hd".into(),
+		content_type: "application/ogg".into(),
+		data,
+		metaint: None,
+		titles: vec![],
+		burst: 64_000,
+		bytes_per_sec: 64_000,
+		close_after: None,
+	}]);
+	let (_s, rx) = play(&server.url("/hd"), &ctx(Duration::from_secs(60)));
+	let second = StreamEvent::Title(Some("Mara - Second Song".into()));
+	let seen = events_until(&rx, Duration::from_secs(10), |e| *e == second);
+	assert!(
+		seen.contains(&StreamEvent::Title(Some("Lucid - End Of Time".into()))),
+		"{seen:?}"
+	);
+}
+
 #[test]
 fn stream_refuses_ts_with_no_audio_at_once() {
 	// One H.264-only program.

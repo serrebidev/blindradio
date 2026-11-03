@@ -1,3 +1,4 @@
+pub mod ac3;
 pub mod decode;
 pub mod encoded_ring;
 pub mod eq;
@@ -5,6 +6,7 @@ pub mod error;
 pub mod history;
 pub mod hls;
 pub mod import;
+mod latm;
 pub mod library;
 pub mod mp2;
 pub mod net;

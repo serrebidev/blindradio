@@ -34,8 +34,47 @@ pub fn is_stream_url(url: &str) -> bool {
 	url.starts_with("http://") || url.starts_with("https://")
 }
 
+/// The Name Automatically button, under the URL: fills the name field with what the station calls
+/// itself and says it. A failed lookup says so and leaves what was typed; either way the name
+/// stays an ordinary field to edit.
+fn name_button(
+	app: &Rc<RefCell<App>>,
+	dialog: &Dialog,
+	sizer: &BoxSizer,
+	name: TextCtrl,
+	url: TextCtrl,
+	token: &WindowToken,
+) {
+	let button = Button::builder(dialog)
+		.with_label(s::NAME_AUTOMATICALLY)
+		.build();
+	sizer.add(&button, 0, SizerFlag::All, 5);
+	let (a, token) = (app.clone(), token.clone());
+	button.on_click(move |_| {
+		let link = url.get_value();
+		if !is_stream_url(&link) {
+			return a.borrow_mut().say(s::NOT_A_STREAM_URL);
+		}
+		let link = clean_url(&link);
+		let mut app = a.borrow_mut();
+		app.say(s::LOOKING_UP_NAME);
+		app.bridge.spawn(
+			token.clone(),
+			app.station_name_lookup(link),
+			move |app: &mut App, found: Option<String>| match found {
+				Some(found) => {
+					name.set_value(&found);
+					app.say(&found);
+				}
+				None => app.say(s::NO_NAME_FOUND),
+			},
+		);
+	});
+}
+
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
+	let token = WindowToken::new();
 	let dialog = Dialog::builder(&frame, s::ADD_CUSTOM_TITLE).build();
 	let name_label = StaticText::builder(&dialog).with_label(s::NAME).build();
 	let name = TextCtrl::builder(&dialog).build();
@@ -64,6 +103,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		);
 		sizer.add(control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	}
+	name_button(app, &dialog, &sizer, name, url, &token);
 	sizer.add(
 		&dest_label,
 		0,
@@ -86,7 +126,6 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	add_ok_cancel_footer(sizer, ok, cancel);
 	dialog.set_sizer_and_fit(sizer, true);
 
-	let token = WindowToken::new();
 	{
 		let (a, d) = (app.clone(), dialog);
 		ok.on_click(move |_| {
@@ -134,6 +173,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 /// renamed and re-pointed in place.
 pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let frame = app.borrow().win.frame;
+	let token = WindowToken::new();
 	let current = app
 		.borrow()
 		.settings
@@ -170,6 +210,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		);
 		sizer.add(control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	}
+	name_button(app, &dialog, &sizer, name, url, &token);
 	let minutes = field(
 		&dialog,
 		&sizer,
@@ -207,7 +248,6 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	add_ok_cancel_footer(sizer, ok, cancel);
 	dialog.set_sizer_and_fit(sizer, true);
 
-	let token = WindowToken::new();
 	{
 		let (a, d) = (app.clone(), dialog);
 		let id = station.id.clone();

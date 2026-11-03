@@ -4,7 +4,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use blindradio_core::settings::{RecordFormat, RecognitionProvider};
+use blindradio_core::settings::{BufferSettings, RecordFormat, RecognitionProvider};
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
 
@@ -27,6 +27,70 @@ pub(crate) fn field(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: &str)
 	);
 	sizer.add(&control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	control
+}
+
+/// A number as a text field and a slider that follow each other. The field takes any number
+/// typed; the slider shows it inside `range`, and the arrows move it by `step`. The field is
+/// what is read back, so a value is whatever was last typed or slid to.
+fn slider_field(
+	dialog: &Dialog,
+	sizer: &BoxSizer,
+	label: &str,
+	range: (u32, u32),
+	step: i32,
+	value: u32,
+) -> TextCtrl {
+	let text = field(dialog, sizer, label, &value.to_string());
+	let (min, max) = (range.0 as i32, range.1 as i32);
+	let caption = StaticText::builder(dialog)
+		.with_label(&format!(
+			"{}{}",
+			label.trim_end_matches(':'),
+			s::SLIDER_SUFFIX
+		))
+		.build();
+	let slider = Slider::builder(dialog)
+		.with_min_value(min)
+		.with_max_value(max)
+		.with_value(value as i32)
+		.build();
+	sizer.add(
+		&caption,
+		0,
+		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+		5,
+	);
+	sizer.add(&slider, 0, SizerFlag::Expand | SizerFlag::All, 5);
+	slider.on_slider(move |e| text.change_value(&e.get_value().to_string()));
+	slider.on_key_down(move |e| {
+		let WindowEventData::Keyboard(key) = e else {
+			return;
+		};
+		let plain = !(key.control_down() || key.alt_down() || key.shift_down());
+		let delta = key
+			.get_key_code()
+			.and_then(crate::main_window::volume_step)
+			.filter(|_| plain);
+		match delta {
+			Some(delta) => {
+				// Consumed, or the native trackbar moves it as well (the wrong way). The
+				// volume keys step by 5 and page by 10: here, by one step and ten.
+				key.event.skip(false);
+				let by = if delta.abs() == 10 { step * 10 } else { step };
+				let moved = slider.get_value() + by * delta.signum();
+				let moved = moved.clamp(min, max);
+				slider.set_value(moved);
+				text.change_value(&moved.to_string());
+			}
+			None => key.event.skip(true),
+		}
+	});
+	text.on_text_updated(move |_| {
+		if let Ok(typed) = text.get_value().trim().parse::<i32>() {
+			slider.set_value(typed.clamp(min, max));
+		}
+	});
+	text
 }
 
 fn check(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: bool) -> CheckBox {
@@ -142,6 +206,30 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
 	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
 	let max_start = check(&dialog, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
+	let buffer_start = slider_field(
+		&dialog,
+		&sizer,
+		s::BUFFER_START,
+		BufferSettings::START_MS,
+		100,
+		current.buffers.start_ms,
+	);
+	let buffer_refill = slider_field(
+		&dialog,
+		&sizer,
+		s::BUFFER_REFILL,
+		BufferSettings::REFILL_SECONDS,
+		1,
+		current.buffers.refill_limit_seconds,
+	);
+	let buffer_hls = slider_field(
+		&dialog,
+		&sizer,
+		s::BUFFER_HLS,
+		BufferSettings::HLS_SEGMENTS,
+		1,
+		current.buffers.hls_segments_behind,
+	);
 	let ts_on = check(&dialog, &sizer, s::TS_ENABLE, current.timeshift.enabled);
 	let ts_minutes = field(
 		&dialog,
@@ -273,6 +361,18 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.fm_sound = fm_sound.get_value();
 			st.close_to_tray = tray.get_value();
 			st.maximize_on_start = max_start.get_value();
+			st.buffers = BufferSettings {
+				start_ms: parse_or(&buffer_start.get_value(), st.buffers.start_ms),
+				refill_limit_seconds: parse_or(
+					&buffer_refill.get_value(),
+					st.buffers.refill_limit_seconds,
+				),
+				hls_segments_behind: parse_or(
+					&buffer_hls.get_value(),
+					st.buffers.hls_segments_behind,
+				),
+			}
+			.clamped();
 			st.timeshift.enabled = ts_on.get_value();
 			st.timeshift.minutes = parse_or(&ts_minutes.get_value(), st.timeshift.minutes);
 			st.timeshift.encoded_ring = ts_ring.get_value();
@@ -307,6 +407,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				&& st.recognition.audd_token.is_none();
 			app.save_settings();
 			app.apply_fm_sound();
+			app.apply_buffers();
 			app.refresh_dial();
 			if recog_no_token {
 				app.say_announced(s::RECOG_NO_TOKEN);

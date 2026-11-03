@@ -79,6 +79,37 @@ fn gzipped_hls_station_plays() {
 
 #[test]
 #[ignore = "network"]
+fn opus_station_says_what_is_playing() {
+	let engine = engine();
+	let station = dev_stations()
+		.into_iter()
+		.find(|s| s.id == "serrebiradio-hd-opus")
+		.unwrap();
+	let (tx, rx) = mpsc::channel();
+	let started = Instant::now();
+	let _stream = start(
+		&station,
+		&engine.ctx,
+		Box::new(move |event| {
+			let _ = tx.send(event);
+		}),
+	);
+	loop {
+		let left = Duration::from_secs(10).saturating_sub(started.elapsed());
+		match rx.recv_timeout(left).expect("a title within 10 s") {
+			StreamEvent::Title(Some(title)) => {
+				println!("{title} after {} ms", started.elapsed().as_millis());
+				assert!(title.contains(" - "), "artist and title: {title}");
+				return;
+			}
+			StreamEvent::Failed(reason) => panic!("{reason}"),
+			_ => {}
+		}
+	}
+}
+
+#[test]
+#[ignore = "network"]
 fn he_aac_station_decodes() {
 	let engine = engine();
 	let station = dev_stations()

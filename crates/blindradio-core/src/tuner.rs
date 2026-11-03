@@ -11,7 +11,7 @@ use crate::net;
 use crate::output::{MixerCmd, Output};
 use crate::recognize::{SongId, identify_audd, wav_bytes};
 use crate::record::Recorder;
-use crate::ring::{CUSHION_MS, PcmRing};
+use crate::ring::PcmRing;
 use crate::ringfeed::{RingFeed, WINDOW_SECONDS};
 use crate::scrobble;
 use crate::settings::{RecognitionProvider, Settings};
@@ -26,9 +26,6 @@ const REPEAT: Duration = Duration::from_millis(100);
 const SETTLE: Duration = Duration::from_millis(1500);
 /// Warm neighbours close after this long without a focus.
 const WARM_IDLE: Duration = Duration::from_secs(25);
-/// A warm swap plays this far behind the ring's newest sample: the mixer's start cushion, so a
-/// ready neighbour swaps at once and one still filling waits like a cold start.
-const SWAP_MS: u32 = CUSHION_MS;
 /// DNS is warmed for the stations this close to the focused one.
 const DNS_SPAN: usize = 5;
 /// A host is warmed again after this, since the OS resolver cache expires.
@@ -501,7 +498,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				Some(o) => {
 					let (ring, title, reconnecting) =
 						(o.ring.clone(), o.title.clone(), o.reconnecting);
-					ring.trim_to_ms(SWAP_MS);
+					// The mixer's start cushion, so a ready neighbour swaps at once and
+					// one still filling waits like a cold start.
+					ring.trim_to_ms(crate::ring::start_ms());
 					self.activate(target, ring, now, true);
 					self.emit(TunerEvent::Title {
 						station_id: target.id.clone(),

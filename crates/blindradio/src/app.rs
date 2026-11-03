@@ -416,6 +416,8 @@ impl App {
 		let data = data_dir();
 		let settings = Settings::load(&data);
 		let library = Library::load(&data);
+		// Before the mixer and the first stream, which read them as they are made.
+		settings.buffers.apply();
 		let output = Output::start(settings.audio_device.as_deref())?;
 		output.send(MixerCmd::Volume(settings.volume));
 		output.send(MixerCmd::Mute(settings.muted));
@@ -2159,8 +2161,28 @@ impl App {
 	}
 
 	/// The FM sound toggled in Settings: the mixer hears it at once.
+	/// Name Automatically's lookup, on the shared HTTP client.
+	pub fn station_name_lookup(
+		&self,
+		url: String,
+	) -> impl Future<Output = Option<String>> + Send + 'static {
+		let client = self.engine.ctx.client.clone();
+		async move { blindradio_core::net::station_name(&client, &url).await.ok() }
+	}
+
 	pub fn apply_fm_sound(&self) {
 		self.mixer(MixerCmd::Hiss(self.settings.fm_sound));
+	}
+
+	/// The playing station takes a new start buffer and limit at once; a new ring size and
+	/// HLS position wait for the next station opened.
+	pub fn apply_buffers(&self) {
+		let buffers = self.settings.buffers;
+		buffers.apply();
+		self.mixer(MixerCmd::Buffers {
+			start_ms: buffers.start_ms,
+			refill_limit_ms: buffers.refill_limit_seconds * 1000,
+		});
 	}
 
 	pub fn save_library(&mut self) {

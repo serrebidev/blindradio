@@ -6,6 +6,7 @@
 	{ "id": "foxnews-heaac", "name": "Fox News Radio HE-AAC", "url": "https://live.amperwave.net/direct/foxnewsradio-foxnewsradioaac-imc?source=fnr.web" },
 	{ "id": "dlf-opus", "name": "Deutschlandfunk Opus", "url": "https://st01.sslstream.dlf.de/dlf/01/high/opus/stream.opus?aggregator=web" },
 	{ "id": "secretagent-pls", "name": "Secret Agent PLS", "url": "https://somafm.com/secretagent.pls" },
+	{ "id": "serrebiradio-hd-opus", "name": "SerrebiRadio HD Opus", "url": "https://radio.serrebiradio.com:8000/serrebiradioHD" },
 	{ "id": "rtp-antena1-hls", "name": "RTP Antena 1 HLS", "url": "https://radioip.rtp.pt/liveradio/antena180a/chunklist.m3u8" },
 	{ "id": "bbc4-hls", "name": "BBC Radio 4 HLS", "url": "http://as-hls-ww-live.akamaized.net/pool_55057080/live/ww/bbc_radio_fourfm/bbc_radio_fourfm.isml/bbc_radio_fourfm-audio%3d128000.norewind.m3u8" },
 	{ "id": "fip-aac", "name": "FIP", "url": "https://icecast.radiofrance.fr/fip-hifi.aac" }

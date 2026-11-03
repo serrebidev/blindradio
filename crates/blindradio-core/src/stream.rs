@@ -111,6 +111,8 @@ const PLAYING_STALL: Duration = Duration::from_secs(15);
 /// cushion: a stream that keeps running dry earns a much bigger refill before
 /// it may sound again (see MixerCore), and the ring must be able to hold it.
 const RING_SECONDS: f32 = 20.0;
+/// Room kept above a Buffer setting that outgrows `RING_SECONDS`.
+const RING_SPARE_SECONDS: f32 = 5.0;
 /// End reason of an HLS playlist that finished (`#EXT-X-ENDLIST`).
 const ENDED: &str = "Ended";
 
@@ -158,6 +160,8 @@ struct Shared {
 	played: AtomicBool,
 	/// `Reconnecting` was sent and no connection has played since.
 	announced: AtomicBool,
+	/// The last title from the stream's own tags (Ogg); ICY titles are deduplicated in `pump`.
+	tag_title: Mutex<Option<String>>,
 }
 
 impl Shared {
@@ -173,12 +177,16 @@ pub fn start(
 	ctx: &EngineCtx,
 	on_event: Box<dyn Fn(StreamEvent) + Send + Sync>,
 ) -> StationStream {
-	let ring = Arc::new(PcmRing::new(ctx.out_rate, RING_SECONDS));
+	// Room for the largest refill the Buffer settings can demand, or playback would wait forever.
+	let wanted = crate::ring::start_ms().max(crate::ring::refill_limit_ms()) as f32 / 1000.0;
+	let seconds = RING_SECONDS.max(wanted + RING_SPARE_SECONDS);
+	let ring = Arc::new(PcmRing::new(ctx.out_rate, seconds));
 	let shared = Arc::new(Shared {
 		on_event,
 		alive: AtomicBool::new(true),
 		played: AtomicBool::new(false),
 		announced: AtomicBool::new(false),
+		tag_title: Mutex::new(None),
 	});
 	let task = ctx
 		.rt
@@ -415,6 +423,7 @@ fn ext_hint(content_type: &str) -> Option<&'static str> {
 		"audio/aac" | "audio/aacp" | "audio/x-aac" => "aac",
 		"audio/ogg" | "application/ogg" | "audio/opus" => "ogg",
 		"audio/flac" | "audio/x-flac" => "flac",
+		"audio/ac3" | "audio/eac3" | "audio/vnd.dolby.dd-raw" => "ac3",
 		_ => return None,
 	})
 }
@@ -785,6 +794,16 @@ fn decode(
 	let (mut pcm, mut out) = (Vec::new(), Vec::new());
 	loop {
 		let has_audio = decoder.next_stereo(&mut pcm)?;
+		if let Some(raw) = decoder.take_title() {
+			// A reconnect repeats the song's tags; the song has not changed.
+			let title = clean_title(&raw);
+			let mut last = shared.tag_title.lock();
+			if last.as_deref() != Some(&title) {
+				last.replace(title.clone());
+				drop(last);
+				shared.emit(StreamEvent::Title(Some(title)));
+			}
+		}
 		let source = decoder.take_source_bytes();
 		if let Some(buffer) = taps_for(taps, station_id).shift {
 			buffer.push_encoded(&source);

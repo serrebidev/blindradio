@@ -85,6 +85,56 @@ impl Default for TimeshiftSettings {
 	}
 }
 
+/// How much audio to wait for: more rides out a bad connection, less is closer to live.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BufferSettings {
+	/// Audio held before a station starts, in milliseconds.
+	pub start_ms: u32,
+	/// The most a stream that keeps dropping out must refill before it sounds again, in seconds.
+	pub refill_limit_seconds: u32,
+	/// Segments behind the newest that a live HLS stream starts.
+	pub hls_segments_behind: u32,
+}
+
+impl BufferSettings {
+	pub const START_MS: (u32, u32) = (0, 30_000);
+	pub const REFILL_SECONDS: (u32, u32) = (1, 120);
+	pub const HLS_SEGMENTS: (u32, u32) = (1, 10);
+
+	/// Every value inside what playback can honour.
+	pub fn clamped(self) -> Self {
+		BufferSettings {
+			start_ms: self.start_ms.clamp(Self::START_MS.0, Self::START_MS.1),
+			refill_limit_seconds: self
+				.refill_limit_seconds
+				.clamp(Self::REFILL_SECONDS.0, Self::REFILL_SECONDS.1),
+			hls_segments_behind: self
+				.hls_segments_behind
+				.clamp(Self::HLS_SEGMENTS.0, Self::HLS_SEGMENTS.1),
+		}
+	}
+
+	/// Puts these values in force for new streams.
+	pub fn apply(self) {
+		crate::ring::set_buffers(
+			self.start_ms,
+			self.refill_limit_seconds * 1000,
+			self.hls_segments_behind,
+		);
+	}
+}
+
+impl Default for BufferSettings {
+	fn default() -> Self {
+		BufferSettings {
+			start_ms: crate::ring::CUSHION_MS,
+			refill_limit_seconds: crate::ring::REFILL_LIMIT_MS / 1000,
+			hls_segments_behind: crate::ring::HLS_BEHIND,
+		}
+	}
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RecordFormat {
@@ -223,6 +273,7 @@ pub struct Settings {
 	/// manual Check for Updates in the Help menu.
 	pub check_updates: bool,
 	pub timeshift: TimeshiftSettings,
+	pub buffers: BufferSettings,
 	pub recording: RecordSettings,
 	pub recognition: RecognitionSettings,
 	pub scrobble: ScrobbleSettings,
@@ -260,6 +311,7 @@ impl Default for Settings {
 			last_update_check: None,
 			check_updates: true,
 			timeshift: TimeshiftSettings::default(),
+			buffers: BufferSettings::default(),
 			recording: RecordSettings::default(),
 			recognition: RecognitionSettings::default(),
 			scrobble: ScrobbleSettings::default(),
@@ -289,6 +341,7 @@ impl Settings {
 				*band = (*band).clamp(-MAX_DB, MAX_DB);
 			}
 		}
+		s.buffers = s.buffers.clamped();
 		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
 		s.timeshift.max_mb = s.timeshift.max_mb.min(16_384);
 		s.timeshift.seek_step_seconds = s.timeshift.seek_step_seconds.clamp(5, 60);

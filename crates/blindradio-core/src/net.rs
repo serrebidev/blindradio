@@ -263,6 +263,135 @@ async fn open_first(client: &reqwest::Client, urls: Vec<String>, depth: u8) -> R
 	}
 }
 
+/// All of a Name Automatically lookup.
+const NAME_DEADLINE: Duration = Duration::from_secs(8);
+/// TS bytes read looking for the service name; a channel repeats it every couple of seconds.
+const NAME_TS_BYTES: usize = 512 * 1024;
+
+/// What a station calls itself, for Name Automatically: its ICY or Icecast name, the title its
+/// playlist gives it, the service name in its TS, else a name made from the address. `Err` when
+/// nothing answers at all. The user can always edit what this finds.
+pub async fn station_name(client: &reqwest::Client, url: &str) -> Result<String> {
+	tokio::time::timeout(NAME_DEADLINE, name_at(client, url.to_owned(), 0))
+		.await
+		.unwrap_or_else(|_| Err(CoreError::Http("No data".into())))
+}
+
+fn name_at<'a>(
+	client: &'a reqwest::Client,
+	url: String,
+	depth: u8,
+) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>> {
+	Box::pin(async move {
+		if depth >= MAX_DEPTH {
+			return Err(not_a_stream());
+		}
+		let mut response = fetch(client, &url).await.map_err(http_err)?;
+		let status = response.status().as_u16();
+		if status >= 400 {
+			return Err(CoreError::Http(format!("HTTP {status}")));
+		}
+		let final_url = response.url().to_string();
+		for header in ["icy-name", "ice-name", "x-audiocast-name"] {
+			let named = response
+				.headers()
+				.get(header)
+				.and_then(|v| usable_name(&decode_text(v.as_bytes())));
+			if let Some(name) = named {
+				return Ok(name);
+			}
+		}
+		let mut body = read_head(&mut response).await?;
+		let text = String::from_utf8_lossy(&body).into_owned();
+		let kind = sniff(&text);
+		if matches!(kind, Some(PlaylistKind::Pls | PlaylistKind::M3u)) {
+			let entries = match kind {
+				Some(PlaylistKind::Pls) => parse_pls(&text),
+				_ => parse_m3u(&text),
+			};
+			let first = entries.first().ok_or_else(not_a_stream)?;
+			let titled = first.title.as_deref().and_then(usable_name);
+			return match titled {
+				Some(name) => Ok(strip_rank(&name).to_owned()),
+				None => name_at(client, first.url.clone(), depth + 1).await,
+			};
+		}
+		if crate::hls::looks_like_ts(&body) {
+			while body.len() < NAME_TS_BYTES {
+				if let Some(name) = crate::hls::ts_service_name(&body).as_deref().and_then(usable_name)
+				{
+					return Ok(name);
+				}
+				match response.chunk().await {
+					Ok(Some(c)) => body.extend_from_slice(&c),
+					_ => break,
+				}
+			}
+		}
+		Ok(name_from_url(&final_url))
+	})
+}
+
+/// UTF-8, else Latin-1, as old servers send their names.
+fn decode_text(bytes: &[u8]) -> String {
+	match std::str::from_utf8(bytes) {
+		Ok(text) => text.to_owned(),
+		Err(_) => bytes.iter().map(|&b| char::from(b)).collect(),
+	}
+}
+
+/// `None` for an empty name, an address, and the placeholders servers and muxers leave behind.
+fn usable_name(name: &str) -> Option<String> {
+	let name = name.trim();
+	let lower = name.to_ascii_lowercase();
+	let default_service = lower
+		.strip_prefix("service")
+		.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+	let placeholder = matches!(
+		lower.as_str(),
+		"" | "-" | "no name" | "noname" | "unnamed" | "unknown" | "unspecified" | "stream" | "n/a"
+	);
+	let address = lower.starts_with("http://") || lower.starts_with("https://");
+	(!(placeholder || default_service || address)).then(|| name.to_owned())
+}
+
+/// Shoutcast's playlists title a station `(#1 - 104/500) Name`.
+fn strip_rank(title: &str) -> &str {
+	title
+		.strip_prefix("(#")
+		.and_then(|rest| rest.split_once(") "))
+		.map_or(title, |(_, name)| name.trim())
+}
+
+/// The last part of the address that says something, else its host.
+fn name_from_url(url: &str) -> String {
+	const GENERIC: [&str; 16] = [
+		"chunklist", "playlist", "index", "master", "manifest", "stream", "live", "listen", "radio",
+		"hls", "audio", "icecast", "shoutcast", "mp3", "aac", "media",
+	];
+	let Ok(parsed) = reqwest::Url::parse(url) else {
+		return url.to_owned();
+	};
+	let said = parsed.path_segments().and_then(|segments| {
+		segments.rev().find_map(|segment| {
+			let stem = segment.split('.').next().unwrap_or_default();
+			let lower = stem.to_ascii_lowercase();
+			let generic = GENERIC.iter().any(|g| lower.starts_with(g));
+			(!stem.is_empty() && !generic && !lower.bytes().all(|b| b.is_ascii_digit()))
+				.then(|| stem.to_owned())
+		})
+	});
+	match said {
+		Some(stem) => percent_encoding::percent_decode_str(&stem)
+			.decode_utf8_lossy()
+			.replace('_', " "),
+		None => parsed
+			.host_str()
+			.map(|h| h.trim_start_matches("www.").to_owned())
+			.unwrap_or_else(|| url.to_owned()),
+	}
+}
+
 /// Warms the OS resolver cache; failures are irrelevant here.
 pub async fn warm_dns(hosts: Vec<String>) {
 	for host in hosts {
@@ -339,7 +468,29 @@ pub async fn get_json<T: serde::de::DeserializeOwned>(
 
 #[cfg(test)]
 mod tests {
-	use super::http_twin;
+	use super::{http_twin, name_from_url, strip_rank, usable_name};
+
+	#[test]
+	fn a_name_can_come_from_the_address() {
+		assert_eq!(
+			name_from_url("https://radioip.rtp.pt/liveradio/antena180a/chunklist.m3u8"),
+			"antena180a"
+		);
+		assert_eq!(name_from_url("http://x.example/Jazz_FM%20Live.mp3"), "Jazz FM Live");
+		assert_eq!(name_from_url("http://www.kuaz.example:8000/stream"), "kuaz.example");
+		assert_eq!(name_from_url("http://x.example/live/u/p/123.ts"), "p");
+	}
+
+	#[test]
+	fn placeholders_are_no_names() {
+		for junk in ["", "  ", "-", "no name", "Unnamed", "Service01", "http://x.example/a"] {
+			assert_eq!(usable_name(junk), None, "{junk}");
+		}
+		assert_eq!(usable_name(" Radio One ").as_deref(), Some("Radio One"));
+		assert_eq!(usable_name("Service Canada").as_deref(), Some("Service Canada"));
+		assert_eq!(strip_rank("(#1 - 104/500) Groove Salad"), "Groove Salad");
+		assert_eq!(strip_rank("Groove Salad"), "Groove Salad");
+	}
 
 	#[test]
 	fn http_twin_swaps_only_the_scheme() {

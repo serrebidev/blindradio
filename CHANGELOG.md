@@ -5,6 +5,18 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.47
+
+- AC-3 and E-AC-3 audio now plays, in TS channels (DVB and ATSC), in HLS and as a bare stream. Surround is mixed down to stereo with the centre channel kept, so dialogue stays. No extra files are installed: the decoder is compiled into BlindRadio.
+- AAC in LATM, as DVB-T2 and DVB-S2 channels carry it, now plays.
+- HLS in fragmented MP4 now plays, as does HLS encrypted with AES-128 and segments cut from one file with byte ranges. DRM, such as SAMPLE-AES or FairPlay, still answers `Unsupported format`.
+- Opus and Vorbis streams now show the song title. They send it in their own tags, not the ICY titles BlindRadio was looking for.
+- Settings (Ctrl+T) has three new buffer settings: Start buffer, Refill limit after dropouts and HLS segments behind live. Each is a text field you can type any number into, with a slider that moves with it. The start buffer and refill limit keep their old defaults of 1000 milliseconds and 15 seconds.
+- Live HLS now starts two segments behind the newest instead of three, about one segment closer to live, and looks for the next segment twice as often once it is due.
+- Moving onto a warm HLS station keeps enough audio to reach its next segment, instead of cutting to one second and then dropping out.
+- Shift+Up and Shift+Down now move stations in Favorites, as they do in Browse. They only moved folders there before.
+- Add Custom Station and Edit Station have a Name Automatically button. It asks the URL for the station's own name: the ICY or Icecast name, the title in its playlist, or the service name in a TS channel, as DVBViewer does. A stream that names itself nowhere gets a name made from its address. The name stays an ordinary field you can edit.
+
 ## 0.2.46
 
 - Paste in the main window now lands in the folder of the row you are on. When the same station was filed in more than one folder, BlindRadio used the first folder holding it and could answer "already in". Cut takes out the copy you are on for the same reason.

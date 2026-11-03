@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+use aes::Aes128;
+use aes::cipher::{BlockCipherDecrypt, KeyInit};
 use bytes::Bytes;
 use crossbeam_channel::Sender;
 use m3u8_rs::{
@@ -8,12 +10,11 @@ use m3u8_rs::{
 use reqwest::Url;
 use tokio::time::{sleep_until, timeout};
 
+use crate::latm::{LatmToAdts, is_loas};
 use crate::net::{http_err, not_a_stream, user_agent_for};
 use crate::stream::send;
 use crate::{CoreError, Result};
 
-/// Live playback starts this many segments back from the newest, as cushion against a slow fetch.
-const LIVE_EDGE: usize = 3;
 /// A live playlist that yields no new segment for this many target durations is lost.
 const STALL_TARGETS: u32 = 3;
 /// Request limit until the target duration is known.
@@ -51,18 +52,60 @@ pub async fn run_hls(
 	let limit = target.max(MIN_FETCH);
 	let mut next = playlist.media_sequence;
 	if !playlist.end_list {
-		next += playlist.segments.len().saturating_sub(LIVE_EDGE) as u64;
+		// The Buffer setting: fewer segments back is closer to live, with less to ride out a slow fetch.
+		next += playlist
+			.segments
+			.len()
+			.saturating_sub(crate::ring::hls_behind()) as u64;
 	}
 	let mut loaded = Instant::now();
 	let mut progress = loaded;
 	let mut last_err = None;
+	let mut init_sent = false;
+	// EXT-X-KEY and a byte range without an offset both hold over from the segments before them.
+	let mut key: Option<m3u8_rs::Key> = None;
+	let mut key_bytes: Option<(Url, [u8; 16])> = None;
+	let mut range_end = 0;
 	loop {
+		let mut fresh = false;
+		if !init_sent
+			&& let Some(map) = playlist.segments.iter().find_map(|s| s.map.as_ref())
+		{
+			// fMP4: the segments mean nothing to the decoder without their init segment.
+			let url = base.join(&map.uri).map_err(|_| not_a_stream())?;
+			let range = map.byte_range.as_ref().map(|r| (r.offset.unwrap_or(0), r.length));
+			let (_, init) = get(&client, &url, range, limit).await?;
+			if !send(&tx, init).await {
+				return Ok(());
+			}
+			init_sent = true;
+		}
 		for (seq, segment) in (playlist.media_sequence..).zip(&playlist.segments) {
+			if let Some(k) = &segment.key {
+				key = (k.method != KeyMethod::None).then(|| k.clone());
+			}
+			let range = segment.byte_range.as_ref().map(|r| {
+				let start = r.offset.unwrap_or(range_end);
+				range_end = start + r.length;
+				(start, r.length)
+			});
 			if seq < next {
 				continue;
 			}
 			next = seq + 1;
-			let Some((audio, id3)) = fetch_segment(&client, &base, &segment.uri, limit).await
+			fresh = true;
+			let decrypt = match &key {
+				Some(k) => {
+					let Some(bytes) = key_for(&client, &base, k, &mut key_bytes, limit).await
+					else {
+						continue;
+					};
+					Some((bytes, iv_for(k, seq)))
+				}
+				None => None,
+			};
+			let Some((audio, id3)) =
+				fetch_segment(&client, &base, &segment.uri, range, decrypt, limit).await
 			else {
 				continue;
 			};
@@ -83,7 +126,10 @@ pub async fn run_hls(
 		if progress.elapsed() > target * STALL_TARGETS {
 			return Err(last_err.unwrap_or_else(|| CoreError::Http("No data".into())));
 		}
-		sleep_until((loaded + target).into()).await;
+		// Nothing new means the next segment is due any moment: looking again sooner finds it up
+		// to half a target earlier, which is what makes starting nearer the live edge safe.
+		let wait = if fresh { target } else { target / 2 };
+		sleep_until((loaded + wait).into()).await;
 		let reloaded = fetch_playlist(&client, &url, limit).await;
 		loaded = Instant::now();
 		match reloaded {
@@ -97,12 +143,68 @@ pub async fn run_hls(
 	}
 }
 
-/// Decoder hint for audio sent by `run_hls`: ADTS is AAC, anything else MPEG audio.
+/// Decoder hint for the first audio from TS or `run_hls`: by its first bytes, else MPEG audio.
 pub(crate) fn hint(audio: &[u8]) -> &'static str {
 	match audio {
 		[0xFF, b, ..] if b & 0xF6 == 0xF0 => "aac",
+		[0x0B, 0x77, ..] => "ac3",
+		[_, _, _, _, b'f', b't', b'y', b'p', ..]
+		| [_, _, _, _, b's', b't', b'y', b'p', ..]
+		| [_, _, _, _, b'm', b'o', b'o', b'f', ..] => "mp4",
 		_ => "mp3",
 	}
+}
+
+/// The key a segment needs, fetched once per key URI.
+async fn key_for(
+	client: &reqwest::Client,
+	base: &Url,
+	key: &m3u8_rs::Key,
+	held: &mut Option<(Url, [u8; 16])>,
+	limit: Duration,
+) -> Option<[u8; 16]> {
+	let url = base.join(key.uri.as_deref()?).ok()?;
+	if let Some((at, bytes)) = held
+		&& *at == url
+	{
+		return Some(*bytes);
+	}
+	let (_, body) = get(client, &url, None, limit).await.ok()?;
+	let bytes: [u8; 16] = body.as_ref().try_into().ok()?;
+	*held = Some((url, bytes));
+	Some(bytes)
+}
+
+/// The IV a segment states, else its media sequence number, as HLS defines.
+fn iv_for(key: &m3u8_rs::Key, seq: u64) -> [u8; 16] {
+	let stated = key.iv.as_deref().and_then(|iv| {
+		let hex = iv.strip_prefix("0x").or_else(|| iv.strip_prefix("0X"))?;
+		u128::from_str_radix(hex, 16).ok()
+	});
+	stated.unwrap_or(u128::from(seq)).to_be_bytes()
+}
+
+/// AES-128-CBC with PKCS#7 padding, the whole segment at once. `None` when it is not valid.
+fn decrypt_segment(data: &[u8], key: &[u8; 16], iv: [u8; 16]) -> Option<Vec<u8>> {
+	let (blocks, rest) = data.as_chunks::<16>();
+	if !rest.is_empty() || blocks.is_empty() {
+		return None;
+	}
+	let cipher = Aes128::new(&(*key).into());
+	let mut out = Vec::with_capacity(data.len());
+	let mut previous = iv;
+	for block in blocks {
+		let mut plain = (*block).into();
+		cipher.decrypt_block(&mut plain);
+		out.extend(plain.iter().zip(previous).map(|(p, v)| p ^ v));
+		previous = *block;
+	}
+	let pad = usize::from(*out.last()?);
+	if !(1..=16).contains(&pad) || !out[out.len() - pad..].iter().all(|&b| usize::from(b) == pad) {
+		return None;
+	}
+	out.truncate(out.len() - pad);
+	Some(out)
 }
 
 fn unsupported() -> CoreError {
@@ -112,16 +214,19 @@ fn unsupported() -> CoreError {
 /// The audio-only variant with the highest bandwidth, else the lowest-bandwidth variant that may
 /// carry audio, for the fastest start.
 fn pick_variant(variants: &[VariantStream]) -> Option<&VariantStream> {
+	const AUDIO: [&str; 5] = ["mp4a", "ac-3", "ec-3", "opus", "flac"];
+	let is_audio = |c: &str| {
+		let c = c.trim().to_ascii_lowercase();
+		AUDIO.iter().any(|a| c.starts_with(a))
+	};
 	let playable = || variants.iter().filter(|v| !v.is_i_frame);
 	let codecs = |v: &VariantStream| v.codecs.clone().unwrap_or_default();
 	let audio_only = playable()
-		.filter(|v| {
-			v.codecs.is_some() && codecs(v).split(',').all(|c| c.trim().starts_with("mp4a"))
-		})
+		.filter(|v| v.codecs.is_some() && codecs(v).split(',').all(is_audio))
 		.max_by_key(|v| v.bandwidth);
 	audio_only.or_else(|| {
 		playable()
-			.filter(|v| v.codecs.is_none() || codecs(v).contains("mp4a"))
+			.filter(|v| v.codecs.is_none() || codecs(v).split(',').any(is_audio))
 			.min_by_key(|v| v.bandwidth)
 	})
 }
@@ -148,12 +253,19 @@ fn media(playlist: Playlist) -> Result<MediaPlaylist> {
 	let Playlist::MediaPlaylist(p) = playlist else {
 		return Err(not_a_stream());
 	};
-	// ponytail: fMP4 HLS unsupported; add when a wanted network needs it
-	let encrypted = |k: &m3u8_rs::Key| k.method != KeyMethod::None;
-	if p.segments
-		.iter()
-		.any(|s| s.map.is_some() || s.key.as_ref().is_some_and(encrypted))
-	{
+	// Plain AES-128 is ordinary HLS: the key is one more file the server hands out. SAMPLE-AES and
+	// any other key format is DRM, and stays refused.
+	let identity = |k: &m3u8_rs::Key| {
+		k.keyformat
+			.as_deref()
+			.is_none_or(|f| f.eq_ignore_ascii_case("identity"))
+	};
+	let playable = |k: &m3u8_rs::Key| match k.method {
+		KeyMethod::None => true,
+		KeyMethod::AES128 => k.uri.is_some() && identity(k),
+		_ => false,
+	};
+	if !p.segments.iter().all(|s| s.key.as_ref().is_none_or(playable)) {
 		return Err(unsupported());
 	}
 	Ok(p)
@@ -165,7 +277,7 @@ async fn fetch_playlist(
 	url: &Url,
 	limit: Duration,
 ) -> Result<(Url, Playlist)> {
-	let (base, body) = get(client, url, limit).await?;
+	let (base, body) = get(client, url, None, limit).await?;
 	Ok((base, parse(&body)?))
 }
 
@@ -180,11 +292,17 @@ async fn fetch_segment(
 	client: &reqwest::Client,
 	base: &Url,
 	uri: &str,
+	range: Option<(u64, u64)>,
+	decrypt: Option<([u8; 16], [u8; 16])>,
 	limit: Duration,
 ) -> Option<(Bytes, Option<String>)> {
 	let url = base.join(uri).ok()?;
 	for _ in 0..2 {
-		if let Ok((_, body)) = get(client, &url, limit).await {
+		if let Ok((_, body)) = get(client, &url, range, limit).await {
+			let body = match decrypt {
+				Some((key, iv)) => decrypt_segment(&body, &key, iv)?.into(),
+				None => body,
+			};
 			let (audio, title) = segment_audio(body);
 			return (!audio.is_empty()).then_some((audio, title));
 		}
@@ -192,14 +310,22 @@ async fn fetch_segment(
 	None
 }
 
-async fn get(client: &reqwest::Client, url: &Url, limit: Duration) -> Result<(Url, Bytes)> {
+/// `range` is a byte range's start and length, for segments cut from one file.
+async fn get(
+	client: &reqwest::Client,
+	url: &Url,
+	range: Option<(u64, u64)>,
+	limit: Duration,
+) -> Result<(Url, Bytes)> {
 	let fetch = async {
-		let response = client
+		let mut request = client
 			.get(url.clone())
-			.header("User-Agent", user_agent_for(url.as_str()))
-			.send()
-			.await
-			.map_err(http_err)?;
+			.header("User-Agent", user_agent_for(url.as_str()));
+		if let Some((start, length)) = range {
+			let last = start + length.max(1) - 1;
+			request = request.header("Range", format!("bytes={start}-{last}"));
+		}
+		let response = request.send().await.map_err(http_err)?;
 		let status = response.status().as_u16();
 		if status >= 400 {
 			return Err(CoreError::Http(format!("HTTP {status}")));
@@ -304,11 +430,55 @@ pub(crate) fn looks_like_ts(bytes: &[u8]) -> bool {
 	})
 }
 
+/// The channel's name from the first service in a DVB SDT (PID 0x11, table 0x42), as DVBViewer
+/// names channels.
+// ponytail: an SDT is assumed to fit one packet, as PAT and PMT are; a long one reads as no name.
+pub(crate) fn ts_service_name(ts: &[u8]) -> Option<String> {
+	let start = (0..188).find(|&i| ts.get(i) == Some(&0x47) && ts.get(i + 188) == Some(&0x47))?;
+	ts[start..].as_chunks::<188>().0.iter().find_map(|packet| {
+		let (pid, unit_start, payload) = ts_payload(packet).filter(|_| packet[0] == 0x47)?;
+		if pid != 0x11 || !unit_start {
+			return None;
+		}
+		let section = psi_section(payload).filter(|s| s.first() == Some(&0x42))?;
+		// Past the table header, then each service: id, flags, a length and its descriptors.
+		let mut services = section.get(11..)?;
+		while let [_, _, _, len_hi, len_lo, rest @ ..] = services {
+			let len = usize::from(len_hi & 0x0F) << 8 | usize::from(*len_lo);
+			let (mut descriptors, after) = rest.split_at_checked(len)?;
+			while let [tag, size, rest @ ..] = descriptors {
+				let (body, next) = rest.split_at_checked(usize::from(*size))?;
+				if *tag == 0x48 {
+					// Service type, the provider's name, then the service's.
+					let provider = usize::from(*body.get(1)?);
+					let name_len = usize::from(*body.get(2 + provider)?);
+					let name = body.get(3 + provider..3 + provider + name_len)?;
+					return Some(dvb_text(name));
+				}
+				descriptors = next;
+			}
+			services = after;
+		}
+		None
+	})
+}
+
+/// A DVB string: a leading byte below 0x20 names the character set, and only UTF-8 (0x15) is
+/// kept apart from the Latin-style default, which reads right for ASCII names.
+fn dvb_text(bytes: &[u8]) -> String {
+	match bytes {
+		[0x15, rest @ ..] => String::from_utf8_lossy(rest).into_owned(),
+		[0x10, _, _, rest @ ..] => rest.iter().map(|&b| char::from(b)).collect(),
+		[0x01..=0x1F, rest @ ..] => rest.iter().map(|&b| char::from(b)).collect(),
+		_ => bytes.iter().map(|&b| char::from(b)).collect(),
+	}
+}
+
 /// MPEG-TS to audio, fed in pieces of any size. Takes the first audio stream of the first
-/// program: ADTS AAC (stream type 0x0F) or MPEG audio (0x03, 0x04), concatenated without PES
-/// headers. Also keeps the ID3 timed metadata stream (type 0x15), which carries titles.
+/// program, concatenated without PES headers: ADTS AAC, MPEG audio, AC-3 or E-AC-3 as they are,
+/// and LATM AAC rewritten as ADTS. Also keeps the ID3 timed metadata stream (type 0x15), which
+/// carries titles.
 // ponytail: PAT and PMT are assumed to fit one packet each (they do in practice).
-// ponytail: AC-3 and DVB LATM AAC audio are not decoded; add when a wanted channel needs it.
 #[derive(Default)]
 pub(crate) struct TsDemux {
 	pmt_pid: Option<u16>,
@@ -318,6 +488,8 @@ pub(crate) struct TsDemux {
 	pmt_seen: bool,
 	/// Audio before the first PES start is the tail of a frame already lost.
 	audio_started: bool,
+	/// Set when the audio stream is LATM, by the PMT or its first bytes.
+	latm: Option<LatmToAdts>,
 	id3: Vec<u8>,
 	/// Bytes of a packet that has not fully arrived.
 	carry: Vec<u8>,
@@ -360,7 +532,11 @@ impl TsDemux {
 			}
 		} else if Some(pid) == self.pmt_pid && start {
 			if let Some(section) = psi_section(payload) {
-				(self.audio_pid, self.id3_pid) = pmt_pids(section);
+				let (audio, id3, latm) = pmt_pids(section);
+				(self.audio_pid, self.id3_pid) = (audio, id3);
+				if latm && self.latm.is_none() {
+					self.latm = Some(LatmToAdts::default());
+				}
 				self.pmt_seen = true;
 			}
 		} else if Some(pid) == self.id3_pid {
@@ -370,9 +546,16 @@ impl TsDemux {
 			}
 			self.id3.extend_from_slice(data(payload));
 		} else if Some(pid) == self.audio_pid {
+			if !self.audio_started && start && is_loas(data(payload)) && self.latm.is_none() {
+				// DVB's AAC descriptor leaves ADTS or LATM open; the bytes settle it.
+				self.latm = Some(LatmToAdts::default());
+			}
 			self.audio_started |= start;
 			if self.audio_started {
-				out.extend_from_slice(data(payload));
+				match &mut self.latm {
+					Some(latm) => latm.feed(data(payload), out),
+					None => out.extend_from_slice(data(payload)),
+				}
 			}
 		}
 	}
@@ -417,25 +600,49 @@ fn pat_pmt_pid(pat: &[u8]) -> Option<u16> {
 		.map(|e| u16::from_be_bytes([e[2] & 0x1F, e[3]]))
 }
 
-/// The audio PID and the ID3 timed metadata PID, if the PMT lists them.
-fn pmt_pids(pmt: &[u8]) -> (Option<u16>, Option<u16>) {
-	let (mut audio, mut id3) = (None, None);
+/// Whether a stream of private data (type 0x06) is audio, by its descriptors: DVB's AC-3, E-AC-3
+/// and AAC descriptors, or a registration naming AC-3 or E-AC-3.
+fn private_is_audio(mut descriptors: &[u8]) -> bool {
+	while let [tag, len, rest @ ..] = descriptors {
+		let Some((body, after)) = rest.split_at_checked(usize::from(*len)) else {
+			return false;
+		};
+		if matches!(tag, 0x6A | 0x7A | 0x7C)
+			|| (*tag == 0x05 && matches!(body, [b'A', b'C', b'-', b'3', ..] | [b'E', b'A', b'C', b'3', ..]))
+		{
+			return true;
+		}
+		descriptors = after;
+	}
+	false
+}
+
+/// The first audio PID, the ID3 timed metadata PID, if the PMT lists them, and whether that audio
+/// is LATM. A later audio stream of a kind this player cannot decode never shadows a good one.
+fn pmt_pids(pmt: &[u8]) -> (Option<u16>, Option<u16>, bool) {
+	let (mut audio, mut id3, mut latm) = (None, None, false);
 	let info = pmt
 		.get(10..12)
 		.map_or(0, |b| usize::from(b[0] & 0x0F) << 8 | usize::from(b[1]));
 	let mut streams = pmt.get(12 + info..).unwrap_or_default();
 	while let [kind, pid_hi, pid_lo, len_hi, len_lo, rest @ ..] = streams {
 		let pid = u16::from_be_bytes([pid_hi & 0x1F, *pid_lo]);
+		let len = usize::from(len_hi & 0x0F) << 8 | usize::from(*len_lo);
+		let descriptors = rest.get(..len).unwrap_or_default();
 		match kind {
-			0x0F | 0x03 | 0x04 if audio.is_none() => audio = Some(pid),
+			// ADTS, MPEG-1 and MPEG-2 audio, ATSC's AC-3 and E-AC-3.
+			0x0F | 0x03 | 0x04 | 0x81 | 0x87 if audio.is_none() => audio = Some(pid),
+			0x11 if audio.is_none() => {
+				audio = Some(pid);
+				latm = true;
+			}
+			0x06 if audio.is_none() && private_is_audio(descriptors) => audio = Some(pid),
 			0x15 if id3.is_none() => id3 = Some(pid),
 			_ => {}
 		}
-		streams = rest
-			.get(usize::from(len_hi & 0x0F) << 8 | usize::from(*len_lo)..)
-			.unwrap_or_default();
+		streams = rest.get(len..).unwrap_or_default();
 	}
-	(audio, id3)
+	(audio, id3, latm)
 }
 
 /// Elementary stream data of a PES packet starting in this payload.
@@ -506,9 +713,109 @@ mod tests {
 	}
 
 	#[test]
-	fn hint_tells_adts_from_mpeg_audio() {
+	fn hint_tells_the_format_by_its_first_bytes() {
 		assert_eq!(hint(&[0xFF, 0xF1, 0x50]), "aac");
 		assert_eq!(hint(&[0xFF, 0xFB, 0x90]), "mp3");
+		assert_eq!(hint(&[0x0B, 0x77, 0, 0]), "ac3");
+		assert_eq!(hint(b"\0\0\0\x20ftypiso5"), "mp4");
+	}
+
+	#[test]
+	fn pmt_finds_audio_by_type_and_by_descriptor() {
+		// Header to the program info length (none), then the streams.
+		let pmt = |streams: &[u8]| {
+			let mut p = vec![0x02, 0xB0, 0, 0, 1, 0xC1, 0, 0, 0xE1, 0x01, 0xF0, 0];
+			p.extend_from_slice(streams);
+			p
+		};
+		let entry = |kind: u8, pid: u8, desc: &[u8]| {
+			let mut e = vec![kind, 0xE1, pid, 0xF0, desc.len() as u8];
+			e.extend_from_slice(desc);
+			e
+		};
+		let of = |streams: Vec<Vec<u8>>| pmt_pids(&pmt(&streams.concat()));
+		let (dvb_ac3, dvb_eac3) = ([0x6A, 1, 0], [0x7A, 1, 0]);
+		assert_eq!(of(vec![entry(0x81, 0x10, &[])]).0, Some(0x110), "ATSC AC-3");
+		assert_eq!(of(vec![entry(0x87, 0x10, &[])]).0, Some(0x110), "ATSC E-AC-3");
+		assert_eq!(of(vec![entry(0x06, 0x10, &dvb_ac3)]).0, Some(0x110), "DVB AC-3");
+		assert_eq!(of(vec![entry(0x06, 0x10, &dvb_eac3)]).0, Some(0x110), "DVB E-AC-3");
+		let registered = [0x05, 4, b'A', b'C', b'-', b'3'];
+		assert_eq!(of(vec![entry(0x06, 0x10, &registered)]).0, Some(0x110));
+		let latm = of(vec![entry(0x11, 0x10, &[])]);
+		assert_eq!((latm.0, latm.2), (Some(0x110), true), "LATM");
+		// Teletext and subtitles are private data too, and H.264 is no audio.
+		let other = vec![
+			entry(0x1B, 0x10, &[]),
+			entry(0x06, 0x11, &[0x56, 1, 0]),
+			entry(0x06, 0x12, &[0x59, 1, 0]),
+			entry(0x0F, 0x13, &[]),
+		];
+		assert_eq!(of(other).0, Some(0x113));
+		// The first audio stays first, whatever follows.
+		let two = vec![entry(0x06, 0x10, &dvb_ac3), entry(0x0F, 0x11, &[])];
+		assert_eq!(of(two).0, Some(0x110));
+	}
+
+	#[test]
+	fn aes128_segments_decrypt_and_bad_padding_is_refused() {
+		use aes::cipher::BlockCipherEncrypt;
+		let (key, iv) = ([7u8; 16], [9u8; 16]);
+		let plain = b"sixteen byte msgtail".to_vec();
+		let mut padded = plain.clone();
+		let pad = 16 - plain.len() % 16;
+		padded.resize(plain.len() + pad, pad as u8);
+		let cipher = Aes128::new(&key.into());
+		let mut sealed = Vec::new();
+		let mut previous = iv;
+		for block in padded.as_chunks::<16>().0 {
+			let mut xored = [0u8; 16];
+			for i in 0..16 {
+				xored[i] = block[i] ^ previous[i];
+			}
+			let mut out = xored.into();
+			cipher.encrypt_block(&mut out);
+			previous.copy_from_slice(&out);
+			sealed.extend_from_slice(&out);
+		}
+		assert_eq!(decrypt_segment(&sealed, &key, iv), Some(plain));
+		assert_eq!(decrypt_segment(&sealed[..17], &key, iv), None, "partial block");
+		assert_eq!(decrypt_segment(&sealed, &[1; 16], iv), None, "wrong key");
+		let key_tag = |iv: Option<&str>| m3u8_rs::Key {
+			method: KeyMethod::AES128,
+			uri: Some("k".into()),
+			iv: iv.map(Into::into),
+			..Default::default()
+		};
+		assert_eq!(iv_for(&key_tag(None), 5), 5u128.to_be_bytes(), "from the sequence");
+		assert_eq!(iv_for(&key_tag(Some("0x0A")), 5), 10u128.to_be_bytes());
+	}
+
+	#[test]
+	fn only_plain_aes_is_played() {
+		let with = |key: m3u8_rs::Key| {
+			media(Playlist::MediaPlaylist(MediaPlaylist {
+				segments: vec![m3u8_rs::MediaSegment {
+					key: Some(key),
+					..Default::default()
+				}],
+				..Default::default()
+			}))
+		};
+		let aes = |format: Option<&str>| m3u8_rs::Key {
+			method: KeyMethod::AES128,
+			uri: Some("k".into()),
+			keyformat: format.map(Into::into),
+			..Default::default()
+		};
+		assert!(with(aes(None)).is_ok());
+		assert!(with(aes(Some("identity"))).is_ok());
+		assert!(with(aes(Some("com.apple.streamingkeydelivery"))).is_err(), "DRM");
+		let sample = m3u8_rs::Key {
+			method: KeyMethod::SampleAES,
+			uri: Some("k".into()),
+			..Default::default()
+		};
+		assert!(with(sample).is_err());
 	}
 
 	fn id3(version: u8, frames: &[(&[u8; 4], &[u8])]) -> Vec<u8> {

@@ -1,7 +1,7 @@
 use parking_lot::Mutex;
 use std::collections::VecDeque;
 use std::io::Read;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use bytes::{Buf, Bytes};
 use crossbeam_channel::{Receiver, Sender};
@@ -9,10 +9,10 @@ use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::codecs::registry::CodecRegistry;
 use symphonia::core::common::Tier;
 use symphonia::core::errors::Error;
-use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::probe::{Hint, Probe};
 use symphonia::core::formats::{FormatOptions, FormatReader, TrackType};
 use symphonia::core::io::{MediaSourceStream, ReadOnlySource};
-use symphonia::core::meta::MetadataOptions;
+use symphonia::core::meta::{MetadataOptions, Tag};
 
 use crate::{CoreError, Result};
 
@@ -74,6 +74,14 @@ impl Read for ByteReader {
 	}
 }
 
+static PROBE: LazyLock<Probe> = LazyLock::new(|| {
+	let mut probe = Probe::default();
+	symphonia::default::register_enabled_formats(&mut probe);
+	// Symphonia has no reader for a bare AC-3 stream; ours is in ac3.rs.
+	probe.register_format::<crate::ac3::Ac3Reader<'_>>();
+	probe
+});
+
 fn codecs() -> CodecRegistry {
 	let mut codecs = CodecRegistry::new();
 	symphonia::default::register_enabled_codecs(&mut codecs);
@@ -82,6 +90,7 @@ fn codecs() -> CodecRegistry {
 	codecs.register_audio_decoder::<symphonia_adapter_libopus::OpusDecoder>();
 	// Symphonia has no Layer II decoder of its own; ours is in mp2.rs.
 	codecs.register_audio_decoder::<crate::mp2::Mp2Decoder>();
+	codecs.register_audio_decoder::<crate::ac3::Ac3Decoder>();
 	codecs
 }
 
@@ -144,6 +153,8 @@ fn codec_label(id: symphonia::core::codecs::audio::AudioCodecId) -> &'static str
 		CODEC_ID_OPUS => "Opus",
 		CODEC_ID_FLAC => "FLAC",
 		CODEC_ID_ALAC => "ALAC",
+		CODEC_ID_AC3 => "AC-3",
+		CODEC_ID_EAC3 => "E-AC-3",
 		_ => "Audio",
 	}
 }
@@ -160,6 +171,24 @@ pub struct Decoder {
 	first: Vec<f32>,
 	source: Option<Arc<Mutex<SourceBytes>>>,
 	source_ready: u64,
+	/// The first Ogg tags have been read.
+	title_read: bool,
+}
+
+/// `Artist - Title` from Vorbis comments, whose keys come in any case; the title alone without an
+/// artist, nothing without a title.
+fn title_from_tags<'a>(tags: impl Iterator<Item = &'a Tag> + Clone) -> Option<String> {
+	let get = |key: &str| {
+		tags.clone()
+			.find(|t| t.raw.key.eq_ignore_ascii_case(key))
+			.map(|t| t.raw.value.to_string())
+			.filter(|v| !v.trim().is_empty())
+	};
+	let title = get("title")?;
+	Some(match get("artist") {
+		Some(artist) => format!("{artist} - {title}"),
+		None => title,
+	})
 }
 
 impl Decoder {
@@ -198,7 +227,7 @@ impl Decoder {
 		if let Some(ext) = ext_hint {
 			hint.with_extension(ext);
 		}
-		let format = symphonia::default::get_probe()
+		let format = PROBE
 			.probe(
 				&hint,
 				mss,
@@ -220,6 +249,7 @@ impl Decoder {
 			first: Vec::new(),
 			source,
 			source_ready: 0,
+			title_read: false,
 		};
 		// Decode one packet now so sample_rate() is right before the caller sizes its resampler.
 		let mut first = Vec::new();
@@ -250,6 +280,24 @@ impl Decoder {
 			self.format.format_info().format,
 			FORMAT_ID_MP1 | FORMAT_ID_MP2 | FORMAT_ID_MP3 | FORMAT_ID_ADTS
 		)
+	}
+
+	/// A song title newly arrived in the stream's own tags. Ogg has no ICY: Icecast sends each song
+	/// as a new chained stream with its Opus or Vorbis comments at the head. Only Ogg, because
+	/// tags at the head of a stream in other containers name the encoder as often as the song.
+	pub fn take_title(&mut self) -> Option<String> {
+		use symphonia::core::formats::well_known::FORMAT_ID_OGG;
+		if self.format.format_info().format != FORMAT_ID_OGG {
+			return None;
+		}
+		let mut metadata = self.format.metadata();
+		if self.title_read && metadata.is_latest() {
+			return None;
+		}
+		self.title_read = true;
+		let revision = metadata.skip_to_latest()?;
+		let per_track = revision.per_track.iter().flat_map(|t| t.metadata.tags.iter());
+		title_from_tags(revision.media.tags.iter().chain(per_track))
 	}
 
 	/// Channel count of the audio last produced; 0 before the first buffer.
@@ -426,6 +474,79 @@ mod tests {
 			);
 			assert!(peak(out.into_iter()) > 0.05, "{name}: silent");
 		}
+	}
+
+	/// How strongly the samples of one channel hold `freq`, against their own total power: 1 is
+	/// a pure tone, so a decoder that makes noise of it fails however loud it plays.
+	fn tone_purity(samples: &[f32], rate: u32, freq: f32) -> f32 {
+		let (mut re, mut im, mut power) = (0.0f32, 0.0f32, 0.0f32);
+		for (i, &s) in samples.iter().enumerate() {
+			let phase = std::f32::consts::TAU * freq * i as f32 / rate as f32;
+			re += s * phase.cos();
+			im += s * phase.sin();
+			power += s * s;
+		}
+		2.0 * (re * re + im * im) / (samples.len() as f32 * power.max(f32::MIN_POSITIVE))
+	}
+
+	#[test]
+	fn decodes_ac3_and_eac3_elementary_streams_to_the_tone_they_hold() {
+		for (name, label) in [("tone.ac3", "AC-3"), ("tone.eac3", "E-AC-3")] {
+			let dec = Decoder::new(Box::new(fixture(name)), None).unwrap();
+			assert_eq!(dec.codec(), label, "{name}, found by its bytes alone");
+			assert_eq!(dec.channels(), 2);
+			assert!(!dec.replayable(), "{name}: a recording of it stays WAV");
+			let (rate, out) = decode_all(Box::new(fixture(name)), "ac3");
+			assert_eq!(rate, 48_000, "{name}");
+			let frames = (out.len() / 2) as f32;
+			assert!((frames - 3.0 * 48_000.0).abs() < 4_000.0, "{name}: {frames} frames");
+			// Past the encoder's start-up, in the middle of the tone.
+			let left: Vec<f32> = out.iter().step_by(2).copied().skip(9_600).take(96_000).collect();
+			let purity = tone_purity(&left, rate, 440.0);
+			assert!(purity > 0.99, "{name}: tone purity {purity}");
+		}
+	}
+
+	#[test]
+	fn ac3_downmix_keeps_the_centre_channel() {
+		// The tone is on the centre only, as dialogue is: taking the front pair would be silence.
+		// The 0.125 sine meets the downmix's centre gain and headroom, about 0.3 in all.
+		let (rate, out) = decode_all(Box::new(fixture("center.ac3")), "ac3");
+		let tail = &out[out.len() / 4..];
+		for (side, channel) in [("left", 0), ("right", 1)] {
+			let samples: Vec<f32> = tail.iter().skip(channel).step_by(2).copied().collect();
+			assert!(peak(samples.iter().copied()) > 0.02, "{side}");
+			let purity = tone_purity(&samples, rate, 440.0);
+			assert!(purity > 0.9, "{side}: tone purity {purity}");
+		}
+	}
+
+	#[test]
+	fn chained_opus_reports_each_songs_tags_once() {
+		let chain = [
+			std::fs::read(format!("{}/tests/fixtures/song1.opus", env!("CARGO_MANIFEST_DIR")))
+				.unwrap(),
+			std::fs::read(format!("{}/tests/fixtures/song2.opus", env!("CARGO_MANIFEST_DIR")))
+				.unwrap(),
+		]
+		.concat();
+		let mut dec = Decoder::new(Box::new(std::io::Cursor::new(chain)), Some("ogg")).unwrap();
+		let mut titles = Vec::new();
+		let mut pcm = Vec::new();
+		titles.extend(dec.take_title());
+		while dec.next_stereo(&mut pcm).unwrap() {
+			titles.extend(dec.take_title());
+			pcm.clear();
+		}
+		assert_eq!(titles, ["Lucid - End Of Time", "Mara - Second Song"]);
+	}
+
+	#[test]
+	fn only_ogg_tags_are_titles() {
+		let mut dec = Decoder::new(Box::new(fixture("tone.mp3")), Some("mp3")).unwrap();
+		let mut pcm = Vec::new();
+		dec.next_stereo(&mut pcm).unwrap();
+		assert_eq!(dec.take_title(), None);
 	}
 
 	#[test]

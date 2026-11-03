@@ -29,6 +29,9 @@ hound = "*"
 mp3lame-encoder = "*"
 flacenc = "*"
 md5 = "*"
+aes = "*"
+oxideav-ac3 = "*"
+oxideav-core = "*"
 
 [dev-dependencies]
 flate2 = "*"

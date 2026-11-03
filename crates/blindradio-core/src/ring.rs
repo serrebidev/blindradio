@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
@@ -11,6 +11,35 @@ const PUSH_WAIT: Duration = Duration::from_millis(5);
 /// dry. Some servers dribble their first seconds in lumps up to a second apart (amperwave);
 /// burst servers reach it within a few ms of first audio, so it costs them almost nothing.
 pub const CUSHION_MS: u32 = 1000;
+/// The most a stream that keeps running dry must refill before it may sound again, by default.
+pub const REFILL_LIMIT_MS: u32 = 15_000;
+/// How many segments behind the newest a live HLS stream starts, by default.
+pub const HLS_BEHIND: u32 = 2;
+
+static START_NOW: AtomicU32 = AtomicU32::new(CUSHION_MS);
+static REFILL_NOW: AtomicU32 = AtomicU32::new(REFILL_LIMIT_MS);
+static HLS_BEHIND_NOW: AtomicU32 = AtomicU32::new(HLS_BEHIND);
+
+/// The Buffer settings. Process-wide, as the streams and the mixer that read them are made in
+/// many places; a stream already open keeps the ring it was made with.
+pub fn set_buffers(start_ms: u32, refill_limit_ms: u32, hls_behind: u32) {
+	START_NOW.store(start_ms, Ordering::Relaxed);
+	REFILL_NOW.store(refill_limit_ms, Ordering::Relaxed);
+	HLS_BEHIND_NOW.store(hls_behind, Ordering::Relaxed);
+}
+
+/// Audio a ring holds before it starts playing.
+pub fn start_ms() -> u32 {
+	START_NOW.load(Ordering::Relaxed)
+}
+
+pub fn refill_limit_ms() -> u32 {
+	REFILL_NOW.load(Ordering::Relaxed)
+}
+
+pub fn hls_behind() -> usize {
+	HLS_BEHIND_NOW.load(Ordering::Relaxed) as usize
+}
 
 /// Interleaved stereo f32 buffer; `rate` is frames per second.
 pub struct PcmRing {
@@ -19,6 +48,8 @@ pub struct PcmRing {
 	// ponytail: mutex shared with audio callback, held microseconds; lock-free ring if underruns show up
 	buf: Mutex<VecDeque<f32>>,
 	closed: AtomicBool,
+	/// When the last push ended, and the longest wait between pushes.
+	lumps: Mutex<(Option<Instant>, u32)>,
 }
 
 impl PcmRing {
@@ -30,6 +61,7 @@ impl PcmRing {
 			capacity,
 			buf: Mutex::new(VecDeque::with_capacity(capacity)),
 			closed: AtomicBool::new(false),
+			lumps: Mutex::new((None, 0)),
 		}
 	}
 
@@ -39,6 +71,13 @@ impl PcmRing {
 	/// and a warm neighbour pauses its connection instead of skipping ahead. Once the ring is
 	/// closed, what does not fit is discarded so the producer can finish.
 	pub fn push(&self, stereo: &[f32]) {
+		{
+			let mut lumps = self.lumps.lock();
+			if let Some(end) = lumps.0 {
+				let gap = end.elapsed().as_millis().min(u128::from(u32::MAX)) as u32;
+				lumps.1 = lumps.1.max(gap);
+			}
+		}
 		let mut rest = &stereo[..stereo.len() & !1];
 		loop {
 			{
@@ -48,10 +87,12 @@ impl PcmRing {
 				rest = &rest[n..];
 			}
 			if rest.is_empty() || self.closed.load(Ordering::Relaxed) {
-				return;
+				break;
 			}
 			std::thread::sleep(PUSH_WAIT);
 		}
+		// After the wait for room: a full ring is no gap in the stream.
+		self.lumps.lock().0 = Some(Instant::now());
 	}
 
 	/// No one will read this ring again: pushes stop waiting.
@@ -72,7 +113,11 @@ impl PcmRing {
 		(self.buf.lock().len() as u64 / 2 * 1000 / self.rate as u64) as u32
 	}
 
+	/// Drops all but the newest `keep_ms`, or more if this stream arrives in lumps further apart
+	/// than that (HLS segments): trimming below the wait for the next lump only buys a gap, and
+	/// each gap makes the mixer demand a deeper refill.
 	pub fn trim_to_ms(&self, keep_ms: u32) {
+		let keep_ms = keep_ms.max(self.lumps.lock().1);
 		let keep = (self.rate as u64 * keep_ms as u64 / 1000) as usize * 2;
 		let mut buf = self.buf.lock();
 		let excess = buf.len().saturating_sub(keep);
@@ -128,6 +173,18 @@ mod tests {
 		let mut out = [0.0; 2];
 		r.pop_into(&mut out);
 		assert_eq!(out[0], 750.0);
+	}
+
+	#[test]
+	fn trim_keeps_enough_to_reach_the_next_lump() {
+		let r = PcmRing::new(1000, 3.0);
+		r.push(&ramp(0, 1000));
+		std::thread::sleep(Duration::from_millis(400));
+		r.push(&ramp(1000, 1000));
+		r.trim_to_ms(100);
+		let held = r.len_ms();
+		assert!(held >= 400, "held {held} ms, against a 400 ms wait for audio");
+		assert!(held < 1000, "held {held} ms: still trimmed");
 	}
 
 	#[test]

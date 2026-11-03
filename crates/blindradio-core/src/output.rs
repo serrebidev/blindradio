@@ -14,7 +14,7 @@ use crate::Result;
 use crate::eq::Eq;
 use crate::record::Recorder;
 use crate::error::CoreError;
-use crate::ring::{CUSHION_MS, PcmRing};
+use crate::ring::PcmRing;
 use crate::settings::EqSettings;
 use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
@@ -32,6 +32,11 @@ const HISS_LEVEL: f32 = 0.08;
 const HISS_TONE: f32 = 0.3;
 
 pub enum MixerCmd {
+	/// The Buffer settings changed.
+	Buffers {
+		start_ms: u32,
+		refill_limit_ms: u32,
+	},
 	SetActive {
 		ring: Option<Arc<PcmRing>>,
 		token: u64,
@@ -72,12 +77,6 @@ enum Flow {
 	Playing,
 }
 
-/// The most a stream that keeps running dry must refill before it may sound
-/// again. A server delivering just under its bitrate (TopRadio sends ~2/3 of
-/// its 192 kbps) stutters every few seconds against a 1 s cushion; a deep
-/// refill turns that into long plays between clean gaps. Healthy streams
-/// never run dry, so they never see this.
-const REBUFFER_MAX_MS: u32 = 15_000;
 /// Each dry-out in a row multiplies the required refill by this.
 const REBUFFER_GROWTH: u32 = 3;
 /// Seconds of uninterrupted play that earn the base cushion back.
@@ -91,6 +90,12 @@ pub struct MixerCore {
 	base_cushion_ms: u32,
 	/// Dry-outs in a row on the active ring; grows `cushion_ms`.
 	strikes: u32,
+	/// The most a stream that keeps running dry must refill before it may sound
+	/// again. A server delivering just under its bitrate (TopRadio sends ~2/3 of
+	/// its 192 kbps) stutters every few seconds against a 1 s cushion; a deep
+	/// refill turns that into long plays between clean gaps. Healthy streams
+	/// never run dry, so they never see this.
+	refill_limit_ms: u32,
 	/// Output rate, for the healthy-play reset window.
 	rate: u32,
 	active: Option<Arc<PcmRing>>,
@@ -130,9 +135,10 @@ impl MixerCore {
 		let mut m = MixerCore {
 			fade_frames: 0,
 			tail_frames: 0,
-			cushion_ms: CUSHION_MS,
-			base_cushion_ms: CUSHION_MS,
+			cushion_ms: crate::ring::start_ms(),
+			base_cushion_ms: crate::ring::start_ms(),
 			strikes: 0,
+			refill_limit_ms: crate::ring::refill_limit_ms(),
 			rate,
 			active: None,
 			flow: Flow::Buffering,
@@ -174,6 +180,17 @@ impl MixerCore {
 	pub fn handle(&mut self, cmd: MixerCmd) {
 		match cmd {
 			MixerCmd::Hiss(on) => self.hiss_enabled = on,
+			MixerCmd::Buffers {
+				start_ms,
+				refill_limit_ms,
+			} => {
+				self.base_cushion_ms = start_ms;
+				self.refill_limit_ms = refill_limit_ms;
+				// A stream partway through a deeper refill keeps it; the rest change now.
+				if self.strikes == 0 {
+					self.cushion_ms = start_ms;
+				}
+			}
 			MixerCmd::Tune => {
 				self.handle(MixerCmd::SetActive {
 					ring: None,
@@ -325,7 +342,7 @@ impl MixerCore {
 					self.cushion_ms = self
 						.base_cushion_ms
 						.saturating_mul(REBUFFER_GROWTH.saturating_pow(self.strikes))
-						.min(REBUFFER_MAX_MS);
+						.min(self.refill_limit_ms.max(self.base_cushion_ms));
 				}
 			}
 		}
@@ -1013,6 +1030,37 @@ mod tests {
 			Some(9),
 			"starts once CUSHION_MS is buffered"
 		);
+	}
+
+	#[test]
+	fn buffer_settings_change_the_start_and_the_refill_limit() {
+		let mut mixer = MixerCore::new(RATE);
+		mixer.handle(MixerCmd::Buffers {
+			start_ms: 200,
+			refill_limit_ms: 400,
+		});
+		let ring = Arc::new(PcmRing::new(RATE, 20.0));
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 9,
+		});
+		let mut out = [0.0; 40];
+		// 100 ms is not 200.
+		ring.push(&vec![1.0; 100 * 2]);
+		assert_eq!(mixer.render(&mut out), None, "below the start buffer");
+		assert_eq!(ring.len_ms(), 100, "nothing taken while buffering");
+		ring.push(&vec![1.0; 100 * 2]);
+		assert_eq!(mixer.render(&mut out), Some(9), "at the start buffer");
+		// Drained dry, a refill would want 600 ms; the limit holds it to 400.
+		let mut drain = [0.0; 2000];
+		mixer.render(&mut drain);
+		assert_eq!(ring.len_ms(), 0);
+		ring.push(&vec![1.0; 390 * 2]);
+		mixer.render(&mut out);
+		assert_eq!(ring.len_ms(), 390, "below the limit");
+		ring.push(&[1.0; 10 * 2]);
+		mixer.render(&mut out);
+		assert!(ring.len_ms() < 400, "at the limit, it sounds");
 	}
 
 	#[test]

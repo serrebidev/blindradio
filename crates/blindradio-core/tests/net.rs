@@ -1,6 +1,8 @@
 mod common;
 
-use blindradio_core::net::{Opened, ResolveCache, client, get_json, open, user_agent_for};
+use blindradio_core::net::{
+	Opened, ResolveCache, client, get_json, open, station_name, user_agent_for,
+};
 use common::{Route, serve};
 
 fn stream(path: &str) -> Route {
@@ -150,6 +152,78 @@ async fn open_rejects_types_that_are_never_streams() {
 	let s = serve(vec![text("/j", "application/json", "{}")]);
 	let err = open(&client(), &s.url("/j")).await.err().unwrap();
 	assert_eq!(err.to_string(), "Not a stream");
+}
+
+fn named(path: &str, header: &[u8]) -> Route {
+	Route::Headers {
+		path: path.into(),
+		content_type: "audio/mpeg".into(),
+		headers: header.to_vec(),
+		body: vec![0xAA; 2000],
+	}
+}
+
+#[tokio::test]
+async fn station_name_is_found_where_stations_keep_it() {
+	let ts = std::fs::read(format!(
+		"{}/tests/fixtures/ts_named.ts",
+		env!("CARGO_MANIFEST_DIR")
+	))
+	.unwrap();
+	let default_ts = std::fs::read(format!(
+		"{}/tests/fixtures/hls/seg0.ts",
+		env!("CARGO_MANIFEST_DIR")
+	))
+	.unwrap();
+	let s = serve(vec![
+		named("/icy", b"icy-name: Radio One"),
+		named("/ice", b"ice-name: Radio Two"),
+		named("/latin", b"icy-name: Caf\xE9 FM"),
+		named("/blank", b"icy-name: no name"),
+		text(
+			"/s.pls",
+			"audio/x-scpls",
+			"[playlist]\nFile1=http://x/a\nTitle1=(#1 - 9/500) Groove Salad\nNumberOfEntries=1\n",
+		),
+		text(
+			"/plus.m3u",
+			"audio/x-mpegurl",
+			"#EXTM3U\n#EXTINF:-1 tvg-name=\"Named Only\",\nhttp://x/a\n",
+		),
+		text("/follow.m3u", "text/plain", "#EXTM3U\n{base}/icy\n"),
+		Route::Static {
+			path: "/channel.ts".into(),
+			content_type: "video/mp2t".into(),
+			body: ts,
+		},
+		Route::Static {
+			path: "/unnamed.ts".into(),
+			content_type: "video/mp2t".into(),
+			body: default_ts,
+		},
+		text(
+			"/antena1/chunklist.m3u8",
+			"application/vnd.apple.mpegurl",
+			"#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4,\nseg.aac\n",
+		),
+	]);
+	let name = |path: &'static str| {
+		let (client, url) = (client(), s.url(path));
+		async move { station_name(&client, &url).await.unwrap() }
+	};
+	assert_eq!(name("/icy").await, "Radio One");
+	assert_eq!(name("/ice").await, "Radio Two");
+	assert_eq!(name("/latin").await, "Caf\u{e9} FM");
+	assert_eq!(name("/s.pls").await, "Groove Salad");
+	assert_eq!(name("/plus.m3u").await, "Named Only");
+	assert_eq!(name("/follow.m3u").await, "Radio One", "an untitled entry's own name");
+	assert_eq!(name("/channel.ts").await, "Test Channel", "the TS service name");
+	assert_eq!(name("/unnamed.ts").await, "unnamed", "ffmpeg's Service01 is no name");
+	assert_eq!(name("/antena1/chunklist.m3u8").await, "antena1");
+	// A placeholder falls back to the address.
+	assert_eq!(name("/blank").await, "blank");
+	let err = station_name(&client(), &s.url("/missing")).await.err().unwrap();
+	assert_eq!(err.to_string(), "HTTP 404");
 }
 
 #[tokio::test]

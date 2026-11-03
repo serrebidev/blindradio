@@ -129,26 +129,29 @@ impl App {
 	fn press(&self, keys: &str) {
 		// UIAutomation's sender omits extended-key flags, turning arrows into numpad keys.
 		let arrow = match keys {
-			"{down}" => Some((0x28, 0x50, false)),
-			"{left}" => Some((0x25, 0x4b, false)),
-			"{delete}" => Some((0x2e, 0x53, false)),
-			"{space}" => Some((0x20, 0x39, false)),
-			"{alt}{left}" => Some((0x25, 0x4b, true)),
-			"{alt}{right}" => Some((0x27, 0x4d, true)),
+			"{down}" => Some((0x28, 0x50, None)),
+			"{left}" => Some((0x25, 0x4b, None)),
+			"{right}" => Some((0x27, 0x4d, None)),
+			"{delete}" => Some((0x2e, 0x53, None)),
+			"{space}" => Some((0x20, 0x39, None)),
+			"{alt}{left}" => Some((0x25, 0x4b, Some("{alt}"))),
+			"{alt}{right}" => Some((0x27, 0x4d, Some("{alt}"))),
+			"{shift}{up}" => Some((0x26, 0x48, Some("{shift}"))),
+			"{shift}{down}" => Some((0x28, 0x50, Some("{shift}"))),
 			_ => None,
 		};
 		let mut keyboard = Keyboard::new().interval(60);
-		if let Some((key, scan, alt)) = arrow {
-			if alt {
-				keyboard.begin_hold_keys("{alt}").expect("Alt");
+		if let Some((key, scan, hold)) = arrow {
+			if let Some(hold) = hold {
+				keyboard.begin_hold_keys(hold).expect("hold modifier");
 			}
 			// SAFETY: inject a matched extended-key down/up pair on this test's desktop.
 			unsafe {
 				keybd_event(key, scan, 1, 0);
 				keybd_event(key, scan, 3, 0);
 			}
-			if alt {
-				keyboard.end_hold_keys().expect("release Alt");
+			if hold.is_some() {
+				keyboard.end_hold_keys().expect("release modifier");
 			}
 		} else {
 			keyboard.send_keys(keys).expect("keys");
@@ -440,6 +443,157 @@ fn browse_pastes_from_the_selected_collection_and_refreshes_in_place() {
 		);
 		app.row(&browse, &format!("Misc {remaining}"));
 	}
+}
+
+/// Name Automatically fills the name field from the stream's ICY name.
+#[test]
+#[ignore = "needs a desktop"]
+fn name_automatically_fills_the_name_from_the_stream() {
+	use std::io::{Read, Write};
+	let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+	let port = listener.local_addr().unwrap().port();
+	std::thread::spawn(move || {
+		while let Ok((mut sock, _)) = listener.accept() {
+			let mut request = [0; 2048];
+			let _ = sock.read(&mut request);
+			let _ = sock.write_all(
+				b"HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nicy-name: Radio Named Itself\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+			);
+		}
+	});
+	let app = App::start("name-auto", Library::default());
+	app.press("{ctrl}n");
+	let dialog = app
+		.find("Add Custom Station", WAIT)
+		.expect("Add Custom Station");
+	let control = |name: &str, kind| {
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.timeout(5000)
+			.name(name)
+			.control_type(kind)
+			.find_first()
+			.unwrap_or_else(|e| panic!("{name}: {e}"))
+	};
+	let value = |e: &UIElement| e.get_pattern::<UIValuePattern>().expect("value");
+	let name = control("Name", ControlType::Edit);
+	let url = control("Stream URL", ControlType::Edit);
+	value(&url)
+		.set_value(&format!("http://127.0.0.1:{port}/stream"))
+		.expect("type the URL");
+	app.invoke(&control("Name Automatically", ControlType::Button));
+	let mut found = String::new();
+	for _ in 0..50 {
+		found = value(&name).get_value().expect("name");
+		if !found.is_empty() {
+			break;
+		}
+		std::thread::sleep(Duration::from_millis(100));
+	}
+	assert_eq!(found, "Radio Named Itself");
+	// Still an ordinary field.
+	value(&name).set_value("My Own Name").expect("edit the name");
+	assert_eq!(value(&name).get_value().unwrap(), "My Own Name");
+}
+
+/// A buffer setting's slider and field follow each other, and OK saves what they show.
+#[test]
+#[ignore = "needs a desktop"]
+fn buffer_slider_and_field_stay_together() {
+	let app = App::start("buffers", Library::default());
+	let control = |window: &UIElement, name: &str, kind| {
+		app.automation
+			.create_matcher()
+			.from(window.clone())
+			.timeout(5000)
+			.name(name)
+			.control_type(kind)
+			.find_first()
+			.unwrap_or_else(|e| panic!("{name}: {e}"))
+	};
+	let field_text = |field: &UIElement| {
+		field
+			.get_pattern::<UIValuePattern>()
+			.expect("value")
+			.get_value()
+			.expect("text")
+	};
+	let saved = || Settings::load(&app.data).buffers.start_ms;
+	assert_eq!(saved(), 1000, "the default is what it always was");
+
+	// A just-built exe can still be starting when the window first shows, and lose the key.
+	let dialog = (0..4)
+		.find_map(|_| {
+			app.press("{ctrl}t");
+			app.find("Settings", Duration::from_secs(5))
+		})
+		.expect("Settings");
+	let field = control(&dialog, "Start buffer, in milliseconds:", ControlType::Edit);
+	let slider = control(
+		&dialog,
+		"Start buffer, in milliseconds slider",
+		ControlType::Slider,
+	);
+	slider.set_focus().expect("focus slider");
+	std::thread::sleep(Duration::from_millis(300));
+	app.press("{right}");
+	assert_eq!(field_text(&field), "1100", "the slider moves the field, upward");
+	app.press("{left}");
+	app.press("{left}");
+	assert_eq!(field_text(&field), "900");
+	app.invoke(&control(&dialog, "OK", ControlType::Button));
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(saved(), 900);
+
+	// Any number can be typed; the same field reads back what the window saved.
+	app.press("{ctrl}t");
+	let dialog = app.find("Settings", WAIT).expect("Settings");
+	let field = control(&dialog, "Start buffer, in milliseconds:", ControlType::Edit);
+	assert_eq!(field_text(&field), "900");
+	field
+		.get_pattern::<UIValuePattern>()
+		.expect("value")
+		.set_value("2345")
+		.expect("type");
+	std::thread::sleep(Duration::from_millis(300));
+	app.invoke(&control(&dialog, "OK", ControlType::Button));
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(saved(), 2345);
+}
+
+/// Shift+Up and Shift+Down move a favorite, as in Browse.
+#[test]
+#[ignore = "needs a desktop"]
+fn favorites_shift_arrows_move_the_station() {
+	let library = Library {
+		favorites: vec![
+			station("custom:one", "One"),
+			station("custom:two", "Two"),
+			station("custom:three", "Three"),
+		],
+		..Library::default()
+	};
+	let settings = Settings {
+		play_on_move: false,
+		..Settings::default()
+	};
+	let app = App::with_settings("fav-shift", library, settings);
+	let order = |app: &App| -> Vec<String> {
+		Library::load(&app.data)
+			.favorites
+			.iter()
+			.map(|s| s.name.clone())
+			.collect()
+	};
+	app.press("{ctrl}b");
+	let favorites = app.find("Favorites", WAIT).expect("Favorites");
+	app.select_row(&favorites, "Two");
+	app.press("{shift}{up}");
+	assert_eq!(order(&app), ["Two", "One", "Three"]);
+	app.press("{shift}{down}");
+	app.press("{shift}{down}");
+	assert_eq!(order(&app), ["One", "Three", "Two"], "focus follows the row");
 }
 
 /// Space on the tree is Play/Pause; in the Filter box it is still a space.

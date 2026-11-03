@@ -192,6 +192,13 @@ pub const EXPORT: &str = "&Export…";
 /// Prefix: `Exported <n>`.
 pub const EXPORTED: &str = "Exported ";
 pub const FAVORITES_FILE: &str = "Favorites.m3u";
+pub const NAME_AUTOMATICALLY: &str = "Name Automatically";
+pub const LOOKING_UP_NAME: &str = "Looking up the name";
+pub const NO_NAME_FOUND: &str = "No name found";
+pub const BUFFER_START: &str = "Start buffer, in milliseconds:";
+pub const BUFFER_REFILL: &str = "Refill limit after dropouts, in seconds:";
+pub const BUFFER_HLS: &str = "HLS segments behind live:";
+pub const SLIDER_SUFFIX: &str = " slider";
 pub const PLAYLISTS_FILTER: &str =
 	"Playlists (*.m3u;*.m3u8;*.m3u_plus;*.pls)|*.m3u;*.m3u8;*.m3u_plus;*.pls";
 

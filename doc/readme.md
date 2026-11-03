@@ -114,7 +114,7 @@ own order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 Ctrl+B lists Favorites as a tree: the root list plus folders you make with New Folder, such as
 News, Music or BBC. Remove, Move Up, Move Down and Export work on stations and folders alike,
-Shift+Up and Shift+Down move a folder among its siblings, and a station's context menu moves
+Shift+Up and Shift+Down move the focused station or folder, and a station's context menu moves
 it into another folder. Ctrl+H lists Recently Played.
 On the main window, Alt+1 to Alt+0 play favorites one to ten.
 
@@ -127,8 +127,24 @@ its order is kept. M3U, M3U8, M3U Plus and PLS files are read. Local files and a
 are not HTTP are counted as skipped.
 
 BlindRadio plays HLS and MPEG-TS streams as well as ordinary internet radio, taking the audio
-from channels that also carry video. The audio has to be AAC, MP3 or MP2: AC-3 and DVB AAC
-audio, encrypted HLS and HLS in fragmented MP4 answer `Unsupported format`.
+from channels that also carry video. The audio can be AAC, including DVB's LATM carriage, MP3,
+MP2, AC-3 or E-AC-3, with surround mixed down to stereo. HLS can be in TS or fragmented MP4 and
+encrypted with AES-128. DRM, such as SAMPLE-AES or FairPlay, answers `Unsupported format`.
+
+Opus and Vorbis streams, which send song titles in their own tags, show them like any other.
+
+## Buffers
+
+Settings (Ctrl+T) has three buffer settings. Each is a text field you can type any number
+into, followed by a slider that moves with it. Lower numbers play closer to live; higher ones ride
+out a poor connection. A change applies to the next station you open, and the start buffer and
+refill limit also apply to the one playing.
+
+- Start buffer: audio held before a station starts, 0 to 30000 milliseconds. The default is 1000.
+- Refill limit after dropouts: a stream that keeps running dry must refill more each time before
+  it sounds again, up to this many seconds, 1 to 120. The default is 15.
+- HLS segments behind live: where a live HLS stream starts, 1 to 10 segments back from the newest.
+  The default is 2. At 1 a segment can arrive only just in time, so it can stutter.
 
 For one stream right now, File → Open URL plays an address you paste without adding it
 anywhere — handy for a quick listen or testing a stream. It still appears under Recently
@@ -150,7 +166,9 @@ folders.
 ## Your own stations
 
 Ctrl+N adds a station: a name and a stream URL. Anything but an http or https URL is refused
-with `Not a stream URL` and the window stays open. Add to chooses where the station is
+with `Not a stream URL` and the window stays open. Name Automatically, here and in Edit Station,
+asks the URL for the station's own name and fills it in; if it comes out odd, edit it. Add to
+chooses where the station is
 filed: Custom Stations, any collection or folder, or Favorites and its folders — the
 default is Custom Stations, where new stations went before the choice existed.
 

@@ -1,4 +1,5 @@
-//! Playback health per station without a device: `cargo run -p blindradio-core --example probe --release [warm_secs]`.
+//! Playback health per station without a device: `cargo run -p blindradio-core --example probe --release [warm_secs] [id_part]`.
+//! A warm_secs of 0 is a cold start; `id_part` keeps only stations whose id holds it.
 //! Runs each station through the real mixer in 10 ms ticks like the audio callback, and
 //! reports when sound starts and how many ticks went silent after that (gaps). With
 //! `warm_secs`, each station first sits warm (open, not played) that long, then is swapped to
@@ -21,7 +22,9 @@ fn main() -> blindradio_core::Result<()> {
 	let warm = std::env::args()
 		.nth(1)
 		.and_then(|s| s.parse().ok())
+		.filter(|&s: &f32| s > 0.0)
 		.map(Duration::from_secs_f32);
+	let only = std::env::args().nth(2).unwrap_or_default();
 	let json = std::fs::read(concat!(
 		env!("CARGO_MANIFEST_DIR"),
 		"/examples/stations.json"
@@ -33,6 +36,7 @@ fn main() -> blindradio_core::Result<()> {
 	)?;
 	let threads: Vec<_> = list
 		.into_iter()
+		.filter(|s| s.id.contains(&only))
 		.map(|station| {
 			let ctx = engine.ctx.clone();
 			std::thread::spawn(move || {

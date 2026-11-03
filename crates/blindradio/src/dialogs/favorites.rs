@@ -756,7 +756,7 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		};
 		let plain = !(e.control_down() || e.alt_down() || e.shift_down());
 		let alt = e.alt_down() && !e.control_down() && !e.shift_down();
-		// Shift+Up / Shift+Down moves folders too (folders only, below).
+		// Shift+Up / Shift+Down moves the row like Alt, as in Browse.
 		let shift = e.shift_down() && !e.control_down() && !e.alt_down();
 		let act = match (code, plain, alt, shift) {
 			(WXK_DELETE, true, _, _) => 0,
@@ -771,9 +771,6 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 		let Some(row) = v.selected_row() else {
 			return;
 		};
-		if shift && !matches!(row, Row::Folder(_)) {
-			return;
-		}
 		match act {
 			0 => v.remove(&a, row),
 			1 => {
