@@ -138,6 +138,7 @@ impl App {
 			"{alt}{right}" => Some((0x27, 0x4d, Some("{alt}"))),
 			"{shift}{up}" => Some((0x26, 0x48, Some("{shift}"))),
 			"{shift}{down}" => Some((0x28, 0x50, Some("{shift}"))),
+			"{ctrl}{up}" => Some((0x26, 0x48, Some("{ctrl}"))),
 			_ => None,
 		};
 		let mut keyboard = Keyboard::new().interval(60);
@@ -337,6 +338,30 @@ fn one_window_at_a_time() {
 		app.find("Search", Duration::from_millis(400)).is_none(),
 		"Search closed"
 	);
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn volume_is_saved_at_rest_and_on_an_immediate_exit() {
+	let mut app = App::start("volume-save", Library::default());
+	let volume = |app: &App| Settings::load(&app.data).volume;
+	let first = volume(&app);
+	app.press("{ctrl}{up}");
+	std::thread::sleep(Duration::from_millis(1500));
+	let rested = volume(&app);
+	assert!(rested > first, "written once the key rests");
+	app.press("{ctrl}{up}");
+	app.press("{alt}{f4}");
+	let mut exited = false;
+	for _ in 0..100 {
+		if app.child.try_wait().expect("wait").is_some() {
+			exited = true;
+			break;
+		}
+		std::thread::sleep(Duration::from_millis(50));
+	}
+	assert!(exited, "Alt+F4 exits");
+	assert!(volume(&app) > rested, "written on exit");
 }
 
 #[test]
@@ -1451,7 +1476,8 @@ fn search_keeps_focus_when_its_first_result_plays() {
 		std::thread::sleep(Duration::from_millis(10));
 	}
 	println!("Down in Search: {:?}", began.elapsed());
-	assert!(began.elapsed() < Duration::from_millis(300));
+	// The title follows 300 ms after the keys rest (App's LINE_REST), then a 50 ms poll.
+	assert!(began.elapsed() < Duration::from_millis(650));
 	assert!(!first.has_keyboard_focus().unwrap(), "focus went with the arrow");
 }
 

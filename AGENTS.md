@@ -35,6 +35,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - wxDragon passes events on. Consume with `event.skip(false)`, or key acts twice. Unhandled: `skip(true)`.
 - `app.selected` survives move onto main tree folder. Station command uses `App::station_here` (Ctrl+C, Ctrl+X: `focused_station`). Set a station first, then dispatch `Play` = trap on folder: use `App::play` or `PlayFavorite`. Dialogs empty `selected` on folders themselves.
 - Same station id can sit in several folders. Never find row by id first. Use row's parent (`DialTree::selected_home`).
+- Per-key path stays cheap: no `refresh_dial`, no disk, no window text. Each costs NVDA more than the app. Tree rebuild was ~600 ms on 210 rows. `now_playing` defers to poll, volume uses `save_settings_soon`.
 - Settings tabs: new control takes panel as parent. Alt letter unique per tab. Notebook fit ignores tab strip width: long tab title hides tabs behind arrows. UI test catches it (`Spinner`).
 - Hidden page control cannot take focus. Dialog `first` focus = notebook.
 - New `Action`: `action.rs`, `keys.rs` (enum, `ALL` count, `tab`, `id`, `label`, `action`, `menu_key`), `menus.rs`, `app.rs` no-op arm if modal, `main_window::dispatch`.

@@ -1,6 +1,6 @@
 //! Owns every core object and executes `Action`s. Lives in `Rc<RefCell<App>>` on the UI thread.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -40,6 +40,10 @@ mod status;
 
 const VOLUME_STEP: i32 = 5;
 const DEVICE_POLL: Duration = Duration::from_secs(2);
+/// Keys rest this long before the title and now playing line follow them.
+const LINE_REST: Duration = Duration::from_millis(300);
+/// Keys rest this long before a volume change is written to disk.
+const SETTINGS_REST: Duration = Duration::from_secs(1);
 /// The daily check waits until the window and the first station are settled.
 const UPDATE_DELAY: Duration = Duration::from_secs(10);
 
@@ -375,6 +379,10 @@ pub struct App {
 	/// Announce Now Playing chord speaks it verbatim.
 	status_line: RefCell<String>,
 	last_status_tick: Instant,
+	/// When the windows show the words `now_playing` holds back.
+	line_due: Cell<Option<Instant>>,
+	/// When the settings `save_settings_soon` holds back are written.
+	settings_due: Option<Instant>,
 	/// The tray icon, once installed.
 	pub tray: Option<crate::tray::Tray>,
 	/// The single-instance claim; a later copy raises this window through it.
@@ -475,6 +483,8 @@ impl App {
 			status_base: RefCell::new(String::new()),
 			status_line: RefCell::new(String::new()),
 			last_status_tick: Instant::now(),
+			line_due: Cell::new(None),
+			settings_due: None,
 			tray: None,
 			instance: None,
 			readonly,
@@ -597,7 +607,7 @@ impl App {
 		self.shift_song = None;
 		landed(&mut self.selected, &mut self.remembered, station);
 		self.history.station_changed(&station.id);
-		// The window title follows focus at once; the song is added when known.
+		// The window title follows focus when the keys rest; the song is added when known.
 		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
 		self.apply_station_volume(station);
@@ -878,6 +888,10 @@ impl App {
 			self.save_settings();
 			update::check(&self.win.frame, CheckTrigger::Automatic);
 		}
+		if self.settings_due.is_some_and(|due| now >= due) {
+			self.save_settings();
+		}
+		self.flush_line(now);
 		self.refresh_status_line(now);
 		self.refresh();
 	}
@@ -905,6 +919,9 @@ impl App {
 		let last = self.tuner.playing().or(self.remembered.as_ref()).cloned();
 		if last.is_some() && last != self.settings.last_station {
 			self.settings.last_station = last;
+			self.save_settings();
+		}
+		if self.settings_due.is_some() {
 			self.save_settings();
 		}
 		self.tuner.stop();
@@ -1180,7 +1197,7 @@ impl App {
 				.or_default()
 				.volume = Some(self.settings.volume);
 		}
-		self.save_settings();
+		self.save_settings_soon();
 	}
 
 	/// Landing on a station with a remembered volume makes it the
@@ -1190,7 +1207,7 @@ impl App {
 		if v != self.settings.volume {
 			self.settings.volume = v;
 			self.mixer(MixerCmd::Volume(v));
-			self.save_settings();
+			self.save_settings_soon();
 		}
 	}
 
@@ -1198,7 +1215,14 @@ impl App {
 		self.output.borrow().send(cmd);
 	}
 
+	/// For what a held or repeated key changes: a save waits on the disk on the UI thread.
+	/// poll() writes it once the keys rest, shutdown() at the latest.
+	fn save_settings_soon(&mut self) {
+		self.settings_due = Some(Instant::now() + SETTINGS_REST);
+	}
+
 	pub fn save_settings(&mut self) {
+		self.settings_due = None;
 		if let Err(e) = self.settings.save(&self.data) {
 			eprintln!("settings: {e}");
 			self.say(s::NOT_SAVED);

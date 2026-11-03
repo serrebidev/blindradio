@@ -3,10 +3,23 @@
 use super::*;
 
 impl App {
-	/// The window title and the now playing line; `None` is stopped.
+	/// The window title and the now playing line; `None` is stopped. The words change now,
+	/// the windows once the keys rest: each arrow would otherwise send NVDA four name
+	/// changes it has to look up on top of the focus move it is reading.
 	pub(super) fn now_playing(&self, text: Option<&str>) {
-		*self.status_base.borrow_mut() = text.unwrap_or("").to_string();
-		self.show_line(text.unwrap_or(""), text.unwrap_or(""));
+		let text = text.unwrap_or("");
+		*self.status_base.borrow_mut() = text.to_string();
+		*self.status_line.borrow_mut() = if text.is_empty() { s::STOPPED } else { text }.to_string();
+		self.line_due.set(Some(Instant::now() + LINE_REST));
+	}
+
+	/// From poll(): shows what `now_playing` held back, once it is due.
+	pub(super) fn flush_line(&self, now: Instant) {
+		if self.line_due.get().is_some_and(|due| now >= due) {
+			self.line_due.set(None);
+			let base = self.status_base.borrow().clone();
+			self.show_line(&base, &base);
+		}
 	}
 
 	/// `text` is the full line (the now-playing label and what the
@@ -140,7 +153,7 @@ impl App {
 		}
 		self.sync_title_song(behind);
 		let base = self.status_base.borrow().clone();
-		if base.is_empty() {
+		if base.is_empty() || self.line_due.get().is_some() {
 			return;
 		}
 		// The parts after the station and song. The full line joins

@@ -176,7 +176,9 @@ pub fn sync(win: &MainWindow) {
 			return;
 		}
 		if IsWindowVisible(frame_hwnd) == 0 || IsIconic(frame_hwnd) != 0 {
-			ShowWindow(strip_hwnd, SW_HIDE);
+			if IsWindowVisible(strip_hwnd) != 0 {
+				ShowWindow(strip_hwnd, SW_HIDE);
+			}
 			return;
 		}
 		// The strip is exactly the bar's height now: borderless, the
@@ -205,7 +207,9 @@ pub fn sync(win: &MainWindow) {
 		// after every restore) — NVDA announced the nameless strip
 		// ("Pane") and the station tree lost focus until Alt+Tab.
 		// SW_SHOWNA shows without activating, as 0.2.20 did.
-		ShowWindow(strip_hwnd, SW_SHOWNA);
+		if IsWindowVisible(strip_hwnd) == 0 {
+			ShowWindow(strip_hwnd, SW_SHOWNA);
+		}
 	}
 }
 

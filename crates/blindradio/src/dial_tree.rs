@@ -214,6 +214,10 @@ impl DialTree {
 				.filter(|row| matches!(row, Row::Folder { .. }))
 		});
 		self.quiet.set(true);
+		// wx deletes rows one by one and the native tree moves the selection onto the
+		// next each time: a repaint and a focus event per row, which floods NVDA.
+		self.list.freeze();
+		self.list.unselect_all();
 		self.list.delete_children(&self.root);
 		self.rows.borrow_mut().clear();
 		self.folders.borrow_mut().clear();
@@ -234,6 +238,7 @@ impl DialTree {
 			self.list.set_focused_item(&item);
 			self.list.ensure_visible(&item);
 		}
+		self.list.thaw();
 		self.quiet.set(false);
 	}
 

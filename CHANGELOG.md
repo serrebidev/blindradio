@@ -5,6 +5,14 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.51
+
+- Closing Browse no longer freezes the window for half a second and floods your screen reader. The main list is now rebuilt only when Browse changed something.
+- Typing in the Filter box and editing a list are faster: rebuilding the main list takes about a quarter of the time and no longer sends your screen reader a focus move for every row.
+- Arrowing through stations in the main list or Browse now gives your screen reader less to process. The window title, now playing line and status bar follow about a third of a second after you stop moving, not on every key.
+- Moving onto a station with its own volume, and changing the volume, no longer writes to disk on every key. The volume is saved a second after you stop, and on exit.
+- The tray icon's tooltip now shows the station and song, without the played time. It was redrawn every second while playing.
+
 ## 0.2.50
 
 - On Windows, the AudD, ListenBrainz and last.fm tokens in `settings.json` are now encrypted for your Windows account, so the file can be copied or synced without them. Yours are converted the next time Settings saves. A copy of the file on another PC or account opens with those fields blank, so enter them again there. On macOS and Linux they stay in the file, which is now readable only by you.

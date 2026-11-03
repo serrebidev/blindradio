@@ -95,16 +95,14 @@ impl Tray {
 
 	/// Follows the playing state, the favorites and the now-playing line.
 	pub fn update(&self, app: &App) {
-		let now = (
-			app.tuner.playing().is_some(),
-			app.library
-				.favorites
-				.iter()
-				.map(|st| st.id.clone())
-				.collect::<Vec<_>>(),
-		);
-		if self.built.borrow().as_ref() != Some(&now) {
-			*self.built.borrow_mut() = Some(now);
+		let playing = app.tuner.playing().is_some();
+		let favorites = &app.library.favorites;
+		let same = self.built.borrow().as_ref().is_some_and(|(was, ids)| {
+			*was == playing && ids.iter().eq(favorites.iter().map(|st| &st.id))
+		});
+		if !same {
+			*self.built.borrow_mut() =
+				Some((playing, favorites.iter().map(|st| st.id.clone()).collect()));
 			let mut ids = self.ids.borrow_mut();
 			ids.clear();
 			let mut menu = fill(app, &mut ids);
@@ -112,12 +110,9 @@ impl Tray {
 			self.icon.set_popup_menu(&mut menu);
 			*self.menu.borrow_mut() = menu;
 		}
-		let said = app.win.now_playing.get_label().replace('&', "");
-		let tooltip = if said.is_empty() || said == s::STOPPED {
-			s::APP_NAME.to_string()
-		} else {
-			format!("{} - {said}", s::APP_NAME)
-		};
+		// The title, not the status line: that one ticks every second, and each change
+		// here redraws the icon and waits on Explorer on the UI thread.
+		let tooltip = app.win.frame.get_title();
 		if *self.tooltip.borrow() != tooltip
 			&& let Some(bitmap) = icon_bundle().and_then(|b| b.get_bitmap(Size::new(16, 16)))
 		{
