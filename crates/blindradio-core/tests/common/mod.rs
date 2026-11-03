@@ -14,6 +14,12 @@ pub enum Route {
 		content_type: String,
 		body: Vec<u8>,
 	},
+	/// Like Static, gzipped whatever the request's Accept-Encoding says, as RTP's CDN does.
+	Gzip {
+		path: String,
+		content_type: String,
+		body: Vec<u8>,
+	},
 	/// Like Static, but each request gets the next body; the last one repeats.
 	Sequence {
 		path: String,
@@ -47,6 +53,7 @@ impl Route {
 	fn path(&self) -> &str {
 		match self {
 			Route::Static { path, .. }
+			| Route::Gzip { path, .. }
 			| Route::Sequence { path, .. }
 			| Route::Stream { path, .. }
 			| Route::Silent { path }
@@ -186,6 +193,19 @@ async fn handle(
 		Route::Static {
 			content_type, body, ..
 		} => static_reply(&mut sock, content_type, &fill(body, base)).await,
+		Route::Gzip {
+			content_type, body, ..
+		} => {
+			let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+			std::io::Write::write_all(&mut gz, &fill(body, base))?;
+			let gz = gz.finish()?;
+			let head = format!(
+				"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Encoding: gzip\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+				gz.len()
+			);
+			sock.write_all(head.as_bytes()).await?;
+			sock.write_all(&gz).await
+		}
 		Route::Sequence {
 			content_type,
 			bodies,

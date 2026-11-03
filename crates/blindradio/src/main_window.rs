@@ -370,10 +370,20 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 			key.event.skip(true);
 			return;
 		}
+		let on_list = dialogs::event_on_list(&e);
 		let WindowEventData::Keyboard(key) = e else {
 			return;
 		};
 		let action = key.get_key_code().and_then(|code| {
+			if crate::action::space_stays_native(
+				code,
+				key.control_down(),
+				key.alt_down(),
+				key.shift_down(),
+				on_list,
+			) {
+				return None;
+			}
 			app_key(
 				&a.borrow().settings,
 				code,

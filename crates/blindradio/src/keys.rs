@@ -31,6 +31,7 @@ pub enum Scope {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KeyAction {
 	PlayPause,
+	PlayPauseAlt,
 	Play,
 	Stop,
 	PreviousStation,
@@ -107,8 +108,9 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 71] = [
+	pub const ALL: [KeyAction; 72] = [
 		K::PlayPause,
+		K::PlayPauseAlt,
 		K::Play,
 		K::Stop,
 		K::PreviousStation,
@@ -230,6 +232,7 @@ impl KeyAction {
 	pub fn id(self) -> &'static str {
 		match self {
 			K::PlayPause => "play_pause",
+			K::PlayPauseAlt => "play_pause_alt",
 			K::Play => "play",
 			K::Stop => "stop",
 			K::PreviousStation => "previous_station",
@@ -310,6 +313,7 @@ impl KeyAction {
 		let favorite = |n: usize| format!("{} {n}", s::KB_PLAY_FAVORITE);
 		match self {
 			K::PlayPause => plain(s::PLAY_PAUSE),
+			K::PlayPauseAlt => alt(s::PLAY_PAUSE),
 			K::Play => s::PLAY.to_string(),
 			K::Stop => plain(s::STOP_MENU),
 			K::PreviousStation => plain(s::PREVIOUS_STATION),
@@ -386,6 +390,7 @@ impl KeyAction {
 	pub fn default_chord(self) -> Option<&'static str> {
 		Some(match self {
 			K::PlayPause => "Ctrl+P",
+			K::PlayPauseAlt => "Space",
 			K::Stop => "Ctrl+S",
 			K::PreviousStation => "Alt+Left",
 			K::NextStation => "Alt+Right",
@@ -447,7 +452,7 @@ impl KeyAction {
 	/// What pressing the key does.
 	pub fn action(self) -> Action {
 		match self {
-			K::PlayPause => Action::PlayPause,
+			K::PlayPause | K::PlayPauseAlt => Action::PlayPause,
 			K::Play => Action::Play,
 			K::Stop => Action::Stop,
 			K::PreviousStation => Action::PreviousStation,
@@ -760,6 +765,11 @@ mod tests {
 		let settings = Settings::default();
 		let look = |code, ctrl, alt, shift, main| lookup(&settings, code, ctrl, alt, shift, main);
 		assert_eq!(look(key('P'), true, false, false, true), Some(Action::PlayPause));
+		for main in [true, false] {
+			assert_eq!(look(key(' '), false, false, false, main), Some(Action::PlayPause));
+		}
+		assert_eq!(look(key(' '), false, false, true, true), None, "Shift+Space is not Space");
+		assert_eq!(menu_chord(&settings, &Action::PlayPause), "Ctrl+P", "the menu keeps its key");
 		assert_eq!(look(key('R'), true, false, true, true), Some(Action::RecordPause));
 		assert_eq!(look(WXK_F5, false, false, false, true), Some(Action::SeekStart));
 		assert_eq!(look(WXK_LEFT, true, false, false, true), Some(Action::SeekBack));

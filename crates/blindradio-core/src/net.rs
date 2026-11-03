@@ -10,6 +10,9 @@ use std::time::Duration;
 const MAX_DEPTH: u8 = 3;
 const SNIFF_LIMIT: usize = 64 * 1024;
 const SNIFF_DEADLINE: Duration = Duration::from_secs(3);
+/// Bytes read from an unlabeled body before judging it: enough for a playlist's first line
+/// or three TS packets.
+const HEAD_BYTES: usize = 1024;
 /// Head start each playlist entry gets before the next one is tried alongside it.
 const ENTRY_STAGGER: Duration = Duration::from_millis(500);
 
@@ -51,6 +54,8 @@ pub enum Opened {
 	Audio {
 		response: reqwest::Response,
 		final_url: String,
+		/// Body bytes already read to judge an unlabeled stream; they come before the response's.
+		head: bytes::Bytes,
 	},
 	Hls {
 		playlist_url: String,
@@ -107,6 +112,25 @@ fn is_audio(ct: &str, headers: &reqwest::header::HeaderMap) -> bool {
 	ct.starts_with("audio/") || ct == "application/ogg" || icy
 }
 
+/// Types no stream or playlist is ever served as; anything else unlabeled gets a look at its bytes.
+fn is_never_media(ct: &str) -> bool {
+	ct.starts_with("image/") || ct.ends_with("json") || ct.ends_with("xml")
+}
+
+/// Reads about `HEAD_BYTES` of the body, stopping early at its end or the sniff deadline.
+async fn read_head(response: &mut reqwest::Response) -> Result<Vec<u8>> {
+	let mut head = Vec::new();
+	let deadline = tokio::time::Instant::now() + SNIFF_DEADLINE;
+	while head.len() < HEAD_BYTES {
+		match tokio::time::timeout_at(deadline, response.chunk()).await {
+			Ok(Ok(Some(c))) => head.extend_from_slice(&c),
+			Ok(Ok(None)) | Err(_) => break,
+			Ok(Err(e)) => return Err(http_err(e)),
+		}
+	}
+	Ok(head)
+}
+
 /// Opens `url`, following redirects and playlists. Audio comes back still open
 /// so the caller keeps streaming on the same connection.
 pub async fn open(client: &reqwest::Client, url: &str) -> Result<Opened> {
@@ -157,14 +181,30 @@ fn open_at<'a>(
 			return Ok(Opened::Audio {
 				response,
 				final_url,
+				head: bytes::Bytes::new(),
 			});
 		}
-		if !explicit_playlist && !ct.is_empty() && !ct.starts_with("text/") {
+		if is_never_media(&ct) {
 			return Err(not_a_stream());
 		}
 
-		// A slow or endless text body is judged on what arrived by the deadline.
 		let mut body = Vec::new();
+		// video/mp2t, application/octet-stream or no type at all: a playlist if its bytes say so,
+		// else a stream for the decoder to judge.
+		if !explicit_playlist && !ct.starts_with("text/") {
+			body = read_head(&mut response).await?;
+			if body.is_empty() {
+				return Err(not_a_stream());
+			}
+			if sniff(&String::from_utf8_lossy(&body)).is_none() {
+				return Ok(Opened::Audio {
+					response,
+					final_url,
+					head: body.into(),
+				});
+			}
+		}
+		// A slow or endless text body is judged on what arrived by the deadline.
 		let deadline = tokio::time::Instant::now() + SNIFF_DEADLINE;
 		while body.len() < SNIFF_LIMIT {
 			match tokio::time::timeout_at(deadline, response.chunk()).await {

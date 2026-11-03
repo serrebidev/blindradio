@@ -55,7 +55,7 @@ pub fn import_playlist(
 		.map(str::to_ascii_lowercase);
 	let kind = match ext.as_deref() {
 		Some("pls") => PlaylistKind::Pls,
-		Some("m3u" | "m3u8") => PlaylistKind::M3u,
+		Some("m3u" | "m3u8" | "m3u_plus") => PlaylistKind::M3u,
 		_ => match sniff(&body) {
 			Some(PlaylistKind::Hls) | None => {
 				return Err(CoreError::Playlist("Not a playlist".into()));

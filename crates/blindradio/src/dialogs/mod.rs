@@ -56,6 +56,7 @@ fn opens_window(a: &Action) -> bool {
 
 /// Route with the focused control in mind: in a text field, the
 /// clipboard trio edits text; everywhere else it works on stations.
+#[allow(clippy::too_many_arguments)]
 pub fn route_focused(
 	settings: &blindradio_core::settings::Settings,
 	own: &Action,
@@ -64,24 +65,35 @@ pub fn route_focused(
 	alt: bool,
 	shift: bool,
 	in_text: bool,
+	on_list: bool,
 ) -> Route {
 	if in_text && crate::action::is_text_edit_chord(code, ctrl, alt, shift) {
+		return Route::Pass;
+	}
+	if crate::action::space_stays_native(code, ctrl, alt, shift, on_list) {
 		return Route::Pass;
 	}
 	route(settings, own, code, ctrl, alt, shift)
 }
 
-/// Whether the key event started in a text field. A char hook's event
-/// object is the window the key was aimed at, so its class answers.
-pub(crate) fn event_in_text(e: &WindowEventData) -> bool {
+/// The class of the window a key event was aimed at: a char hook's
+/// event object is that window.
+fn event_class(e: &WindowEventData) -> Option<String> {
 	let WindowEventData::Keyboard(key) = e else {
-		return false;
+		return None;
 	};
-	key.event
-		.event
-		.get_event_object()
-		.and_then(|w| w.get_class_name())
-		.is_some_and(|c| c == "wxTextCtrl")
+	key.event.event.get_event_object()?.get_class_name()
+}
+
+/// Whether the key event started in a text field.
+pub(crate) fn event_in_text(e: &WindowEventData) -> bool {
+	event_class(e).is_some_and(|c| c == "wxTextCtrl")
+}
+
+/// Whether the key event started on a station list, a tree or a slider.
+pub(crate) fn event_on_list(e: &WindowEventData) -> bool {
+	event_class(e)
+		.is_some_and(|c| c.contains("TreeCtrl") || c.contains("ListCtrl") || c.contains("Slider"))
 }
 
 /// `own` is the shortcut that opens this window.
@@ -127,6 +139,7 @@ pub fn run_with_refresh(
 	let (a, n) = (app.clone(), next.clone());
 	dialog.on_char_hook(move |e| {
 		let in_text = event_in_text(&e);
+		let on_list = event_on_list(&e);
 		let WindowEventData::Keyboard(key) = e else {
 			return;
 		};
@@ -139,6 +152,7 @@ pub fn run_with_refresh(
 				key.alt_down(),
 				key.shift_down(),
 				in_text,
+				on_list,
 			)
 		});
 		if route == Route::Pass {
@@ -231,7 +245,21 @@ mod tests {
 			alt,
 			shift,
 			in_text,
+			!in_text,
 		)
+	}
+
+	#[test]
+	fn space_plays_or_pauses_only_on_a_list() {
+		let own = Action::OpenSearch;
+		let space = ' ' as i32;
+		let settings = blindradio_core::settings::Settings::default();
+		let on = |in_text, on_list| {
+			super::route_focused(&settings, &own, space, false, false, false, in_text, on_list)
+		};
+		assert_eq!(on(false, true), Route::Run(Action::PlayPause), "list or tree");
+		assert_eq!(on(true, false), Route::Pass, "typing a space");
+		assert_eq!(on(false, false), Route::Pass, "a button or check box presses");
 	}
 
 	#[test]
@@ -247,7 +275,7 @@ mod tests {
 			Route::Run(Action::VolumeUp)
 		);
 		// Typing reaches the text box.
-		for c in ['A', 'a', 'P', '1', ' '] {
+		for c in ['A', 'a', 'P', '1'] {
 			assert_eq!(route(&own, key(c), false, false, false), Route::Pass, "{c}");
 			assert_eq!(
 				route(&own, key(c), false, false, true),

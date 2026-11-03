@@ -142,6 +142,36 @@ fn hls_raw_aac_segments_decode() {
 }
 
 #[test]
+fn hls_master_follows_separate_audio_rendition() {
+	let master = "#EXTM3U\n\
+		#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"aac\",NAME=\"Main\",DEFAULT=YES,URI=\"live.m3u8\"\n\
+		#EXT-X-STREAM-INF:BANDWIDTH=900000,CODECS=\"avc1.42e00a,mp4a.40.2\",AUDIO=\"aac\"\n\
+		video.m3u8\n";
+	let server = serve(routes(vec![
+		file("/master.m3u8", M3U8, master.into()),
+		file("/live.m3u8", M3U8, fixture("live.m3u8")),
+	]));
+	let (result, _, frames) = play(server.url("/master.m3u8"));
+	result.unwrap();
+	assert!(frames >= 3 * 44100, "{frames} frames");
+	assert_eq!(server.hits("/video.m3u8"), 0);
+}
+
+#[test]
+fn hls_gzipped_playlists_and_segments_decode() {
+	// RTP's chunklists reach the player gzipped, wanted or not.
+	let names = ["aac0.aac", "aac1.aac", "aac2.aac", "aac3.aac", "aac4.aac"];
+	let server = serve(routes(vec![Route::Gzip {
+		path: "/gz.m3u8".into(),
+		content_type: M3U8.into(),
+		body: media(&names, 0, true),
+	}]));
+	let (result, _, frames) = play(server.url("/gz.m3u8"));
+	result.unwrap();
+	assert!(frames >= 3 * 44100, "{frames} frames");
+}
+
+#[test]
 fn hls_fmp4_is_unsupported() {
 	let fmp4 =
 		"#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:1.0,\nseg0.m4s\n";

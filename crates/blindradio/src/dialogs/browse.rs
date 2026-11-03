@@ -1148,7 +1148,7 @@ impl View {
 		self.show_focus();
 	}
 
-	/// Enter, Space or a double click.
+	/// Enter or a double click. Space is Play/Pause, taken before the tree sees it.
 	fn activate(
 		self: &Rc<Self>,
 		app: &Rc<RefCell<App>>,

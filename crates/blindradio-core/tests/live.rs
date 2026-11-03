@@ -67,6 +67,18 @@ fn each_dev_station_produces_audio() {
 
 #[test]
 #[ignore = "network"]
+fn gzipped_hls_station_plays() {
+	// RTP's CDN gzips this chunklist under any Accept-Encoding; it failed at once before gzip.
+	let engine = engine();
+	let station = dev_stations()
+		.into_iter()
+		.find(|s| s.id == "rtp-antena1-hls")
+		.unwrap();
+	first_audio(&engine, &station).unwrap();
+}
+
+#[test]
+#[ignore = "network"]
 fn he_aac_station_decodes() {
 	let engine = engine();
 	let station = dev_stations()

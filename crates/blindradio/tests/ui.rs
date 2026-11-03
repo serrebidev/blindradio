@@ -132,6 +132,7 @@ impl App {
 			"{down}" => Some((0x28, 0x50, false)),
 			"{left}" => Some((0x25, 0x4b, false)),
 			"{delete}" => Some((0x2e, 0x53, false)),
+			"{space}" => Some((0x20, 0x39, false)),
 			"{alt}{left}" => Some((0x25, 0x4b, true)),
 			"{alt}{right}" => Some((0x27, 0x4d, true)),
 			_ => None,
@@ -439,6 +440,109 @@ fn browse_pastes_from_the_selected_collection_and_refreshes_in_place() {
 		);
 		app.row(&browse, &format!("Misc {remaining}"));
 	}
+}
+
+/// Space on the tree is Play/Pause; in the Filter box it is still a space.
+#[test]
+#[ignore = "needs a desktop"]
+fn space_plays_on_the_tree_and_types_in_the_filter() {
+	let mut library = Library::default();
+	library.collections[0].stations = vec![station("custom:one", "One")];
+	let app = App::with_settings(
+		"space",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	app.select_row(&tree, "One");
+	assert!(!app.window.get_name().unwrap().contains("One"), "not yet playing");
+	app.press("{space}");
+	assert!(app.window.get_name().unwrap().contains("One"), "Space plays");
+	let title = app.window.get_name().unwrap();
+	let filter = app
+		.automation
+		.create_matcher()
+		.from(app.window.clone())
+		.control_type(ControlType::Edit)
+		.timeout(5000)
+		.find_first()
+		.expect("filter box");
+	filter.set_focus().expect("focus filter");
+	app.press("o");
+	app.press("{space}");
+	app.press("e");
+	let typed = filter
+		.get_pattern::<UIValuePattern>()
+		.expect("value")
+		.get_value()
+		.expect("text");
+	assert_eq!(typed, "o e", "Space types in a text box");
+	assert_eq!(app.window.get_name().unwrap(), title, "and leaves playback alone");
+}
+
+/// The main tree's own paste, with the station a row shows also filed earlier in
+/// another folder: focus stays on the copy it moved to, and Paste lands in that
+/// copy's folder instead of answering "already in" for the first one.
+#[test]
+#[ignore = "needs a desktop"]
+fn main_window_pastes_beside_the_focused_copy() {
+	let mut library = Library::default();
+	let shared = station("custom:shared", "Shared");
+	let (one, two) = (
+		station("custom:one", "Paste one"),
+		station("custom:two", "Paste two"),
+	);
+	let folder = |name: &str, stations| Folder {
+		name: name.into(),
+		stations,
+		folders: Vec::new(),
+	};
+	library.collections[0].folders = vec![
+		folder("Alpha", vec![shared.clone(), one, two]),
+		folder("Beta", vec![shared]),
+		folder("Gamma", Vec::new()),
+	];
+	let settings = Settings {
+		main_list: Some("custom".into()),
+		expand_dial_folders: true,
+		..Settings::default()
+	};
+	let app = App::with_settings("paste-main", library, settings);
+	let names = |saved: &Library, i: usize| -> Vec<String> {
+		saved.collections[0].folders[i]
+			.stations
+			.iter()
+			.map(|s| s.name.clone())
+			.collect()
+	};
+	let tree = app.main_tree();
+	app.select_row(&tree, "Paste one");
+	app.press("{ctrl}c");
+	// By keyboard, as it is used: Beta's row, then down onto its copy of Shared.
+	app.select_row(&tree, "Beta 1");
+	app.press("{down}");
+	app.press("{ctrl}v");
+	let saved = Library::load(&app.data);
+	assert_eq!(names(&saved, 1), ["Shared", "Paste one"], "into Beta");
+	assert_eq!(names(&saved, 0).len(), 3, "Alpha is untouched");
+
+	// A folder row keeps focus across the paste: the next paste lands there too.
+	let tree = app.main_tree();
+	app.select_row(&tree, "Paste one");
+	app.press("{ctrl}c");
+	app.select_row(&tree, "Gamma 0");
+	app.press("{ctrl}v");
+	let tree = app.main_tree();
+	app.select_row(&tree, "Paste two");
+	app.press("{ctrl}c");
+	app.select_row(&tree, "Gamma 1");
+	app.press("{ctrl}v");
+	let saved = Library::load(&app.data);
+	assert_eq!(names(&saved, 2), ["Paste one", "Paste two"], "into Gamma");
 }
 
 /// Ctrl+I's layout: the playlist is a folder inside Custom Stations, a copy of

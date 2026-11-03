@@ -2,7 +2,9 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use crossbeam_channel::Sender;
-use m3u8_rs::{KeyMethod, MediaPlaylist, Playlist, VariantStream};
+use m3u8_rs::{
+	AlternativeMedia, AlternativeMediaType, KeyMethod, MediaPlaylist, Playlist, VariantStream,
+};
 use reqwest::Url;
 use tokio::time::{sleep_until, timeout};
 
@@ -36,7 +38,8 @@ pub async fn run_hls(
 	let (url, playlist) = match playlist {
 		Playlist::MasterPlaylist(m) => {
 			let variant = pick_variant(&m.variants).ok_or_else(unsupported)?;
-			let url = base.join(&variant.uri).map_err(|_| not_a_stream())?;
+			let uri = audio_rendition(&m.alternatives, variant).unwrap_or(&variant.uri);
+			let url = base.join(uri).map_err(|_| not_a_stream())?;
 			let (b, p) = fetch_playlist(&client, &url, FIRST_FETCH).await?;
 			base = b;
 			(url, p)
@@ -108,7 +111,6 @@ fn unsupported() -> CoreError {
 
 /// The audio-only variant with the highest bandwidth, else the lowest-bandwidth variant that may
 /// carry audio, for the fastest start.
-// ponytail: audio in separate EXT-X-MEDIA renditions is not followed; add when a wanted network needs it.
 fn pick_variant(variants: &[VariantStream]) -> Option<&VariantStream> {
 	let playable = || variants.iter().filter(|v| !v.is_i_frame);
 	let codecs = |v: &VariantStream| v.codecs.clone().unwrap_or_default();
@@ -122,6 +124,23 @@ fn pick_variant(variants: &[VariantStream]) -> Option<&VariantStream> {
 			.filter(|v| v.codecs.is_none() || codecs(v).contains("mp4a"))
 			.min_by_key(|v| v.bandwidth)
 	})
+}
+
+/// The playlist of the separate audio this variant names (EXT-X-MEDIA), the group's default
+/// first. With one, the variant's own segments are video only and are never fetched. An
+/// entry without a URI means the audio is muxed into the variant.
+fn audio_rendition<'a>(
+	alternatives: &'a [AlternativeMedia],
+	variant: &VariantStream,
+) -> Option<&'a String> {
+	let group = variant.audio.as_ref()?;
+	let mut audio: Vec<_> = alternatives
+		.iter()
+		.filter(|a| a.media_type == AlternativeMediaType::Audio && a.group_id == *group)
+		.filter(|a| a.uri.is_some())
+		.collect();
+	audio.sort_by_key(|a| !a.default);
+	audio.first()?.uri.as_ref()
 }
 
 /// A media playlist this player can play.
@@ -151,7 +170,9 @@ async fn fetch_playlist(
 }
 
 fn parse(body: &[u8]) -> Result<Playlist> {
-	m3u8_rs::parse_playlist_res(body).map_err(|_| not_a_stream())
+	// The parser wants #EXTM3U as the very first bytes; sniffing tolerates a BOM and blank lines.
+	let body = body.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(body);
+	m3u8_rs::parse_playlist_res(body.trim_ascii_start()).map_err(|_| not_a_stream())
 }
 
 /// Tries a segment twice; `None` skips it. Returns its audio and any ID3 title it carries.
@@ -195,8 +216,9 @@ async fn get(client: &reqwest::Client, url: &Url, limit: Duration) -> Result<(Ur
 /// The title comes from ID3 TIT2: TS timed metadata, or the packed-audio tag.
 fn segment_audio(body: Bytes) -> (Bytes, Option<String>) {
 	if body.first() == Some(&0x47) && body.get(188).is_none_or(|&b| b == 0x47) {
-		let (audio, id3) = ts_audio(&body);
-		return (audio.into(), id3_title(&id3));
+		let mut demux = TsDemux::default();
+		let audio = demux.feed(&body);
+		return (audio.into(), demux.take_title());
 	}
 	let skip = match &body[..] {
 		[b'I', b'D', b'3', _, _, flags, size @ ..] if size.len() >= 4 => {
@@ -272,49 +294,104 @@ fn text_frame(body: &[u8]) -> Option<String> {
 	(!s.is_empty()).then_some(s)
 }
 
-/// The first audio stream of the first program: ADTS AAC (stream type 0x0F) or MPEG audio (0x03,
-/// 0x04), concatenated without PES headers.
-/// Also returns the ID3 timed metadata stream (type 0x15), which carries titles.
-// ponytail: PAT and PMT are assumed to fit one packet each (they do in practice).
-fn ts_audio(ts: &[u8]) -> (Vec<u8>, Vec<u8>) {
-	let (mut pmt_pid, mut audio_pid, mut id3_pid) = (None, None, None);
-	let (mut out, mut id3) = (Vec::new(), Vec::new());
-	for packet in ts.as_chunks::<188>().0 {
-		let Some((pid, start, payload)) = ts_payload(packet) else {
-			continue;
-		};
-		if pid == 0 && start {
-			pmt_pid = psi_section(payload).and_then(pat_pmt_pid);
-		} else if Some(pid) == pmt_pid && start {
-			(audio_pid, id3_pid) = psi_section(payload).map_or((None, None), pmt_pids);
-		} else if Some(pid) == id3_pid {
-			let data = if start {
-				pes_data(payload)
-			} else {
-				Some(payload)
-			};
-			// Each PES starts a new tag; keep the latest.
-			if start {
-				id3.clear();
-			}
-			id3.extend_from_slice(data.unwrap_or_default());
-		} else if Some(pid) == audio_pid {
-			let data = if start {
-				pes_data(payload)
-			} else {
-				Some(payload)
-			};
-			out.extend_from_slice(data.unwrap_or_default());
-		}
-	}
-	(out, id3)
+/// Whether these bytes start like MPEG-TS, however the stream is labeled: three sync bytes a
+/// packet apart, at any offset inside the first packet.
+pub(crate) fn looks_like_ts(bytes: &[u8]) -> bool {
+	(0..188).any(|i| {
+		[i, i + 188, i + 376]
+			.iter()
+			.all(|&at| bytes.get(at) == Some(&0x47))
+	})
 }
 
-/// PID, payload-unit-start flag and payload of a TS packet.
-fn ts_payload(p: &[u8; 188]) -> Option<(u16, bool, &[u8])> {
-	if p[0] != 0x47 {
-		return None;
+/// MPEG-TS to audio, fed in pieces of any size. Takes the first audio stream of the first
+/// program: ADTS AAC (stream type 0x0F) or MPEG audio (0x03, 0x04), concatenated without PES
+/// headers. Also keeps the ID3 timed metadata stream (type 0x15), which carries titles.
+// ponytail: PAT and PMT are assumed to fit one packet each (they do in practice).
+// ponytail: AC-3 and DVB LATM AAC audio are not decoded; add when a wanted channel needs it.
+#[derive(Default)]
+pub(crate) struct TsDemux {
+	pmt_pid: Option<u16>,
+	audio_pid: Option<u16>,
+	id3_pid: Option<u16>,
+	/// A PMT was read, so a missing audio stream is known to be missing.
+	pmt_seen: bool,
+	/// Audio before the first PES start is the tail of a frame already lost.
+	audio_started: bool,
+	id3: Vec<u8>,
+	/// Bytes of a packet that has not fully arrived.
+	carry: Vec<u8>,
+}
+
+impl TsDemux {
+	/// Returns the audio these bytes complete.
+	pub(crate) fn feed(&mut self, bytes: &[u8]) -> Vec<u8> {
+		self.carry.extend_from_slice(bytes);
+		let buf = std::mem::take(&mut self.carry);
+		let mut out = Vec::new();
+		let mut at = 0;
+		while let Some(packet) = buf.get(at..at + 188) {
+			// Out of sync, or a stray 0x47: step until a packet is followed by another.
+			if packet[0] != 0x47 || buf.get(at + 188).is_some_and(|&b| b != 0x47) {
+				at += 1;
+				continue;
+			}
+			self.packet(packet, &mut out);
+			at += 188;
+		}
+		self.carry = buf[at..].to_vec();
+		out
 	}
+
+	fn packet(&mut self, packet: &[u8], out: &mut Vec<u8>) {
+		let Some((pid, start, payload)) = ts_payload(packet) else {
+			return;
+		};
+		let data = |payload| {
+			if start {
+				pes_data(payload).unwrap_or_default()
+			} else {
+				payload
+			}
+		};
+		if pid == 0 && start {
+			if let Some(pmt) = psi_section(payload).and_then(pat_pmt_pid) {
+				self.pmt_pid = Some(pmt);
+			}
+		} else if Some(pid) == self.pmt_pid && start {
+			if let Some(section) = psi_section(payload) {
+				(self.audio_pid, self.id3_pid) = pmt_pids(section);
+				self.pmt_seen = true;
+			}
+		} else if Some(pid) == self.id3_pid {
+			// Each PES starts a new tag; keep the latest.
+			if start {
+				self.id3.clear();
+			}
+			self.id3.extend_from_slice(data(payload));
+		} else if Some(pid) == self.audio_pid {
+			self.audio_started |= start;
+			if self.audio_started {
+				out.extend_from_slice(data(payload));
+			}
+		}
+	}
+
+	/// The program is known to hold no audio this player can decode.
+	pub(crate) fn no_audio(&self) -> bool {
+		self.pmt_seen && self.audio_pid.is_none()
+	}
+
+	/// The title of a complete ID3 tag, once.
+	pub(crate) fn take_title(&mut self) -> Option<String> {
+		let title = id3_title(&self.id3)?;
+		self.id3.clear();
+		Some(title)
+	}
+}
+
+/// PID, payload-unit-start flag and payload of a whole TS packet.
+fn ts_payload(p: &[u8]) -> Option<(u16, bool, &[u8])> {
 	let pid = u16::from_be_bytes([p[1] & 0x1F, p[2]]);
 	let payload = match (p[3] >> 4) & 3 {
 		1 => &p[4..],
@@ -401,6 +478,34 @@ mod tests {
 	}
 
 	#[test]
+	fn audio_rendition_prefers_the_default_in_the_variants_group() {
+		let audio = |group: &str, uri: Option<&str>, default| AlternativeMedia {
+			media_type: AlternativeMediaType::Audio,
+			group_id: group.into(),
+			uri: uri.map(Into::into),
+			default,
+			..Default::default()
+		};
+		let all = [
+			audio("other", Some("wrong"), true),
+			audio("aac", Some("second"), false),
+			audio("aac", Some("main"), true),
+		];
+		let mut v = variant("v", 10, None);
+		assert_eq!(audio_rendition(&all, &v), None, "no group named");
+		v.audio = Some("aac".into());
+		assert_eq!(audio_rendition(&all, &v).map(String::as_str), Some("main"));
+		let muxed = [audio("aac", None, true)];
+		assert_eq!(audio_rendition(&muxed, &v), None, "muxed into the variant");
+	}
+
+	#[test]
+	fn parse_tolerates_a_bom_and_leading_blank_lines() {
+		let body = b"\xEF\xBB\xBF\r\n#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4,\na.aac\n";
+		assert!(matches!(parse(body), Ok(Playlist::MediaPlaylist(_))));
+	}
+
+	#[test]
 	fn hint_tells_adts_from_mpeg_audio() {
 		assert_eq!(hint(&[0xFF, 0xF1, 0x50]), "aac");
 		assert_eq!(hint(&[0xFF, 0xFB, 0x90]), "mp3");
@@ -463,6 +568,60 @@ mod tests {
 		p.extend_from_slice(payload);
 		p.resize(188, 0xFF);
 		p
+	}
+
+	#[test]
+	fn ts_demux_survives_any_chunking_and_a_late_start() {
+		let pat = [
+			0, 0x00, 0xB0, 13, 0, 1, 0xC1, 0, 0, 0, 1, 0xE1, 0x00, 0, 0, 0, 0,
+		];
+		let pmt = [
+			0, 0x02, 0xB0, 18, 0, 1, 0xC1, 0, 0, 0xE1, 0x01, 0xF0, 0, 0x0F, 0xE1, 0x01, 0xF0, 0, 0,
+			0, 0, 0,
+		];
+		let pes = |data: &[u8]| [&[0, 0, 1, 0xC0, 0, 0, 0x80, 0x80, 0][..], data].concat();
+		// A full payload, so the demuxer's output is exact.
+		let tail = [0xBB; 184];
+		let ts = [
+			// Joined mid-packet, then mid-frame: neither may reach the decoder.
+			vec![0x11; 50],
+			ts_packet(0x101, false, &[0xCC; 184]),
+			ts_packet(0, true, &pat),
+			ts_packet(0x100, true, &pmt),
+			ts_packet(0x101, false, &[0xDD; 184]),
+			ts_packet(0x101, true, &pes(&[0xFF, 0xF1, 0x50])),
+			ts_packet(0x101, false, &tail),
+		]
+		.concat();
+		assert!(looks_like_ts(&ts));
+		assert!(!looks_like_ts(&[0xFF; 1024]));
+		for size in [1, 7, 188, 200, ts.len()] {
+			let mut demux = TsDemux::default();
+			let audio: Vec<u8> = ts.chunks(size).flat_map(|c| demux.feed(c)).collect();
+			assert!(audio.starts_with(&[0xFF, 0xF1, 0x50]), "chunks of {size}");
+			assert!(audio.ends_with(&tail), "chunks of {size}");
+			assert!(
+				!audio.contains(&0xCC) && !audio.contains(&0xDD),
+				"chunks of {size}"
+			);
+			assert!(!demux.no_audio());
+		}
+	}
+
+	#[test]
+	fn ts_demux_tells_when_the_program_has_no_audio() {
+		let pat = [
+			0, 0x00, 0xB0, 13, 0, 1, 0xC1, 0, 0, 0, 1, 0xE1, 0x00, 0, 0, 0, 0,
+		];
+		// H.264 only.
+		let pmt = [
+			0, 0x02, 0xB0, 18, 0, 1, 0xC1, 0, 0, 0xE1, 0x01, 0xF0, 0, 0x1B, 0xE1, 0x01, 0xF0, 0, 0,
+			0, 0, 0,
+		];
+		let ts = [ts_packet(0, true, &pat), ts_packet(0x100, true, &pmt)].concat();
+		let mut demux = TsDemux::default();
+		assert!(demux.feed(&ts).is_empty());
+		assert!(demux.no_audio());
 	}
 
 	#[test]

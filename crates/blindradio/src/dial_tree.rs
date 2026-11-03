@@ -51,6 +51,8 @@ pub struct DialTree {
 	stations: Rc<RefCell<Rc<[Station]>>>,
 	/// Station rows in tree order: item and flat index.
 	rows: Rc<RefCell<Vec<(TreeItemId, usize)>>>,
+	/// Folder rows and their path keys, so a rebuild can find the focused one again.
+	folders: Rc<RefCell<Vec<(TreeItemId, String)>>>,
 	/// Folder path keys whose open state differs from the default:
 	/// collapsed ones while the default is expanded, opened ones
 	/// while it is collapsed. Toggling a folder by hand records the
@@ -82,6 +84,7 @@ impl DialTree {
 			root,
 			stations: Rc::new(RefCell::new(Rc::from([]))),
 			rows: Rc::new(RefCell::new(Vec::new())),
+			folders: Rc::new(RefCell::new(Vec::new())),
 			overrides: Rc::new(RefCell::new(HashSet::new())),
 			expand_default: Rc::new(Cell::new(true)),
 			quiet: Rc::new(Cell::new(false)),
@@ -115,17 +118,27 @@ impl DialTree {
 		self.row(&item)
 	}
 
-	/// Where Paste lands when a folder row is focused: its
-	/// collection and index path (empty for a collection row itself,
-	/// at the top of the All Lists view). None on a station row.
-	pub fn selected_folder_home(
+	/// The list the focused row stands in, as a collection and index path: a
+	/// folder row's own, a station row's parent folder, else the dial
+	/// collection's root. The same station can be filed in several lists, and
+	/// only the row knows which copy is focused. None when the tree holds
+	/// no structure to read: nothing selected, or a root station of the
+	/// merged All Lists view.
+	pub fn selected_home(
 		&self,
 		lib: &Library,
 		main_list: Option<&str>,
 	) -> Option<(String, Vec<usize>)> {
-		match self.selected_row()? {
-			Row::Folder(key) => folder_home(lib, main_list, &key),
-			Row::Station(_) => None,
+		let item = self.list.get_selection()?;
+		let row = self.row(&item)?;
+		let parent = || self.row(&self.list.get_item_parent(&item)?);
+		match if matches!(row, Row::Folder(_)) {
+			Some(row)
+		} else {
+			parent()
+		} {
+			Some(Row::Folder(key)) => folder_home(lib, main_list, &key),
+			_ => dial_collection(lib, main_list).map(|c| (c.id.clone(), Vec::new())),
 		}
 	}
 
@@ -137,12 +150,17 @@ impl DialTree {
 			.map(|(item, _)| item.clone())
 	}
 
-	/// Rebuilds the tree from `nodes`; never tunes. Focus lands on the
-	/// station with flat index `focus`.
+	/// Rebuilds the tree from `nodes`; never tunes. A focused folder row stays
+	/// focused; otherwise focus lands on the station with flat index `focus`.
 	pub fn set_dial(&self, nodes: &[DialNode], stations: Vec<Station>, focus: usize) {
+		let folder = match self.selected_row() {
+			Some(Row::Folder(key)) => Some(key),
+			_ => None,
+		};
 		self.quiet.set(true);
 		self.list.delete_children(&self.root);
 		self.rows.borrow_mut().clear();
+		self.folders.borrow_mut().clear();
 		*self.stations.borrow_mut() = stations.into();
 		let stations = self.stations();
 		for node in nodes {
@@ -154,7 +172,14 @@ impl DialTree {
 		// the event is synchronous, the handler borrowed the app
 		// while the caller held it, and the startup selection
 		// panicked (caught by the toolkit, the event lost).
-		if let Some(item) = self.item_of(focus) {
+		let same_folder = folder.and_then(|key| {
+			self.folders
+				.borrow()
+				.iter()
+				.find(|(_, k)| *k == key)
+				.map(|(item, _)| item.clone())
+		});
+		if let Some(item) = same_folder.or_else(|| self.item_of(focus)) {
 			self.list.select_item(&item);
 			self.list.set_focused_item(&item);
 			self.list.ensure_visible(&item);
@@ -201,6 +226,7 @@ impl DialTree {
 				};
 				self.list
 					.set_custom_data_direct(&item, Row::Folder(key.clone()));
+				self.folders.borrow_mut().push((item.clone(), key.clone()));
 				for kid in kids {
 					self.add_node(&item, kid, stations, &key);
 				}

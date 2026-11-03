@@ -192,7 +192,8 @@ pub const EXPORT: &str = "&Export…";
 /// Prefix: `Exported <n>`.
 pub const EXPORTED: &str = "Exported ";
 pub const FAVORITES_FILE: &str = "Favorites.m3u";
-pub const PLAYLISTS_FILTER: &str = "Playlists (*.m3u;*.m3u8;*.pls)|*.m3u;*.m3u8;*.pls";
+pub const PLAYLISTS_FILTER: &str =
+	"Playlists (*.m3u;*.m3u8;*.m3u_plus;*.pls)|*.m3u;*.m3u8;*.m3u_plus;*.pls";
 
 // Add Custom Station.
 pub const ADD_CUSTOM_TITLE: &str = "Add Custom Station";

@@ -39,12 +39,17 @@ fn extinf(rest: &str) -> (Option<String>, Option<String>) {
 	});
 	let attrs = &rest[..comma.unwrap_or(rest.len())];
 	let text = |s: &str| Some(s.trim().to_string()).filter(|t| !t.is_empty());
-	let title = comma.and_then(|c| text(&rest[c + 1..]));
-	let group = attrs
-		.split_once("group-title=\"")
-		.and_then(|(_, v)| v.split_once('"'))
-		.and_then(|(g, _)| text(g));
-	(title, group)
+	let attr = |name: &str| {
+		attrs
+			.split_once(name)
+			.and_then(|(_, v)| v.split_once('"'))
+			.and_then(|(a, _)| text(a))
+	};
+	// m3u_plus lists can leave the title empty and name the channel in tvg-name.
+	let title = comma
+		.and_then(|c| text(&rest[c + 1..]))
+		.or_else(|| attr("tvg-name=\""));
+	(title, attr("group-title=\""))
 }
 
 pub fn sniff(body: &str) -> Option<PlaylistKind> {
@@ -111,17 +116,24 @@ pub fn parse_m3u_counted(body: &str) -> (Vec<PlaylistEntry>, usize) {
 	let mut out = Vec::new();
 	let mut skipped = 0;
 	let mut pending = None;
+	let mut extgrp = None;
 	for l in lines(body) {
 		if let Some(rest) = l.strip_prefix("#EXTINF:") {
 			pending = Some(extinf(rest));
+		} else if let Some(rest) = l.strip_prefix("#EXTGRP:") {
+			extgrp = Some(rest.trim().to_string()).filter(|g| !g.is_empty());
 		} else if l.starts_with('#') {
 			// other directives do not consume the pending title
 		} else {
 			// Any non-directive line consumes the pending title, even a skipped local file.
 			let (title, group) = pending.take().unwrap_or_default();
+			let group = group.or(extgrp.take());
 			if is_url(l) {
+				// Kodi's `url|User-Agent=x` suffix is not part of the address.
+				// ponytail: per-channel headers are dropped; a station has only a URL to keep them in.
+				let url = l.split('|').next().unwrap_or(l).trim_end();
 				out.push(PlaylistEntry {
-					url: l.to_string(),
+					url: url.to_string(),
 					title,
 					group,
 				});
@@ -204,6 +216,33 @@ mod tests {
 		assert_eq!(e[0].group.as_deref(), Some("news, talk"));
 		assert_eq!(e[1].group, None);
 		assert_eq!(parse_pls("[playlist]\nFile1=http://c\n")[0].group, None);
+	}
+
+	#[test]
+	fn m3u_plus_entries_are_read_whole() {
+		let body = "#EXTM3U x-tvg-url=\"http://epg/guide.xml\" url-tvg=\"http://epg/guide.xml\"\n\
+			#EXTINF:-1 tvg-id=\"rtp.pt\" tvg-name=\"RTP, Antena 1\" tvg-logo=\"http://l/a.png\" group-title=\"Portugal, Radio\",Antena 1\n\
+			#EXTVLCOPT:http-user-agent=Mozilla\n\
+			http://panel.example/live/u/p/1.ts\n\
+			#EXTINF:-1 tvg-name=\"Named Only\" group-title=\"News\",\n\
+			http://panel.example/live/u/p/2.m3u8|User-Agent=Mozilla&Referer=http://x\n\
+			#EXTINF:-1,Grouped Apart\n\
+			#EXTGRP:Music\n\
+			http://panel.example/live/u/p/3.ts\n\
+			#EXTINF:-1,After The Group\n\
+			rtmp://panel.example/live/4\n\
+			http://panel.example/live/u/p/5.ts\n";
+		assert_eq!(sniff(body), Some(PlaylistKind::M3u));
+		let (e, skipped) = parse_m3u_counted(body);
+		assert_eq!(skipped, 1, "rtmp cannot be played");
+		assert_eq!(e[0].url, "http://panel.example/live/u/p/1.ts");
+		assert_eq!(e[0].title.as_deref(), Some("Antena 1"));
+		assert_eq!(e[0].group.as_deref(), Some("Portugal, Radio"));
+		assert_eq!(e[1].url, "http://panel.example/live/u/p/2.m3u8");
+		assert_eq!(e[1].title.as_deref(), Some("Named Only"));
+		assert_eq!(e[2].title.as_deref(), Some("Grouped Apart"));
+		assert_eq!(e[2].group.as_deref(), Some("Music"));
+		assert_eq!(e[3].group, None, "#EXTGRP covers one entry");
 	}
 
 	#[test]

@@ -5,6 +5,18 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.46
+
+- Paste in the main window now lands in the folder of the row you are on. When the same station was filed in more than one folder, BlindRadio used the first folder holding it and could answer "already in". Cut takes out the copy you are on for the same reason.
+- With a station filed in several folders, moving onto a later copy in the main window no longer throws focus back to the first one. Pasting on a folder row also keeps focus on that folder instead of jumping to the top of the list.
+- Stations that failed at once with "Not a stream" now play when their server compresses its playlist, as RTP's Antena 1 does (https://radioip.rtp.pt/liveradio/antena180a/chunklist.m3u8). DVBViewer read these; BlindRadio could not.
+- BlindRadio now plays raw MPEG-TS streams, including `.ts` links from IPTV panels, taking the audio from channels that also carry video. The audio has to be AAC, MP3 or MP2. A channel with only video or other audio answers `Unsupported format` straight away.
+- Streams and playlists sent with a generic type, such as `application/octet-stream`, or no type at all are now judged by their contents instead of being refused as "Not a stream".
+- HLS channels that keep their audio in a separate playlist now play.
+- M3U Plus playlists import in full. `.m3u_plus` files are offered in the import window, `tvg-name` fills in a missing channel name, `#EXTGRP` makes a folder, and Kodi-style headers after a `|` in an address are dropped so the address still works. A channel that needs those headers may refuse the connection.
+- Space now plays or pauses on any list, on a tree and on the volume slider. In a text box it still types a space, and on a button or check box it still presses it. It replaces Space starting the focused row in Browse; Enter still does that. You can change or clear it in Keyboard Shortcuts, where it is the alternate Play/Pause row.
+- With Play on Move off, Play/Pause now plays the row focus lands on at startup instead of answering "Nothing to play".
+
 ## 0.2.45
 
 - After playing a station with no row in the main window's list, Add to Favorites, Copy Stream URL and Edit Station act on that station until you move, not on the row that still has focus. In 0.2.44 Add to Favorites could remove the row's station from your favorites instead.

@@ -768,16 +768,10 @@ impl App {
 			Action::PasteStation => {
 				// Paste lands where the user is standing: the open
 				// dialog's focused row first (Browse states it), then
-				// the main tree's focused folder row, then beside the
+				// the main tree's focused row, then beside the
 				// selected station as before.
-				if let Some(dest) = self.paste_home.clone() {
+				if let Some(dest) = self.paste_home.clone().or_else(|| self.tree_home()) {
 					self.paste_into(dest);
-				} else if !self.dialog_open
-					&& let Some((id, path)) = self.win.stations.selected_folder_home(
-						&self.library,
-						self.settings.main_list.as_deref(),
-					) {
-					self.paste_into(PasteDest::Collection(id, path));
 				} else {
 					match self.selected.clone() {
 						Some(st) => self.paste_near(&st),
@@ -1656,9 +1650,16 @@ impl App {
 		let list = &self.win.stations;
 		let current = list.current();
 		// Past the end when the last row was the one deleted: the row before it.
+		// The same copy of a station filed in several folders: its Nth row stays its Nth row.
+		let old = list.stations();
 		let focus = current
-			.and_then(|i| list.stations().get(i).map(|s| s.id.clone()))
-			.and_then(|id| stations.iter().position(|s| s.id == id))
+			.and_then(|i| {
+				let id = &old.get(i)?.id;
+				let nth = old[..i].iter().filter(|s| s.id == *id).count();
+				let mut copies = stations.iter().enumerate().filter(|(_, s)| s.id == *id);
+				let first = copies.clone().next();
+				copies.nth(nth).or(first).map(|(at, _)| at)
+			})
 			.or(current)
 			.unwrap_or(0)
 			.min(stations.len().saturating_sub(1));
@@ -1710,14 +1711,16 @@ impl App {
 		if rebuild {
 			self.refresh_dial();
 		}
-		if let Some(i) = self
+		let stations = self.win.stations.stations();
+		// A row already showing this station stays: moving onto a copy filed in a
+		// later folder must not throw focus back to the first copy.
+		let on_it = self
 			.win
 			.stations
-			.stations()
-			.iter()
-			.position(|s| s.id == station.id)
-			&& self.win.stations.current() != Some(i)
-		{
+			.current()
+			.and_then(|i| stations.get(i))
+			.is_some_and(|s| s.id == station.id);
+		if !on_it && let Some(i) = stations.iter().position(|s| s.id == station.id) {
 			self.win.stations.select(i, false);
 		}
 		true
@@ -1814,6 +1817,11 @@ impl App {
 		}
 		list.list.set_focus();
 		if !play {
+			// The row focus landed on raised no selection event: Play/Pause
+			// would answer "Nothing to play" with a station under focus.
+			if self.selected.is_none() {
+				self.selected = list.current().and_then(|i| stations.get(i).cloned());
+			}
 			return true;
 		}
 		match self
@@ -1888,11 +1896,37 @@ impl App {
 		self.refresh_dial();
 	}
 
+	/// The list the main tree's focused row stands in. None behind a dialog,
+	/// and while the Filter box flattens the tree: its rows show no folders.
+	fn tree_home(&self) -> Option<PasteDest> {
+		if self.dialog_open || !self.dial_filter.is_empty() {
+			return None;
+		}
+		let (id, path) = self
+			.win
+			.stations
+			.selected_home(&self.library, self.settings.main_list.as_deref())?;
+		Some(PasteDest::Collection(id, path))
+	}
+
 	/// Copy or cut a station onto the clipboard. A cut station stays
 	/// where it is until Paste takes it out of its home.
 	pub fn copy_station(&mut self, station: &Station, cut: bool) {
+		// The focused row is the copy meant, when it shows this station: a cut
+		// takes that copy out, not the first one filed.
+		let rows = self.win.stations.stations();
+		let on_row = self
+			.win
+			.stations
+			.current()
+			.and_then(|i| rows.get(i))
+			.is_some_and(|s| s.id == station.id);
+		let focused = self
+			.paste_home
+			.clone()
+			.or_else(|| self.tree_home().filter(|_| on_row));
 		let (from_collection, from_favorites, from_path) =
-			match PasteDest::for_station(&self.library, &station.id, self.paste_home.as_ref()) {
+			match PasteDest::for_station(&self.library, &station.id, focused.as_ref()) {
 				Some(PasteDest::Collection(id, path)) => (Some(id), false, path),
 				Some(PasteDest::Favorites(path)) => (None, true, path),
 				None => (None, false, Vec::new()),
@@ -2010,8 +2044,9 @@ impl App {
 	/// Paste beside `station`: into the folder that holds it, or the
 	/// dial's collection when it is held nowhere.
 	pub fn paste_near(&mut self, station: &Station) {
+		let focused = self.paste_home.clone().or_else(|| self.tree_home());
 		let dest =
-			match PasteDest::for_station(&self.library, &station.id, self.paste_home.as_ref()) {
+			match PasteDest::for_station(&self.library, &station.id, focused.as_ref()) {
 				Some(dest) => dest,
 				None => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
 					Some(c) => PasteDest::Collection(c.id.clone(), Vec::new()),

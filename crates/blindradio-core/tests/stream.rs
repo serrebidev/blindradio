@@ -425,6 +425,81 @@ fn stream_plays_hls_with_extinf_titles() {
 	assert_eq!(seen.iter().filter(|e| **e == title).count(), 1, "{seen:?}");
 }
 
+/// The HLS fixture's segments end to end: one continuous TS, as an IPTV panel serves it.
+fn ts_fixture() -> Vec<u8> {
+	(0..5)
+		.flat_map(|i| {
+			std::fs::read(format!(
+				"{}/tests/fixtures/hls/seg{i}.ts",
+				env!("CARGO_MANIFEST_DIR")
+			))
+			.unwrap()
+		})
+		.collect()
+}
+
+#[test]
+fn stream_plays_raw_ts_however_it_is_labeled() {
+	for content_type in ["video/mp2t", "application/octet-stream", "audio/mpeg"] {
+		let server = serve(vec![Route::Stream {
+			path: "/live.ts".into(),
+			content_type: content_type.into(),
+			data: ts_fixture(),
+			metaint: None,
+			titles: vec![],
+			burst: 64_000,
+			bytes_per_sec: 64_000,
+			close_after: None,
+		}]);
+		let (s, rx) = play(&server.url("/live.ts"), &ctx(Duration::from_secs(60)));
+		let seen = events_until(&rx, Duration::from_secs(5), |e| {
+			matches!(e, StreamEvent::FirstAudio | StreamEvent::Failed(_))
+		});
+		assert_eq!(
+			seen.last(),
+			Some(&StreamEvent::FirstAudio),
+			"{content_type}"
+		);
+		drop(s);
+	}
+}
+
+#[test]
+fn stream_refuses_ts_with_no_audio_at_once() {
+	// One H.264-only program.
+	let packet = |pid: u16, section: &[u8]| {
+		let mut p = vec![0x47, 0x40 | (pid >> 8) as u8, pid as u8, 0x10];
+		p.extend_from_slice(section);
+		p.resize(188, 0xFF);
+		p
+	};
+	let pat = [
+		0, 0x00, 0xB0, 13, 0, 1, 0xC1, 0, 0, 0, 1, 0xE1, 0x00, 0, 0, 0, 0,
+	];
+	let pmt = [
+		0, 0x02, 0xB0, 18, 0, 1, 0xC1, 0, 0, 0xE1, 0x01, 0xF0, 0, 0x1B, 0xE1, 0x01, 0xF0, 0, 0, 0,
+		0, 0,
+	];
+	let server = serve(vec![Route::Stream {
+		path: "/video.ts".into(),
+		content_type: "video/mp2t".into(),
+		data: [packet(0, &pat), packet(0x100, &pmt)].concat(),
+		metaint: None,
+		titles: vec![],
+		burst: 4096,
+		bytes_per_sec: 4096,
+		close_after: None,
+	}]);
+	let (_s, rx) = play(&server.url("/video.ts"), &ctx(Duration::from_secs(60)));
+	let seen = events_until(&rx, Duration::from_secs(3), |e| {
+		matches!(e, StreamEvent::Failed(_))
+	});
+	assert_eq!(
+		seen.as_slice(),
+		[StreamEvent::Failed("Unsupported format".into())]
+	);
+}
+
 #[test]
 fn stream_fails_on_endless_junk() {
 	let server = serve(vec![Route::Stream {

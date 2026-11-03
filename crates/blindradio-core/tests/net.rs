@@ -38,6 +38,7 @@ async fn open_direct_audio_keeps_response() {
 	let Opened::Audio {
 		mut response,
 		final_url,
+		..
 	} = open(&client(), &url).await.unwrap()
 	else {
 		panic!("expected audio");
@@ -99,6 +100,56 @@ async fn open_detects_hls() {
 	};
 	assert_eq!(playlist_url, s.url("/h.m3u8"));
 	assert!(playlist.contains("seg.ts"), "the body read is handed on");
+}
+
+#[tokio::test]
+async fn open_reads_gzipped_hls_it_did_not_ask_for() {
+	// RTP's CDN gzips chunklists even under Accept-Encoding: identity.
+	let s = serve(vec![Route::Gzip {
+		path: "/h.m3u8".into(),
+		content_type: "application/vnd.apple.mpegurl".into(),
+		body: b"#EXTM3U\n#EXT-X-VERSION:3\n#EXTINF:4,\nseg.aac\n".to_vec(),
+	}]);
+	let Opened::Hls { playlist, .. } = open(&client(), &s.url("/h.m3u8")).await.unwrap() else {
+		panic!("expected hls");
+	};
+	assert!(playlist.contains("seg.aac"));
+}
+
+#[tokio::test]
+async fn open_judges_octet_stream_by_its_bytes() {
+	let s = serve(vec![
+		text(
+			"/list",
+			"application/octet-stream",
+			"#EXTM3U x-tvg-url=\"http://epg\"\n#EXTINF:-1 tvg-id=\"a\" group-title=\"News\",A\n{base}/live\n",
+		),
+		Route::Stream {
+			path: "/live".into(),
+			content_type: "application/octet-stream".into(),
+			data: vec![0xAA; 1000],
+			metaint: None,
+			titles: vec![],
+			burst: 4096,
+			bytes_per_sec: 0,
+			close_after: Some(8192),
+		},
+	]);
+	let Opened::Audio {
+		final_url, head, ..
+	} = open(&client(), &s.url("/list")).await.unwrap()
+	else {
+		panic!("expected audio");
+	};
+	assert_eq!(final_url, s.url("/live"));
+	assert!(!head.is_empty(), "the bytes read to judge it are kept");
+}
+
+#[tokio::test]
+async fn open_rejects_types_that_are_never_streams() {
+	let s = serve(vec![text("/j", "application/json", "{}")]);
+	let err = open(&client(), &s.url("/j")).await.err().unwrap();
+	assert_eq!(err.to_string(), "Not a stream");
 }
 
 #[tokio::test]

@@ -8,7 +8,7 @@ keyboard and every message spoken through your screen reader.
 Start BlindRadio: focus lands on the Stations dial, and the first station plays. With the dial
 empty, focus is on Play.
 
-- Ctrl+P play or pause, Ctrl+S stop, Ctrl+M mute, Ctrl+Up and Ctrl+Down volume.
+- Ctrl+P or Space on a list play or pause, Ctrl+S stop, Ctrl+M mute, Ctrl+Up and Ctrl+Down volume.
 - Ctrl+D adds or removes the focused station from Favorites.
 - F1 opens this guide.
 
@@ -123,7 +123,12 @@ On the main window, Alt+1 to Alt+0 play favorites one to ten.
 Ctrl+I imports a playlist into Custom Stations as a folder named after the file; Ctrl+Shift+I
 imports it as a collection named after the file. The playlist's groups become subfolders —
 a group written as a path (News / World) becomes subfolders inside subfolders — and
-its order is kept. M3U, M3U8 and PLS files are read.
+its order is kept. M3U, M3U8, M3U Plus and PLS files are read. Local files and addresses that
+are not HTTP are counted as skipped.
+
+BlindRadio plays HLS and MPEG-TS streams as well as ordinary internet radio, taking the audio
+from channels that also carry video. The audio has to be AAC, MP3 or MP2: AC-3 and DVB AAC
+audio, encrypted HLS and HLS in fragmented MP4 answer `Unsupported format`.
 
 For one stream right now, File → Open URL plays an address you paste without adding it
 anywhere — handy for a quick listen or testing a stream. It still appears under Recently
@@ -343,6 +348,7 @@ Global Hotkeys, below, are the separate set that works from other apps.
 | Key | Action |
 | --- | --- |
 | Ctrl+P | Play or pause |
+| Space | Play or pause, on a list, a tree or the volume slider; elsewhere Space types or presses as usual |
 | Ctrl+S | Stop |
 | Ctrl+M | Mute, saying `Muted` or `Unmuted` |
 | Ctrl+Up, Ctrl+Down | Volume up, down |

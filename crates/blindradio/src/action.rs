@@ -115,6 +115,13 @@ pub fn is_text_edit_chord(code: i32, ctrl: bool, alt: bool, shift: bool) -> bool
 	matches!(letter, Some('C' | 'X' | 'V'))
 }
 
+/// Plain Space is Play/Pause only on a list, a tree or the volume slider. Everywhere else it
+/// keeps its own job: typing a space, pressing the focused button, ticking a check box.
+pub fn space_stays_native(code: i32, ctrl: bool, alt: bool, shift: bool, on_list: bool) -> bool {
+	const WXK_NUMPAD_SPACE: i32 = 368;
+	(code == ' ' as i32 || code == WXK_NUMPAD_SPACE) && !(ctrl || alt || shift || on_list)
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

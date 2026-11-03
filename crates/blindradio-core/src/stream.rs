@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use crate::Result;
 use crate::decode::{ByteReader, Decoder, byte_pipe};
-use crate::hls::{hint as hls_hint, run_hls};
+use crate::hls::{TsDemux, hint as hls_hint, looks_like_ts, run_hls};
 use crate::net::{Opened, ResolveCache, open};
 use crate::record::Recorder;
 use crate::resample::Resampler;
@@ -211,6 +211,11 @@ enum Source {
 		response: reqwest::Response,
 		metaint: Option<usize>,
 	},
+	/// Raw MPEG-TS over HTTP, as IPTV panels and DVB gateways serve it.
+	Ts {
+		response: reqwest::Response,
+		demux: TsDemux,
+	},
 	Hls(Hls),
 }
 
@@ -315,32 +320,46 @@ async fn connect(ctx: &EngineCtx, url: &str) -> std::result::Result<Conn, String
 
 /// Opens `url` and waits for the first body bytes.
 async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, String), String> {
-	let (mut response, final_url) = match open(&ctx.client, url).await.map_err(|e| e.to_string())? {
-		Opened::Audio {
-			response,
-			final_url,
-		} => (response, final_url),
-		Opened::Hls {
-			playlist_url,
-			playlist,
-		} => {
-			let mut hls = Hls::start(ctx.client.clone(), playlist_url.clone(), playlist);
-			let Some(first) = hls.next().await else {
-				return Err(hls.end);
-			};
-			let conn = Conn {
-				hint: Some(hls_hint(&first)),
-				source: Source::Hls(hls),
-				first,
-				bitrate_kbps: None,
-			};
-			return Ok((conn, playlist_url));
+	let (mut response, final_url, head) =
+		match open(&ctx.client, url).await.map_err(|e| e.to_string())? {
+			Opened::Audio {
+				response,
+				final_url,
+				head,
+			} => (response, final_url, head),
+			Opened::Hls {
+				playlist_url,
+				playlist,
+			} => {
+				let mut hls = Hls::start(ctx.client.clone(), playlist_url.clone(), playlist);
+				let Some(first) = hls.next().await else {
+					return Err(hls.end);
+				};
+				let conn = Conn {
+					hint: Some(hls_hint(&first)),
+					source: Source::Hls(hls),
+					first,
+					bitrate_kbps: None,
+				};
+				return Ok((conn, playlist_url));
+			}
+		};
+	let first = if head.is_empty() {
+		match response.chunk().await {
+			Ok(Some(c)) => c,
+			_ => return Err("No data".to_owned()),
 		}
+	} else {
+		head
 	};
-	let first = match response.chunk().await {
-		Ok(Some(c)) => c,
-		_ => return Err("No data".to_owned()),
-	};
+	let is_ts = response
+		.headers()
+		.get("content-type")
+		.and_then(|v| v.to_str().ok())
+		.is_some_and(|ct| ct.to_ascii_lowercase().starts_with("video/mp2t"));
+	if is_ts || looks_like_ts(&first) {
+		return open_ts(response, first).await.map(|conn| (conn, final_url));
+	}
 	let header = |name| {
 		response
 			.headers()
@@ -362,6 +381,31 @@ async fn open_audio(ctx: &EngineCtx, url: &str) -> std::result::Result<(Conn, St
 		bitrate_kbps,
 	};
 	Ok((conn, final_url))
+}
+
+/// Demuxes until the first audio, which names the decoder as it does for HLS. The start
+/// budget bounds the wait; a stream with only video in it fails as soon as its PMT says so.
+async fn open_ts(
+	mut response: reqwest::Response,
+	head: Bytes,
+) -> std::result::Result<Conn, String> {
+	let mut demux = TsDemux::default();
+	let mut audio = demux.feed(&head);
+	while audio.is_empty() {
+		if demux.no_audio() {
+			return Err("Unsupported format".to_owned());
+		}
+		match response.chunk().await {
+			Ok(Some(c)) => audio = demux.feed(&c),
+			_ => return Err("No data".to_owned()),
+		}
+	}
+	Ok(Conn {
+		hint: Some(hls_hint(&audio)),
+		source: Source::Ts { response, demux },
+		first: audio.into(),
+		bitrate_kbps: None,
+	})
 }
 
 fn ext_hint(content_type: &str) -> Option<&'static str> {
@@ -608,7 +652,7 @@ async fn pump(
 	let decode_by = Instant::now() + START_BUDGET;
 	let mut icy = match conn.source {
 		Source::Http { metaint, .. } => metaint.map(Icy::new),
-		Source::Hls(_) => None,
+		Source::Ts { .. } | Source::Hls(_) => None,
 	};
 	let mut chunk = std::mem::take(&mut conn.first);
 	let mut audio = Vec::new();
@@ -650,30 +694,51 @@ async fn pump(
 			return Some("Not a stream".into());
 		}
 		chunk = match &mut conn.source {
-			Source::Http { response, .. } => {
-				// Asked when the wait runs out, not before it: the decoder
-				// can still be on its first packet when the wait begins.
-				let stalled = async {
-					sleep(STALL).await;
-					if produced.load(Ordering::Relaxed) {
-						sleep(PLAYING_STALL - STALL).await;
-					}
+			Source::Http { response, .. } => match read_chunk(response, produced).await {
+				Ok(c) => c,
+				Err(reason) => return Some(reason),
+			},
+			// Packets of other streams arrive between the audio's; only audio goes on.
+			Source::Ts { response, demux } => loop {
+				let raw = match read_chunk(response, produced).await {
+					Ok(c) => c,
+					Err(reason) => return Some(reason),
 				};
-				tokio::select! {
-					read = response.chunk() => match read {
-						Ok(Some(c)) => c,
-						Ok(None) => return Some("No data".into()),
-						Err(_) => return Some("Unreachable".into()),
-					},
-					() = stalled => return Some("No data".into()),
+				let bytes = demux.feed(&raw);
+				titles.extend(demux.take_title().map(Some));
+				if !bytes.is_empty() {
+					break bytes.into();
 				}
-			}
+			},
 			// run_hls has its own stall limit, since segments arrive a target duration apart.
 			Source::Hls(hls) => match hls.next().await {
 				Some(c) => c,
 				None => return Some(hls.end.clone()),
 			},
 		};
+	}
+}
+
+/// The next body chunk, or why the connection is over.
+async fn read_chunk(
+	response: &mut reqwest::Response,
+	produced: &AtomicBool,
+) -> std::result::Result<Bytes, String> {
+	// Asked when the wait runs out, not before it: the decoder
+	// can still be on its first packet when the wait begins.
+	let stalled = async {
+		sleep(STALL).await;
+		if produced.load(Ordering::Relaxed) {
+			sleep(PLAYING_STALL - STALL).await;
+		}
+	};
+	tokio::select! {
+		read = response.chunk() => match read {
+			Ok(Some(c)) => Ok(c),
+			Ok(None) => Err("No data".into()),
+			Err(_) => Err("Unreachable".into()),
+		},
+		() = stalled => Err("No data".into()),
 	}
 }
 
