@@ -49,6 +49,27 @@ async fn internet_radio_live_browse_and_search() {
 
 #[tokio::test]
 #[ignore = "network"]
-async fn laut_fm_live_browse_and_search() {
-	check("lautfm", "lautfm/genre/Pop", "jazz", Source::LautFm).await;
+async fn iprd_live_browse_and_search() {
+	check("iprd", "iprd/genre/jazz", "jazz", Source::Iprd).await;
+	let sources = Sources::new(client(), Endpoints::default());
+	let countries = sources.children("iprd/countries", Sort::default()).await.unwrap();
+	assert!(countries.len() > 100, "{}", countries.len());
+	let genres = sources.children("iprd/genres", Sort::default()).await.unwrap();
+	assert_eq!(genres.len(), 100);
+}
+
+#[tokio::test]
+#[ignore = "network"]
+async fn recommended_live_browse() {
+	let sources = Sources::new(client(), Endpoints::default());
+	let folders = sources.children("recommended", Sort::default()).await.unwrap();
+	assert!(folders.iter().any(|n| n.name() == "Jazz Blues"), "{folders:?}");
+	let stations = sources
+		.children("recommended/jazz-blues", Sort::default())
+		.await
+		.unwrap();
+	assert!(
+		stations.iter().any(|n| matches!(n, Node::Station(s) if s.source == Source::Recommended)),
+		"{stations:?}"
+	);
 }

@@ -962,7 +962,7 @@ mod tests {
 			("icecast", "Icecast"),
 			("shoutcast", "SHOUTcast"),
 			("internet-radio", "Internet-Radio"),
-			("lautfm", "laut.fm"),
+			("iprd", "IPRD"),
 		];
 		load(
 			m,
@@ -1017,7 +1017,7 @@ mod tests {
 		assert_eq!(m.first_on_level(genre), genre);
 		assert_eq!(m.last_on_level(genre), find(&m, Some(rb), "rb/country"));
 		let custom = find(&m, None, CUSTOM);
-		assert_eq!(m.last_on_level(rb), find(&m, Some(dir), "lautfm"));
+		assert_eq!(m.last_on_level(rb), find(&m, Some(dir), "iprd"));
 		assert_eq!(m.top(), dir, "Ctrl+Home");
 		assert_eq!(m.bottom(), custom, "Ctrl+End: Custom Stations is closed");
 		assert_eq!(m.open(custom), None, "local: nothing to fetch");

@@ -35,9 +35,10 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		icecast: s.base.clone(),
 		shoutcast: s.base.clone(),
 		internet_radio: s.base.clone(),
-		lautfm: s.base.clone(),
+		iprd: s.base.clone(),
 		radionet: s.base.clone(),
 		directory: s.base.clone(),
+		recommended: s.base.clone(),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -87,6 +88,57 @@ async fn tree_keeps_the_folder_structure() {
 		.map(|s| s.name.as_str())
 		.collect();
 	assert_eq!(names, ["BBB"]);
+}
+
+#[tokio::test]
+async fn recommended_reads_its_playlists_folder() {
+	let (_s, src) = sources(vec![
+		json(
+			"/contents/playlists",
+			r#"[{"name":"jazz-blues.m3u","type":"file"},{"name":"notes.txt","type":"file"}]"#,
+		),
+		Route::Static {
+			path: "/contents/playlists/jazz-blues.m3u".into(),
+			content_type: "text/plain".into(),
+			body: "#EXTM3U\n#EXTINF:-1,Blue Note\nhttp://rec.test/1\n"
+				.as_bytes()
+				.to_vec(),
+		},
+	]);
+	assert_eq!(
+		src.children("recommended", Sort::default()).await.unwrap(),
+		vec![folder("recommended/jazz-blues", "Jazz Blues")]
+	);
+	assert_eq!(
+		src.children("recommended/jazz-blues", Sort::default())
+			.await
+			.unwrap(),
+		vec![Node::Station(Station {
+			id: "recommended:jazz-blues:0".into(),
+			name: "Blue Note".into(),
+			url: "http://rec.test/1".into(),
+			source: Source::Recommended,
+			info: None,
+			details: Default::default(),
+		})]
+	);
+}
+
+#[tokio::test]
+async fn directories_list_iprd_and_recommended_not_laut_fm() {
+	let (_s, src) = sources(vec![]);
+	let dirs = src.children("dir", Sort::default()).await.unwrap();
+	assert!(dirs.contains(&folder("iprd", "IPRD")));
+	assert!(dirs.contains(&folder("recommended", "Recommended Radio Streams")));
+	assert!(!dirs.iter().any(|n| n.name() == "laut.fm"));
+}
+
+#[test]
+fn a_saved_laut_fm_station_still_loads() {
+	let s: Station =
+		serde_json::from_str(r#"{"id":"lautfm:a","name":"A","url":"http://x","source":"LautFm"}"#)
+			.unwrap();
+	assert_eq!(s.source, Source::LautFm);
 }
 
 #[test]
@@ -208,8 +260,8 @@ async fn search_includes_new_directories_in_order() {
 			body: br#"<h1>Search results</h1><table><tr><td><a href="/servers/tools/playlistgenerator/?u=https%3A%2F%2Fir.test%2Flive&amp;t=.pls">PLS</a></td><td><h4><a href="/station/new-directory/">New directory Internet-Radio</a></h4><a href="/stations/jazz/">jazz</a></td></tr></table>"#.to_vec(),
 		},
 		json(
-			"/search/stations",
-			r#"{"results":[{"items":[{"station":{"name":"nd","display_name":"New directory laut.fm","stream_url":"https://laut.test/nd","genres":["Pop"],"active":true}}]}]}"#,
+			"/site_data/metadata/catalog.json",
+			r#"{"stations":[{"id":"nd","name":"New directory IPRD","country":"Chile","genres":["Pop"],"streams":[{"url":"https://iprd.test/nd"}]}]}"#,
 		),
 	]);
 	let found = src.search(&q("New directory")).await;
@@ -223,7 +275,7 @@ async fn search_includes_new_directories_in_order() {
 			"Icecast",
 			"SHOUTcast",
 			"Internet-Radio",
-			"laut.fm"
+			"IPRD"
 		]
 	);
 }
@@ -268,7 +320,7 @@ async fn filter_only_search_uses_radio_browser() {
 	assert_eq!(s.hits("/yp.xml"), 0);
 	assert_eq!(s.hits("/Search/UpdateSearch"), 0);
 	assert_eq!(s.hits("/search/"), 0);
-	assert_eq!(s.hits("/search/stations"), 0);
+	assert_eq!(s.hits("/site_data/metadata/catalog.json"), 0);
 	let sent = s.last_query("/json/stations/search").unwrap();
 	assert!(
 		sent.contains("tag=jazz") && sent.contains("country=France"),

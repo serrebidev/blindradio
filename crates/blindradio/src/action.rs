@@ -29,6 +29,8 @@ pub enum Action {
 	WriteAllSegments,
 	/// The scheduled recordings list dialog.
 	ScheduledRecordings,
+	/// The recordings folder, in the system's file manager.
+	OpenRecordFolder,
 	/// Back to the start of this segment or the one before it.
 	PreviousSegment,
 	/// On to the next segment, or live after the last.

@@ -145,6 +145,7 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 				Item(s::WRITE_ALL_SEGMENTS, keys(&A::WriteAllSegments), A::WriteAllSegments),
 				Separator,
 				Item(s::SCHEDULED_RECORDINGS, keys(&A::ScheduledRecordings), A::ScheduledRecordings),
+				Item(s::OPEN_RECORD_FOLDER, keys(&A::OpenRecordFolder), A::OpenRecordFolder),
 			],
 		),
 		(

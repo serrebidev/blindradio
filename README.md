@@ -10,7 +10,7 @@ A vibe-coded, screen-reader-first internet radio player for Windows, macOS, and 
 ## Features
 
 - Every station list tunes as you move through it: the main dial, Search, Browse, Favorites, Recently Played and Collections all play the station under focus.
-- Browse is grouped into Directories and Networks: Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio and laut.fm, plus networks of public broadcasters and channel groups (BBC-style national radio, Radio Paradise, NTS, 181.fm, Radio Record and many more).
+- Browse is grouped into Directories and Networks: Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio, IPRD and Recommended Radio Streams, plus English-language networks of public broadcasters and channel groups (BBC, NPR, Radio Paradise, NTS, 181.fm and many more).
 - A Sort choice on every directory list, in any order the directory offers (name, votes, clicks, bitrate, codec, country and more), with Reverse, and search carries the same order.
 - Letter jump, Enter, Delete and the Applications key work in every list; folders load lazily and Load More pages in more stations.
 - Favorites, Recently Played, custom stations, and Collections you can create, rename, reorder and fill one station or a whole list at a time.
