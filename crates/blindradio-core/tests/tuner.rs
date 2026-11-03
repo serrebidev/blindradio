@@ -190,6 +190,7 @@ impl Sink for RecSink {
 			MixerCmd::ShiftAttach { .. }
 			| MixerCmd::ShiftPause(_)
 			| MixerCmd::ShiftSeek(_)
+			| MixerCmd::ShiftSeekTo(_)
 			| MixerCmd::ShiftLive
 			| MixerCmd::RecordSlot(_) => return,
 		};

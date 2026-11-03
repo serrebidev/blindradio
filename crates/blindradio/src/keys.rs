@@ -41,7 +41,13 @@ pub enum KeyAction {
 	RecordPause,
 	RecordSongs,
 	SaveBuffer,
+	WriteCurrentSegment,
+	WritePreviousSegment,
+	WriteNextSegment,
+	WriteAllSegments,
 	ScheduledRecordings,
+	PreviousSegment,
+	NextSegment,
 	SeekBack,
 	SeekBackAlt,
 	SeekForward,
@@ -112,7 +118,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 76] = [
+	pub const ALL: [KeyAction; 82] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -124,7 +130,13 @@ impl KeyAction {
 		K::RecordPause,
 		K::RecordSongs,
 		K::SaveBuffer,
+		K::WriteCurrentSegment,
+		K::WritePreviousSegment,
+		K::WriteNextSegment,
+		K::WriteAllSegments,
 		K::ScheduledRecordings,
+		K::PreviousSegment,
+		K::NextSegment,
 		K::SeekBack,
 		K::SeekBackAlt,
 		K::SeekForward,
@@ -194,7 +206,15 @@ impl KeyAction {
 	/// The editor tab: 0 Playback, 1 Stations, 2 Recording, 3 App.
 	pub fn tab(self) -> usize {
 		match self {
-			K::Record | K::RecordPause | K::RecordSongs | K::SaveBuffer | K::ScheduledRecordings => 2,
+			K::Record
+			| K::RecordPause
+			| K::RecordSongs
+			| K::SaveBuffer
+			| K::WriteCurrentSegment
+			| K::WritePreviousSegment
+			| K::WriteNextSegment
+			| K::WriteAllSegments
+			| K::ScheduledRecordings => 2,
 			K::OpenSearch
 			| K::OpenBrowse
 			| K::OpenFavorites
@@ -254,7 +274,13 @@ impl KeyAction {
 			K::RecordPause => "record_pause",
 			K::RecordSongs => "record_songs",
 			K::SaveBuffer => "save_buffer",
+			K::WriteCurrentSegment => "write_current_segment",
+			K::WritePreviousSegment => "write_previous_segment",
+			K::WriteNextSegment => "write_next_segment",
+			K::WriteAllSegments => "write_all_segments",
 			K::ScheduledRecordings => "scheduled_recordings",
+			K::PreviousSegment => "previous_segment",
+			K::NextSegment => "next_segment",
 			K::SeekBack => "seek_back",
 			K::SeekBackAlt => "seek_back_alt",
 			K::SeekForward => "seek_forward",
@@ -339,7 +365,13 @@ impl KeyAction {
 			K::RecordPause => plain(s::RECORD_PAUSE),
 			K::RecordSongs => plain(s::RECORD_SONGS),
 			K::SaveBuffer => plain(s::SAVE_BUFFER),
+			K::WriteCurrentSegment => plain(s::WRITE_CURRENT_SEGMENT),
+			K::WritePreviousSegment => plain(s::WRITE_PREVIOUS_SEGMENT),
+			K::WriteNextSegment => plain(s::WRITE_NEXT_SEGMENT),
+			K::WriteAllSegments => plain(s::WRITE_ALL_SEGMENTS),
 			K::ScheduledRecordings => plain(s::SCHEDULED_RECORDINGS),
+			K::PreviousSegment => plain(s::PREVIOUS_SEGMENT),
+			K::NextSegment => plain(s::NEXT_SEGMENT),
 			K::SeekBack => plain(s::SKIP_BACK),
 			K::SeekBackAlt => alt(s::SKIP_BACK),
 			K::SeekForward => plain(s::SKIP_FORWARD),
@@ -425,6 +457,12 @@ impl KeyAction {
 			K::GoLive => "Ctrl+J",
 			K::GoLiveAlt => "Ctrl+Shift+Right",
 			K::GoLiveF8 => "F8",
+			K::PreviousSegment => "Shift+F6",
+			K::NextSegment => "Shift+F7",
+			K::WriteAllSegments => "Ctrl+F5",
+			K::WritePreviousSegment => "Ctrl+F6",
+			K::WriteNextSegment => "Ctrl+F7",
+			K::WriteCurrentSegment => "Ctrl+F8",
 			K::Mute => "Ctrl+M",
 			K::VolumeUp => "Ctrl+Up",
 			K::VolumeDown => "Ctrl+Down",
@@ -482,7 +520,13 @@ impl KeyAction {
 			K::RecordPause => Action::RecordPause,
 			K::RecordSongs => Action::RecordSongs,
 			K::SaveBuffer => Action::SaveBuffer,
+			K::WriteCurrentSegment => Action::WriteCurrentSegment,
+			K::WritePreviousSegment => Action::WritePreviousSegment,
+			K::WriteNextSegment => Action::WriteNextSegment,
+			K::WriteAllSegments => Action::WriteAllSegments,
 			K::ScheduledRecordings => Action::ScheduledRecordings,
+			K::PreviousSegment => Action::PreviousSegment,
+			K::NextSegment => Action::NextSegment,
 			K::SeekBack | K::SeekBackAlt => Action::SeekBack,
 			K::SeekForward | K::SeekForwardAlt => Action::SeekForward,
 			K::SeekStart | K::SeekStartAlt => Action::SeekStart,
@@ -617,7 +661,13 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::RecordPause => K::RecordPause,
 		Action::RecordSongs => K::RecordSongs,
 		Action::SaveBuffer => K::SaveBuffer,
+		Action::WriteCurrentSegment => K::WriteCurrentSegment,
+		Action::WritePreviousSegment => K::WritePreviousSegment,
+		Action::WriteNextSegment => K::WriteNextSegment,
+		Action::WriteAllSegments => K::WriteAllSegments,
 		Action::ScheduledRecordings => K::ScheduledRecordings,
+		Action::PreviousSegment => K::PreviousSegment,
+		Action::NextSegment => K::NextSegment,
 		Action::SeekBack => K::SeekBackAlt,
 		Action::SeekForward => K::SeekForwardAlt,
 		Action::SeekStart => K::SeekStartAlt,
@@ -781,6 +831,10 @@ mod tests {
 			K::RecordPause,
 			K::RecordSongs,
 			K::SaveBuffer,
+			K::WriteCurrentSegment,
+			K::WritePreviousSegment,
+			K::WriteNextSegment,
+			K::WriteAllSegments,
 			K::ScheduledRecordings,
 		] {
 			assert_eq!(key.tab(), 2, "{}", key.id());

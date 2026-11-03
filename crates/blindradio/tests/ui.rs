@@ -1312,6 +1312,132 @@ fn detect_audio_stream_opens_from_the_file_menu_and_escape_closes() {
 	);
 }
 
+/// An ICY station on localhost: a second of audio, then a new title, in real
+/// time. The fixture's 5 s of audio is all that decodes, so a test stays inside it.
+fn icy_station() -> String {
+	use std::io::{Read, Write};
+	const SECOND: usize = 8_000; // the fixture is 64 kbps
+	let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+	let url = format!("http://{}/live", listener.local_addr().unwrap());
+	let tone = std::fs::read(concat!(
+		env!("CARGO_MANIFEST_DIR"),
+		"/../blindradio-core/tests/fixtures/tone.mp3"
+	))
+	.expect("fixture");
+	std::thread::spawn(move || {
+		for sock in listener.incoming().flatten() {
+			let tone = tone.clone();
+			std::thread::spawn(move || {
+				let mut sock = sock;
+				let _ = sock.read(&mut [0; 4096]);
+				let head = format!(
+					"HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nicy-metaint: {SECOND}\r\n\r\n"
+				);
+				let _ = sock.write_all(head.as_bytes());
+				for (i, title) in ["One", "Two", "Three", "Four"].iter().enumerate() {
+					let at = i * SECOND % tone.len();
+					let audio: Vec<u8> = tone.iter().cycle().skip(at).take(SECOND).copied().collect();
+					let mut meta = format!("StreamTitle='Band - {title}';").into_bytes();
+					let blocks = meta.len().div_ceil(16);
+					meta.resize(blocks * 16, 0);
+					if sock.write_all(&audio).is_err()
+						|| sock.write_all(&[blocks as u8]).is_err()
+						|| sock.write_all(&meta).is_err()
+					{
+						return;
+					}
+					std::thread::sleep(Duration::from_secs(1));
+				}
+				// Keep the connection up: a test reads what is already buffered.
+				std::thread::sleep(Duration::from_secs(60));
+			});
+		}
+	});
+	url
+}
+
+impl App {
+	/// The message line once it holds `part`.
+	fn message_with(&self, part: &str) -> String {
+		let part_owned = part.to_string();
+		self.automation
+			.create_matcher()
+			.from(self.window.clone())
+			.timeout(WAIT.as_millis() as u64)
+			.control_type(ControlType::Text)
+			.filter_fn(Box::new(move |e: &UIElement| {
+				Ok(e.get_name()?.contains(&part_owned))
+			}))
+			.find_first()
+			.and_then(|e| e.get_name())
+			.unwrap_or_else(|e| panic!("no message with {part}: {e}"))
+	}
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn segment_keys_say_so_when_there_are_no_segments() {
+	let app = App::start("no-segments", Library::default());
+	app.press("{shift}{f7}");
+	app.message_with("No segments");
+	drop(app); // one instance at a time
+	let app = App::start("no-segments-write", Library::default());
+	app.press("{ctrl}{f5}");
+	app.message_with("No segments");
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn a_station_s_titles_become_segments_to_jump_to_and_write() {
+	let url = icy_station();
+	let mut library = Library::default();
+	library.collections[0].stations = vec![Station {
+		url,
+		..station("custom:icy", "Test FM")
+	}];
+	let rec = std::env::temp_dir().join(format!("blindradio-ui-rec-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&rec);
+	let mut settings = Settings {
+		main_list: Some("custom".into()),
+		..Settings::default()
+	};
+	settings.recording.dir = Some(rec.to_string_lossy().into_owned());
+	settings.recording.format = blindradio_core::settings::RecordFormat::Wav;
+	let app = App::with_settings("segments", library, settings);
+	app.select_row(&app.main_tree(), "Test FM");
+	app.press("{enter}");
+	// Every title is in: a new one would take the message line.
+	std::thread::sleep(Duration::from_secs(6));
+
+	// Jumping says where it landed: a title and how far behind live.
+	app.press("{shift}{f6}");
+	let said = app.message_with("behind live");
+	assert!(said.starts_with("Band - "), "{said}");
+	// Held here: playing on into the next title would take the line too.
+	app.press("{ctrl}p");
+
+	// Writing says what it took, then where it went, without holding the window.
+	app.press("{ctrl}{f8}");
+	app.message_with("Segment saved to");
+	let wavs = || {
+		std::fs::read_dir(&rec)
+			.expect("recordings folder")
+			.flatten()
+			.map(|f| f.file_name().to_string_lossy().into_owned())
+			.collect::<Vec<_>>()
+	};
+	let one = wavs();
+	assert_eq!(one.len(), 1, "{one:?}");
+	assert!(one[0].starts_with("Test FM - Band - "), "{one:?}");
+
+	app.press("{ctrl}{f5}");
+	let said = app.message_with("segments saved to");
+	let count: usize = said.split(' ').next().unwrap().parse().expect(&said);
+	assert!(count >= 2, "{said}");
+	assert_eq!(wavs().len(), 1 + count, "never overwrites: {:?}", wavs());
+	let _ = std::fs::remove_dir_all(&rec);
+}
+
 #[test]
 #[ignore = "needs a desktop"]
 fn edit_station_shows_and_clears_the_info() {

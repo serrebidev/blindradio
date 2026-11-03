@@ -80,16 +80,13 @@ impl App {
 		if !is_shifted(behind) {
 			return self.song.clone();
 		}
-		let when = SystemTime::now()
-			.checked_sub(Duration::from_secs_f32(behind))
-			.unwrap_or(SystemTime::UNIX_EPOCH);
-		self.history.title_at(when)
+		self.tuner.heard_title()
 	}
 
 	/// The title's song follows the time-shift position: shifted
 	/// back, the song at the buffer's moment is what is playing, not
-	/// the live one — titles are timestamped as they arrive, so the
-	/// session history names the song of any moment in the buffer.
+	/// the live one — each title is marked where it landed in the
+	/// buffer, so the marks name the song at any position.
 	/// A song change at the position is announced like a live one.
 	pub(super) fn sync_title_song(&mut self, behind: f32) {
 		// The name is cloned up front: announcing below needs &mut self.

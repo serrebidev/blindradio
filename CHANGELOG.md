@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.53
+
+- Segment bookmarks in the time-shift buffer. Every song or program title a station sends now marks where that segment starts, by itself. Shift+F6 and Shift+F7, Previous Segment and Next Segment on the Playback menu, jump between them and say the title. Previous goes to the start of the segment you are in, or to the one before if it only just began. Next after the last segment goes back to live.
+- Write a segment to its own file, on the Recording menu: Write Current Segment (Ctrl+F8), Write Previous Segment (Ctrl+F6), Write Next Segment (Ctrl+F7), and Write All Segments (Ctrl+F5), which writes one file for each. They follow where you are listening, say which song they took, and use your recording format. Files are named for the station, the title and when it played, and an earlier file is never overwritten. The window stays free while they write. The segment still playing is written as far as it has got.
+- The title and song announcements in the buffer now follow where each song landed in the audio, not the clock, so they no longer drift by the few seconds a stream delivers in a burst when it connects. Record Each Song to Its Own File splits in the same place.
+
 ## 0.2.52
 
 - The main window's station menu now has Delete on a station in a collection, as Custom Stations has Delete Custom Station. It takes out the copy you are on, as the Delete key does. Browse's station menu gains it too.

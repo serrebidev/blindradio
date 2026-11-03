@@ -16,6 +16,7 @@ A vibe-coded, screen-reader-first internet radio player for Windows, macOS, and 
 - Favorites, Recently Played, custom stations, and Collections you can create, rename, reorder and fill one station or a whole list at a time.
 - Playlist import and M3U export, Copy Stream URL, and a SerrebiRadio starter list that downloads on first run.
 - Time-shift: pause holds the stream instead of disconnecting, skip back or forward in steps (15 seconds by default) or jump back to live, with a 30 minute buffer settable globally and per station.
+- Segment bookmarks: each title a station sends marks the buffer, so you can jump between songs and program segments and write the current, previous, next or all of them to their own files.
 - Recording on Ctrl+R: the stream's own format untouched, or WAV, MP3 (constant or variable bitrate) or FLAC decoded.
 - Song recognition for stations that send no titles, through AudD (not Shazam; needs a free token from audd.io, set in Settings); the recognized song shows in the status line and can be announced as it changes.
 - Scrobbling to ListenBrainz and to last.fm or Libre.fm for songs that play a minute or more.

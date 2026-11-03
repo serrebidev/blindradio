@@ -213,6 +213,40 @@ impl Recorder {
 		Self::start_stem(dir, &stem, settings, rate, source_ext)
 	}
 
+	/// A file for one buffer segment: named for the station, the title and
+	/// when it played. Numbered rather than overwriting, because the buffer
+	/// may hold less of the segment than an earlier write of it saved.
+	#[allow(clippy::too_many_arguments)]
+	pub fn start_segment(
+		dir: &Path,
+		station: &str,
+		title: &str,
+		played_epoch: u64,
+		settings: &RecordSettings,
+		rate: u32,
+		source_ext: &str,
+	) -> Result<Recorder> {
+		let base = format!(
+			"{} - {} {}",
+			file_stem(station),
+			file_stem(title),
+			stamp(played_epoch)
+		);
+		let ext = match settings.format {
+			RecordFormat::Original => source_ext,
+			RecordFormat::Wav => "wav",
+			RecordFormat::Mp3 => "mp3",
+			RecordFormat::Flac => "flac",
+		};
+		let mut stem = base.clone();
+		let mut n = 1;
+		while dir.join(format!("{stem}.{ext}")).exists() {
+			n += 1;
+			stem = format!("{base} {n}");
+		}
+		Self::start_stem(dir, &stem, settings, rate, source_ext)
+	}
+
 	fn start_stem(
 		dir: &Path,
 		stem: &str,

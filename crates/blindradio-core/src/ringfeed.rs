@@ -260,7 +260,7 @@ impl Read for RingReader {
 /// Frames ahead of the target that a re-prime must throw away: the
 /// containing chunk starts before the requested time, and only the
 /// decoder knows where inside it the target lies.
-fn skip_frames(out: &mut Vec<f32>, skip: &mut u64) {
+pub(crate) fn skip_frames(out: &mut Vec<f32>, skip: &mut u64) {
 	if *skip == 0 {
 		return;
 	}

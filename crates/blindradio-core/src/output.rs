@@ -60,6 +60,8 @@ pub enum MixerCmd {
 	ShiftPause(bool),
 	/// Moves the cursor by signed seconds from where it is (or from live).
 	ShiftSeek(i32),
+	/// Moves the cursor to an absolute frame (a segment's start).
+	ShiftSeekTo(u64),
 	/// Returns to the live edge.
 	ShiftLive,
 	/// The active station's recorder slot, in encoded-ring mode: while
@@ -265,6 +267,16 @@ impl MixerCore {
 						// live" while the ring plays live.
 						status.cursor.store(u64::MAX, Ordering::Relaxed);
 					}
+				}
+			}
+			MixerCmd::ShiftSeekTo(frame) => {
+				if let Some((buffer, status)) = &self.shift {
+					let edge = buffer.live_edge();
+					let target = frame.clamp(buffer.start(), edge);
+					self.shift_cursor = (target < edge).then_some(target);
+					status
+						.cursor
+						.store(self.shift_cursor.unwrap_or(u64::MAX), Ordering::Relaxed);
 				}
 			}
 			MixerCmd::ShiftLive => {
@@ -1376,6 +1388,24 @@ mod tests {
 		m.handle(MixerCmd::ShiftPause(false));
 		let out = render_frames(&mut m, 100);
 		assert!((out[2 * 50] - 0.5).abs() < 0.01, "resume plays from the freeze point");
+	}
+
+	#[test]
+	fn seek_to_lands_on_the_frame_and_clamps_to_the_buffer() {
+		let (mut m, buffer, status) = shift_setup();
+		m.handle(MixerCmd::ShiftSeekTo(4_000));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), 4_000);
+		render_frames(&mut m, 100);
+		assert_eq!(status.cursor.load(Ordering::Relaxed), 4_100, "plays on from there");
+		m.handle(MixerCmd::ShiftPause(true));
+		m.handle(MixerCmd::ShiftSeekTo(2_000));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), 2_000, "paused jumps count");
+		m.handle(MixerCmd::ShiftPause(false));
+		buffer.push(&vec![0.5; 2 * 60_000]); // trims the first 10 s
+		m.handle(MixerCmd::ShiftSeekTo(0));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), buffer.start());
+		m.handle(MixerCmd::ShiftSeekTo(u64::MAX - 1));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), u64::MAX, "past the edge is live");
 	}
 
 	#[test]
