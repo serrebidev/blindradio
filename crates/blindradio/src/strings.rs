@@ -90,6 +90,23 @@ pub const SCHEDULED_RECORDINGS: &str = "Scheduled Recordin&gs…";
 pub const NO_BUFFER: &str = "No buffer to save";
 /// Prefix: `Buffer saved to <path>`.
 pub const BUFFER_SAVED: &str = "Buffer saved to ";
+pub const PREVIOUS_SEGMENT: &str = "P&revious Segment";
+pub const NEXT_SEGMENT: &str = "&Next Segment";
+pub const WRITE_CURRENT_SEGMENT: &str = "Write &Current Segment";
+pub const WRITE_PREVIOUS_SEGMENT: &str = "Write Pre&vious Segment";
+pub const WRITE_NEXT_SEGMENT: &str = "Write &Next Segment";
+pub const WRITE_ALL_SEGMENTS: &str = "Write A&ll Segments";
+pub const NO_SEGMENTS: &str = "No segments";
+pub const NO_PREVIOUS_SEGMENT: &str = "No previous segment";
+pub const NO_NEXT_SEGMENT: &str = "No next segment";
+/// Prefix: `Writing <title>`, `Writing 5 segments`.
+pub const WRITING_SEGMENT: &str = "Writing ";
+/// Suffix: `5 segments`.
+pub const SEGMENTS: &str = " segments";
+/// Prefix: `Segment saved to <path>`.
+pub const SEGMENT_SAVED: &str = "Segment saved to ";
+/// Between: `5 segments saved to <folder>`.
+pub const SEGMENTS_SAVED: &str = " saved to ";
 pub const REC_STARTED: &str = "Recording started";
 pub const REC_PAUSED: &str = "Recording paused";
 pub const REC_RESUMED: &str = "Recording resumed";

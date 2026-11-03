@@ -1,4 +1,6 @@
-//! Recording ends, buffer saves and scheduled recordings.
+//! Recording ends, buffer saves, segments and scheduled recordings.
+
+use blindradio_core::segments::{Jump, Segment, Which};
 
 use super::*;
 
@@ -59,6 +61,85 @@ impl App {
 			Ok(path) => self.say(&format!("{}{}", s::BUFFER_SAVED, path.display())),
 			Err(e) => self.say(&e.to_string()),
 		}
+	}
+
+	/// Previous or Next Segment: playback moves there and says what it is.
+	pub(super) fn segment_jump(&mut self, forward: bool) {
+		match self.tuner.segment_jump(forward) {
+			Jump::To(segment) => {
+				// Said here, so the once-a-second title check stays quiet.
+				self.shift_song = Some(segment.title.clone());
+				let behind = self
+					.tuner
+					.segments()
+					.last()
+					.map_or(0, |last| last.end_ms.saturating_sub(segment.start_ms));
+				let mut text = segment.title;
+				if self.settings.announce_status {
+					let behind = fmt_dur(behind as f32 / 1000.0);
+					text = format!("{text} - {behind}{}", s::BEHIND_LIVE);
+				}
+				self.say(&text);
+			}
+			Jump::Live => self.run(Action::GoLive),
+			Jump::Nowhere if self.tuner.segments().is_empty() => self.say(s::NO_SEGMENTS),
+			Jump::Nowhere if forward => self.say(s::NO_NEXT_SEGMENT),
+			Jump::Nowhere => self.say(s::NO_PREVIOUS_SEGMENT),
+		}
+	}
+
+	/// Write Current, Previous or Next Segment: says which one it took,
+	/// since the choice follows the playhead.
+	pub(super) fn write_segment(&mut self, which: Which) {
+		let Some(segment) = self.tuner.segment(which) else {
+			return self.say(match which {
+				_ if self.tuner.segments().is_empty() => s::NO_SEGMENTS,
+				Which::Previous => s::NO_PREVIOUS_SEGMENT,
+				Which::Next => s::NO_NEXT_SEGMENT,
+				Which::Current => s::NO_SEGMENTS,
+			});
+		};
+		self.say(&format!("{}{}", s::WRITING_SEGMENT, segment.title));
+		self.write_segments(vec![segment]);
+	}
+
+	/// Write All Segments: one file for each, the unfinished live one too.
+	pub(super) fn write_all_segments(&mut self) {
+		let segments = self.tuner.segments();
+		if segments.is_empty() {
+			return self.say(s::NO_SEGMENTS);
+		}
+		self.say(&format!("{}{}{}", s::WRITING_SEGMENT, segments.len(), s::SEGMENTS));
+		self.write_segments(segments);
+	}
+
+	/// Off the UI thread: encoding a whole buffer takes far longer than a
+	/// window may stall under a screen reader.
+	fn write_segments(&mut self, segments: Vec<Segment>) {
+		let Some(writer) = self.tuner.segment_writer() else {
+			return self.say(s::NO_SEGMENTS);
+		};
+		let dir = writer.dir().to_path_buf();
+		self.bridge.spawn(
+			WindowToken::new(),
+			async move {
+				tokio::task::spawn_blocking(move || writer.write(&segments).map_err(|e| e.to_string()))
+					.await
+					.map_err(|e| e.to_string())
+					.and_then(|written| written)
+			},
+			move |app: &mut App, written| match written.as_deref() {
+				Ok([path]) => app.say(&format!("{}{}", s::SEGMENT_SAVED, path.display())),
+				Ok(paths) => app.say(&format!(
+					"{}{}{}{}",
+					paths.len(),
+					s::SEGMENTS,
+					s::SEGMENTS_SAVED,
+					dir.display()
+				)),
+				Err(e) => app.say(e),
+			},
+		);
 	}
 
 	/// Once a second from poll(): start due scheduled recordings and

@@ -14,6 +14,7 @@ use crate::record::Recorder;
 use crate::ring::PcmRing;
 use crate::ringfeed::{RingFeed, WINDOW_SECONDS};
 use crate::scrobble;
+use crate::segments::{self, Audio, Jump, Marks, Segment, SegmentWriter, Which};
 use crate::settings::{RecognitionProvider, Settings};
 use crate::station::Station;
 use crate::stream::{EngineCtx, StreamEvent, Taps};
@@ -295,6 +296,8 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	/// Last completed encoded chunk and playhead time written to Original.
 	record_after: Option<u64>,
 	record_at: Option<u64>,
+	/// Where each title landed in the buffer: the segment bookmarks.
+	marks: Marks,
 	/// The playing station's current song title and when it started.
 	song: Option<(String, Instant)>,
 	last_recog: Option<Instant>,
@@ -332,6 +335,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			record_song: None,
 			record_after: None,
 			record_at: None,
+			marks: Marks::default(),
 			song: None,
 			last_recog: None,
 			recog_in_flight: false,
@@ -404,6 +408,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			{
 				let display = song.display();
 				if self.song.as_ref().is_none_or(|(t, _)| *t != display) {
+					self.mark_title(Some(&display));
 					if let Some(open) = self.open.iter_mut().find(|o| o.station.id == station_id) {
 						open.title = Some(display.clone());
 					}
@@ -502,6 +507,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					// one still filling waits like a cold start.
 					ring.trim_to_ms(crate::ring::start_ms());
 					self.activate(target, ring, now, true);
+					self.mark_title(title.as_deref());
 					self.emit(TunerEvent::Title {
 						station_id: target.id.clone(),
 						title: title.clone(),
@@ -741,6 +747,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			self.attach_decoded_shift(self.factory.rate(), minutes);
 		}
 		self.factory.set_taps(&station.id, self.current_taps());
+		// The two modes keep different timelines: old marks mean nothing here.
+		self.marks = Marks::default();
+		let title = self.open.iter().find(|o| o.station.id == station.id);
+		let title = title.and_then(|o| o.title.clone());
+		self.mark_title(title.as_deref());
 	}
 
 	/// Stops any recording and unregisters the taps of the station they
@@ -768,7 +779,114 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.record_song = None;
 		self.record_at = None;
 		self.record_after = None;
+		self.marks = Marks::default();
 		self.song = None;
+	}
+
+	/// The oldest time the buffer holds, the live edge and the playhead,
+	/// on the timeline the marks use. `None` with no time-shift buffer.
+	fn timeline(&self) -> Option<(u64, u64, u64)> {
+		let (buffer, status) = self.shift.as_ref()?;
+		if let Some(feed) = &self.ring_feed {
+			return Some((feed.ring_start_ms(), feed.now_ms(), feed.cursor_time()));
+		}
+		let ms = |frame: u64| frame * 1000 / u64::from(buffer.rate());
+		let now = ms(buffer.live_edge());
+		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
+		let playhead = if cursor == u64::MAX { now } else { ms(cursor) };
+		Some((ms(buffer.start()), now, playhead))
+	}
+
+	/// A title landed at the live edge: it starts a segment there.
+	fn mark_title(&mut self, title: Option<&str>) {
+		if let (Some(title), Some((start, now, _))) = (title, self.timeline()) {
+			self.marks.add(title, now, start);
+		}
+	}
+
+	/// The title of the audio at the playhead.
+	pub fn heard_title(&self) -> Option<String> {
+		let (_, _, playhead) = self.timeline()?;
+		self.marks.title_at(playhead).map(str::to_string)
+	}
+
+	/// Every segment the buffer still holds, oldest first.
+	pub fn segments(&self) -> Vec<Segment> {
+		self.timeline()
+			.map_or_else(Vec::new, |(start, now, _)| self.marks.segments(start, now))
+	}
+
+	/// The segment at, before or after the playhead.
+	pub fn segment(&self, which: Which) -> Option<Segment> {
+		let (_, _, playhead) = self.timeline()?;
+		segments::pick(&self.segments(), playhead, which).cloned()
+	}
+
+	/// Moves playback to the previous or next segment and returns where it
+	/// landed. `Live` is left for the caller: going live says so itself.
+	pub fn segment_jump(&mut self, forward: bool) -> Jump {
+		let Some((_, _, playhead)) = self.timeline() else {
+			return Jump::Nowhere;
+		};
+		let shifted = self
+			.shift
+			.as_ref()
+			.is_some_and(|(_, st)| st.cursor.load(std::sync::atomic::Ordering::Relaxed) != u64::MAX);
+		let jump = segments::jump(&self.segments(), playhead, forward, shifted);
+		if let Jump::To(segment) = &jump {
+			self.seek_to_ms(segment.start_ms);
+		}
+		jump
+	}
+
+	fn seek_to_ms(&mut self, ms: u64) {
+		self.record_buffered();
+		self.record_at = None;
+		if let Some(feed) = &self.ring_feed {
+			self.ring_paused_at = None;
+			let buffer = feed.prime(ms);
+			self.sink.send(MixerCmd::ShiftAttach {
+				buffer: buffer.clone(),
+				status: feed.status(),
+			});
+			self.sink
+				.send(MixerCmd::ShiftSeek(-(WINDOW_SECONDS as i32)));
+			self.shift = Some((buffer, feed.status()));
+			return;
+		}
+		if let Some((buffer, status)) = &self.shift {
+			// Rounded up: a frame short would still be the segment before,
+			// and a paused playhead would stay there.
+			let frame = (ms * u64::from(buffer.rate())).div_ceil(1000);
+			// Read back before the mixer's next pass: the next key and the
+			// status line must already see the new position.
+			status.cursor.store(frame, std::sync::atomic::Ordering::Relaxed);
+			self.sink.send(MixerCmd::ShiftSeekTo(frame));
+		}
+	}
+
+	/// What writes segments to files, with the settings as they are now.
+	pub fn segment_writer(&self) -> Option<SegmentWriter> {
+		let station = self.playing.as_ref()?;
+		let (_, now_ms, _) = self.timeline()?;
+		let (dir, ext, settings) = self.recording_plan()?;
+		let audio = match (&self.ring_feed, &self.encoded_ring, &self.shift) {
+			(Some(_), Some(ring), _) => Audio::Ring(ring.clone()),
+			(_, _, Some((buffer, _))) => Audio::Decoded(buffer.clone()),
+			_ => return None,
+		};
+		Some(SegmentWriter {
+			audio,
+			dir,
+			station: station.name.clone(),
+			settings: settings.recording,
+			rate: self.factory.rate(),
+			ext,
+			now_ms,
+			now_epoch: std::time::SystemTime::now()
+				.duration_since(std::time::UNIX_EPOCH)
+				.map_or(0, |d| d.as_secs()),
+		})
 	}
 
 	/// The playing station's time-shift buffer and its live status.
@@ -1209,6 +1327,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			StreamEvent::Title(title) => {
 				self.open[i].title = title.clone();
 				if playing {
+					self.mark_title(title.as_deref());
 					if self.song.as_ref().map(|(t, _)| t) != title.as_ref() {
 						if let Some(prev) = self.song.take() {
 							self.scrobble_previous(&prev, now);
@@ -1303,6 +1422,64 @@ mod recording_tests {
 	struct NoSink;
 	impl Sink for NoSink {
 		fn send(&self, _: MixerCmd) {}
+	}
+
+	#[test]
+	fn titles_become_segments_the_playhead_can_jump_and_write() {
+		let dir = tempfile::tempdir().unwrap();
+		let mut settings = Settings::default();
+		settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+		settings.recording.format = crate::settings::RecordFormat::Wav;
+		let station = Station {
+			id: "test".into(),
+			name: "Test".into(),
+			url: "http://test/stream.mp3".into(),
+			source: crate::station::Source::Custom,
+			info: None,
+			details: Default::default(),
+		};
+		let (tx, _) = crossbeam_channel::unbounded();
+		let mut tuner = Tuner::new(NoStreams, NoSink, tx);
+		tuner.set_settings(Arc::new(Mutex::new(settings)));
+		tuner.playing = Some(station.clone());
+		tuner.attach_taps(&station);
+		let (buffer, status) = tuner.shift().unwrap();
+		tuner.mark_title(Some("One"));
+		buffer.push(&vec![0.0; 2 * 20_000]);
+		tuner.mark_title(Some("Two"));
+		buffer.push(&vec![0.0; 2 * 20_000]);
+		tuner.mark_title(Some("Three"));
+		buffer.push(&vec![0.0; 2 * 10_000]);
+
+		let titles = |t: &Tuner<NoStreams, NoSink>| {
+			t.segments().into_iter().map(|s| s.title).collect::<Vec<_>>()
+		};
+		assert_eq!(titles(&tuner), ["One", "Two", "Three"]);
+		assert_eq!(tuner.heard_title().as_deref(), Some("Three"), "live");
+		assert_eq!(tuner.segment(Which::Next), None, "nothing after live");
+
+		// Well into the live segment, Previous restarts it; again, it steps.
+		assert!(matches!(tuner.segment_jump(false), Jump::To(s) if s.title == "Three"));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), 40_000);
+		assert!(matches!(tuner.segment_jump(false), Jump::To(s) if s.title == "Two"));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), 20_000);
+		assert_eq!(tuner.heard_title().as_deref(), Some("Two"));
+		assert_eq!(tuner.segment(Which::Previous).unwrap().title, "One");
+		assert_eq!(tuner.segment(Which::Next).unwrap().title, "Three");
+		assert!(matches!(tuner.segment_jump(true), Jump::To(s) if s.title == "Three"));
+		assert_eq!(tuner.segment_jump(true), Jump::Live, "shifted past the last");
+
+		let writer = tuner.segment_writer().unwrap();
+		let paths = writer.write(&tuner.segments()).unwrap();
+		assert_eq!(paths.len(), 3);
+		let frames: Vec<u32> = paths
+			.iter()
+			.map(|p| hound::WavReader::open(p).unwrap().duration())
+			.collect();
+		assert_eq!(frames, [20_000, 20_000, 10_000]);
+
+		tuner.detach_taps();
+		assert!(tuner.segments().is_empty(), "a new station starts clean");
 	}
 
 	#[test]

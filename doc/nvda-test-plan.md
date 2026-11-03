@@ -30,7 +30,10 @@ Expected speech is quoted. Numbered steps are one pass; note the step number wit
     Equalizer, and Audio Device, which opens on `Default` with the active device checked.
     Ctrl+M reads `Muted`, then `Unmuted`. Recording: `Record Ctrl+R`, `Pause Recording
     Ctrl+Shift+R`, `Record Each Song to Its Own File` (a check item that ticks and stays
-    ticked), `Write Buffer…`, `Scheduled Recordings…`.
+    ticked), `Write Buffer…`, `Write Current Segment Ctrl+F8`, `Write Previous Segment Ctrl+F6`,
+    `Write Next Segment Ctrl+F7`, `Write All Segments Ctrl+F5`, `Scheduled Recordings…`. On a
+    station that sends titles, after a song change, Shift+F6 reads the title and how far behind
+    live; Ctrl+F8 reads `Writing` and the title, then `Segment saved to` and the path.
 13. Help: `View Changelog` opens the release history in the browser, `Go to BlindRadio GitHub
     Page` opens the project's page, and `About BlindRadio` opens the about box; Escape closes it.
 

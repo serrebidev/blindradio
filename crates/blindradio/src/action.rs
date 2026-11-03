@@ -19,8 +19,20 @@ pub enum Action {
 	RecordSongs,
 	/// Save the time-shift buffer to a WAV file in the recordings folder.
 	SaveBuffer,
+	/// The buffer's segment at the playhead to its own file.
+	WriteCurrentSegment,
+	/// The segment before the playhead's to its own file.
+	WritePreviousSegment,
+	/// The segment after the playhead's to its own file.
+	WriteNextSegment,
+	/// Every segment in the buffer, each to its own file.
+	WriteAllSegments,
 	/// The scheduled recordings list dialog.
 	ScheduledRecordings,
+	/// Back to the start of this segment or the one before it.
+	PreviousSegment,
+	/// On to the next segment, or live after the last.
+	NextSegment,
 	/// One step back in the time-shift buffer.
 	SeekBack,
 	/// One step forward, never past live.

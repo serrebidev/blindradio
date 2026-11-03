@@ -682,6 +682,12 @@ impl App {
 				self.say(if on { s::REC_SONGS_ON } else { s::REC_SONGS_OFF });
 			}
 			Action::SaveBuffer => self.save_buffer(),
+			Action::WriteCurrentSegment => self.write_segment(blindradio_core::segments::Which::Current),
+			Action::WritePreviousSegment => self.write_segment(blindradio_core::segments::Which::Previous),
+			Action::WriteNextSegment => self.write_segment(blindradio_core::segments::Which::Next),
+			Action::WriteAllSegments => self.write_all_segments(),
+			Action::PreviousSegment => self.segment_jump(false),
+			Action::NextSegment => self.segment_jump(true),
 			Action::SeekBack => self.seek(-1),
 			Action::SeekForward => self.seek(1),
 			Action::SeekStart => self.seek_start(),

@@ -260,10 +260,32 @@ ends with the word Recording. Closing the app ends a recording too, so closing (
 asks first the same way; hiding to the tray keeps recording and never asks. Changing stations ends a recording, so the app asks first:
 a confirmation names what happens — the recording stops, what is recorded so far is
 saved — and only your Yes changes the station. The Recording menu holds it all: Record,
-Pause Recording, Record Each Song to Its Own File, Write Buffer and Scheduled Recordings.
+Pause Recording, Record Each Song to Its Own File, Write Buffer, the segment writes and
+Scheduled Recordings.
 Recording, Write Buffer writes the whole time-shift buffer — everything the station has
 played since you tuned in, up to the buffer's length — to a WAV file in the same folder,
 named like a recording.
+
+The buffer also bookmarks itself. Every song or program title a station sends marks where
+that segment starts, so stations that name what they play are divided up with nothing to
+set. Playback, Previous Segment (Shift+F6) goes to the start of the segment you are in, or
+to the one before if it only just began; Next Segment (Shift+F7) goes to the next one, and
+after the last it goes back to live. Each jump says the title and how far behind live it is.
+
+The Recording menu writes segments to their own files, in your recording format: Write
+Current Segment (Ctrl+F8), Write Previous Segment (Ctrl+F6), Write Next Segment (Ctrl+F7)
+and Write All Segments (Ctrl+F5), one file for each. Current, previous and next follow
+where you are listening, and each says which title it took. Files land in the recordings
+folder, named for the station, the title and when it played, and an earlier file is never
+overwritten. The window stays free while they write, and you can change stations. The
+segment still playing is written as far as it has got, and the oldest segment starts where
+the buffer does.
+
+Segments need the time-shift buffer and a station that sends titles, or song recognition.
+A station that sends none says `No segments`. The boundaries carry the station's own
+timing, so a second either side is normal, and a recognized song is marked when it is
+recognized, which can be well after it began. A blank title marks nothing, so the audio
+stays with the title before it.
 
 Original stream format keeps the compressed MPEG audio or ADTS AAC bytes, including
 when recording from the buffer. Header-dependent formats such as Ogg and FLAC use WAV
@@ -424,6 +446,10 @@ Global Hotkeys, below, are the separate set that works from other apps.
 | F7, Ctrl+Right | Skip forward |
 | F8, Ctrl+Shift+Right, Ctrl+J | Jump to live |
 | Ctrl+Shift+Left | Jump to start of buffer |
+| Shift+F6, Shift+F7 | Previous segment, next segment |
+| Ctrl+F8 | Write current segment |
+| Ctrl+F6, Ctrl+F7 | Write previous segment, write next segment |
+| Ctrl+F5 | Write all segments |
 | Ctrl+1 to Ctrl+6, Ctrl+0 | Sleep timer, off |
 | Alt+1 to Alt+0 | Play favorite 1 to 10 |
 | Alt+Left, Alt+Right | Previous / next station played this session |
