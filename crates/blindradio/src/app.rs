@@ -772,6 +772,8 @@ impl App {
 			| Action::ExportAllPlaylists
 			| Action::ExportFavorites
 			| Action::OpenUrl
+			| Action::DetectStreams
+			| Action::StationInfo
 			| Action::SongHistory
 			| Action::Equalizer
 			| Action::ScheduledRecordings
@@ -1447,6 +1449,7 @@ mod tests {
 			url: "http://x".into(),
 			source: blindradio_core::station::Source::RadioBrowser,
 			info: None,
+			details: Default::default(),
 		};
 		lib.collections
 			.iter_mut()
@@ -1489,6 +1492,7 @@ mod tests {
 			url: "http://x".into(),
 			source: blindradio_core::station::Source::RadioBrowser,
 			info: None,
+			details: Default::default(),
 		};
 		let c = lib
 			.collections

@@ -1318,6 +1318,7 @@ mod recording_tests {
 				url: "http://test/stream.mp3".into(),
 				source: crate::station::Source::Custom,
 				info: None,
+				details: Default::default(),
 			};
 			let (tx, _) = crossbeam_channel::unbounded();
 			let mut tuner = Tuner::new(NoStreams, NoSink, tx);

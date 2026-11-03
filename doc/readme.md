@@ -153,6 +153,14 @@ For one stream right now, File → Open URL plays an address you paste without a
 anywhere — handy for a quick listen or testing a stream. It still appears under Recently
 Played, and from there it can be favorited or added to a collection like any station.
 
+When you only have a web page with a player on it, File → Detect Audio Stream on Page… finds the
+address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its
+frames and its scripts, tries every stream address they name, and lists the ones that work; the
+first one plays, as in Search. Enter plays, and the Applications key offers the usual station menu,
+so a stream can be favorited, filed in a collection or copied with Copy Stream URL. If what you
+paste is already a stream, it is listed alone. BlindRadio reads the page without running it, so a
+player that only builds its address while running in a browser says `No audio streams found on this page`.
+
 ## Exporting
 
 File > Export Current Playlist exports the selected playlist, Export All Playlists exports
@@ -185,8 +193,15 @@ Station Settings dialog anymore.
 When a collection has folders it also offers Add to Collection Folder, which files the
 station straight into one — Custom Stations' folders included, so a station found in
 Search or Browse can be filed into an imported playlist's folder, the same places
-Ctrl+N offers. For your own station it also offers Delete Custom Station. On a
+Ctrl+N offers. For your own station it also offers Delete Custom Station. In the main window and
+in Browse, a station in a collection also offers Delete, which takes out the copy you are on. On a
 category it says `Nothing to do here`.
+
+Station Info, on every station's menu, opens a read-only window you can read line by line and copy
+from: name, info, genre, country, language, codec, bitrate, directory, homepage and stream URL,
+whichever the station's directory gives. Radio Browser gives the most. Sample rate and channels come
+from the stream itself, so they show while that station plays, and what the stream says about its
+codec and bitrate wins over the directory. Station Info has no key until you give it one in Keyboard Shortcuts.
 
 ## Sound card
 
@@ -357,7 +372,8 @@ and playback continues.
 ## Now playing
 
 The now-playing line shows `Station` or `Station - Song`, with how long it has played and
-the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. The window title shows
+the stream's format, such as `MP3, 128 kbps, 44.1 kHz, stereo`. A stream that declares no bitrate,
+such as HLS, gets one worked out from its audio about four seconds in. The window title shows
 the app's name and the station and song, as it always has. Ctrl+Alt+Shift+N says the
 whole line whatever your announcement settings are.
 

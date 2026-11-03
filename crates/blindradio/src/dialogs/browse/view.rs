@@ -464,7 +464,7 @@ impl View {
 		let Some(f) = self.model.borrow().focus() else {
 			return;
 		};
-		let (items, station, collection, local_folder, new_folder_in, has_clip, paste_dest) = {
+		let (mut items, station, collection, local_folder, new_folder_in, has_clip, paste_dest) = {
 			let m = self.model.borrow();
 			let a = app.borrow();
 			// Where a New Folder would land: inside a local folder,
@@ -492,6 +492,13 @@ impl View {
 				paste_dest,
 			)
 		};
+		// A station in a collection leaves it as the Delete key does. Custom Stations has its own.
+		if let Ok(items) = &mut items
+			&& let Delete::Remove { collection, .. } = self.model.borrow().delete_target(f)
+			&& collection != CUSTOM
+		{
+			items.push(context_menu::Item::Delete);
+		}
 		let items = match items {
 			Ok(items) => items,
 			Err(text) => {
@@ -524,6 +531,7 @@ impl View {
 		};
 		let deleted = station.is_some() && choice == Choice::DeleteCustom;
 		match (station, collection, choice) {
+			(Some(_), _, Choice::Delete) => self.delete(app, f),
 			(Some(st), _, choice) => context_menu::apply(app, &self.tree, &st, choice),
 			(None, Some((id, name)), Choice::Export) => {
 				let (stations, folders) = {

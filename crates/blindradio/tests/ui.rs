@@ -30,6 +30,7 @@ fn station(id: &str, name: &str) -> Station {
 		url: format!("http://127.0.0.1:9/{id}"),
 		source: Source::Custom,
 		info: None,
+		details: Default::default(),
 	}
 }
 
@@ -1233,6 +1234,82 @@ fn deleting_from_the_main_context_menu_plays_the_replacement() {
 		"the station that took its place plays"
 	);
 	assert!(!Library::load(&app.data).collections[0].contains_id("custom:one"));
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn main_context_menu_deletes_a_station_from_its_collection() {
+	let mut library = Library::default();
+	let jazz = library.create_collection("Jazz");
+	library.toggle_in_collection(&jazz, &station("rb:one", "One"));
+	library.toggle_in_collection(&jazz, &station("rb:two", "Two"));
+	let app = App::with_settings(
+		"delete-collection-menu",
+		library,
+		Settings {
+			main_list: Some(jazz.clone()),
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	app.select_row(&tree, "One");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Delete"));
+	std::thread::sleep(Duration::from_millis(600));
+	app.assert_selected(&tree, "Two");
+	let saved = Library::load(&app.data);
+	let held = saved.collections.iter().find(|c| c.id == jazz).unwrap();
+	assert!(!held.contains_id("rb:one") && held.contains_id("rb:two"));
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn station_info_opens_from_the_context_menu_and_escape_closes() {
+	let mut library = Library::default();
+	let jazz = library.create_collection("Jazz");
+	library.toggle_in_collection(&jazz, &station("rb:one", "One"));
+	let app = App::with_settings(
+		"station-info",
+		library,
+		Settings {
+			main_list: Some(jazz),
+			..Settings::default()
+		},
+	);
+	let tree = app.main_tree();
+	app.select_row(&tree, "One");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Station Info…"));
+	assert!(
+		app.find("Station Info", Duration::from_secs(5)).is_some(),
+		"Station Info opens"
+	);
+	app.press("{esc}");
+	std::thread::sleep(Duration::from_millis(600));
+	assert!(
+		app.find("Station Info", Duration::from_millis(400)).is_none(),
+		"Escape closes it"
+	);
+}
+
+#[test]
+#[ignore = "needs a desktop"]
+fn detect_audio_stream_opens_from_the_file_menu_and_escape_closes() {
+	let app = App::start("detect-streams", Library::default());
+	app.press("{alt}f");
+	app.invoke(&app.menu_item("Detect Audio Stream on Page…"));
+	assert!(
+		app.find("Detect Audio Stream on Page", Duration::from_secs(5))
+			.is_some(),
+		"the window opens"
+	);
+	app.press("{esc}");
+	std::thread::sleep(Duration::from_millis(600));
+	assert!(
+		app.find("Detect Audio Stream on Page", Duration::from_millis(400))
+			.is_none(),
+		"Escape closes it"
+	);
 }
 
 #[test]

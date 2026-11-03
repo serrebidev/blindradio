@@ -77,7 +77,9 @@ pub enum KeyAction {
 	CutStation,
 	PasteStation,
 	EditStation,
+	StationInfo,
 	OpenUrl,
+	DetectStreams,
 	GetStarter,
 	PlayFavorite1,
 	PlayFavorite2,
@@ -110,7 +112,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 74] = [
+	pub const ALL: [KeyAction; 76] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -158,7 +160,9 @@ impl KeyAction {
 		K::CutStation,
 		K::PasteStation,
 		K::EditStation,
+		K::StationInfo,
 		K::OpenUrl,
+		K::DetectStreams,
 		K::GetStarter,
 		K::PlayFavorite1,
 		K::PlayFavorite2,
@@ -203,7 +207,9 @@ impl KeyAction {
 			| K::CutStation
 			| K::PasteStation
 			| K::EditStation
+			| K::StationInfo
 			| K::OpenUrl
+			| K::DetectStreams
 			| K::GetStarter
 			| K::PlayFavorite1
 			| K::PlayFavorite2
@@ -284,7 +290,9 @@ impl KeyAction {
 			K::CutStation => "cut_station",
 			K::PasteStation => "paste_station",
 			K::EditStation => "edit_station",
+			K::StationInfo => "station_info",
 			K::OpenUrl => "open_url",
+			K::DetectStreams => "detect_streams",
 			K::GetStarter => "get_starter",
 			K::PlayFavorite1 => "play_favorite_1",
 			K::PlayFavorite2 => "play_favorite_2",
@@ -366,7 +374,9 @@ impl KeyAction {
 			K::CutStation => plain(s::CUT_STATION_ITEM),
 			K::PasteStation => plain(s::PASTE_STATION_ITEM),
 			K::EditStation => plain(s::EDIT_STATION_ITEM),
+			K::StationInfo => plain(s::STATION_INFO_ITEM),
 			K::OpenUrl => plain(s::OPEN_URL),
+			K::DetectStreams => plain(s::DETECT_STREAMS),
 			K::GetStarter => plain(s::GET_STARTER),
 			K::PlayFavorite1 => favorite(1),
 			K::PlayFavorite2 => favorite(2),
@@ -503,7 +513,9 @@ impl KeyAction {
 			K::CutStation => Action::CutStation,
 			K::PasteStation => Action::PasteStation,
 			K::EditStation => Action::EditStation,
+			K::StationInfo => Action::StationInfo,
 			K::OpenUrl => Action::OpenUrl,
+			K::DetectStreams => Action::DetectStreams,
 			K::GetStarter => Action::GetStarter,
 			K::PlayFavorite1 => Action::PlayFavorite(0),
 			K::PlayFavorite2 => Action::PlayFavorite(1),
@@ -634,6 +646,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::NewCustomStation => K::NewCustomStation,
 		Action::CopyUrl => K::CopyUrl,
 		Action::OpenUrl => K::OpenUrl,
+		Action::DetectStreams => K::DetectStreams,
 		Action::GetStarter => K::GetStarter,
 		Action::Import => K::Import,
 		Action::ExportCurrentList => K::ExportCurrentList,

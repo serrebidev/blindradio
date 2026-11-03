@@ -21,7 +21,7 @@ Expected speech is quoted. Numbered steps are one pass; note the step number wit
 ## Menus
 
 9. Alt+F, Alt+S, Alt+P, Alt+R, Alt+H open on their first item.
-10. File: Open URL, the two import items, Settings, Global Hotkeys, Keyboard Shortcuts and
+10. File: Open URL, Detect Audio Stream on Page, the two import items, Settings, Global Hotkeys, Keyboard Shortcuts and
     Exit; no check items.
 11. Stations: every item reads with its shortcut (`Search… Ctrl+F`, and so on), including
     `Previous Station Alt+Left` and `Next Station Alt+Right`. `Add to Favorites Ctrl+D` reads

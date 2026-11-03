@@ -79,6 +79,47 @@ fn gzipped_hls_station_plays() {
 
 #[test]
 #[ignore = "network"]
+fn hls_station_with_no_declared_bitrate_gets_a_measured_one() {
+	let engine = engine();
+	let station = dev_stations()
+		.into_iter()
+		.find(|s| s.id == "rtp-antena1-hls")
+		.unwrap();
+	let (tx, rx) = mpsc::channel();
+	let _stream = start(
+		&station,
+		&engine.ctx,
+		Box::new(move |event| {
+			let _ = tx.send(event);
+		}),
+	);
+	loop {
+		match rx.recv_timeout(Duration::from_secs(20)).expect("a bitrate within 20 s") {
+			StreamEvent::Format(format) if format.bitrate_kbps.is_some() => {
+				println!("{}", format.describe());
+				assert!((16..=512).contains(&format.bitrate_kbps.unwrap()));
+				return;
+			}
+			StreamEvent::Failed(reason) => panic!("{reason}"),
+			_ => {}
+		}
+	}
+}
+
+#[tokio::test]
+#[ignore = "network"]
+async fn detects_the_streams_of_real_pages() {
+	let client = blindradio_core::net::client();
+	let page = "https://somafm.com/groovesalad/";
+	let found = blindradio_core::page::detect(&client, page).await.unwrap();
+	for st in &found {
+		println!("{} | {:?} | {}", st.name, st.info, st.url);
+	}
+	assert!(!found.is_empty(), "{page}");
+}
+
+#[test]
+#[ignore = "network"]
 fn opus_station_says_what_is_playing() {
 	let engine = engine();
 	let station = dev_stations()

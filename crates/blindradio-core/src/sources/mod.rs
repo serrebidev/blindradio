@@ -664,6 +664,7 @@ mod tests {
 				url: url.into(),
 				source: Source::Custom,
 				info: None,
+				details: Default::default(),
 			};
 			let key = Sortable {
 				name: name.into(),

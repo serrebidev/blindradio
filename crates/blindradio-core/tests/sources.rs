@@ -161,6 +161,7 @@ async fn children_dispatch_by_prefix() {
 			url: "http://pr.test/1".into(),
 			source: Source::Directory,
 			info: Some("NPR".into()),
+			details: Default::default(),
 		})]
 	);
 	let nets = src.children("net", Sort::default()).await.unwrap();
@@ -305,6 +306,7 @@ fn station(id: &str, source: Source) -> Station {
 		url: "http://x".into(),
 		source,
 		info: None,
+		details: Default::default(),
 	}
 }
 

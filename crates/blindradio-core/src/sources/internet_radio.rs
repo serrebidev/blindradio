@@ -238,6 +238,10 @@ fn parse_page(base: &Url, current: &Url, bytes: &[u8]) -> Result<Page> {
 				url: stream.into(),
 				source: Source::InternetRadio,
 				info: (!genres.is_empty()).then(|| genres.join(", ")),
+				details: crate::station::Details {
+					genre: (!genres.is_empty()).then(|| genres.join(", ")),
+					..Default::default()
+				},
 			})
 		})
 		.collect();

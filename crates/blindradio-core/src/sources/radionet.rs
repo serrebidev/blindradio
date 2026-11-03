@@ -80,6 +80,11 @@ fn station(p: &Playable) -> Option<Station> {
 		.filter(|s| !s.is_empty())
 		.collect::<Vec<_>>()
 		.join(", ");
+	let details = crate::station::Details {
+		genre: crate::station::known(&genres),
+		country: crate::station::known(&p.country),
+		..Default::default()
+	};
 	let info = if !genres.is_empty() { genres } else { place };
 	Some(Station {
 		id: format!("radionet:{}", p.id.trim()),
@@ -87,6 +92,7 @@ fn station(p: &Playable) -> Option<Station> {
 		url: url.into(),
 		source: Source::RadioNet,
 		info: (!info.is_empty()).then_some(info),
+		details,
 	})
 }
 

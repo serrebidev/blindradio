@@ -230,10 +230,16 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 						url: link,
 						source: Source::Custom,
 						info: None,
+						details: Default::default(),
 					});
 				} else {
 					app.borrow_mut().say(s::NOT_A_STREAM_URL);
 				}
+			}
+		}
+		Action::DetectStreams => {
+			if let Some(next) = dialogs::page_streams::show(app) {
+				dispatch(app, next);
 			}
 		}
 		Action::Import => dialogs::collections::import(app, false),
@@ -276,6 +282,17 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			match station {
 				Some(st) => {
 					if let Some(next) = dialogs::custom_station::show_edit(app, &st) {
+						dispatch(app, next);
+					}
+				}
+				None => app.borrow_mut().say(s::NO_STATION_HERE),
+			}
+		}
+		Action::StationInfo => {
+			let station = app.borrow().station_here();
+			match station {
+				Some(st) => {
+					if let Some(next) = dialogs::station_info::show(app, &st) {
 						dispatch(app, next);
 					}
 				}

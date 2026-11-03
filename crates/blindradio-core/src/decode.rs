@@ -102,8 +102,12 @@ fn decode_err(e: Error) -> CoreError {
 	CoreError::Decode(e.to_string())
 }
 
-/// What the playing stream is, for the status bar: codec, the bitrate the
-/// server declares (ICY `icy-br`; often absent), sample rate and channels.
+/// Audio decoded before its bitrate is worked out from the packets: long enough for a
+/// variable-rate stream to settle, short enough that the status bar has it soon.
+const MEASURE_SECS: f64 = 4.0;
+
+/// What the playing stream is, for the status bar: codec, the bitrate the server declares
+/// (ICY `icy-br`), else the one measured from its packets, sample rate and channels.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StreamFormat {
 	pub codec: String,
@@ -125,15 +129,27 @@ impl StreamFormat {
 			out += &format!(", {k} kbps");
 		}
 		if self.sample_rate > 0 {
-			out += &format!(", {} kHz", trim_rate(self.sample_rate));
+			out += &format!(", {}", self.rate_label());
 		}
-		match self.channels {
-			1 => out += ", mono",
-			2 => out += ", stereo",
-			n if n > 2 => out += &format!(", {n} channels"),
-			_ => {}
+		if let Some(channels) = self.channels_label() {
+			out += &format!(", {channels}");
 		}
 		out
+	}
+
+	/// "44.1 kHz".
+	pub fn rate_label(&self) -> String {
+		format!("{} kHz", trim_rate(self.sample_rate))
+	}
+
+	/// "stereo"; `None` when not yet known.
+	pub fn channels_label(&self) -> Option<String> {
+		match self.channels {
+			0 => None,
+			1 => Some("mono".into()),
+			2 => Some("stereo".into()),
+			n => Some(format!("{n} channels")),
+		}
 	}
 }
 
@@ -173,6 +189,9 @@ pub struct Decoder {
 	source_ready: u64,
 	/// The first Ogg tags have been read.
 	title_read: bool,
+	/// Coded bytes and the seconds of audio they made, container overhead excluded.
+	packet_bytes: u64,
+	packet_secs: f64,
 }
 
 /// `Artist - Title` from Vorbis comments, whose keys come in any case; the title alone without an
@@ -250,6 +269,8 @@ impl Decoder {
 			source,
 			source_ready: 0,
 			title_read: false,
+			packet_bytes: 0,
+			packet_secs: 0.0,
 		};
 		// Decode one packet now so sample_rate() is right before the caller sizes its resampler.
 		let mut first = Vec::new();
@@ -303,6 +324,14 @@ impl Decoder {
 	/// Channel count of the audio last produced; 0 before the first buffer.
 	pub fn channels(&self) -> u32 {
 		self.channels
+	}
+
+	/// The bitrate worked out from the packets decoded so far: HLS and many ICY servers
+	/// declare none. `None` until enough audio has passed.
+	pub fn measured_kbps(&self) -> Option<u32> {
+		(self.packet_secs >= MEASURE_SECS)
+			.then(|| (self.packet_bytes as f64 * 8.0 / self.packet_secs / 1000.0).round() as u32)
+			.filter(|&kbps| kbps > 0)
 	}
 
 	/// Source bytes known to have passed the demuxer's read-ahead buffer.
@@ -366,6 +395,8 @@ impl Decoder {
 				continue;
 			}
 			self.rate = buf.spec().rate();
+			self.packet_bytes += packet.data.len() as u64;
+			self.packet_secs += buf.frames() as f64 / f64::from(self.rate);
 			let channels = buf.spec().channels().count();
 			self.channels = channels as u32;
 			buf.copy_to_vec_interleaved(&mut self.scratch);
@@ -435,6 +466,17 @@ mod tests {
 			assert!(captured.len() <= source.len() * decoded_ms as usize / 5000 + 1024);
 		}
 		assert_eq!(captured, source);
+	}
+
+	#[test]
+	fn bitrate_is_measured_from_the_packets() {
+		let mut dec = Decoder::new(Box::new(fixture("tone.mp3")), Some("mp3")).unwrap();
+		assert_eq!(dec.measured_kbps(), None, "one packet is too little to tell");
+		let mut out = Vec::new();
+		while dec.next_stereo(&mut out).unwrap() {}
+		// Encoded at 64k; gapless trimming at a file's ends can tip it over by one.
+		let kbps = dec.measured_kbps().unwrap();
+		assert!((64..=65).contains(&kbps), "{kbps}");
 	}
 
 	fn fixture(name: &str) -> std::fs::File {

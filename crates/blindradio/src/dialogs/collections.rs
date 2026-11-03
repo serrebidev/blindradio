@@ -1133,6 +1133,7 @@ mod tests {
 			url: format!("http://{id}"),
 			source: blindradio_core::station::Source::Custom,
 			info: None,
+			details: Default::default(),
 		}
 	}
 

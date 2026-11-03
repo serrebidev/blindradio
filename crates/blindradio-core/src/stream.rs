@@ -779,7 +779,9 @@ fn decode(
 	bitrate_kbps: Option<u32>,
 ) -> Result<()> {
 	let mut decoder = Decoder::with_source(Box::new(reader), hint)?;
-	let format_of = |d: &Decoder| crate::decode::StreamFormat {
+	// Measured once, then held: a variable-rate stream's figure must not flicker on the bar.
+	let mut bitrate_kbps = bitrate_kbps;
+	let format_of = |d: &Decoder, bitrate_kbps| crate::decode::StreamFormat {
 		codec: d.codec().to_string(),
 		bitrate_kbps,
 		sample_rate: d.sample_rate(),
@@ -815,7 +817,8 @@ fn decode(
 			rate = decoder.sample_rate();
 			resampler = Resampler::new(rate, out_rate);
 		}
-		let format = format_of(&decoder);
+		bitrate_kbps = bitrate_kbps.or_else(|| decoder.measured_kbps());
+		let format = format_of(&decoder, bitrate_kbps);
 		if reported.as_ref() != Some(&format) {
 			shared.emit(StreamEvent::Format(format.clone()));
 			reported = Some(format);

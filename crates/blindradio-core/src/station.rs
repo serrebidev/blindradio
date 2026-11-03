@@ -49,6 +49,37 @@ pub struct Station {
 	/// Short second column, e.g. `Jazz, France, AAC 128k`.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub info: Option<String>,
+	/// What the directory says about it, for Station Info.
+	#[serde(default, skip_serializing_if = "Details::is_empty")]
+	pub details: Details,
+}
+
+/// A directory's facts about a station, each only where the directory gives it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Details {
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub genre: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub country: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub language: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub codec: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub bitrate_kbps: Option<u32>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub homepage: Option<String>,
+}
+
+impl Details {
+	pub fn is_empty(&self) -> bool {
+		*self == Details::default()
+	}
+}
+
+/// `None` for blank directory text.
+pub fn known(text: &str) -> Option<String> {
+	Some(text.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
 #[cfg(test)]

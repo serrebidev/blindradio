@@ -29,6 +29,7 @@ fn stations(n: usize) -> Vec<Station> {
 			url: format!("http://h{i}.example/listen"),
 			source: Source::Custom,
 			info: None,
+			details: Default::default(),
 		})
 		.collect()
 }

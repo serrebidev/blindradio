@@ -50,6 +50,7 @@ fn station(n: &Network, s: &NetStation) -> Station {
 		url: s.url.clone(),
 		source: Source::Network(n.name.clone()),
 		info: s.info.clone(),
+		details: Default::default(),
 	}
 }
 

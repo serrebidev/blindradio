@@ -157,6 +157,7 @@ pub fn import_playlist_text(
 			url: e.url,
 			source: Source::Custom,
 			info: e.group,
+			details: Default::default(),
 		};
 		match &group {
 			Some(g) => {

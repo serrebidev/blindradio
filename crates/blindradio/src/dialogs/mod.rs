@@ -10,9 +10,11 @@ pub mod features;
 pub mod history;
 pub mod hotkeys;
 pub mod keys;
+pub mod page_streams;
 pub mod recent;
 pub mod schedules;
 pub mod search;
+pub mod station_info;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -46,6 +48,7 @@ fn opens_window(a: &Action) -> bool {
 			| Action::OpenRecent
 			| Action::OpenCollections
 			| Action::NewCustomStation
+			| Action::DetectStreams
 			| Action::SongHistory
 			| Action::Equalizer
 			| Action::GlobalHotkeys

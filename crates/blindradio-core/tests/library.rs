@@ -8,6 +8,7 @@ fn st(id: &str) -> Station {
 		url: format!("http://x/{id}"),
 		source: Source::RadioBrowser,
 		info: None,
+		details: Default::default(),
 	}
 }
 
@@ -21,6 +22,7 @@ fn edit_replaces_the_info_of_every_copy() {
 	let wnyc = Station {
 		name: "WNYC Operavore".into(),
 		info: Some("Operavore, The United States Of America, AAC+ 47k".into()),
+		details: Default::default(),
 		..st("wnyc")
 	};
 	let id = l.create_collection("Mine");

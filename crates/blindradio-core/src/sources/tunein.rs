@@ -70,6 +70,7 @@ impl TuneIn {
 			url: self.url("Tune", &format!("id={guide}&formats=mp3,aac,ogg,hls")),
 			source: Source::TuneIn,
 			info: (!info.is_empty()).then(|| info.to_owned()),
+			details: Default::default(),
 		})
 	}
 

@@ -36,6 +36,7 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 			s::MENU_FILE,
 			vec![
 				Item(s::OPEN_URL, keys(&A::OpenUrl), A::OpenUrl),
+				Item(s::DETECT_STREAMS, keys(&A::DetectStreams), A::DetectStreams),
 				Item(s::IMPORT, keys(&A::Import), A::Import),
 				Item(
 					s::IMPORT_AS_COLLECTION,

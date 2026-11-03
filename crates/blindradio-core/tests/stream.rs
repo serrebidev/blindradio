@@ -65,6 +65,7 @@ fn play(url: &str, ctx: &EngineCtx) -> (StationStream, mpsc::Receiver<StreamEven
 		url: url.into(),
 		source: Source::Custom,
 		info: None,
+		details: Default::default(),
 	};
 	let s = start(&station, ctx, Box::new(move |e| drop(tx.send(e))));
 	(s, rx)
@@ -663,6 +664,7 @@ fn buffered_original_recording(fixture: &str, content_type: &str, want_ext: &str
 			url: server.url("/live"),
 			source: Source::Custom,
 			info: None,
+			details: Default::default(),
 		},
 		Instant::now(),
 	);

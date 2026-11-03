@@ -11,6 +11,7 @@ pub mod library;
 pub mod mp2;
 pub mod net;
 pub mod output;
+pub mod page;
 pub mod playlist;
 pub mod recognize;
 pub mod record;

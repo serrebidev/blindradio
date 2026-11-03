@@ -70,7 +70,11 @@ pub enum Action {
 	FeatureSettings,
 	/// Per-station overrides dialog (context menu).
 	EditStation,
+	/// The read-only facts about a station (context menu).
+	StationInfo,
 	OpenUrl,
+	/// File > Detect Audio Stream on Page…
+	DetectStreams,
 	CopyStation,
 	CutStation,
 	PasteStation,

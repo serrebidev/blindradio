@@ -74,6 +74,7 @@ fn station_of(stem: &str, i: usize, e: &crate::playlist::PlaylistEntry) -> Node 
 		url: e.url.clone(),
 		source: Source::Directory,
 		info: e.group.clone(),
+		details: Default::default(),
 	})
 }
 

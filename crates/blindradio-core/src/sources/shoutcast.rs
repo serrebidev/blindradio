@@ -86,6 +86,12 @@ impl Shoutcast {
 					url: url.into(),
 					source: Source::Shoutcast,
 					info: Some(info.join(", ")),
+					details: crate::station::Details {
+						genre: crate::station::known(&row.genre),
+						codec: Some(codec.to_owned()),
+						bitrate_kbps: u32::try_from(row.bitrate).ok().filter(|&b| b > 0),
+						..Default::default()
+					},
 				};
 				let sortable = Sortable {
 					name: station.name.clone(),

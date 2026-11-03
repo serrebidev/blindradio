@@ -99,6 +99,10 @@ fn row(raw: &Raw) -> Option<(Sortable, Station)> {
 		url: url.into(),
 		source: Source::LautFm,
 		info: (!info.is_empty()).then_some(info),
+		details: crate::station::Details {
+			genre: crate::station::known(&genres),
+			..Default::default()
+		},
 	};
 	let sortable = Sortable {
 		name: station.name.clone(),

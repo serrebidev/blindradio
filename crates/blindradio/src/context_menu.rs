@@ -36,6 +36,7 @@ pub enum Item {
 	CutStation,
 	PasteStation,
 	EditStation,
+	StationInfo,
 	Export,
 	/// Every collection but Custom Stations: id, name, holds the station.
 	AddToCollection(Vec<(String, String, bool)>),
@@ -69,6 +70,7 @@ pub enum Choice {
 	CutStation,
 	PasteStation,
 	EditStation,
+	StationInfo,
 	Export,
 	/// Into or out of the collection with this id.
 	Toggle(String),
@@ -101,6 +103,7 @@ pub fn items_for(
 				Item::Play,
 				Item::Favorite(lib.is_favorite(&st.id)),
 				Item::CopyUrl,
+				Item::StationInfo,
 				Item::CopyStation,
 				Item::Export,
 				Item::AddToCollection(
@@ -116,9 +119,9 @@ pub fn items_for(
 			if lib.holds_station(&st.id) {
 				items.insert(3, Item::EditStation);
 				// Cut and Paste need a home to take from / land beside.
-				items.insert(5, Item::CutStation);
+				items.insert(6, Item::CutStation);
 				if has_clip {
-					items.insert(6, Item::PasteStation);
+					items.insert(7, Item::PasteStation);
 				}
 			}
 			if !lib.fav_folders.is_empty() {
@@ -250,6 +253,14 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				menu.append(
 					add(Choice::EditStation),
 					s::EDIT_STATION_ITEM,
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::StationInfo => {
+				menu.append(
+					add(Choice::StationInfo),
+					s::STATION_INFO_ITEM,
 					"",
 					ItemKind::Normal,
 				);
@@ -465,6 +476,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::CutStation => return app.borrow_mut().copy_station(station, true),
 		Choice::PasteStation => return app.borrow_mut().paste_near(station),
 		Choice::EditStation => Action::EditStation,
+		Choice::StationInfo => Action::StationInfo,
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
 		Choice::NewCollection => {
 			// Modal: outside the borrow.
@@ -516,6 +528,7 @@ mod tests {
 			url: format!("http://{id}"),
 			source: Source::RadioBrowser,
 			info: None,
+			details: Default::default(),
 		}
 	}
 
@@ -536,6 +549,7 @@ mod tests {
 				Item::Favorite(true),
 				Item::CopyUrl,
 				Item::EditStation,
+				Item::StationInfo,
 				Item::CopyStation,
 				Item::CutStation,
 				Item::Export,
@@ -553,6 +567,7 @@ mod tests {
 				Item::Favorite(true),
 				Item::CopyUrl,
 				Item::EditStation,
+				Item::StationInfo,
 				Item::CopyStation,
 				Item::CutStation,
 				Item::PasteStation,
@@ -574,6 +589,7 @@ mod tests {
 				Item::Play,
 				Item::Favorite(false),
 				Item::CopyUrl,
+				Item::StationInfo,
 				Item::CopyStation,
 				Item::Export,
 				Item::AddToCollection(vec![
@@ -590,6 +606,7 @@ mod tests {
 				Item::Favorite(false),
 				Item::CopyUrl,
 				Item::EditStation,
+				Item::StationInfo,
 				Item::CopyStation,
 				Item::CutStation,
 				Item::Export,

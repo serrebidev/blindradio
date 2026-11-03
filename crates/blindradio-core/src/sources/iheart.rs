@@ -122,6 +122,7 @@ fn to_station(h: Hit) -> Option<Station> {
 		url,
 		source: Source::IHeart,
 		info: (!info.is_empty()).then_some(info),
+		details: Default::default(),
 	})
 }
 

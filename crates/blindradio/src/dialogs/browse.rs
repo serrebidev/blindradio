@@ -911,6 +911,7 @@ mod tests {
 			url: format!("http://{id}"),
 			source: Source::RadioBrowser,
 			info: None,
+			details: Default::default(),
 		}
 	}
 

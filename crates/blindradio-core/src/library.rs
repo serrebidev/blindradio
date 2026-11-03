@@ -648,6 +648,7 @@ impl Library {
 			url: url.into(),
 			source: Source::Custom,
 			info: None,
+			details: Default::default(),
 		};
 		self.ensure_custom();
 		self.collections[0].stations.push(s.clone());
@@ -664,6 +665,7 @@ impl Library {
 			url: url.into(),
 			source: Source::Custom,
 			info: None,
+			details: Default::default(),
 		};
 		let filed = match dest {
 			StationDest::Favorites(path) => match self.fav_stations_at_mut(path) {

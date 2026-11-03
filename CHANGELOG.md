@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.52
+
+- The main window's station menu now has Delete on a station in a collection, as Custom Stations has Delete Custom Station. It takes out the copy you are on, as the Delete key does. Browse's station menu gains it too.
+- New Station Info on the station menu, and it can be given a key in Keyboard Shortcuts: a read-only window with the station's name, info, genre, country, language, codec, bitrate, directory, homepage and stream URL, whichever its directory gives. Stations you cannot edit, in Browse and Search, now have a way to see all this. Radio Browser gives the most. While the station is playing, the window shows what the stream itself says, sample rate and channels included.
+- The status bar now shows a bitrate for streams that declare none, such as HLS. BlindRadio works it out from the audio itself, so it appears about four seconds after a station starts.
+- New File menu item, Detect Audio Stream on Page…: give it a web page's address and it lists the streams it finds on that page, in its frames and in its scripts. Each one is tried first, so only working streams are listed. They play and file like search results, and Copy Stream URL works on them. A player that only builds its address while running in a browser cannot be found, because BlindRadio reads the page without running it.
+
 ## 0.2.51
 
 - Closing Browse no longer freezes the window for half a second and floods your screen reader. The main list is now rebuilt only when Browse changed something.

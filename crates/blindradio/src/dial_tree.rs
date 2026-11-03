@@ -559,17 +559,29 @@ impl DialTree {
 					Some((_, st)) => Target::Station(st),
 					None => Target::Other,
 				};
-				let items = context_menu::items_for(
+				let mut items = context_menu::items_for(
 					&target,
 					&a.borrow().library,
 					a.borrow().station_clip.is_some(),
 				);
+				// Every row here is filed in a list, so it can leave it as the Delete key
+				// does. In Custom Stations, Delete Custom Station already says that.
+				let in_custom = {
+					let held = a.borrow();
+					me.selected_home(&held.library, held.settings.main_list.as_deref())
+						.is_some_and(|(id, _)| id == CUSTOM)
+				};
+				if let Ok(items) = &mut items
+					&& !in_custom
+				{
+					items.push(context_menu::Item::Delete);
+				}
 				match (items, focused) {
-					(Ok(items), Some((_, st))) => {
-						if let Some(choice) = context_menu::popup(&me.list, &items) {
-							context_menu::apply(&a, &me.list, &st, choice);
-						}
-					}
+					(Ok(items), Some((i, st))) => match context_menu::popup(&me.list, &items) {
+						Some(context_menu::Choice::Delete) => a.borrow_mut().delete_from_dial(i),
+						Some(choice) => context_menu::apply(&a, &me.list, &st, choice),
+						None => {}
+					},
 					(Err(text), _) => a.borrow_mut().say(text),
 					(Ok(_), None) => {}
 				}

@@ -3,7 +3,7 @@
 use super::{Node, SearchQuery, Sort};
 use crate::Result;
 use crate::net::get_json;
-use crate::station::{Source, Station};
+use crate::station::{Source, Station, known};
 use percent_encoding::{NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
 use reqwest::Url;
 use serde::Deserialize;
@@ -51,6 +51,10 @@ struct RbStation {
 	codec: String,
 	#[serde(default)]
 	bitrate: u32,
+	#[serde(default)]
+	language: String,
+	#[serde(default)]
+	homepage: String,
 }
 
 fn enc(s: &str) -> String {
@@ -145,6 +149,14 @@ fn to_station(r: RbStation) -> Option<Station> {
 		url,
 		source: Source::RadioBrowser,
 		info: (!info.is_empty()).then_some(info),
+		details: crate::station::Details {
+			genre: known(&r.tags.split(',').map(str::trim).filter(|t| !t.is_empty()).collect::<Vec<_>>().join(", ")),
+			country: known(&r.country),
+			language: known(&r.language),
+			codec: known(&r.codec),
+			bitrate_kbps: Some(r.bitrate).filter(|&b| b > 0),
+			homepage: known(&r.homepage),
+		},
 	})
 }
 

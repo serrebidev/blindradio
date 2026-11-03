@@ -101,6 +101,12 @@ fn to_entry(raw: RawEntry) -> Option<Entry> {
 			url: url.into(),
 			source: Source::Icecast,
 			info: (!info.is_empty()).then_some(info),
+			details: crate::station::Details {
+				genre: crate::station::known(&genre),
+				codec: crate::station::known(&kind),
+				bitrate_kbps: Some(bitrate).filter(|&b| b > 0),
+				..Default::default()
+			},
 		},
 		genre,
 		bitrate,
