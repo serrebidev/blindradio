@@ -18,11 +18,33 @@ impl App {
 		}
 	}
 
+	/// The folder Settings chooses, or the default.
+	fn record_dir(&self) -> PathBuf {
+		self.settings
+			.recording
+			.dir
+			.as_deref()
+			.map(PathBuf::from)
+			.unwrap_or_else(blindradio_core::record::default_dir)
+	}
+
+	/// Open Record Folder. Made first: the default folder does not exist
+	/// until something has been recorded.
+	pub(super) fn open_record_folder(&mut self) {
+		let dir = self.record_dir();
+		if let Err(e) = std::fs::create_dir_all(&dir) {
+			return self.say(&e.to_string());
+		}
+		if !wxdragon::prelude::launch_default_application(&dir.to_string_lossy()) {
+			self.say(s::NO_RECORD_FOLDER);
+		}
+	}
+
 	/// Save Buffer: the whole time-shift buffer to a WAV in the
 	/// recordings folder, streamed through in 30-second pieces so a long
 	/// buffer never sits in memory all at once.
 	pub fn save_buffer(&mut self) {
-		use blindradio_core::record::{WavSave, default_dir};
+		use blindradio_core::record::WavSave;
 		let Some(station) = self.tuner.playing().cloned() else {
 			return self.say(s::NO_BUFFER);
 		};
@@ -32,13 +54,7 @@ impl App {
 		if buffer.buffered_seconds() < 1.0 {
 			return self.say(s::NO_BUFFER);
 		}
-		let dir = self
-			.settings
-			.recording
-			.dir
-			.as_deref()
-			.map(PathBuf::from)
-			.unwrap_or_else(default_dir);
+		let dir = self.record_dir();
 		let mut save = match WavSave::create(&dir, &station.name, buffer.rate()) {
 			Ok(save) => save,
 			Err(e) => return self.say(&e.to_string()),

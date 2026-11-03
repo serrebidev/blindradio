@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.54
+
+- New Open Record Folder on the Recording menu: it opens the folder your recordings go to. It can be given a key in Keyboard Shortcuts.
+- New directory in Browse: IPRD, the International Public Radio Directory, replaces laut.fm. It offers By Country and By Genre, with about 24,000 stations, and Search includes it. The first time you open it or search takes a moment while the catalog downloads. Stations you already saved from laut.fm stay saved and keep playing.
+- New directory in Browse: Recommended Radio Streams, a hand-picked list of underground electronic, freeform, jazz, ambient and other stations, one folder per category. It is not part of Search.
+- Networks now lists English-language networks only. Removed: Radio France, Deutschlandfunk, RFI, ORF, SRF, RAI, RTVE, NPO, NRK, DR, Sveriges Radio, Yle, Radio Swiss, Sunshine Live, Power Hit Radio, Radio Record, PulsRadio, Planet Radio, 101.ru, DFM, Hit FM, Radioparty.pl, RauteMusik and TechnoBase.FM. Stations you already saved from them stay saved and keep playing. If you want something non-English added, [open an issue](https://github.com/serrebidev/blindradio/issues) and I will add it.
+
 ## 0.2.53
 
 - Segment bookmarks in the time-shift buffer. Every song or program title a station sends now marks where that segment starts, by itself. Shift+F6 and Shift+F7, Previous Segment and Next Segment on the Playback menu, jump between them and say the title. Previous goes to the start of the segment you are in, or to the one before if it only just began. Next after the last segment goes back to live.

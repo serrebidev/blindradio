@@ -686,6 +686,7 @@ impl App {
 			Action::WritePreviousSegment => self.write_segment(blindradio_core::segments::Which::Previous),
 			Action::WriteNextSegment => self.write_segment(blindradio_core::segments::Which::Next),
 			Action::WriteAllSegments => self.write_all_segments(),
+			Action::OpenRecordFolder => self.open_record_folder(),
 			Action::PreviousSegment => self.segment_jump(false),
 			Action::NextSegment => self.segment_jump(true),
 			Action::SeekBack => self.seek(-1),

@@ -87,6 +87,8 @@ pub const REC_SONGS_ON: &str = "Record each song to its own file on";
 pub const REC_SONGS_OFF: &str = "Record each song to its own file off";
 pub const SAVE_BUFFER: &str = "&Write Buffer…";
 pub const SCHEDULED_RECORDINGS: &str = "Scheduled Recordin&gs…";
+pub const OPEN_RECORD_FOLDER: &str = "&Open Record Folder";
+pub const NO_RECORD_FOLDER: &str = "Could not open the record folder";
 pub const NO_BUFFER: &str = "No buffer to save";
 /// Prefix: `Buffer saved to <path>`.
 pub const BUFFER_SAVED: &str = "Buffer saved to ";

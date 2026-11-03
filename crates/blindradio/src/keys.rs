@@ -46,6 +46,7 @@ pub enum KeyAction {
 	WriteNextSegment,
 	WriteAllSegments,
 	ScheduledRecordings,
+	OpenRecordFolder,
 	PreviousSegment,
 	NextSegment,
 	SeekBack,
@@ -118,7 +119,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 82] = [
+	pub const ALL: [KeyAction; 83] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -135,6 +136,7 @@ impl KeyAction {
 		K::WriteNextSegment,
 		K::WriteAllSegments,
 		K::ScheduledRecordings,
+		K::OpenRecordFolder,
 		K::PreviousSegment,
 		K::NextSegment,
 		K::SeekBack,
@@ -214,7 +216,8 @@ impl KeyAction {
 			| K::WritePreviousSegment
 			| K::WriteNextSegment
 			| K::WriteAllSegments
-			| K::ScheduledRecordings => 2,
+			| K::ScheduledRecordings
+			| K::OpenRecordFolder => 2,
 			K::OpenSearch
 			| K::OpenBrowse
 			| K::OpenFavorites
@@ -279,6 +282,7 @@ impl KeyAction {
 			K::WriteNextSegment => "write_next_segment",
 			K::WriteAllSegments => "write_all_segments",
 			K::ScheduledRecordings => "scheduled_recordings",
+			K::OpenRecordFolder => "open_record_folder",
 			K::PreviousSegment => "previous_segment",
 			K::NextSegment => "next_segment",
 			K::SeekBack => "seek_back",
@@ -369,6 +373,7 @@ impl KeyAction {
 			K::WritePreviousSegment => plain(s::WRITE_PREVIOUS_SEGMENT),
 			K::WriteNextSegment => plain(s::WRITE_NEXT_SEGMENT),
 			K::WriteAllSegments => plain(s::WRITE_ALL_SEGMENTS),
+			K::OpenRecordFolder => plain(s::OPEN_RECORD_FOLDER),
 			K::ScheduledRecordings => plain(s::SCHEDULED_RECORDINGS),
 			K::PreviousSegment => plain(s::PREVIOUS_SEGMENT),
 			K::NextSegment => plain(s::NEXT_SEGMENT),
@@ -525,6 +530,7 @@ impl KeyAction {
 			K::WriteNextSegment => Action::WriteNextSegment,
 			K::WriteAllSegments => Action::WriteAllSegments,
 			K::ScheduledRecordings => Action::ScheduledRecordings,
+			K::OpenRecordFolder => Action::OpenRecordFolder,
 			K::PreviousSegment => Action::PreviousSegment,
 			K::NextSegment => Action::NextSegment,
 			K::SeekBack | K::SeekBackAlt => Action::SeekBack,
@@ -666,6 +672,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::WriteNextSegment => K::WriteNextSegment,
 		Action::WriteAllSegments => K::WriteAllSegments,
 		Action::ScheduledRecordings => K::ScheduledRecordings,
+		Action::OpenRecordFolder => K::OpenRecordFolder,
 		Action::PreviousSegment => K::PreviousSegment,
 		Action::NextSegment => K::NextSegment,
 		Action::SeekBack => K::SeekBackAlt,
@@ -836,6 +843,7 @@ mod tests {
 			K::WriteNextSegment,
 			K::WriteAllSegments,
 			K::ScheduledRecordings,
+			K::OpenRecordFolder,
 		] {
 			assert_eq!(key.tab(), 2, "{}", key.id());
 		}

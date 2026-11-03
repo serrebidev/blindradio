@@ -33,7 +33,7 @@ pub mod directory;
 pub mod icecast;
 pub mod iheart;
 pub mod internet_radio;
-pub mod lautfm;
+pub mod iprd;
 pub mod networks;
 pub mod radio_browser;
 pub mod radionet;
@@ -293,9 +293,10 @@ pub struct Endpoints {
 	pub icecast: String,
 	pub shoutcast: String,
 	pub internet_radio: String,
-	pub lautfm: String,
+	pub iprd: String,
 	pub radionet: String,
 	pub directory: String,
+	pub recommended: String,
 }
 
 impl Default for Endpoints {
@@ -308,9 +309,10 @@ impl Default for Endpoints {
 			icecast: "https://dir.xiph.org".into(),
 			shoutcast: "https://directory.shoutcast.com".into(),
 			internet_radio: "https://www.internet-radio.com".into(),
-			lautfm: "https://api.laut.fm".into(),
+			iprd: "https://iprd-org.github.io/iprd".into(),
 			radionet: "https://prod.radio-api.net".into(),
 			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
+			recommended: "https://api.github.com/repos/deroverda/recommended-radio-streams".into(),
 		}
 	}
 }
@@ -332,9 +334,10 @@ pub struct Sources {
 	icecast: icecast::Icecast,
 	shoutcast: shoutcast::Shoutcast,
 	internet_radio: internet_radio::InternetRadio,
-	lautfm: lautfm::LautFm,
+	iprd: iprd::Iprd,
 	radionet: radionet::RadioNet,
 	directory: directory::Directory,
+	recommended: directory::Directory,
 	somafm_base: String,
 }
 
@@ -366,9 +369,10 @@ impl Sources {
 			icecast: icecast::Icecast::new(endpoints.icecast),
 			shoutcast: shoutcast::Shoutcast::new(endpoints.shoutcast),
 			internet_radio: internet_radio::InternetRadio::new(endpoints.internet_radio),
-			lautfm: lautfm::LautFm::new(endpoints.lautfm),
+			iprd: iprd::Iprd::new(endpoints.iprd),
 			radionet: radionet::RadioNet::new(endpoints.radionet),
 			directory: directory::Directory::new(endpoints.directory),
+			recommended: directory::Directory::recommended(endpoints.recommended),
 			somafm_base: endpoints.somafm,
 		}
 	}
@@ -391,9 +395,10 @@ impl Sources {
 			("icecast", "Icecast"),
 			("shoutcast", "SHOUTcast"),
 			("internet-radio", "Internet-Radio"),
-			("lautfm", "laut.fm"),
+			("iprd", "IPRD"),
 			("radionet", "Radio.net"),
 			("brdir", "BlindRadio Directory"),
+			("recommended", "Recommended Radio Streams"),
 		]
 		.map(|(id, name)| Node::Folder {
 			id: id.into(),
@@ -416,9 +421,10 @@ impl Sources {
 			"icecast" => self.icecast.children(&self.client, id, sort).await,
 			"shoutcast" => self.shoutcast.children(&self.client, id, sort).await,
 			"internet-radio" => self.internet_radio.children(&self.client, id).await,
-			"lautfm" => self.lautfm.children(&self.client, id, sort).await,
+			"iprd" => self.iprd.children(&self.client, id, sort).await,
 			"radionet" => self.radionet.children(&self.client, id).await,
 			"brdir" => self.directory.children(&self.client, id).await,
+			"recommended" => self.recommended.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
 			_ => Ok(vec![]),
 		}
@@ -480,7 +486,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, lautfm, radionet) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet) = tokio::join!(
 			bounded(self.rb.search(&self.client, q)),
 			async {
 				if name_given {
@@ -519,7 +525,7 @@ impl Sources {
 			},
 			async {
 				if name_given {
-					bounded(self.lautfm.search(&self.client, q)).await
+					bounded(self.iprd.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
@@ -539,7 +545,7 @@ impl Sources {
 			.chain(icecast)
 			.chain(shoutcast)
 			.chain(internet_radio)
-			.chain(lautfm)
+			.chain(iprd)
 			.chain(radionet)
 			.chain(networks::search(q))
 			.filter(|s| seen.insert(s.url.clone()))
