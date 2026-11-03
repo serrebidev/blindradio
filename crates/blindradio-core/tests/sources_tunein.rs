@@ -33,7 +33,7 @@ fn tunein(path: &str, body: &str) -> (TestServer, TuneIn) {
 #[tokio::test]
 async fn tunein_location_folders() {
 	let (s, t) = tunein("/Browse.ashx", ROOT);
-	let nodes = t.children(&client(), "tunein").await.unwrap();
+	let nodes = t.children(&client(), "tunein/r0").await.unwrap();
 	assert_eq!(
 		nodes[0],
 		Node::Folder {
@@ -48,6 +48,59 @@ async fn tunein_location_folders() {
 	assert!(matches!(&nodes[0], Node::Folder { id, .. } if id.starts_with("tunein/r")));
 	let q = s.last_query("/Browse.ashx").unwrap();
 	assert!(q.contains("id=r101215") && q.contains("render=json"), "{q}");
+}
+
+#[tokio::test]
+async fn tunein_root_needs_no_request() {
+	let t = TuneIn::new("http://127.0.0.1:0");
+	let nodes = t.children(&client(), "tunein").await.unwrap();
+	let names: Vec<_> = nodes.iter().map(Node::name).collect();
+	assert_eq!(
+		names,
+		["Local Radio", "Music", "Talk", "Sports", "By Location"]
+	);
+}
+
+#[tokio::test]
+async fn tunein_follows_categories_and_more_stations() {
+	const GENRE: &str = r#"{"body":[
+{"text":"Local Stations","key":"local","children":[
+{"type":"audio","item":"station","text":"Here","guide_id":"s1"}]},
+{"text":"Stations","key":"stations","children":[
+{"type":"audio","item":"station","text":"Here","guide_id":"s1"},
+{"type":"audio","item":"station","text":"There","guide_id":"s2"},
+{"type":"link","text":"More Stations","key":"nextStations","URL":"http://opml.radiotime.com/Browse.ashx?offset=26&id=c57954&filter=s"}]},
+{"text":"Shows","key":"shows","children":[
+{"type":"link","text":"More Shows","key":"nextShows","URL":"http://opml.radiotime.com/Browse.ashx?offset=6&id=c57954&filter=p"},
+{"type":"link","text":"Recent Episodes","URL":"http://opml.radiotime.com/Browse.ashx?id=c57954&filter=p:topic"}]},
+{"text":"Explore","key":"related","children":[
+{"type":"link","text":"Jazz","guide_id":"g22","URL":"http://opml.radiotime.com/Browse.ashx?id=g22"},
+{"type":"link","text":"Elsewhere","URL":"http://opml.radiotime.com/Other.ashx?id=g22"}]}]}"#;
+	let (s, t) = tunein("/Browse.ashx", GENRE);
+	let nodes = t.children(&client(), "tunein/c=music").await.unwrap();
+	let q = s.last_query("/Browse.ashx").unwrap();
+	assert!(q.contains("c=music") && q.contains("render=json"), "{q}");
+	assert_eq!(nodes.len(), 4, "{nodes:?}");
+	assert_eq!(nodes[0].name(), "Here");
+	assert_eq!(nodes[1].name(), "There");
+	assert_eq!(
+		nodes[2],
+		Node::LoadMore {
+			id: "tunein/offset=26&id=c57954&filter=s".into()
+		}
+	);
+	assert_eq!(
+		nodes[3],
+		Node::Folder {
+			id: "tunein/id=g22".into(),
+			name: "Jazz".into()
+		}
+	);
+	t.children(&client(), "tunein/offset=26&id=c57954&filter=s")
+		.await
+		.unwrap();
+	let q = s.last_query("/Browse.ashx").unwrap();
+	assert!(q.contains("offset=26") && q.contains("id=c57954"), "{q}");
 }
 
 #[tokio::test]

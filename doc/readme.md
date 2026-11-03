@@ -42,7 +42,7 @@ Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any.
 Name box starts the search; the results replace the list and the first result plays.
 
 Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
-IPRD, Radio.net and the curated networks. Genre, Country and Language filters apply to Radio
+IPRD, Radio.net, Live365 and the curated networks. Genre, Country and Language filters apply to Radio
 Browser; Icecast also matches Genre when a Name is given. Other directories use the Name
 box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
@@ -56,8 +56,8 @@ BlacknWhita. Numbers are not spelled out: radio 1 does not find Radio One.
 
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
 holds the BlindRadio Directory, Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast,
-Internet-Radio, IPRD, Recommended Radio Streams
-and Radio.net. The BlindRadio Directory is the community's own submitted stations,
+Internet-Radio, IPRD, Recommended Radio Streams,
+Radio.net and Live365. The BlindRadio Directory is the community's own submitted stations,
 kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
 folder (a country or a category), each playlist's groups are its subfolders, and the
 app reads the repository live, so new
@@ -100,14 +100,16 @@ minutes. SHOUTcast offers Top Stations and By Genre. Internet-Radio offers Featu
 Stations and By Genre. IPRD offers By Country and By Genre, its hundred most used genres;
 its catalog downloads the first time you open it or search, and stays cached for an hour.
 Recommended Radio Streams offers one folder per category, read live from its GitHub
-repository, and is not part of Search. Radio.net offers its Top Stations and Local
-Stations. Radio Browser offers By Genre, By Country, By Language, By State and Top
-Stations. A listed station may be offline or unavailable in your region.
+repository, and is not part of Search. Radio.net offers Top Stations, Local Stations, By
+Genre, By Country, By Language and By Topic. TuneIn offers Local Radio, Music, Talk, Sports
+and By Location. iHeartRadio offers All Stations, Genres and By City. Live365
+offers one folder per genre, with its sub-genres inside. Radio
+Browser offers By Genre, By Country, By Language, By State and Top Stations. A listed station may be offline or unavailable in your region.
 
 Networks carries English-language broadcasters and internet networks, among them BBC, NPR,
 CBC, ABC Australia, RTÉ, RNZ, KCRW, WNYC, 181.fm, .977, Big R Radio, 1.FM, Capital, Heart,
-Smooth, LBC, Nightride FM, Power Hitz, WHFF, Radio Paradise, NTS, WFMU, and services for
-blind listeners. To ask for a non-English network, open an issue on GitHub.
+Smooth, LBC, Virgin Radio UK, Triple M, NZME, SABC, K-LOVE, Pacifica, Nightride FM, Power Hitz,
+WHFF, Radio Paradise, NTS, WFMU, and services for blind listeners. To ask for a non-English network, open an issue on GitHub.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for

@@ -620,6 +620,240 @@
         "name": "Connecticut Public Radio",
         "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WNPRFM.mp3",
         "info": "Connecticut, MP3 64k"
+      },
+      {
+        "slug": "wxpn-88-5",
+        "name": "WXPN 88.5",
+        "url": "https://wxpnhi.xpn.org/xpnhi",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "xponential-radio",
+        "name": "XPoNential Radio",
+        "url": "https://wxpnhi.xpn.org/xpn2hi",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "jazz24",
+        "name": "Jazz24",
+        "url": "https://knkx-live-a.edge.audiocdn.com/6285_128k",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wwoz-90-7",
+        "name": "WWOZ 90.7",
+        "url": "https://wwoz-sc.streamguys1.com/wwoz-hi.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wbgo-88-3",
+        "name": "WBGO 88.3",
+        "url": "https://ais-sa8.cdnstream1.com/3629_128.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "vermont-public",
+        "name": "Vermont Public",
+        "url": "https://vpr.streamguys1.com/vpr96.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "nhpr",
+        "name": "NHPR",
+        "url": "https://nhpr.streamguys1.com/nhpr",
+        "info": "AAC 192k"
+      },
+      {
+        "slug": "maine-public",
+        "name": "Maine Public",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WMEAFM.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "hawaii-public-radio-hpr-1",
+        "name": "Hawaii Public Radio HPR-1",
+        "url": "https://khpr-ice.streamguys1.com/khpr2",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "hawaii-public-radio-hpr-2",
+        "name": "Hawaii Public Radio HPR-2",
+        "url": "https://khpr-ice.streamguys1.com/kipo2",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "alaska-public-media",
+        "name": "Alaska Public Media",
+        "url": "https://alaskapublic-live.streamguys1.com/aac-web",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "kunc-91-5",
+        "name": "KUNC 91.5",
+        "url": "https://ais-sa1.streamon.fm/7891_96k.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "kuer-90-1",
+        "name": "KUER 90.1",
+        "url": "https://kuer.streamguys1.com/high_icy",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "knpr-88-9",
+        "name": "KNPR 88.9",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/KNPRFMAAC.aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "wwno-89-9",
+        "name": "WWNO 89.9",
+        "url": "https://tektite.streamguys1.com:5145/wwnolive",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "wxxi-1370",
+        "name": "WXXI 1370",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WXXIAM.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "wvxu-91-7",
+        "name": "WVXU 91.7",
+        "url": "https://stream.cinradio.org/wvxu",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "gpb-radio",
+        "name": "GPB Radio",
+        "url": "https://gpb.streamguys1.com/gpb-radio-mp3-website",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "wypr-88-1",
+        "name": "WYPR 88.1",
+        "url": "https://wtmd-ice.streamguys1.com/wypr-1",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "the-publics-radio",
+        "name": "The Public's Radio",
+        "url": "https://amber.streamguys1.com:5595/riprdeskweb-aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "kuaf-91-3",
+        "name": "KUAF 91.3",
+        "url": "https://war.streamguys1.com:7031/kuaf1",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "woub-91-3",
+        "name": "WOUB 91.3",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WOUBFMAAC.aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "ncpr",
+        "name": "NCPR",
+        "url": "https://ncpr-ice.streamguys1.com/ncpr-96k.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "texas-public-radio",
+        "name": "Texas Public Radio",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/KSTXFMAAC.aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "wunc-music",
+        "name": "WUNC Music",
+        "url": "https://edg-iad-wunc-ice.streamguys1.com/wunc-hd2-128-mp3",
+        "info": "MP3 56k"
+      },
+      {
+        "slug": "wosa-classical",
+        "name": "WOSA Classical",
+        "url": "https://wosu.streamguys1.com/Classical_128",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "jazzneo",
+        "name": "JazzNEO",
+        "url": "https://live.ideastream.org/jazzneo.aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "wclv-classical",
+        "name": "WCLV Classical",
+        "url": "https://live.ideastream.org/wclv.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wcpn-cleveland",
+        "name": "WCPN Cleveland",
+        "url": "https://live.ideastream.org/wcpn.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wksu-classical",
+        "name": "WKSU Classical",
+        "url": "https://live.ideastream.org/wksu3-128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "vermont-public-jazz",
+        "name": "Vermont Public Jazz",
+        "url": "https://vpr.streamguys1.com/vprjazz128.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wwno-classical",
+        "name": "WWNO Classical",
+        "url": "https://tektite.streamguys1.com:5145/wwnoclassical-mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wwno-jazz",
+        "name": "WWNO Jazz",
+        "url": "https://tektite.streamguys1.com:5145/wwnojazz-mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wguc-90-9",
+        "name": "WGUC 90.9",
+        "url": "https://stream.cinradio.org/wguc.mp3",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "wguc-jazz",
+        "name": "WGUC Jazz",
+        "url": "https://stream.cinradio.org/jazz.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-artifact",
+        "name": "Radio Artifact",
+        "url": "https://stream.cinradio.org/wvxuhd2.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kuaf-classical",
+        "name": "KUAF Classical",
+        "url": "https://war.streamguys1.com:7031/kuaf2",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "kuaf-jazz",
+        "name": "KUAF Jazz",
+        "url": "https://war.streamguys1.com:7031/kuaf3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "wrem-canton",
+        "name": "WREM Canton",
+        "url": "https://ncpr-ice.streamguys1.com/WREM",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -980,6 +1214,204 @@
         "name": "ABC Radio Canberra",
         "url": "https://streaming.abc-cdn.net.au/audio/hls/localcanberra.m3u8",
         "info": "Local, AAC 192k"
+      },
+      {
+        "slug": "abc-extra",
+        "name": "ABC Extra",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/abcextra.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-alice-springs",
+        "name": "ABC Alice Springs",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localalicesprings.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-ballarat",
+        "name": "ABC Ballarat",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localballarat.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-capricornia",
+        "name": "ABC Capricornia",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localcapricornia.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-central-victoria",
+        "name": "ABC Central Victoria",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localcentralvic.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-central-west",
+        "name": "ABC Central West",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localcentralwest.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-esperance",
+        "name": "ABC Esperance",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localesperance.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-eyre-peninsula",
+        "name": "ABC Eyre Peninsula",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localeyre.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-far-north",
+        "name": "ABC Far North",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localfarnorth.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-gippsland",
+        "name": "ABC Gippsland",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localgippsland.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-gold-coast",
+        "name": "ABC Gold Coast",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localgoldcoast.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-goldfields",
+        "name": "ABC Goldfields",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localgoldfields.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-goulburn-murray",
+        "name": "ABC Goulburn Murray",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localgoulburnmurray.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-great-southern",
+        "name": "ABC Great Southern",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localgreatsouthern.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-illawarra",
+        "name": "ABC Illawarra",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localillawarra.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-kimberley",
+        "name": "ABC Kimberley",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localkimberley.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-mid-north-coast",
+        "name": "ABC Mid North Coast",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localmidnorthcoast.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-new-england-north-west",
+        "name": "ABC New England North West",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localnewengland.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-newcastle",
+        "name": "ABC Newcastle",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localnewcastle.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-north-and-west-sa",
+        "name": "ABC North and West SA",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localnorthandwest.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-north-coast",
+        "name": "ABC North Coast",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localnorthcoast.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-northern-tasmania",
+        "name": "ABC Northern Tasmania",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localnorthtas.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-pilbara",
+        "name": "ABC Pilbara",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localpilbara.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-riverina",
+        "name": "ABC Riverina",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localriverina.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-south-east-nsw",
+        "name": "ABC South East NSW",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsoutheastnsw.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-south-east-sa",
+        "name": "ABC South East SA",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsoutheastsa.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-south-west-wa",
+        "name": "ABC South West WA",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsouthwestwa.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-southern-queensland",
+        "name": "ABC Southern Queensland",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsouthqld.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-sunshine-coast",
+        "name": "ABC Sunshine Coast",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localsunshine.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-western-plains",
+        "name": "ABC Western Plains",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localwesternplains.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-western-queensland",
+        "name": "ABC Western Queensland",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localwestqld.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-wide-bay",
+        "name": "ABC Wide Bay",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localwidebay.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "abc-wimmera",
+        "name": "ABC Wimmera",
+        "url": "https://streaming.abc-cdn.net.au/audio/hls/localwimmera.m3u8",
+        "info": "AAC"
       }
     ]
   },
@@ -1010,6 +1442,12 @@
         "name": "RTÉ Raidió na Gaeltachta",
         "url": "https://icecast.rte.ie/rnag",
         "info": "MP3 160k"
+      },
+      {
+        "slug": "rt-gold",
+        "name": "RTÉ Gold",
+        "url": "https://icecast.rte.ie/gold",
+        "info": "MP3 160k"
       }
     ]
   },
@@ -1033,6 +1471,12 @@
         "slug": "pacific",
         "name": "RNZ Pacific",
         "url": "http://radionz-ice.streamguys.com/international.mp3",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "rnz-parliament",
+        "name": "RNZ Parliament",
+        "url": "http://radionz-ice.streamguys.com/parliament.mp3",
         "info": "MP3 64k"
       }
     ]
@@ -1093,6 +1537,96 @@
         "slug": "news",
         "name": "MPR News",
         "url": "https://nis.stream.publicradio.org/nis.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "the-current",
+        "name": "The Current",
+        "url": "https://current.stream.publicradio.org/current.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-heartland",
+        "name": "Radio Heartland",
+        "url": "https://radioheartland.stream.publicradio.org/radioheartland.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "rock-the-cradle",
+        "name": "Rock the Cradle",
+        "url": "https://rockthecradle.stream.publicradio.org/rockthecradle.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "yourclassical-mpr",
+        "name": "YourClassical MPR",
+        "url": "https://cms.stream.publicradio.org/cms.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "yourclassical-radio",
+        "name": "YourClassical Radio",
+        "url": "https://ycradio.stream.publicradio.org/ycradio.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classical-favorites",
+        "name": "Classical Favorites",
+        "url": "https://favorites.stream.publicradio.org/favorites.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "relaxing-classical",
+        "name": "Relaxing Classical",
+        "url": "https://relax.stream.publicradio.org/relax.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "choral",
+        "name": "Choral",
+        "url": "https://choral.stream.publicradio.org/choral.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "concert-band",
+        "name": "Concert Band",
+        "url": "https://concertband.stream.publicradio.org/concertband.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "chamber-music",
+        "name": "Chamber Music",
+        "url": "https://chambermusic.stream.publicradio.org/chambermusic.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "guitar",
+        "name": "Guitar",
+        "url": "https://guitar.stream.publicradio.org/guitar.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "peaceful-piano",
+        "name": "Peaceful Piano",
+        "url": "https://peacefulpiano.stream.publicradio.org/peacefulpiano.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "lullabies",
+        "name": "Lullabies",
+        "url": "https://lullabies.stream.publicradio.org/lullabies.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classical-kids",
+        "name": "Classical Kids",
+        "url": "https://classicalkids.stream.publicradio.org/classicalkids.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "pixel-plot",
+        "name": "Pixel Plot",
+        "url": "https://pixelplot.stream.publicradio.org/pixelplot.mp3",
         "info": "MP3 128k"
       }
     ]
@@ -1547,6 +2081,12 @@
         "name": "KFAT",
         "url": "https://stream.radioparadise.com/kfat-128",
         "info": "AAC 128k"
+      },
+      {
+        "slug": "sanctuary",
+        "name": "Sanctuary",
+        "url": "https://stream.radioparadise.com/sanctuary",
+        "info": "AAC 64k"
       }
     ]
   },
@@ -1564,6 +2104,102 @@
         "slug": "nts-2",
         "name": "NTS 2",
         "url": "https://stream-relay-geo.ntslive.net/stream2?client=direct",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "poolside",
+        "name": "Poolside",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape4",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "slow-focus",
+        "name": "Slow Focus",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "low-key",
+        "name": "Low Key",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape2",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "memory-lane",
+        "name": "Memory Lane",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape6",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "4-to-the-floor",
+        "name": "4 To The Floor",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape5",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "island-time",
+        "name": "Island Time",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape21",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "the-tube",
+        "name": "The Tube",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape26",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "sheet-music",
+        "name": "Sheet Music",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape35",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "feelings",
+        "name": "Feelings",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape27",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "expansions",
+        "name": "Expansions",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "rap-house",
+        "name": "Rap House",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape22",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "labyrinth",
+        "name": "Labyrinth",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape31",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "sweat",
+        "name": "Sweat",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape24",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "otaku",
+        "name": "Otaku",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape36",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "the-pit",
+        "name": "The Pit",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape34",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "field-recordings",
+        "name": "Field Recordings",
+        "url": "https://stream-mixtape-geo.ntslive.net/mixtape23",
         "info": "MP3 256k"
       }
     ]
@@ -1594,6 +2230,12 @@
         "slug": "sheenas-jungle-room",
         "name": "Sheena's Jungle Room",
         "url": "https://stream0.wfmu.org/sheena",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "ubuweb-radio",
+        "name": "UbuWeb Radio",
+        "url": "https://stream0.wfmu.org/ubu.mp3",
         "info": "MP3 128k"
       }
     ]
@@ -2063,6 +2705,42 @@
         "name": "Christmas Spirit",
         "url": "https://listen.181fm.com/181-xspirit_128k.mp3",
         "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-gospel",
+        "name": "Christmas Gospel",
+        "url": "https://listen.181fm.com/181-xgospel_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-rock",
+        "name": "Christmas Rock",
+        "url": "https://listen.181fm.com/181-xrock_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-smooth-jazz",
+        "name": "Christmas Smooth Jazz",
+        "url": "https://listen.181fm.com/181-xsmooth_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-soundtracks",
+        "name": "Christmas Soundtracks",
+        "url": "https://listen.181fm.com/181-xsoundtrax_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-swing",
+        "name": "Christmas Swing",
+        "url": "https://listen.181fm.com/181-xswing_128k.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "christmas-randb",
+        "name": "Christmas R&B",
+        "url": "https://listen.181fm.com/181-xtrue_128k.mp3",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -2441,6 +3119,7 @@
   {
     "name": "KEXP",
     "slug": "kexp",
+    "listed": true,
     "stations": [
       {
         "slug": "kexp",
@@ -2453,6 +3132,7 @@
   {
     "name": "WFUV",
     "slug": "wfuv",
+    "listed": true,
     "stations": [
       {
         "slug": "wfuv",
@@ -2489,6 +3169,42 @@
         "name": "Capital Anthems",
         "url": "https://media-ice.musicradio.com/CapitalAnthemsMP3",
         "info": "MP3"
+      },
+      {
+        "slug": "capital-xtra",
+        "name": "Capital XTRA",
+        "url": "https://media-ice.musicradio.com/CapitalXTRANationalMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "capital-xtra-reloaded",
+        "name": "Capital XTRA Reloaded",
+        "url": "https://media-ice.musicradio.com/CapitalXTRAReloadedMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "capital-birmingham",
+        "name": "Capital Birmingham",
+        "url": "https://media-ice.musicradio.com/CapitalBirminghamMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "capital-liverpool",
+        "name": "Capital Liverpool",
+        "url": "https://media-ice.musicradio.com/CapitalLiverpoolMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "capital-manchester",
+        "name": "Capital Manchester",
+        "url": "https://media-ice.musicradio.com/CapitalManchesterMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "capital-south-wales",
+        "name": "Capital South Wales",
+        "url": "https://media-ice.musicradio.com/CapitalSouthWalesMP3",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -2525,6 +3241,36 @@
         "name": "Heart 70s",
         "url": "https://media-ice.musicradio.com/Heart70sMP3",
         "info": "MP3"
+      },
+      {
+        "slug": "heart-00s",
+        "name": "Heart 00s",
+        "url": "https://media-ice.musicradio.com/Heart00sMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "heart-love",
+        "name": "Heart Love",
+        "url": "https://media-ice.musicradio.com/HeartLoveMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "heart-musicals",
+        "name": "Heart Musicals",
+        "url": "https://media-ice.musicradio.com/HeartMusicalsMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "heart-north-west",
+        "name": "Heart North West",
+        "url": "https://media-ice.musicradio.com/HeartNorthWestMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "heart-yorkshire",
+        "name": "Heart Yorkshire",
+        "url": "https://media-ice.musicradio.com/HeartYorkshireMP3",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -2549,6 +3295,36 @@
         "name": "Smooth Country",
         "url": "https://media-ice.musicradio.com/SmoothCountryMP3",
         "info": "MP3"
+      },
+      {
+        "slug": "smooth-70s",
+        "name": "Smooth 70s",
+        "url": "https://media-ice.musicradio.com/Smooth70sMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smooth-80s",
+        "name": "Smooth 80s",
+        "url": "https://media-ice.musicradio.com/Smooth80sMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smooth-north-west",
+        "name": "Smooth North West",
+        "url": "https://media-ice.musicradio.com/SmoothNorthWestMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smooth-relax",
+        "name": "Smooth Relax",
+        "url": "https://media-ice.musicradio.com/SmoothRelaxMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "smooth-scotland",
+        "name": "Smooth Scotland",
+        "url": "https://media-ice.musicradio.com/SmoothScotlandMP3",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -2561,12 +3337,25 @@
         "name": "Classic FM",
         "url": "https://media-ice.musicradio.com/ClassicFMMP3",
         "info": "MP3"
+      },
+      {
+        "slug": "classic-fm-calm",
+        "name": "Classic FM Calm",
+        "url": "https://media-ice.musicradio.com/ClassicFMCalmMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "classic-fm-movies",
+        "name": "Classic FM Movies",
+        "url": "https://media-ice.musicradio.com/ClassicFMMoviesMP3",
+        "info": "MP3 128k"
       }
     ]
   },
   {
     "name": "Gold",
     "slug": "gold",
+    "listed": true,
     "stations": [
       {
         "slug": "gold",
@@ -2603,6 +3392,30 @@
         "name": "Radio X London",
         "url": "https://media-ice.musicradio.com/RadioXLondonMP3",
         "info": "MP3"
+      },
+      {
+        "slug": "radio-x-classic-rock",
+        "name": "Radio X Classic Rock",
+        "url": "https://media-ice.musicradio.com/RadioXClassicRockMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-x-chilled",
+        "name": "Radio X Chilled",
+        "url": "https://media-ice.musicradio.com/RadioXChilledMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-x-00s",
+        "name": "Radio X 00s",
+        "url": "https://media-ice.musicradio.com/RadioX00sMP3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-x-90s",
+        "name": "Radio X 90s",
+        "url": "https://media-ice.musicradio.com/RadioX90sMP3",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -2813,6 +3626,12 @@
         "name": "Neo Soul",
         "url": "https://azuracast.whff.radio/listen/my_whff_neo-soul/radio.mp3",
         "info": "MP3"
+      },
+      {
+        "slug": "randb-soul",
+        "name": "R&B Soul",
+        "url": "https://azuracast.whff.radio/listen/my_whff_r-b_soul_whff_radio/radio.mp3",
+        "info": "MP3"
       }
     ]
   },
@@ -2873,12 +3692,31 @@
         "name": "FRISKY Radio",
         "url": "https://stream.friskyradio.com/frisky_mp3_hi",
         "info": "MP3 128k"
+      },
+      {
+        "slug": "frisky-deep",
+        "name": "FRISKY Deep",
+        "url": "https://stream.friskyradio.com/deep_mp3_hi",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "frisky-chill",
+        "name": "FRISKY Chill",
+        "url": "https://stream.friskyradio.com/chill_mp3_hi",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "frisky-classics",
+        "name": "FRISKY Classics",
+        "url": "https://stream.friskyradio.com/classics_mp3_hi",
+        "info": "MP3 96k"
       }
     ]
   },
   {
     "name": "XLtrax",
     "slug": "xltrax",
+    "listed": true,
     "stations": [
       {
         "slug": "xltrax-radio",
@@ -2900,7 +3738,7 @@
       },
       {
         "slug": "absolute-country-hits",
-        "name": "Absolute Country Hits",
+        "name": "Hot Country",
         "url": "https://strm112.1.fm/acountry_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -2918,7 +3756,7 @@
       },
       {
         "slug": "absolute-trance-euro",
-        "name": "Absolute Trance (Euro)",
+        "name": "Trancend",
         "url": "https://strm112.1.fm/trance_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -2942,7 +3780,7 @@
       },
       {
         "slug": "americas-best-ballads",
-        "name": "America's Best Ballads",
+        "name": "Beloved Ballads",
         "url": "https://strm112.1.fm/onelive_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -2954,13 +3792,13 @@
       },
       {
         "slug": "bom-psytrance",
-        "name": "BOM Psytrance",
+        "name": "BPM Psytrance",
         "url": "https://strm112.1.fm/psytrance_mobile_mp3",
         "info": "MP3 256k"
       },
       {
         "slug": "back-to-the-50s-and-60s",
-        "name": "Back To The 50's & 60's",
+        "name": "Oldies",
         "url": "https://strm112.1.fm/60s_70s_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -3014,13 +3852,13 @@
       },
       {
         "slug": "country-one",
-        "name": "Country One",
+        "name": "Country Range",
         "url": "https://strm112.1.fm/country_mobile_mp3",
         "info": "MP3 256k"
       },
       {
         "slug": "dance-one",
-        "name": "Dance One",
+        "name": "Dance Now",
         "url": "https://strm112.1.fm/dance_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -3032,7 +3870,7 @@
       },
       {
         "slug": "deep-techno-and-deep-house",
-        "name": "Deep Techno & Deep House",
+        "name": "Techno and Deep House",
         "url": "https://strm112.1.fm/deeptech_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -3044,7 +3882,7 @@
       },
       {
         "slug": "gorilla-fm",
-        "name": "Gorilla FM",
+        "name": "Underground",
         "url": "https://strm112.1.fm/gorillafm_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -3056,7 +3894,7 @@
       },
       {
         "slug": "ibiza-chill-tropical",
-        "name": "Ibiza Chill Tropical",
+        "name": "Ibiza Beach Club",
         "url": "https://strm112.1.fm/ibizachill_mobile_mp3?aw_0_req.gdpr=true",
         "info": "MP3 256k"
       },
@@ -3068,7 +3906,7 @@
       },
       {
         "slug": "movie-soundtrack",
-        "name": "Movie Soundtrack",
+        "name": "Movie Soundtracks Hits",
         "url": "https://strm112.1.fm/moviesoundtracks_mobile_mp3",
         "info": "MP3 256k"
       },
@@ -3094,6 +3932,240 @@
         "slug": "rock-classics",
         "name": "Rock Classics",
         "url": "https://strm112.1.fm/rockclassics_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "00s-hip-hop",
+        "name": "00s Hip Hop",
+        "url": "https://strm112.1.fm/club_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "2010s",
+        "name": "2010s",
+        "url": "https://strm112.1.fm/acpl_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "70s-best",
+        "name": "70s Best",
+        "url": "https://strm112.1.fm/70s_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "80s-best",
+        "name": "80s Best",
+        "url": "https://strm112.1.fm/magic80_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "90s-alternative",
+        "name": "90s Alternative",
+        "url": "https://strm112.1.fm/partyzone90s_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "90s-best",
+        "name": "90s Best",
+        "url": "https://strm112.1.fm/90s_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "90s-hip-hop",
+        "name": "90s Hip Hop",
+        "url": "https://strm112.1.fm/spanishtophits_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "90s-rnb",
+        "name": "90s RnB",
+        "url": "https://strm112.1.fm/slowjamz_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "afterbeat-electronica",
+        "name": "Afterbeat Electronica",
+        "url": "https://strm112.1.fm/electronica_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "always-christmas",
+        "name": "Always Christmas",
+        "url": "https://strm112.1.fm/christmas_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "bops-and-vibes",
+        "name": "bops & vibes",
+        "url": "https://strm112.1.fm/spanishparty_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "calming-piano",
+        "name": "Calming Piano",
+        "url": "https://strm112.1.fm/gospel_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "circuit-pride",
+        "name": "Circuit Pride",
+        "url": "https://strm112.1.fm/circuitpride_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "classical-music",
+        "name": "Classical Music",
+        "url": "https://strm112.1.fm/classical_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "comfort-pop",
+        "name": "Comfort Pop",
+        "url": "https://strm112.1.fm/top40ballads_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "contemporary-christian",
+        "name": "Contemporary Christian",
+        "url": "https://strm112.1.fm/praise_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "costa-del-mar",
+        "name": "Costa Del Mar",
+        "url": "https://strm112.1.fm/costadelmarchillout_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "crossfade-indie",
+        "name": "Crossfade Indie",
+        "url": "https://strm112.1.fm/sambarock_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "essential-classical",
+        "name": "Essential Classical",
+        "url": "https://strm112.1.fm/polskafm_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "full-throttle-phonk",
+        "name": "Full Throttle Phonk",
+        "url": "https://strm112.1.fm/fullthrottlephonk_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "funky-express",
+        "name": "Funky Express",
+        "url": "https://strm112.1.fm/funkyexpress_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "gaia",
+        "name": "Gaia",
+        "url": "https://strm112.1.fm/radiogaia_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "high-speed",
+        "name": "High Speed",
+        "url": "https://strm112.1.fm/dubstep_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "italian-favorites",
+        "name": "Italian Favorites",
+        "url": "https://strm112.1.fm/italiaonair_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "k-pop-nexus",
+        "name": "K-Pop Nexus",
+        "url": "https://strm112.1.fm/k-popnexus_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "lo-fi",
+        "name": "lo-fi",
+        "url": "https://strm112.1.fm/kidsfm_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "millennial-nostalgia",
+        "name": "Millennial Nostalgia",
+        "url": "https://strm112.1.fm/eurovision_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "new-tracks",
+        "name": "New Tracks",
+        "url": "https://strm112.1.fm/newtracks_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "our-n-b",
+        "name": "Our n B",
+        "url": "https://strm112.1.fm/oldschool_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "rap-pregame",
+        "name": "Rap Pregame",
+        "url": "https://strm112.1.fm/edm_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "reggaeton-heat",
+        "name": "Reggaeton Heat",
+        "url": "https://strm112.1.fm/reggaeton_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "rnb-love-songs",
+        "name": "RnB Love Songs",
+        "url": "https://strm112.1.fm/spanisholdies_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "samba-hits-brazil",
+        "name": "Samba Hits Brazil",
+        "url": "https://strm112.1.fm/samba_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "saxophone-hits",
+        "name": "Saxophone Hits",
+        "url": "https://strm112.1.fm/sax4ever_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "sertaneja",
+        "name": "Sertaneja",
+        "url": "https://strm112.1.fm/sertanejo_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "spa",
+        "name": "Spa",
+        "url": "https://strm112.1.fm/spa_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "sunshine",
+        "name": "Sunshine",
+        "url": "https://strm112.1.fm/allmixedup_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "top-rap",
+        "name": "Top Rap",
+        "url": "https://strm112.1.fm/jamz_mobile_mp3",
+        "info": "MP3 256k"
+      },
+      {
+        "slug": "y2k",
+        "name": "y2k",
+        "url": "https://strm112.1.fm/hits2000_mobile_mp3",
         "info": "MP3 256k"
       }
     ]
@@ -3179,6 +4251,12 @@
         "name": "Mushroom Escape",
         "url": "http://65.108.124.70:8676/escape",
         "info": "Radio drama and comedy"
+      },
+      {
+        "slug": "mushroom-pot",
+        "name": "Mushroom Pot",
+        "url": "http://65.108.124.70:8676/mushroompot",
+        "info": "MP3 128k"
       }
     ]
   },
@@ -3292,6 +4370,1275 @@
         "name": "Double Tap Live",
         "url": "https://s2.radio.co/s1eb3875b8/listen",
         "info": "Blind tech talk, 24/7"
+      }
+    ]
+  },
+  {
+    "name": "Virgin Radio UK",
+    "slug": "virgin-radio-uk",
+    "stations": [
+      {
+        "slug": "virgin-radio-uk",
+        "name": "Virgin Radio UK",
+        "url": "https://radio.virginradio.co.uk/stream",
+        "info": "MP3"
+      },
+      {
+        "slug": "virgin-radio-chilled",
+        "name": "Virgin Radio Chilled",
+        "url": "https://radio.virginradio.co.uk/stream-chilled",
+        "info": "MP3"
+      },
+      {
+        "slug": "virgin-radio-anthems",
+        "name": "Virgin Radio Anthems",
+        "url": "https://radio.virginradio.co.uk/stream-anthems",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "talkSPORT",
+    "slug": "talksport",
+    "stations": [
+      {
+        "slug": "talksport",
+        "name": "talkSPORT",
+        "url": "https://radio.talksport.com/stream",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "talksport-2",
+        "name": "talkSPORT 2",
+        "url": "https://radio.talksport.com/stream2",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "Times Radio",
+    "slug": "times-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "times-radio",
+        "name": "Times Radio",
+        "url": "https://timesradio.wireless.radio/stream",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "Rainwave",
+    "slug": "rainwave",
+    "stations": [
+      {
+        "slug": "game",
+        "name": "Game",
+        "url": "https://relay.rainwave.cc/game.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "overclocked-remix",
+        "name": "OverClocked Remix",
+        "url": "https://relay.rainwave.cc/ocremix.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "covers",
+        "name": "Covers",
+        "url": "https://relay.rainwave.cc/covers.mp3",
+        "info": "MP3"
+      },
+      {
+        "slug": "chiptunes",
+        "name": "Chiptunes",
+        "url": "https://relay.rainwave.cc/chiptune.mp3",
+        "info": "MP3"
+      }
+    ]
+  },
+  {
+    "name": "Radio Caroline",
+    "slug": "radio-caroline",
+    "stations": [
+      {
+        "slug": "radio-caroline",
+        "name": "Radio Caroline",
+        "url": "http://sc6.radiocaroline.net:8040/",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-caroline-flashback",
+        "name": "Radio Caroline Flashback",
+        "url": "http://sc2.radiocaroline.net:10558/",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "radio-caroline-north",
+        "name": "Radio Caroline North",
+        "url": "http://sc2.radiocaroline.net:8100/",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Party Vibe",
+    "slug": "party-vibe",
+    "stations": [
+      {
+        "slug": "ambient",
+        "name": "Ambient",
+        "url": "http://www.partyviberadio.com:8056/stream/1/",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "drum-and-bass",
+        "name": "Drum & Bass",
+        "url": "http://www.partyviberadio.com:8004/stream/1/",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "dubstep",
+        "name": "Dubstep",
+        "url": "http://www.partyviberadio.com:8040/stream/1/",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "reggae",
+        "name": "Reggae",
+        "url": "http://www.partyviberadio.com:8000/stream/1/",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "techno",
+        "name": "Techno",
+        "url": "http://www.partyviberadio.com:8046/stream/1/",
+        "info": "MP3 320k"
+      }
+    ]
+  },
+  {
+    "name": "Linn Radio",
+    "slug": "linn-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "linn-radio",
+        "name": "Linn Radio",
+        "url": "http://radio.linn.co.uk:8003/autodj",
+        "info": "MP3 320k"
+      }
+    ]
+  },
+  {
+    "name": "K-LOVE",
+    "slug": "k-love",
+    "stations": [
+      {
+        "slug": "k-love",
+        "name": "K-LOVE",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-70s",
+        "name": "K-LOVE 70s",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-70s/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-80s",
+        "name": "K-LOVE 80s",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-80s/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-90s",
+        "name": "K-LOVE 90s",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-90s/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-2000s",
+        "name": "K-LOVE 2000s",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-2000s/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-2010s",
+        "name": "K-LOVE 2010s",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-2010s/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-eras",
+        "name": "K-LOVE Eras",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-eras/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-pop",
+        "name": "K-LOVE Pop",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-pop/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "k-love-future-hits",
+        "name": "K-LOVE Future Hits",
+        "url": "https://maestro.emfcdn.com/stream_for/k-love-future-hits/web/aac",
+        "info": "AAC 64k"
+      }
+    ]
+  },
+  {
+    "name": "Air1",
+    "slug": "air1",
+    "stations": [
+      {
+        "slug": "air1",
+        "name": "Air1",
+        "url": "https://maestro.emfcdn.com/stream_for/air1/web/aac",
+        "info": "AAC 64k"
+      },
+      {
+        "slug": "air1-worship-always",
+        "name": "Air1 Worship Always",
+        "url": "https://maestro.emfcdn.com/stream_for/air1-worship-always/web/aac",
+        "info": "AAC 64k"
+      }
+    ]
+  },
+  {
+    "name": "Pacifica",
+    "slug": "pacifica",
+    "stations": [
+      {
+        "slug": "kpfa",
+        "name": "KPFA",
+        "url": "http://streams.kpfa.org:8000/kpfa_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kpfk",
+        "name": "KPFK",
+        "url": "http://stations.pacifica.org:7267/kpfk_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "wbai",
+        "name": "WBAI",
+        "url": "http://stream.wbai.org:8000/wbai_128",
+        "info": "MP3 64k"
+      },
+      {
+        "slug": "wpfw",
+        "name": "WPFW",
+        "url": "http://www.wpfwfm.org:8000/wpfw_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kpft",
+        "name": "KPFT",
+        "url": "http://stations.pacifica.org:7267/live_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kpft-hd2",
+        "name": "KPFT HD2",
+        "url": "http://stations.pacifica.org:7267/HD3_128",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "kpft-classic-country",
+        "name": "KPFT Classic Country",
+        "url": "http://stations.pacifica.org:7267/classic_country",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Triple M",
+    "slug": "triple-m",
+    "stations": [
+      {
+        "slug": "triple-m-adelaide",
+        "name": "Triple M Adelaide",
+        "url": "https://legacy.scahw.com.au/5mmm_32",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-sydney",
+        "name": "Triple M Sydney",
+        "url": "http://legacy.scahw.com.au/2mmm_128",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-classic-rock",
+        "name": "Triple M Classic Rock",
+        "url": "https://sa47.scastream.com.au/live/2classicrock_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-90s",
+        "name": "Triple M 90s",
+        "url": "http://legacy.scahw.com.au/290s_32",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-country",
+        "name": "Triple M Country",
+        "url": "https://sa47.scastream.com.au/live/2country_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-melbourne",
+        "name": "Triple M Melbourne",
+        "url": "https://sa47.scastream.com.au/live/3mmm_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-80s",
+        "name": "Triple M 80s",
+        "url": "http://legacy.scahw.com.au/280s_32",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-the-border",
+        "name": "Triple M The Border",
+        "url": "https://sa47.scastream.com.au/live/2bdr_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-tradie-radio",
+        "name": "Triple M Tradie Radio",
+        "url": "https://sa47.scastream.com.au/live/tradie-radio.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-townsville-102-3",
+        "name": "Triple M Townsville 102.3",
+        "url": "https://sa46.scastream.com.au/live/4too_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-southwest",
+        "name": "Triple M Southwest",
+        "url": "https://sa47.scastream.com.au/live/6tz_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-mackay-98-7",
+        "name": "Triple M Mackay 98.7",
+        "url": "https://sa47.scastream.com.au/live/4rgm_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-geraldton-98-1",
+        "name": "Triple M Geraldton 98.1",
+        "url": "https://sa47.scastream.com.au/live/6bay_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-carnarvon-666",
+        "name": "Triple M Carnarvon 666",
+        "url": "https://sa47.scastream.com.au/live/6ln_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-99-5-cairns",
+        "name": "Triple M 99.5 Cairns",
+        "url": "https://sa47.scastream.com.au/live/4rgc_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-broome-102-9",
+        "name": "Triple M Broome 102.9",
+        "url": "https://sa47.scastream.com.au/live/6nwb_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-bundy-93-1",
+        "name": "Triple M Bundy 93.1",
+        "url": "https://sa47.scastream.com.au/live/4rgb_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-dubbo-93-5",
+        "name": "Triple M Dubbo 93.5",
+        "url": "https://sa47.scastream.com.au/live/2dbo_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-goldfields-981",
+        "name": "Triple M Goldfields 981",
+        "url": "https://sa47.scastream.com.au/live/6kg_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-hobart-107-3",
+        "name": "Triple M Hobart 107.3",
+        "url": "https://sa47.scastream.com.au/live/7xxx_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-newcastle-102-9",
+        "name": "Triple M Newcastle 102.9",
+        "url": "https://sa46.scastream.com.au/live/2kko_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-riverina-1152",
+        "name": "Triple M Riverina 1152",
+        "url": "https://sa47.scastream.com.au/live/2wg_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-sunraysia-97-9",
+        "name": "Triple M Sunraysia 97.9",
+        "url": "https://sa47.scastream.com.au/live/3rmr_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-esperance-747",
+        "name": "Triple M Esperance 747",
+        "url": "https://sa47.scastream.com.au/live/6se_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-riverina-mia-963",
+        "name": "Triple M Riverina MIA 963",
+        "url": "https://sa47.scastream.com.au/live/2rg_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-mid-north-coast",
+        "name": "Triple M Mid North Coast",
+        "url": "https://sa47.scastream.com.au/live/2pqq_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-central-west-105-1",
+        "name": "Triple M Central West 105.1",
+        "url": "https://sa47.scastream.com.au/live/2oag_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-avon-valley-864",
+        "name": "Triple M Avon Valley 864",
+        "url": "https://sa47.scastream.com.au/live/6am_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-central-wheatbelt-1098",
+        "name": "Triple M Central Wheatbelt 1098",
+        "url": "https://sa47.scastream.com.au/live/6md_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-coffs-coast-106-3",
+        "name": "Triple M Coffs Coast 106.3",
+        "url": "https://sa47.scastream.com.au/live/2cfs_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-darling-downs-864",
+        "name": "Triple M Darling Downs 864",
+        "url": "https://sa47.scastream.com.au/live/4gr_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-goulburn-valley-95-3",
+        "name": "Triple M Goulburn Valley 95.3",
+        "url": "https://sa47.scastream.com.au/live/3srr_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-karratha-102-5",
+        "name": "Triple M Karratha 102.5",
+        "url": "https://sa47.scastream.com.au/live/6ka_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-limestone-coast-90-5",
+        "name": "Triple M Limestone Coast 90.5",
+        "url": "https://sa47.scastream.com.au/live/5se_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-port-hedland-94-1",
+        "name": "Triple M Port Hedland 94.1",
+        "url": "https://sa47.scastream.com.au/live/6nw_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-central-coast-107-7",
+        "name": "Triple M Central Coast 107.7",
+        "url": "https://sa46.scastream.com.au/live/2ggo_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-great-southern-1071",
+        "name": "Triple M Great Southern 1071",
+        "url": "https://sa47.scastream.com.au/live/6na_32.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-brisbane",
+        "name": "Triple M Brisbane",
+        "url": "https://sa47.scastream.com.au/live/4mmm_128.stream/playlist.m3u8",
+        "info": "AAC"
+      },
+      {
+        "slug": "triple-m-cape-to-cape-756",
+        "name": "Triple M Cape to Cape 756",
+        "url": "https://sa47.scastream.com.au/live/6bsn_128.stream/playlist.m3u8",
+        "info": "AAC"
+      }
+    ]
+  },
+  {
+    "name": "ARN Australia",
+    "slug": "arn-australia",
+    "stations": [
+      {
+        "slug": "kiis-101-1",
+        "name": "KIIS 101.1",
+        "url": "https://ais-arn.streamguys1.com/au_001_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "wsfm",
+        "name": "WSFM",
+        "url": "https://ais-arn.streamguys1.com/au_002_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "mix-102-3",
+        "name": "Mix 102.3",
+        "url": "https://ais-arn.streamguys1.com/au_003_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "gold-104-3",
+        "name": "GOLD 104.3",
+        "url": "https://ais-arn.streamguys1.com/au_004_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "hit-104-7",
+        "name": "Hit 104.7",
+        "url": "https://ais-arn.streamguys1.com/au_005_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "mix-106-3",
+        "name": "Mix 106.3",
+        "url": "https://ais-arn.streamguys1.com/au_006_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "kiis-106-5",
+        "name": "KIIS 106.5",
+        "url": "https://ais-arn.streamguys1.com/au_007_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "cruise-1323",
+        "name": "Cruise 1323",
+        "url": "https://ais-arn.streamguys1.com/au_008_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "cada",
+        "name": "Cada",
+        "url": "https://ais-arn.streamguys1.com/au_010_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "97-3-fm",
+        "name": "97.3 FM",
+        "url": "https://ais-arn.streamguys1.com/au_011_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "96fm",
+        "name": "96FM",
+        "url": "https://ais-arn.streamguys1.com/au_012_icy",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "the-90s",
+        "name": "The 90's",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/ARN_IHRT10.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "NZME",
+    "slug": "nzme",
+    "stations": [
+      {
+        "slug": "newstalk-zb",
+        "name": "Newstalk ZB",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_01AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-sport",
+        "name": "Newstalk ZB Sport",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_06AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits",
+        "name": "The Hits",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_02AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm",
+        "name": "ZM",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_03AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki",
+        "name": "Radio Hauraki",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_04AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "gold",
+        "name": "Gold",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_05AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast",
+        "name": "Coast",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_07AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "flava",
+        "name": "Flava",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_08AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz",
+        "name": "iHeartCountry NZ",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_09AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-auckland",
+        "name": "Newstalk ZB Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_11AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-auckland",
+        "name": "The Hits Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_12AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-auckland",
+        "name": "ZM Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_13AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-auckland",
+        "name": "Radio Hauraki Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_14AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-auckland",
+        "name": "Coast Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_17AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "flava-auckland",
+        "name": "Flava Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_18AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-auckland",
+        "name": "iHeartCountry NZ Auckland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_19AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-waikato",
+        "name": "Newstalk ZB Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_21AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-waikato",
+        "name": "The Hits Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_22AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-waikato",
+        "name": "ZM Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_23AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-waikato",
+        "name": "Radio Hauraki Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_24AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-waikato",
+        "name": "iHeartCountry NZ Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_26AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-waikato",
+        "name": "Coast Waikato",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_27AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-wellington",
+        "name": "Newstalk ZB Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_31AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-wellington",
+        "name": "The Hits Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_32AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-wellington",
+        "name": "ZM Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_33AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-wellington",
+        "name": "Radio Hauraki Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_34AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-wellington",
+        "name": "iHeartCountry NZ Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_36AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-wellington",
+        "name": "Coast Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_37AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "flava-wellington",
+        "name": "Flava Wellington",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_38AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-christchurch",
+        "name": "Newstalk ZB Christchurch",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_41AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-canterbury",
+        "name": "The Hits Canterbury",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_42AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-christchurch",
+        "name": "ZM Christchurch",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_43AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-christchurch",
+        "name": "Radio Hauraki Christchurch",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_44AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-canterbury",
+        "name": "Coast Canterbury",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_47AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "flava-christchurch",
+        "name": "Flava Christchurch",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_48AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-christchurch",
+        "name": "iHeartCountry NZ Christchurch",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_49AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-tauranga",
+        "name": "Newstalk ZB Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_51AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-bay-of-plenty",
+        "name": "The Hits Bay of Plenty",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_52AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-tauranga",
+        "name": "ZM Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_53AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-tauranga",
+        "name": "Radio Hauraki Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_54AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-tauranga",
+        "name": "iHeartCountry NZ Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_55AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-tauranga",
+        "name": "Coast Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_57AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "flava-tauranga",
+        "name": "Flava Tauranga",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_58AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "newstalk-zb-dunedin",
+        "name": "Newstalk ZB Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_61AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-dunedin",
+        "name": "The Hits Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_62AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "zm-dunedin",
+        "name": "ZM Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_63AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "radio-hauraki-dunedin",
+        "name": "Radio Hauraki Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_64AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "iheartcountry-nz-dunedin",
+        "name": "iHeartCountry NZ Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_65AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "coast-dunedin",
+        "name": "Coast Dunedin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_67AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-hawkes-bay",
+        "name": "The Hits Hawkes Bay",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_71AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-manawatu",
+        "name": "The Hits Manawatu",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_72AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-nelson",
+        "name": "The Hits Nelson",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_73AAC.aac",
+        "info": "AAC"
+      },
+      {
+        "slug": "the-hits-northland",
+        "name": "The Hits Northland",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/NZME_74AAC.aac",
+        "info": "AAC"
+      }
+    ]
+  },
+  {
+    "name": "Rova",
+    "slug": "rova",
+    "stations": [
+      {
+        "slug": "the-rock",
+        "name": "The Rock",
+        "url": "https://mediaworks.streamguys1.com/rock_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "the-edge",
+        "name": "The Edge",
+        "url": "https://mediaworks.streamguys1.com/edge_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "more-fm",
+        "name": "More FM",
+        "url": "https://mediaworks.streamguys1.com/more_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "the-breeze",
+        "name": "The Breeze",
+        "url": "https://mediaworks.streamguys1.com/breeze_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "magic",
+        "name": "Magic",
+        "url": "https://mediaworks.streamguys1.com/magic_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "the-sound",
+        "name": "The Sound",
+        "url": "https://mediaworks.streamguys1.com/sound_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "george-fm",
+        "name": "George FM",
+        "url": "https://mediaworks.streamguys1.com/george_net_icy",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "george-fm-dnb",
+        "name": "George FM DnB",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/GEORGE_DNB_S01.aac",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "george-fm-chillsville",
+        "name": "George FM Chillsville",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CHILLSVILLE_S01.aac",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "george-fm-latest-bangers",
+        "name": "George FM Latest Bangers",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/GEORGEFRESHHITS_S01.aac",
+        "info": "AAC 128k"
+      },
+      {
+        "slug": "george-fm-club-classics",
+        "name": "George FM Club Classics",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/GEORGEFM_CC_S01.aac",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "SABC",
+    "slug": "sabc",
+    "stations": [
+      {
+        "slug": "5fm",
+        "name": "5FM",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/5FM.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "metro-fm",
+        "name": "Metro FM",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/METROFMAAC.aac",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "radio-2000",
+        "name": "Radio 2000",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO2000AAC.aac",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "safm",
+        "name": "SAfm",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/SAFMAAC.aac",
+        "info": "AAC 48k"
+      },
+      {
+        "slug": "lotus-fm",
+        "name": "Lotus FM",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/LOTUSFMAAC.aac",
+        "info": "AAC 48k"
+      }
+    ]
+  },
+  {
+    "name": "American Family Radio",
+    "slug": "american-family-radio",
+    "stations": [
+      {
+        "slug": "afr-talk",
+        "name": "AFR Talk",
+        "url": "https://mediaserver3.afa.net:8443/talk.mp3",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "afr-music",
+        "name": "AFR Music",
+        "url": "https://mediaserver3.afa.net:8443/music.mp3",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Moody Radio",
+    "slug": "moody-radio",
+    "stations": [
+      {
+        "slug": "moody-radio-chicago",
+        "name": "Moody Radio Chicago",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/WMBIFM.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "moody-radio-south",
+        "name": "Moody Radio South",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/MB2.mp3",
+        "info": "MP3 96k"
+      },
+      {
+        "slug": "moody-radio-northwest",
+        "name": "Moody Radio Northwest",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/KMBIFM.mp3",
+        "info": "MP3 96k"
+      }
+    ]
+  },
+  {
+    "name": "DKFM",
+    "slug": "dkfm",
+    "stations": [
+      {
+        "slug": "dkfm-shoegaze-radio",
+        "name": "DKFM Shoegaze Radio",
+        "url": "https://kathy.torontocast.com:2005/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "dkfm-classic",
+        "name": "DKFM Classic",
+        "url": "https://radio.streemlion.com:4245/stream",
+        "info": "MP3 128k"
+      },
+      {
+        "slug": "dkfm-edge",
+        "name": "DKFM Edge",
+        "url": "https://radio.streemlion.com:4405/stream",
+        "info": "AAC 64k"
+      }
+    ]
+  },
+  {
+    "name": "Soho Radio",
+    "slug": "soho-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "soho-radio",
+        "name": "Soho Radio",
+        "url": "https://sohoradiomusic.doughunt.co.uk:8010/320mp3",
+        "info": "MP3 320k"
+      }
+    ]
+  },
+  {
+    "name": "Rinse FM",
+    "slug": "rinse-fm",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "rinse-fm",
+        "name": "Rinse FM",
+        "url": "https://admin.stream.rinse.fm/proxy/rinse_uk/stream",
+        "info": "AAC 128k"
+      }
+    ]
+  },
+  {
+    "name": "Worldwide FM",
+    "slug": "worldwide-fm",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "worldwide-fm",
+        "name": "Worldwide FM",
+        "url": "https://worldwide-fm.radiocult.fm/stream",
+        "info": "MP3 320k"
+      }
+    ]
+  },
+  {
+    "name": "dublab",
+    "slug": "dublab",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "dublab",
+        "name": "dublab",
+        "url": "http://dublab.out.airtime.pro:8000/dublab_a",
+        "info": "MP3 192k"
+      }
+    ]
+  },
+  {
+    "name": "Amazing Radio",
+    "slug": "amazing-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "amazing-radio",
+        "name": "Amazing Radio",
+        "url": "http://stream6.amazingradio.com:8000/stream.mp3?redirected=1",
+        "info": "MP3 128k"
+      }
+    ]
+  },
+  {
+    "name": "Boom Radio",
+    "slug": "boom-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "boom-radio",
+        "name": "Boom Radio",
+        "url": "https://listen-boomradio.sharp-stream.com/65_boom_radio_live_192",
+        "info": "AAC"
+      }
+    ]
+  },
+  {
+    "name": "8Radio",
+    "slug": "8radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "8radio",
+        "name": "8Radio",
+        "url": "https://stream.rcast.net/66127",
+        "info": "MP3 320k"
+      }
+    ]
+  },
+  {
+    "name": "Bloomberg Radio",
+    "slug": "bloomberg-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "bloomberg-radio",
+        "name": "Bloomberg Radio",
+        "url": "https://tunein.cdnstream1.com/3521_96.mp3",
+        "info": "MP3 96k"
+      }
+    ]
+  },
+  {
+    "name": "C-SPAN Radio",
+    "slug": "c-span-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "c-span-radio",
+        "name": "C-SPAN Radio",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CSPANRADIO.mp3",
+        "info": "MP3 40k"
+      }
+    ]
+  },
+  {
+    "name": "Fox News Radio",
+    "slug": "fox-news-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "fox-news-radio",
+        "name": "Fox News Radio",
+        "url": "https://live.amperwave.net/direct/foxnewsradio-foxnewsradioaac-imc",
+        "info": "AAC 64k"
+      }
+    ]
+  },
+  {
+    "name": "ESPN Radio",
+    "slug": "espn-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "espn-radio",
+        "name": "ESPN Radio",
+        "url": "https://live.amperwave.net/direct/espn-network-48",
+        "info": "AAC 48k"
+      }
+    ]
+  },
+  {
+    "name": "Al Jazeera English",
+    "slug": "al-jazeera-english",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "al-jazeera-english",
+        "name": "Al Jazeera English",
+        "url": "https://live-hls-audio-web-aje.getaj.net/VOICE-AJE/01.m3u8",
+        "info": "AAC"
+      }
+    ]
+  },
+  {
+    "name": "NHK World Radio",
+    "slug": "nhk-world-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "nhk-world-radio",
+        "name": "NHK World Radio",
+        "url": "https://nhkworld-radio.nhkworld.jp/hls/live/nhkworld-radio-media2/index.m3u8",
+        "info": "AAC"
       }
     ]
   }

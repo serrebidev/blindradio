@@ -5,6 +5,16 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.56
+
+- 357 more stations in Networks, counting the new networks below. ABC Australia gains 33, mostly regional. NPR gains 39, including more states. Minnesota Public Radio gains The Current and the YourClassical streams, and NTS gains its 16 Infinite Mixtapes. Capital, Heart, Smooth, Classic FM, Radio X, RTÉ, RNZ, FRISKY and WHFF gain channels too. 1.FM gains 39 channels and its current channel names. 181.fm gains 6 Christmas channels. Radio Paradise gains Sanctuary, WFMU gains UbuWeb Radio and Mushroom FM gains Mushroom Pot.
+- New networks: Virgin Radio UK, talkSPORT, Times Radio, Rainwave, Radio Caroline, Party Vibe, Linn Radio, K-LOVE, Air1, Pacifica, Triple M, ARN Australia, NZME and Rova in New Zealand, SABC in South Africa, American Family Radio, Moody Radio, DKFM, Soho Radio, Rinse FM, Worldwide FM, dublab, Amazing Radio, Boom Radio, 8Radio, Bloomberg Radio, C-SPAN Radio, Fox News Radio, ESPN Radio, Al Jazeera English and NHK World Radio.
+- New directory: Live365, with thousands of independent stations by genre and sub-genre. Search includes it.
+- KEXP, WFUV, Gold and XLtrax now show in Networks and in Search. They were hidden because each has one station.
+- TuneIn in Browse now has Local Radio, Music, Talk and Sports as well as By Location. Long lists now end in Load More. They used to stop after about 26 stations. TuneIn repeats some stations between pages, and Browse lists each one once.
+- Radio.net in Browse now has By Genre, By Country, By Language and By Topic.
+- iHeartRadio in Browse now has By City, and its lists now include its stations in Mexico.
+
 ## 0.2.55
 
 - Search no longer lists stations that only sound like what you typed. Radio.net, iHeartRadio and TuneIn guess at near spellings, so CKNW also brought up CKNB, KFI and others, and Internet-Radio matched the song playing now. Every word you type must now be in the station's name, genre or call sign.

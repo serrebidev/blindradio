@@ -14,8 +14,8 @@ contains the exact endpoint names and codec options in `channelData`.
 Selected the published default AAC streams: `aac-128`, `mellow-128`, `rock-128`,
 `global-128`, `beyond-128`, `serenity`, `radio2050-128`, and `kfat-128` under
 `https://stream.radioparadise.com/`. Serenity is AAC+ 64k; the others are AAC 128k.
-Sanctuary appears elsewhere on the site but has no endpoint in the picker data,
-so it is omitted.
+Sanctuary is not in the picker data, but `stream.radioparadise.com/status.xsl` lists `/sanctuary`
+(AAC 64k), so it is carried.
 
 ## NTS
 
@@ -169,7 +169,71 @@ mounts answer, so those are used.
   Underground) return an HTML page rather than audio from that host, so only the main
   FG stream is added.
 
+## 2026-11-03 audit
+
+Each stream below answered audio, and where an ICY stream reports a name it matched.
+Candidates came from official lists, GitHub, and the app's own search.
+
+- BBC: the [station list API](https://rms.api.bbc.co.uk/v2/experience/inline/stations)
+  names 71 services and 64 are carried. The other seven are 5 Sports Extra 1 to 3, 6 Indie
+  Forever, Live News, Radio Wales Extra and CBeebies Radio. Where a URL could be found, its
+  audio answers 403 from outside the UK, so they are omitted.
+- MPR: `<name>.stream.publicradio.org/<name>.mp3`, as listed on the
+  [YourClassical streams page](https://www.yourclassical.org/listen/streams). Seasonal
+  streams are omitted.
+- NTS: Infinite Mixtapes from `https://www.nts.live/api/v2/mixtapes`, the
+  `audio_stream_endpoint` of each.
+- Global UK: more mounts on `media-ice.musicradio.com`. The `LBCUKMP3` mount reports
+  itself as LBC News UK, so it is not added as a separate station.
+- ABC: `streaming.abc-cdn.net.au/audio/hls/local<name>.m3u8`, by region. Each playlist was seen
+  advancing and serving audio. `sport.m3u8` answers but its audio is 403 from here, so it is
+  omitted.
+- WHFF: nine channels answered 503 at one check and two at the next, so the host is
+  overloaded rather than the channels gone. All stay. Its HLS playlists answer but do not
+  advance, so they are no fallback.
+- SomaFM's `channels.json` matches the list exactly (51).
+- 1.FM: `api.1cloud.fm/api/channels`, keyless, gives every channel's name and
+  `broadcast_mp3_link`. Names follow it; a row's slug stays, so saved stations keep working.
+  A List 80s has left that list but still answers, so it stays.
+- 181.fm: the legacy page lists 77. The player bundle at `www.181.fm/static/js/main.*.js`
+  holds the same plus six Christmas channels (`station` and `mount` pairs).
+- New English networks came through the app's search: K-LOVE and Air1 (`maestro.emfcdn.com`),
+  Pacifica, Triple M, ARN Australia, NZME and Rova in New Zealand, SABC, American Family Radio,
+  Moody Radio, DKFM, and single services such as Bloomberg, C-SPAN, ESPN and NHK World.
+  NZME's StreamTheWorld mounts `NZME_01` to `NZME_74` name themselves in ICY.
+  A server's `status.xsl` lists every mount, and a web search for
+  `"icecast streaming media server"` plus a name finds such pages. That is how Sanctuary, KPFT,
+  UbuWeb Radio, Mushroom Pot and the public radio side channels were found.
+  HLS checks must re-read one media playlist: some servers start a session per request,
+  which makes a fresh fetch look frozen.
+
+## Live365
+
+`api.live365.com/genres` and `/station/<mount>` are open, but its station list and search
+answer "Unauthorized access". Its web pages are not closed: `live365.com/listen/<genre>-music-radio`
+and `/listen/search?query=` carry the whole list as React Router page data in `enqueue("...")`
+script calls, with `name`, `mountId` and `genres`. A station streams from
+`streaming.live365.com/<mount>`. A sample of 40 jazz stations had 39 playing. The slug rule comes
+from `junguler/m3u-radio-music-playlists`, `stuff/live_365.sh`. Three of 264 genre names lead
+to no list: Drum 'n' Bass, Music To ... To and Old Time Radio.
+
+Directories gained browse paths that were already public: TuneIn's `c=music`, `talk`,
+`sports` and `local`, with its `nextStations` links; radio.net's `/stations/tags` and
+`/stations/by-tag`; iHeart's `/api/v2/content/markets` and `marketId`.
+
 ## Not added
+
+- **Bauer (Absolute, KISS, Magic, Hits Radio, Greatest Hits, Planet Rock, Jazz FM)**:
+  [withdrawn from third-party apps](https://community.roonlabs.com/t/bauer-media-radio-stations-will-no-longer-be-available-on-third-party-sites-including-roon/187490),
+  so they are not curated here. Directories may still list them.
+- **KDFC channels**: only node-specific StreamTheWorld hosts are listed, and the generic
+  redirect answers 404.
+- **TuneIn By Language**: 89 of its 91 languages hold no stations, French and German
+  among them, so the folder is left out.
+- **Bauer Ireland (Today FM, Newstalk, SPIN and others)**: left out with the rest of Bauer.
+- **Radio Garden**: Cloudflare refuses non-browser requests.
+- **Zeno**: `zeno.fm/api/stations` lists stations with no stream URL and ignores its
+  country filter, so it would browse without playing.
 
 - **101.ru**: the API works (`/api/channel/getListServersChannel/<id>`), but every
   returned URL is a JWT bound to the caller's IP and an expiry, so it cannot be stored
@@ -186,9 +250,18 @@ mounts answer, so those are used.
   but two bytes of body, which is the server refusing the request rather than audio. No
   working public URL found from here.
 - **1Club.FM**: the domain no longer resolves.
-- **DI.fm and Sky.fm/RadioTunes**: no free stream. `stream.di.fm` and `pub1.di.fm` do
-  not resolve, and the free listener URLs answer with an account gate rather than
-  audio. Sky.fm became RadioTunes in 2012; it is the same paid service.
+- **DI Radio Digital Impulse**: no working stream, though it once had 45 or more free channels.
+  `di-radio.com` does not connect. All 137 of its channel entries on `stream.rcast.net` answer
+  500. Of 158 older addresses in `junguler/m3u-radio-music-playlists`, 7 answer, and each now
+  reports another station's name (KRFF, Yammat FM and others), so those ports were reassigned.
+  The `stream.pcradio.ru/di_radio_*` relays fail too.
+- **DI.fm and Sky.fm/RadioTunes**: no free stream without an account. Their own
+  `listen.di.fm/public3` and `listen.radiotunes.com/public3` lists still answer, but every
+  `pub<n>` host they name no longer resolves. Only `prem<n>` hosts answer, with 401 unless a
+  subscriber's listen key is given, and the web player's `routines` call answers 403. All 612 mounts on
+  `prem1.di.fm/status.xsl` are marked Login and titled Premium. Sky.fm
+  became RadioTunes in 2012. A subscriber could add a `prem<n>` address with their own key as
+  a custom station.
 - **ooTunes**: `http://ootunes.com/stations` still serves its 38,008-station table, but
   a row carries only name, genre and comment: the stream URL and the per-station detail
   page are behind a session-gated app, and the search form posts opaque Tapestry state.

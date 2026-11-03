@@ -1,4 +1,4 @@
-//! iHeartRadio: live stations by genre or all, search, and the station's track history.
+//! iHeartRadio: live stations by genre, by city or all, search, and the station's track history.
 
 use super::{HistoryItem, Node, SearchQuery};
 use crate::Result;
@@ -26,6 +26,22 @@ struct Genre {
 	name: String,
 	#[serde(default)]
 	sort: i64,
+}
+
+#[derive(Deserialize)]
+struct Markets {
+	#[serde(default)]
+	hits: Vec<MarketRow>,
+}
+
+#[derive(Deserialize)]
+struct MarketRow {
+	#[serde(rename = "marketId")]
+	id: u64,
+	#[serde(default)]
+	city: String,
+	#[serde(default, rename = "stateAbbreviation")]
+	state: String,
 }
 
 #[derive(Deserialize)]
@@ -173,7 +189,23 @@ impl IHeart {
 				return Ok(vec![
 					folder("iheart/all", "All Stations"),
 					folder("iheart/genres", "Genres"),
+					folder("iheart/markets", "By City"),
 				]);
+			}
+			["iheart", "markets"] => {
+				let m: Markets =
+					get_json(client, &self.url("/api/v2/content/markets?limit=1000")).await?;
+				let mut nodes: Vec<Node> = m
+					.hits
+					.into_iter()
+					.filter(|m| !m.city.trim().is_empty())
+					.map(|m| {
+						let name = format!("{}, {}", m.city.trim(), m.state.trim());
+						folder(format!("iheart/market/{}", m.id), name)
+					})
+					.collect();
+				nodes.sort_by_key(|n| n.name().to_lowercase());
+				return Ok(nodes);
 			}
 			["iheart", "genres"] => {
 				let mut g: Genres =
@@ -189,12 +221,15 @@ impl IHeart {
 			["iheart", "genre", g] => {
 				format!("&genreId={}", utf8_percent_encode(g, NON_ALPHANUMERIC))
 			}
+			["iheart", "market", m] => {
+				format!("&marketId={}", utf8_percent_encode(m, NON_ALPHANUMERIC))
+			}
 			_ => return Ok(vec![]),
 		};
 		let live: Live = get_json(
 			client,
 			&self.url(&format!(
-				"/api/v2/content/liveStations?countryCode=US&limit={PAGE}&offset={offset}{genre}"
+				"/api/v2/content/liveStations?limit={PAGE}&offset={offset}{genre}"
 			)),
 		)
 		.await?;
