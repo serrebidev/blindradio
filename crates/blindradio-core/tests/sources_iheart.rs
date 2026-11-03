@@ -45,9 +45,29 @@ async fn iheart_root() {
 		nodes,
 		vec![
 			folder("iheart/all", "All Stations"),
-			folder("iheart/genres", "Genres")
+			folder("iheart/genres", "Genres"),
+			folder("iheart/markets", "By City")
 		]
 	);
+}
+
+#[tokio::test]
+async fn iheart_cities_sorted_and_open() {
+	let (_s, i) = iheart(vec![json(
+		"/api/v2/content/markets",
+		r#"{"hits":[{"marketId":48,"city":"Jacksonville","stateAbbreviation":"FL"},{"marketId":5,"city":"Atlanta","stateAbbreviation":"GA"},{"marketId":9,"city":" "}]}"#,
+	)]);
+	let nodes = i.children(&client(), "iheart/markets").await.unwrap();
+	assert_eq!(
+		nodes,
+		vec![
+			folder("iheart/market/5", "Atlanta, GA"),
+			folder("iheart/market/48", "Jacksonville, FL")
+		]
+	);
+	let (s, i) = iheart(vec![json(LIVE, LAST)]);
+	i.children(&client(), "iheart/market/48").await.unwrap();
+	assert!(s.last_query(LIVE).unwrap().contains("marketId=48"));
 }
 
 #[tokio::test]
@@ -93,7 +113,7 @@ async fn iheart_pages_until_total() {
 	assert_eq!(st.info.as_deref(), Some("106.7 FM, New York"));
 	let q = s.last_query(LIVE).unwrap();
 	assert!(
-		q.contains("countryCode=US") && q.contains("limit=100") && q.contains("offset=0"),
+		!q.contains("countryCode") && q.contains("limit=100") && q.contains("offset=0"),
 		"{q}"
 	);
 	assert!(!q.contains("genreId"), "{q}");

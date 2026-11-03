@@ -541,15 +541,31 @@ impl BrowseModel {
 		kids
 	}
 
-	/// New items; a Load More whose page is cached is replaced by that page.
+	/// New items; a Load More whose page is cached is replaced by that page. A directory's pages
+	/// can overlap (TuneIn's do): a station already in the list is not added again.
 	fn instantiate(&mut self, parent: usize, nodes: Vec<Node>) -> Vec<usize> {
+		let mut stations: HashSet<String> = self
+			.children(Some(parent))
+			.iter()
+			.filter_map(|&i| self.station(i).map(|st| st.id.clone()))
+			.collect();
+		self.instantiate_page(parent, nodes, &mut stations)
+	}
+
+	fn instantiate_page(
+		&mut self,
+		parent: usize,
+		nodes: Vec<Node>,
+		stations: &mut HashSet<String>,
+	) -> Vec<usize> {
 		let mut out = Vec::new();
 		for node in nodes {
 			match node {
 				Node::LoadMore { id } if self.cache.contains_key(&id) => {
 					let page = self.cache[&id].clone();
-					out.extend(self.instantiate(parent, page));
+					out.extend(self.instantiate_page(parent, page, stations));
 				}
+				Node::Station(st) if !stations.insert(st.id.clone()) => {}
 				node => out.push(self.add(Some(parent), Kind::from_node(node))),
 			}
 		}
@@ -1064,6 +1080,23 @@ mod tests {
 			Some("c"),
 			"focus is on the first new station"
 		);
+	}
+
+	#[test]
+	fn overlapping_pages_list_a_station_once() {
+		let mut m = BrowseModel::new(Memory::default(), &Library::default());
+		let dir = open_dir(&mut m);
+		let rb = load(&mut m, Some(dir), "rb", vec![folder("rb/genre")]);
+		let genre = load(
+			&mut m,
+			Some(rb),
+			"rb/genre",
+			vec![station("a"), station("b"), more("rb/genre@100")],
+		);
+		let next = find(&m, Some(genre), "rb/genre@100");
+		m.more(next);
+		m.loaded(next, Some(vec![station("b"), station("c"), station("c")]));
+		assert_eq!(labels(&m, genre), ["a", "b", "c"]);
 	}
 
 	#[test]

@@ -38,6 +38,7 @@ pub mod icecast;
 pub mod iheart;
 pub mod internet_radio;
 pub mod iprd;
+pub mod live365;
 pub mod networks;
 pub mod radio_browser;
 pub mod radionet;
@@ -299,6 +300,7 @@ pub struct Endpoints {
 	pub internet_radio: String,
 	pub iprd: String,
 	pub radionet: String,
+	pub live365: String,
 	pub directory: String,
 	pub recommended: String,
 }
@@ -315,6 +317,7 @@ impl Default for Endpoints {
 			internet_radio: "https://www.internet-radio.com".into(),
 			iprd: "https://iprd-org.github.io/iprd".into(),
 			radionet: "https://prod.radio-api.net".into(),
+			live365: "https://live365.com".into(),
 			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
 			recommended: "https://api.github.com/repos/deroverda/recommended-radio-streams".into(),
 		}
@@ -340,6 +343,7 @@ pub struct Sources {
 	internet_radio: internet_radio::InternetRadio,
 	iprd: iprd::Iprd,
 	radionet: radionet::RadioNet,
+	live365: live365::Live365,
 	directory: directory::Directory,
 	recommended: directory::Directory,
 	somafm_base: String,
@@ -427,6 +431,7 @@ impl Sources {
 			internet_radio: internet_radio::InternetRadio::new(endpoints.internet_radio),
 			iprd: iprd::Iprd::new(endpoints.iprd),
 			radionet: radionet::RadioNet::new(endpoints.radionet),
+			live365: live365::Live365::new(endpoints.live365),
 			directory: directory::Directory::new(endpoints.directory),
 			recommended: directory::Directory::recommended(endpoints.recommended),
 			somafm_base: endpoints.somafm,
@@ -453,6 +458,7 @@ impl Sources {
 			("internet-radio", "Internet-Radio"),
 			("iprd", "IPRD"),
 			("radionet", "Radio.net"),
+			("live365", "Live365"),
 			("brdir", "BlindRadio Directory"),
 			("recommended", "Recommended Radio Streams"),
 		]
@@ -479,6 +485,7 @@ impl Sources {
 			"internet-radio" => self.internet_radio.children(&self.client, id).await,
 			"iprd" => self.iprd.children(&self.client, id, sort).await,
 			"radionet" => self.radionet.children(&self.client, id).await,
+			"live365" => self.live365.children(&self.client, id, sort).await,
 			"brdir" => self.directory.children(&self.client, id).await,
 			"recommended" => self.recommended.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
@@ -509,10 +516,16 @@ impl Sources {
 			let mut stations = Vec::new();
 			let mut folders = Vec::new();
 			let mut level = vec![id.to_string()];
+			// A directory's pages can overlap.
+			let mut station_ids = HashSet::new();
 			while let Some(next) = level.pop() {
 				for node in self.children(&next, sort).await? {
 					match node {
-						Node::Station(s) => stations.push(s),
+						Node::Station(s) => {
+							if station_ids.insert(s.id.clone()) {
+								stations.push(s);
+							}
+						}
 						Node::Folder { id, name } => {
 							if seen.insert(id.clone()) {
 								let (inner_s, inner_f) = self.tree_walk(&id, sort, seen).await?;
@@ -542,7 +555,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365) = tokio::join!(
 			bounded(self.rb.search(&self.client, q)),
 			async {
 				if name_given {
@@ -593,6 +606,13 @@ impl Sources {
 					vec![]
 				}
 			},
+			async {
+				if name_given {
+					bounded(self.live365.search(&self.client, q)).await
+				} else {
+					vec![]
+				}
+			},
 		);
 		let mut seen = HashSet::new();
 		rb.into_iter()
@@ -603,6 +623,7 @@ impl Sources {
 			.chain(internet_radio)
 			.chain(iprd)
 			.chain(radionet)
+			.chain(live365)
 			.chain(networks::search(q))
 			.filter(|s| answers(s, &q.name) && seen.insert(s.url.clone()))
 			.collect()

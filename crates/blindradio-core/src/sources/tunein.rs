@@ -1,4 +1,4 @@
-//! TuneIn (OPML API in JSON): browse by location, search.
+//! TuneIn (OPML API in JSON): browse by category and location, search.
 
 use super::{Node, SearchQuery};
 use crate::Result;
@@ -31,8 +31,23 @@ struct Outline {
 	guide_id: String,
 	#[serde(default)]
 	key: String,
+	#[serde(default, rename = "URL")]
+	url: String,
 	#[serde(default)]
 	children: Vec<Outline>,
+}
+
+/// The Browse query of a link worth following. Shows and podcasts are not stations.
+fn browse_query(o: &Outline) -> Option<String> {
+	if o.kind != "link" || matches!(o.key.as_str(), "nextShows" | "podcast") {
+		return None;
+	}
+	let url = reqwest::Url::parse(&o.url).ok()?;
+	let query = url.query()?;
+	let shows = query
+		.split('&')
+		.any(|p| p == "c=podcast" || p.starts_with("filter=p"));
+	(url.path().ends_with("/Browse.ashx") && !shows).then(|| query.to_owned())
 }
 
 impl TuneIn {
@@ -44,13 +59,24 @@ impl TuneIn {
 		format!("{}/{page}.ashx?{query}", self.base.trim_end_matches('/'))
 	}
 
-	/// Location folders and stations; groups such as "Stations" are flattened.
+	/// Folders and stations; groups such as "Stations" are flattened. "More Stations" is the
+	/// rest of the list.
 	fn nodes(&self, outlines: Vec<Outline>, out: &mut Vec<Node>) {
 		for o in outlines {
 			if o.kind == "link" && o.guide_id.starts_with('r') {
 				out.push(Node::Folder {
 					id: format!("tunein/{}", o.guide_id),
 					name: o.text.trim().to_owned(),
+				});
+			} else if let Some(query) = browse_query(&o) {
+				let id = format!("tunein/{query}");
+				out.push(if o.key == "nextStations" {
+					Node::LoadMore { id }
+				} else {
+					Node::Folder {
+						id,
+						name: o.text.trim().to_owned(),
+					}
 				});
 			} else if let Some(s) = self.station(&o) {
 				out.push(Node::Station(s));
@@ -81,19 +107,33 @@ impl TuneIn {
 	}
 
 	pub async fn children(&self, client: &reqwest::Client, id: &str) -> Result<Vec<Node>> {
-		let guide = match id.strip_prefix("tunein/") {
-			Some(g) => g,
-			None if id == "tunein" => "r0",
+		let query = match id.strip_prefix("tunein/") {
+			// TuneIn's own query, as its link gave it.
+			Some(query) if query.contains('=') => query.to_owned(),
+			Some(guide) => format!("id={}", utf8_percent_encode(guide, NON_ALPHANUMERIC)),
+			None if id == "tunein" => {
+				return Ok([
+					("tunein/c=local", "Local Radio"),
+					("tunein/c=music", "Music"),
+					("tunein/c=talk", "Talk"),
+					("tunein/c=sports", "Sports"),
+					("tunein/r0", "By Location"),
+				]
+				.map(|(id, name)| Node::Folder {
+					id: id.into(),
+					name: name.into(),
+				})
+				.into());
+			}
 			None => return Ok(vec![]),
 		};
-		let guide = utf8_percent_encode(guide, NON_ALPHANUMERIC);
-		let reply: Reply = get_json(
-			client,
-			&self.url("Browse", &format!("id={guide}&render=json")),
-		)
-		.await?;
+		let reply: Reply =
+			get_json(client, &self.url("Browse", &format!("{query}&render=json"))).await?;
 		let mut out = Vec::new();
 		self.nodes(reply.body, &mut out);
+		// A station can sit in both "Local Stations" and "Stations".
+		let mut seen = std::collections::HashSet::new();
+		out.retain(|n| !matches!(n, Node::Station(s) if !seen.insert(s.id.clone())));
 		Ok(out)
 	}
 

@@ -48,7 +48,38 @@ fn networks_parse_and_order() {
 			"WRBH",
 			"AMI Audio",
 			"RNIB Connect Radio",
-			"Double Tap Live"
+			"Double Tap Live",
+			"Virgin Radio UK",
+			"talkSPORT",
+			"Times Radio",
+			"Rainwave",
+			"Radio Caroline",
+			"Party Vibe",
+			"Linn Radio",
+			"K-LOVE",
+			"Air1",
+			"Pacifica",
+			"Triple M",
+			"ARN Australia",
+			"NZME",
+			"Rova",
+			"SABC",
+			"American Family Radio",
+			"Moody Radio",
+			"DKFM",
+			"Soho Radio",
+			"Rinse FM",
+			"Worldwide FM",
+			"dublab",
+			"Amazing Radio",
+			"Boom Radio",
+			"8Radio",
+			"Bloomberg Radio",
+			"C-SPAN Radio",
+			"Fox News Radio",
+			"ESPN Radio",
+			"Al Jazeera English",
+			"NHK World Radio"
 		]
 	);
 	let mut ids = HashSet::new();
@@ -83,9 +114,32 @@ fn curated_network_channels_and_search() {
 				"serenity",
 				"radio-2050",
 				"kfat",
+				"sanctuary",
 			],
 		),
-		("nts", vec!["nts-1", "nts-2"]),
+		(
+			"nts",
+			vec![
+				"nts-1",
+				"nts-2",
+				"poolside",
+				"slow-focus",
+				"low-key",
+				"memory-lane",
+				"4-to-the-floor",
+				"island-time",
+				"the-tube",
+				"sheet-music",
+				"feelings",
+				"expansions",
+				"rap-house",
+				"labyrinth",
+				"sweat",
+				"otaku",
+				"the-pit",
+				"field-recordings",
+			],
+		),
 		(
 			"wfmu",
 			vec![
@@ -93,6 +147,7 @@ fn curated_network_channels_and_search() {
 				"rock-n-soul",
 				"give-the-drummer",
 				"sheenas-jungle-room",
+				"ubuweb-radio",
 			],
 		),
 	] {
@@ -148,29 +203,60 @@ fn curated_network_channels_and_search() {
 #[test]
 fn new_networks_are_complete() {
 	for (slug, count) in [
-		("181fm", 77),
+		("181fm", 83),
 		("977", 9),
 		("bigr", 51),
 		("kexp", 1),
 		("wfuv", 1),
-		("capital", 4),
-		("heart", 5),
-		("smooth", 3),
-		("classic-fm", 1),
+		("capital", 10),
+		("heart", 10),
+		("smooth", 8),
+		("classic-fm", 3),
 		("gold", 1),
 		("lbc", 2),
-		("radio-x", 1),
+		("radio-x", 5),
 		("powerhitz", 15),
-		("whff", 18),
+		("whff", 19),
 		("nightride-fm", 7),
-		("frisky", 1),
+		("frisky", 4),
 		("xltrax", 1),
-		("rte", 4),
-		("rnz", 3),
+		("rte", 5),
+		("rnz", 4),
 		("kcrw", 3),
 		("wnyc", 3),
-		("mpr", 1),
-		("1fm", 34),
+		("mpr", 16),
+		("1fm", 73),
+		("virgin-radio-uk", 3),
+		("talksport", 2),
+		("times-radio", 1),
+		("rainwave", 4),
+		("radio-caroline", 3),
+		("party-vibe", 5),
+		("linn-radio", 1),
+		("k-love", 9),
+		("air1", 2),
+		("pacifica", 7),
+		("triple-m", 39),
+		("arn-australia", 12),
+		("nzme", 53),
+		("rova", 11),
+		("sabc", 5),
+		("american-family-radio", 2),
+		("moody-radio", 3),
+		("dkfm", 3),
+		("soho-radio", 1),
+		("rinse-fm", 1),
+		("worldwide-fm", 1),
+		("dublab", 1),
+		("amazing-radio", 1),
+		("boom-radio", 1),
+		("8radio", 1),
+		("bloomberg-radio", 1),
+		("c-span-radio", 1),
+		("fox-news-radio", 1),
+		("espn-radio", 1),
+		("al-jazeera-english", 1),
+		("nhk-world-radio", 1),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");
@@ -191,6 +277,24 @@ fn new_networks_are_complete() {
 			);
 		}
 	}
+}
+
+#[test]
+fn named_single_station_services_are_listed() {
+	let roots = children("net");
+	for slug in ["kexp", "wfuv", "gold", "xltrax", "times-radio", "linn-radio"] {
+		assert!(
+			roots
+				.iter()
+				.any(|n| matches!(n, Node::Folder { id, .. } if *id == format!("net/{slug}"))),
+			"{slug} is hidden"
+		);
+	}
+	let found = search(&SearchQuery {
+		name: "KEXP".into(),
+		..Default::default()
+	});
+	assert!(found.iter().any(|s| s.id == "net:kexp:kexp"), "{found:?}");
 }
 
 #[test]

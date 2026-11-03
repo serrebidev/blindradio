@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Where a station came from. Ids follow the source: `rb:<uuid>`, `tunein:<guide_id>`,
 /// `iheart:<id>`, `icecast:<url>`, `shoutcast:<id>`, `internet-radio:<slug>`,
-/// `iprd:<id>`, `recommended:<file>:<row>`, `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
+/// `iprd:<id>`, `live365:<mount>`, `recommended:<file>:<row>`, `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Source {
 	RadioBrowser,
@@ -15,6 +15,7 @@ pub enum Source {
 	LautFm,
 	Iprd,
 	RadioNet,
+	Live365,
 	/// The BlindRadio Directory of submitted stations.
 	Directory,
 	Recommended,
@@ -36,6 +37,7 @@ impl Source {
 			Source::LautFm => "laut.fm",
 			Source::Iprd => "IPRD",
 			Source::RadioNet => "radio.net",
+			Source::Live365 => "Live365",
 			Source::Directory => "BlindRadio Directory",
 			Source::Recommended => "Recommended Radio Streams",
 			Source::Network(name) => name,
@@ -126,6 +128,7 @@ mod json_form_tests {
 			(Source::InternetRadio, r#""InternetRadio""#),
 			(Source::LautFm, r#""LautFm""#),
 			(Source::Iprd, r#""Iprd""#),
+			(Source::Live365, r#""Live365""#),
 			(Source::Recommended, r#""Recommended""#),
 			(Source::Network("BBC".into()), r#"{"Network":"BBC"}"#),
 			(Source::Custom, r#""Custom""#),

@@ -1,4 +1,4 @@
-//! radio.net's public API: the Top 100, local stations and search.
+//! radio.net's public API: the Top 100, local stations, its tag lists and search.
 //! No key; station entries carry their stream URLs inline.
 
 use super::{Node, SearchQuery};
@@ -22,6 +22,30 @@ struct Listing {
 	playables: Vec<Playable>,
 	#[serde(rename = "totalCount")]
 	total: usize,
+}
+
+/// radio.net's name for a tag list, and the folder that opens it.
+const TAGS: [(&str, &str); 4] = [
+	("genres", "By Genre"),
+	("countries", "By Country"),
+	("languages", "By Language"),
+	("topics", "By Topic"),
+];
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Tags {
+	genres: Vec<Tag>,
+	countries: Vec<Tag>,
+	languages: Vec<Tag>,
+	topics: Vec<Tag>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct Tag {
+	name: String,
+	slug: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -117,10 +141,12 @@ impl RadioNet {
 
 	pub async fn children(&self, client: &reqwest::Client, id: &str) -> Result<Vec<Node>> {
 		if id == "radionet" {
-			return Ok(vec![
+			let mut nodes = vec![
 				folder("radionet/top", "Top Stations"),
 				folder("radionet/local", "Local Stations"),
-			]);
+			];
+			nodes.extend(TAGS.map(|(kind, name)| folder(format!("radionet/tags/{kind}"), name)));
+			return Ok(nodes);
 		}
 		if id == "radionet/top" {
 			let listing: Listing = get_json(
@@ -132,27 +158,65 @@ impl RadioNet {
 			.await?;
 			return Ok(stations(&listing).into_iter().map(Node::Station).collect());
 		}
-		if let Some(rest) = id.strip_prefix("radionet/local") {
-			let offset: usize = rest
-				.strip_prefix('@')
-				.and_then(|n| n.parse().ok())
-				.unwrap_or(0);
-			let listing: Listing = get_json(
-				client,
-				&self.url(&format!("/stations/local?count={PAGE}&offset={offset}")),
-			)
-			.await?;
-			let page = stations(&listing);
-			let got = page.len();
-			let mut nodes: Vec<Node> = page.into_iter().map(Node::Station).collect();
-			if got > 0 && offset + got < listing.total {
-				nodes.push(Node::LoadMore {
-					id: format!("radionet/local@{}", offset + got),
-				});
-			}
-			return Ok(nodes);
+		if let Some(kind) = id.strip_prefix("radionet/tags/") {
+			let mut all: Tags = get_json(client, &self.url("/stations/tags")).await?;
+			let tags = match kind {
+				"genres" => &mut all.genres,
+				"countries" => &mut all.countries,
+				"languages" => &mut all.languages,
+				"topics" => &mut all.topics,
+				_ => return Ok(vec![]),
+			};
+			tags.sort_by_key(|t| t.name.to_lowercase());
+			return Ok(tags
+				.iter()
+				.filter(|t| !t.name.trim().is_empty() && !t.slug.is_empty())
+				.map(|t| folder(format!("radionet/tag/{kind}/{}", t.slug), t.name.trim()))
+				.collect());
+		}
+		let (head, offset) = match id.rsplit_once('@') {
+			Some((head, n)) => (head, n.parse().unwrap_or(0)),
+			None => (id, 0),
+		};
+		if head == "radionet/local" {
+			return self.page(client, head, "/stations/local?", offset).await;
+		}
+		if let Some((kind, slug)) = head
+			.strip_prefix("radionet/tag/")
+			.and_then(|rest| rest.split_once('/'))
+		{
+			let (kind, slug) = (
+				utf8_percent_encode(kind, NON_ALPHANUMERIC),
+				utf8_percent_encode(slug, NON_ALPHANUMERIC),
+			);
+			let path = format!("/stations/by-tag?tagType={kind}&slug={slug}&");
+			return self.page(client, head, &path, offset).await;
 		}
 		Ok(vec![])
+	}
+
+	/// One page of a long list. `path` ends ready for more query parameters.
+	async fn page(
+		&self,
+		client: &reqwest::Client,
+		head: &str,
+		path: &str,
+		offset: usize,
+	) -> Result<Vec<Node>> {
+		let listing: Listing = get_json(
+			client,
+			&self.url(&format!("{path}count={PAGE}&offset={offset}")),
+		)
+		.await?;
+		// Offset counts what radio.net sent: rows without a stream are dropped below.
+		let sent = listing.playables.len();
+		let mut nodes: Vec<Node> = stations(&listing).into_iter().map(Node::Station).collect();
+		if sent > 0 && offset + sent < listing.total {
+			nodes.push(Node::LoadMore {
+				id: format!("{head}@{}", offset + sent),
+			});
+		}
+		Ok(nodes)
 	}
 
 	pub async fn search(

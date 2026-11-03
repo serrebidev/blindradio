@@ -37,6 +37,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		internet_radio: s.base.clone(),
 		iprd: s.base.clone(),
 		radionet: s.base.clone(),
+		live365: s.base.clone(),
 		directory: s.base.clone(),
 		recommended: s.base.clone(),
 	};
@@ -180,14 +181,15 @@ async fn children_dispatch_by_prefix() {
 		]
 	);
 	assert_eq!(
-		src.children("tunein", Sort::default()).await.unwrap(),
+		src.children("tunein/r0", Sort::default()).await.unwrap(),
 		vec![folder("tunein/r1", "Africa")]
 	);
 	assert_eq!(
 		src.children("iheart", Sort::default()).await.unwrap(),
 		vec![
 			folder("iheart/all", "All Stations"),
-			folder("iheart/genres", "Genres")
+			folder("iheart/genres", "Genres"),
+			folder("iheart/markets", "By City")
 		]
 	);
 	assert_eq!(
@@ -460,6 +462,115 @@ async fn history_found_by_url_after_dedupe() {
 
 const RN_LIST: &str = r#"{"totalCount":2,"playables":[{"id":"one","name":"One FM","genres":["Pop"],"city":"Berlin","country":"DE","streams":[{"url":"http://rn.test/1","status":"VALID"}]},{"id":"two","name":"Two FM","genres":[],"city":"","country":"","streams":[{"url":"","status":"INVALID"}]}]}"#;
 
+/// A Live365 page: its data is a flat list in `enqueue` calls, as on the real site.
+fn live365_page(flat: &str) -> Route {
+	let quoted = serde_json::to_string(&format!("{flat}\n")).unwrap();
+	Route::Static {
+		path: "unset".into(),
+		content_type: "text/html".into(),
+		body: format!("<script>x.enqueue({quoted});</script>").into_bytes(),
+	}
+}
+
+fn at(path: &str, route: Route) -> Route {
+	let Route::Static {
+		content_type, body, ..
+	} = route
+	else {
+		panic!("static route expected")
+	};
+	Route::Static {
+		path: path.into(),
+		content_type,
+		body,
+	}
+}
+
+#[tokio::test]
+async fn live365_browse_and_search() {
+	const GENRES: &str = r#"[{"_1":2},"loaderData",{"_3":4},"route",{"_5":6},"genres",[7],{"_8":9},"name","Urban and R&B"]"#;
+	// One sub-genre, one station.
+	const LIST: &str = r#"[{"_1":2},"loaderData",{"_3":4},"route",{"_5":6,"_7":8},"allStations",[9],"relatedGenres",[14],{"_10":11,"_12":13},"name","Salad Classic Live","mountId","a1",{"_10":15},"Acid Jazz"]"#;
+	const FOUND: &str = r#"[{"_1":2},"loaderData",{"_3":4},"route",{"_5":6},"results",[7],{"_8":9,"_10":11},"name","Salad Classic Live","mountId","a1"]"#;
+	let (s, src) = sources(vec![
+		at("/listen/genres", live365_page(GENRES)),
+		at("/listen/jazz-music-radio", live365_page(LIST)),
+		at("/listen/search", live365_page(FOUND)),
+	]);
+	assert_eq!(
+		src.children("live365", Sort::default()).await.unwrap(),
+		[folder("live365/genre/urban-and-rnb-music-radio", "Urban and R&B")]
+	);
+	let kids = src
+		.children("live365/genre/jazz-music-radio", Sort::default())
+		.await
+		.unwrap();
+	assert_eq!(kids[0], folder("live365/sub/acid-jazz-music-radio", "Acid Jazz"));
+	let Node::Station(st) = &kids[1] else {
+		panic!("{kids:?}")
+	};
+	assert_eq!(st.id, "live365:a1");
+	assert_eq!(st.url, "https://streaming.live365.com/a1");
+	assert_eq!(st.source, Source::Live365);
+	// A sub-genre does not list its sisters, or the tree would never end.
+	let sub = src
+		.children("live365/sub/jazz-music-radio", Sort::default())
+		.await
+		.unwrap();
+	assert_eq!(sub.len(), 1, "{sub:?}");
+	let found = src.search(&q("salad classic")).await;
+	assert!(found.iter().any(|s| s.source == Source::Live365), "{found:?}");
+	assert!(s.last_query("/listen/search").unwrap().contains("query=salad%20classic"));
+}
+
+#[tokio::test]
+async fn radionet_tags_open_and_page() {
+	let tags = r#"{"genres":[{"name":"Rock","slug":"rock"},{"name":"jazz","slug":"jazz"},{"name":"","slug":"x"}],"countries":[],"languages":[],"topics":[]}"#;
+	let (s, src) = sources(vec![
+		json("/stations/tags", tags),
+		json("/stations/by-tag", RN_LIST),
+	]);
+	let kids = src
+		.children("radionet/tags/genres", Sort::default())
+		.await
+		.unwrap();
+	assert_eq!(
+		kids,
+		[
+			folder("radionet/tag/genres/jazz", "jazz"),
+			folder("radionet/tag/genres/rock", "Rock")
+		]
+	);
+	assert!(
+		src.children("radionet/tags/other", Sort::default())
+			.await
+			.unwrap()
+			.is_empty()
+	);
+	// Two rows sent, one without a stream, 2 of 2: the list ends here.
+	let page = src
+		.children("radionet/tag/genres/jazz", Sort::default())
+		.await
+		.unwrap();
+	assert_eq!(page.len(), 1, "{page:?}");
+	assert_eq!(page[0].name(), "One FM");
+	let q = s.last_query("/stations/by-tag").unwrap();
+	assert!(q.contains("tagType=genres") && q.contains("slug=jazz"), "{q}");
+	let more = r#"{"totalCount":5,"playables":[{"id":"one","name":"One FM","streams":[{"url":"http://rn.test/1","status":"VALID"}]}]}"#;
+	let (s, src) = sources(vec![json("/stations/by-tag", more)]);
+	let page = src
+		.children("radionet/tag/genres/jazz@2", Sort::default())
+		.await
+		.unwrap();
+	assert_eq!(
+		page.last(),
+		Some(&Node::LoadMore {
+			id: "radionet/tag/genres/jazz@3".into()
+		})
+	);
+	assert!(s.last_query("/stations/by-tag").unwrap().contains("offset=2"));
+}
+
 #[tokio::test]
 async fn radionet_browse_and_search() {
 	let (_s, src) = sources(vec![
@@ -468,7 +579,17 @@ async fn radionet_browse_and_search() {
 	]);
 	let kids = src.children("radionet", Sort::default()).await.unwrap();
 	let names: Vec<&str> = kids.iter().map(|n| n.name()).collect();
-	assert_eq!(names, ["Top Stations", "Local Stations"]);
+	assert_eq!(
+		names,
+		[
+			"Top Stations",
+			"Local Stations",
+			"By Genre",
+			"By Country",
+			"By Language",
+			"By Topic"
+		]
+	);
 	let top = src.children("radionet/top", Sort::default()).await.unwrap();
 	assert_eq!(top.len(), 1, "the streamless entry is skipped");
 	assert_eq!(top[0].name(), "One FM");
