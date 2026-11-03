@@ -109,8 +109,9 @@ struct Item {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Delete {
 	Remove { collection: String, station: String },
-	/// A folder inside one of the local roots: the folder goes, with
-	/// everything in it (the view confirms first).
+	/// A folder inside one of the local roots, or with an empty path a
+	/// whole collection: it goes, with everything in it (the view
+	/// confirms first).
 	RemoveFolder { collection: String, path: Vec<usize> },
 	NotOwn,
 }
@@ -838,14 +839,17 @@ impl BrowseModel {
 	pub fn delete_target(&self, i: usize) -> Delete {
 		// A folder inside a local root is the user's own too, empty or
 		// not — it was NotOwn before, so an imported playlist's folders
-		// could never be removed here (Brandon's report). A collection
-		// row itself stays NotOwn: whole collections are deleted in
-		// the Collections window.
+		// could never be removed here (Brandon's report).
 		if let Some((collection, path)) = self.local_folder(i) {
 			return Delete::RemoveFolder { collection, path };
 		}
-		if self.station(i).is_none() && self.is_folder(i) && self.is_local(i) {
-			return Delete::NotOwn;
+		// So is a collection: the Delete key answered "only your own
+		// stations" where its context menu's Delete worked.
+		if let Some((collection, _)) = self.collection(i) {
+			return Delete::RemoveFolder {
+				collection,
+				path: Vec::new(),
+			};
 		}
 		// A station in a folder belongs to the collection above the folder.
 		let Some(st) = self.station(i) else {
@@ -1185,25 +1189,22 @@ impl View {
 	}
 
 	/// Shift+Up / Shift+Down (Alt works too): move the focused folder
-	/// one step among the folders on its level. Local folders reorder
-	/// the library itself; remote folders record the order in the
-	/// settings, since the source's order is not ours to change.
+	/// one step among the folders on its level. Local folders and
+	/// collections reorder the library itself; remote folders and the
+	/// roots record the order in the settings, since the source's order
+	/// is not ours to change.
 	fn move_folder(&self, app: &Rc<RefCell<App>>, up: bool) {
-		let (f, parent, local, key) = {
+		let (f, parent, local) = {
 			let m = self.model.borrow();
 			let Some(f) = m.focus() else { return };
 			if !m.is_folder(f) {
 				return;
 			}
-			(
-				f,
-				m.parent(f),
-				m.is_local(f),
-				m.key(f).map(str::to_owned),
-			)
+			(f, m.parent(f), m.is_local(f) && m.parent(f).is_some())
 		};
 		if local {
-			let Some((collection, path)) = key.as_deref().and_then(local_path) else {
+			// A folder's collection and path, or a collection's own row.
+			let Some((collection, path)) = self.model.borrow().paste_home(f) else {
 				return;
 			};
 			let old_pos = self
@@ -1214,10 +1215,7 @@ impl View {
 				.position(|&x| x == f);
 			let moved = {
 				let mut a = app.borrow_mut();
-				let r = a
-					.library
-					.collection_mut(&collection)
-					.and_then(|c| c.move_folder(&path, up));
+				let r = a.library.move_at(&collection, &path, up);
 				if r.is_some() {
 					a.save_library();
 				}
@@ -1228,7 +1226,7 @@ impl View {
 			}
 			self.refresh_local(app);
 			// Local levels list stations first, then folders, so the
-			// moved folder sits exactly one level slot over.
+			// moved row sits exactly one level slot over.
 			if let Some(old) = old_pos {
 				let level = self.model.borrow().children(parent).to_vec();
 				let at = if up { old.wrapping_sub(1) } else { old + 1 };
@@ -1244,7 +1242,9 @@ impl View {
 				a.settings.browse_order.insert(key, order);
 				a.save_settings();
 			}
-			self.sync(parent);
+			// The rebuilt level lost what was under its open rows.
+			self.sync_deep(parent);
+			self.expand_open(parent);
 			self.show_focus();
 		}
 	}
@@ -1315,25 +1315,16 @@ impl View {
 			Delete::RemoveFolder { collection, path } => {
 				// The Collections window's rule: deleting a folder is
 				// confirmed, with what goes with it named.
-				let (name, count) = {
+				let question = {
 					let m = self.model.borrow();
-					(m.label(i).to_string(), m.stations_under(i).len())
-				};
-				let question = if count > 0 {
-					format!("{}{} and its {} stations?", s::DELETE_PREFIX, name, count)
-				} else {
-					format!("{}{}?", s::DELETE_PREFIX, name)
+					context_menu::delete_question(m.label(i), m.stations_under(i).len())
 				};
 				if !confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
 					return;
 				}
 				{
 					let mut a = app.borrow_mut();
-					if a
-						.library
-						.collection_mut(&collection)
-						.is_some_and(|c| c.remove_folder(&path))
-					{
+					if a.library.remove_at(&collection, &path) {
 						a.save_library();
 						a.refresh_dial();
 					}
@@ -1350,6 +1341,8 @@ impl View {
 		for root in self.model.borrow().local_roots() {
 			self.sync_deep(Some(root));
 		}
+		// A reorder rebuilt its level closed: the rows under it came back after.
+		self.expand_open(None);
 		self.show_focus();
 		let m = self.model.borrow();
 		let mut a = app.borrow_mut();
@@ -1406,6 +1399,7 @@ impl View {
 					}
 					items.extend([
 						context_menu::Item::Rename,
+						context_menu::Item::Delete,
 						context_menu::Item::Export,
 					]);
 					items
@@ -1555,16 +1549,7 @@ impl View {
 					}
 				}
 			}
-			(None, Some((id, name)), Choice::Delete) => {
-				let question = format!("{}{name}?", s::DELETE_PREFIX);
-				if confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
-					let mut a = app.borrow_mut();
-					if a.library.delete_collection(&id).is_ok() {
-						a.save_library();
-						a.refresh_dial();
-					}
-				}
-			}
+			(None, _, Choice::Delete) => self.delete(app, f),
 			_ => {}
 		}
 		self.refresh_local(app);
@@ -2173,7 +2158,35 @@ mod tests {
 		let dir = open_dir(&mut m);
 		let rb = load(&mut m, Some(dir), "rb", vec![station("a")]);
 		assert_eq!(m.delete_target(find(&m, Some(rb), "a")), Delete::NotOwn);
-		assert_eq!(m.delete_target(jazz_folder), Delete::NotOwn);
+		assert_eq!(
+			m.delete_target(jazz_folder),
+			Delete::RemoveFolder {
+				collection: jazz.clone(),
+				path: Vec::new()
+			},
+			"the Delete key on a collection, like its menu's Delete"
+		);
+		assert_eq!(m.delete_target(custom), Delete::NotOwn, "Custom Stations is fixed");
+		assert_eq!(m.delete_target(collections), Delete::NotOwn, "the header");
+	}
+
+	#[test]
+	fn browse_collections_follow_the_library_order() {
+		let mut lib = Library::default();
+		let a = lib.create_collection("A");
+		let b = lib.create_collection("B");
+		let mut m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let row_b = find(&m, Some(collections), &b);
+		m.set_focus(row_b);
+		// What Shift+Up on a collection row works from: its own id.
+		let (id, path) = m.paste_home(row_b).unwrap();
+		assert_eq!(lib.move_at(&id, &path, true), Some(Vec::new()));
+		m.refresh_local(&lib);
+		assert_eq!(labels(&m, collections), ["B", "A"]);
+		assert_eq!(m.focus(), Some(row_b), "focus goes with the collection");
+		assert_eq!(find(&m, Some(collections), &a), m.children(Some(collections))[1]);
+		assert_eq!(lib.move_at(&id, &path, true), None, "first under Collections");
 	}
 
 	#[test]

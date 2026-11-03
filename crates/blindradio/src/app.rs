@@ -152,13 +152,11 @@ fn playlist_export_data(
 		Action::ExportAllPlaylists | Action::ExportCurrentList
 			if *action == Action::ExportAllPlaylists || main_list == Some(ALL_LISTS) =>
 		{
-			let mut collections: Vec<&Collection> = lib.collections.iter().collect();
-			collections.sort_by_key(|c| c.name.to_lowercase());
 			Some((
 				s::EXPORT_ALL_NAME.to_string(),
 				Vec::new(),
-				collections
-					.into_iter()
+				lib.collections
+					.iter()
 					.map(|c| Folder {
 						name: c.name.clone(),
 						stations: c.stations.clone(),
@@ -174,12 +172,10 @@ fn playlist_export_data(
 }
 
 /// The stations the main window lists: one collection, or every collection
-/// merged in name order under [`ALL_LISTS`].
+/// merged in the user's order under [`ALL_LISTS`].
 pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
 	if main_list == Some(ALL_LISTS) {
-		let mut cols: Vec<&Collection> = lib.collections.iter().collect();
-		cols.sort_by_key(|c| c.name.to_lowercase());
-		return cols.iter().flat_map(|c| c.all_stations()).collect();
+		return lib.collections.iter().flat_map(|c| c.all_stations()).collect();
 	}
 	dial_collection(lib, main_list)
 		.map(|c| c.all_stations())
@@ -205,9 +201,15 @@ pub fn dial_tree(
 			.collect();
 		return (stations, nodes);
 	}
-	fn folder_node(folder: &Folder, next: &mut usize) -> DialNode {
-		let mut kids: Vec<DialNode> = folder
-			.stations
+	/// A level's rows: its stations, then a row for each folder.
+	fn level_nodes(
+		stations: &[Station],
+		folders: &[Folder],
+		id: &str,
+		path: &[usize],
+		next: &mut usize,
+	) -> Vec<DialNode> {
+		let mut nodes: Vec<DialNode> = stations
 			.iter()
 			.map(|_| {
 				let i = *next;
@@ -215,36 +217,31 @@ pub fn dial_tree(
 				DialNode::Station(i)
 			})
 			.collect();
-		for f in &folder.folders {
-			kids.push(folder_node(f, next));
-		}
-		DialNode::Folder(folder.name.clone(), kids)
-	}
-	fn collection_nodes(c: &Collection, next: &mut usize) -> Vec<DialNode> {
-		let mut nodes: Vec<DialNode> = c
-			.stations
-			.iter()
-			.map(|_| {
-				let i = *next;
-				*next += 1;
-				DialNode::Station(i)
-			})
-			.collect();
-		for f in &c.folders {
-			nodes.push(folder_node(f, next));
+		for (i, f) in folders.iter().enumerate() {
+			let mut path = path.to_vec();
+			path.push(i);
+			let kids = level_nodes(&f.stations, &f.folders, id, &path, next);
+			nodes.push(DialNode::Folder {
+				name: f.name.clone(),
+				home: (id.to_owned(), path),
+				kids,
+			});
 		}
 		nodes
 	}
 	let mut next = 0;
 	let nodes = if main_list == Some(ALL_LISTS) {
-		let mut cols: Vec<&Collection> = lib.collections.iter().collect();
-		cols.sort_by_key(|c| c.name.to_lowercase());
-		cols.iter()
-			.map(|c| DialNode::Folder(c.name.clone(), collection_nodes(c, &mut next)))
+		lib.collections
+			.iter()
+			.map(|c| DialNode::Folder {
+				name: c.name.clone(),
+				home: (c.id.clone(), Vec::new()),
+				kids: level_nodes(&c.stations, &c.folders, &c.id, &[], &mut next),
+			})
 			.collect()
 	} else {
 		dial_collection(lib, main_list)
-			.map(|c| collection_nodes(c, &mut next))
+			.map(|c| level_nodes(&c.stations, &c.folders, &c.id, &[], &mut next))
 			.unwrap_or_default()
 	};
 	debug_assert_eq!(next, stations.len());
@@ -1848,17 +1845,59 @@ impl App {
 		true
 	}
 
-	/// Delete in the main window list: out of its collection; the playing station plays on.
-	pub fn delete_from_dial(&mut self, index: usize) {
-		let Some(c) = dial_collection(&self.library, self.settings.main_list.as_deref()) else {
+	/// Shift+Up or Shift+Down in the main tree: the focused row moves one step among its
+	/// own kind on its level, in the library itself. Focus goes with it. Not while the
+	/// Filter box flattens the tree.
+	pub fn move_dial_row(&mut self, up: bool) {
+		let Some(PasteDest::Collection(id, path)) = self.tree_home() else {
 			return;
 		};
-		let id = c.id.clone();
+		let list = self.win.stations.clone();
+		if let Some(index) = list.selected_level_index() {
+			let moved = self
+				.library
+				.collection_mut(&id)
+				.and_then(|c| c.move_station(&path, index, up));
+			if moved.is_none() {
+				return;
+			}
+		} else {
+			let Some(path) = self.library.move_at(&id, &path, up) else {
+				return;
+			};
+			list.land_on_folder((id, path));
+		}
+		self.save_library();
+		self.refresh_dial();
+	}
+
+	/// Delete in the main window list: out of the list its row stands in, not another
+	/// copy filed elsewhere; the playing station plays on. With the Filter box up the
+	/// rows show no folders, so it goes from the dial collection.
+	pub fn delete_from_dial(&mut self, index: usize) {
 		let Some(st) = self.win.stations.stations().get(index).cloned() else {
 			return;
 		};
 		let was_focused = self.win.stations.current() == Some(index);
-		self.library.remove_from_collection(&id, &st.id);
+		let removed = match self.tree_home() {
+			Some(PasteDest::Collection(id, path)) => self
+				.library
+				.collection_mut(&id)
+				.and_then(|c| c.stations_at_mut(&path))
+				.map(|list| list.retain(|x| x.id != st.id))
+				.is_some(),
+			_ => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
+				Some(c) => {
+					let id = c.id.clone();
+					self.library.remove_from_collection(&id, &st.id);
+					true
+				}
+				None => false,
+			},
+		};
+		if !removed {
+			return;
+		}
 		self.save_library();
 		self.refresh_dial();
 		if was_focused {
@@ -2359,7 +2398,7 @@ mod tests {
 	}
 
 	#[test]
-	fn all_lists_merges_every_collection_by_name() {
+	fn all_lists_merges_every_collection_in_the_users_order() {
 		let mut lib = Library::default();
 		let zeta = lib.create_collection("Zeta");
 		let alpha = lib.create_collection("Alpha");
@@ -2388,7 +2427,17 @@ mod tests {
 		);
 		let merged = dial_stations(&lib, Some(ALL_LISTS));
 		let names: Vec<&str> = merged.iter().map(|s| s.name.as_str()).collect();
-		assert_eq!(names, ["A One", "Z One"], "collections in name order");
+		assert_eq!(names, ["Z One", "A One"], "collections in the library's order");
+		// Moving a collection moves its row in the merged view.
+		assert!(lib.move_collection(&alpha, true));
+		let merged = dial_stations(&lib, Some(ALL_LISTS));
+		let names: Vec<&str> = merged.iter().map(|s| s.name.as_str()).collect();
+		assert_eq!(names, ["A One", "Z One"]);
+		let (_, nodes) = dial_tree(&lib, Some(ALL_LISTS), "");
+		assert!(
+			matches!(&nodes[1], DialNode::Folder { name, .. } if name == "Alpha"),
+			"the tree's rows follow, after Custom Stations"
+		);
 	}
 
 	#[test]
@@ -2420,7 +2469,7 @@ mod tests {
 			for n in nodes {
 				match n {
 					DialNode::Station(i) => out.push(*i),
-					DialNode::Folder(_, kids) => flat(kids, out),
+					DialNode::Folder { kids, .. } => flat(kids, out),
 				}
 			}
 		}
@@ -2430,15 +2479,23 @@ mod tests {
 		let mut order = Vec::new();
 		flat(&nodes, &mut order);
 		assert_eq!(order, [0, 1, 2, 3], "tree order is the dial order");
+		let DialNode::Folder { name, home, kids } = &nodes[2] else {
+			panic!("the folder survives as a folder row");
+		};
+		assert_eq!(name, "Dir");
+		assert_eq!(*home, (id.clone(), vec![0]), "a row knows its own place");
 		assert!(
-			matches!(&nodes[2], DialNode::Folder(name, _) if name == "Dir"),
-			"the folder survives as a folder row"
+			matches!(&kids[1], DialNode::Folder { home, .. } if *home == (id.clone(), vec![0, 0])),
+			"at any depth"
 		);
 
 		let (_, all) = dial_tree(&lib, Some(ALL_LISTS), "");
 		assert!(
-			all.iter()
-				.any(|n| matches!(n, DialNode::Folder(name, _) if name == "SerrebiRadio")),
+			all.iter().any(|n| matches!(
+				n,
+				DialNode::Folder { name, home, .. }
+					if name == "SerrebiRadio" && *home == (id.clone(), Vec::new())
+			)),
 			"all playlists: one folder per playlist"
 		);
 

@@ -9,30 +9,41 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use blindradio_core::library::{Folder, Library};
+use blindradio_core::library::{CUSTOM, Folder, Library, LibraryError};
 use blindradio_core::station::Station;
+use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
 use crate::action::Action;
-use crate::app::{ALL_LISTS, App, dial_collection};
+use crate::app::{App, dial_collection};
 use crate::context_menu::{self, Target};
 use crate::main_window::dispatch;
+use crate::menus::plain;
 use crate::strings as s;
 
+/// A folder row's place in the library: its collection and index path. An
+/// empty path is the collection itself, at the top of the All Lists view.
+pub type FolderHome = (String, Vec<usize>);
+
 /// What a tree row is. A station row carries its index into the flat dial
-/// order; a folder row carries its path key, for keeping it collapsed or
-/// expanded across rebuilds.
+/// order. A folder row carries its name path, for keeping it collapsed or
+/// expanded across rebuilds, and its place: names can repeat on a level, and
+/// Delete must take the row the user is on.
 #[derive(Clone, PartialEq, Eq)]
 enum Row {
-	Folder(String),
+	Folder { key: String, home: FolderHome },
 	Station(usize),
 }
 
 /// The tree structure the app hands over: folders of folders, with station
 /// rows as flat-order indices.
 pub enum DialNode {
-	Folder(String, Vec<DialNode>),
+	Folder {
+		name: String,
+		home: FolderHome,
+		kids: Vec<DialNode>,
+	},
 	Station(usize),
 }
 
@@ -51,8 +62,11 @@ pub struct DialTree {
 	stations: Rc<RefCell<Rc<[Station]>>>,
 	/// Station rows in tree order: item and flat index.
 	rows: Rc<RefCell<Vec<(TreeItemId, usize)>>>,
-	/// Folder rows and their path keys, so a rebuild can find the focused one again.
-	folders: Rc<RefCell<Vec<(TreeItemId, String)>>>,
+	/// Folder rows and their places, so a rebuild can find the focused one again.
+	folders: Rc<RefCell<Vec<(TreeItemId, FolderHome)>>>,
+	/// Where the next rebuild puts focus, for a change that moves it off the
+	/// focused row's place. Set before the rebuild, so focus lands once.
+	landing: Rc<RefCell<Option<Row>>>,
 	/// Folder path keys whose open state differs from the default:
 	/// collapsed ones while the default is expanded, opened ones
 	/// while it is collapsed. Toggling a folder by hand records the
@@ -85,6 +99,7 @@ impl DialTree {
 			stations: Rc::new(RefCell::new(Rc::from([]))),
 			rows: Rc::new(RefCell::new(Vec::new())),
 			folders: Rc::new(RefCell::new(Vec::new())),
+			landing: Rc::new(RefCell::new(None)),
 			overrides: Rc::new(RefCell::new(HashSet::new())),
 			expand_default: Rc::new(Cell::new(true)),
 			quiet: Rc::new(Cell::new(false)),
@@ -132,14 +147,37 @@ impl DialTree {
 		let item = self.list.get_selection()?;
 		let row = self.row(&item)?;
 		let parent = || self.row(&self.list.get_item_parent(&item)?);
-		match if matches!(row, Row::Folder(_)) {
+		match if matches!(row, Row::Folder { .. }) {
 			Some(row)
 		} else {
 			parent()
 		} {
-			Some(Row::Folder(key)) => folder_home(lib, main_list, &key),
+			Some(Row::Folder { home, .. }) => Some(home),
 			_ => dial_collection(lib, main_list).map(|c| (c.id.clone(), Vec::new())),
 		}
+	}
+
+	/// The selected station's index among the stations on its level, which
+	/// lead the level in flat order. None on a folder row.
+	pub fn selected_level_index(&self) -> Option<usize> {
+		let item = self.list.get_selection()?;
+		let Row::Station(i) = self.row(&item)? else {
+			return None;
+		};
+		let parent = self.list.get_item_parent(&item)?;
+		let (first, _) = self.list.get_first_child(&parent)?;
+		let Row::Station(start) = self.row(&first)? else {
+			return None;
+		};
+		Some(i - start)
+	}
+
+	/// The next rebuild focuses the folder at this place.
+	pub fn land_on_folder(&self, home: FolderHome) {
+		*self.landing.borrow_mut() = Some(Row::Folder {
+			key: String::new(),
+			home,
+		});
 	}
 
 	fn item_of(&self, index: usize) -> Option<TreeItemId> {
@@ -150,13 +188,26 @@ impl DialTree {
 			.map(|(item, _)| item.clone())
 	}
 
-	/// Rebuilds the tree from `nodes`; never tunes. A focused folder row stays
-	/// focused; otherwise focus lands on the station with flat index `focus`.
+	fn item_of_row(&self, row: &Row) -> Option<TreeItemId> {
+		match row {
+			Row::Station(i) => self.item_of(*i),
+			Row::Folder { home, .. } => self
+				.folders
+				.borrow()
+				.iter()
+				.find(|(_, h)| h == home)
+				.map(|(item, _)| item.clone()),
+		}
+	}
+
+	/// Rebuilds the tree from `nodes`; never tunes. Focus goes where a change
+	/// asked it to, else a focused folder row's place stays focused, else
+	/// focus lands on the station with flat index `focus`.
 	pub fn set_dial(&self, nodes: &[DialNode], stations: Vec<Station>, focus: usize) {
-		let folder = match self.selected_row() {
-			Some(Row::Folder(key)) => Some(key),
-			_ => None,
-		};
+		let land = self.landing.borrow_mut().take().or_else(|| {
+			self.selected_row()
+				.filter(|row| matches!(row, Row::Folder { .. }))
+		});
 		self.quiet.set(true);
 		self.list.delete_children(&self.root);
 		self.rows.borrow_mut().clear();
@@ -172,14 +223,8 @@ impl DialTree {
 		// the event is synchronous, the handler borrowed the app
 		// while the caller held it, and the startup selection
 		// panicked (caught by the toolkit, the event lost).
-		let same_folder = folder.and_then(|key| {
-			self.folders
-				.borrow()
-				.iter()
-				.find(|(_, k)| *k == key)
-				.map(|(item, _)| item.clone())
-		});
-		if let Some(item) = same_folder.or_else(|| self.item_of(focus)) {
+		let landed = land.and_then(|row| self.item_of_row(&row));
+		if let Some(item) = landed.or_else(|| self.item_of(focus)) {
 			self.list.select_item(&item);
 			self.list.set_focused_item(&item);
 			self.list.ensure_visible(&item);
@@ -212,7 +257,7 @@ impl DialTree {
 				self.list.set_custom_data_direct(&item, Row::Station(*i));
 				self.rows.borrow_mut().push((item, *i));
 			}
-			DialNode::Folder(name, kids) => {
+			DialNode::Folder { name, home, kids } => {
 				let key = if path.is_empty() {
 					name.clone()
 				} else {
@@ -224,9 +269,14 @@ impl DialTree {
 				let Some(item) = self.list.append_item(parent, &text, None, None) else {
 					return;
 				};
-				self.list
-					.set_custom_data_direct(&item, Row::Folder(key.clone()));
-				self.folders.borrow_mut().push((item.clone(), key.clone()));
+				self.list.set_custom_data_direct(
+					&item,
+					Row::Folder {
+						key: key.clone(),
+						home: home.clone(),
+					},
+				);
+				self.folders.borrow_mut().push((item.clone(), home.clone()));
 				for kid in kids {
 					self.add_node(&item, kid, stations, &key);
 				}
@@ -286,6 +336,79 @@ impl DialTree {
 		}
 	}
 
+	/// Where focus goes when the focused folder at `home` goes: the next
+	/// folder takes its place, else the row before it, else its parent.
+	fn row_after_delete(&self, home: &FolderHome) -> Option<Row> {
+		let item = self.list.get_selection()?;
+		if let Some(next) = self.list.get_next_sibling(&item) {
+			// A folder after it slides into its index; a collection keeps its id.
+			return if home.1.is_empty() {
+				self.row(&next)
+			} else {
+				Some(Row::Folder {
+					key: String::new(),
+					home: home.clone(),
+				})
+			};
+		}
+		let near = self
+			.list
+			.get_prev_sibling(&item)
+			.or_else(|| self.list.get_item_parent(&item))?;
+		self.row(&near)
+	}
+
+	/// Rename on a folder row, or on a collection row in the All Lists view.
+	fn rename_folder(&self, app: &Rc<RefCell<App>>, home: &FolderHome) {
+		let label = if home.1.is_empty() {
+			s::COLLECTION_NAME
+		} else {
+			s::FOLDER_NAME
+		};
+		let Some(name) = modal(app, || {
+			prompt_text(&self.list, label, &plain(s::RENAME_ITEM))
+		}) else {
+			return;
+		};
+		let mut a = app.borrow_mut();
+		if a.library.rename_at(&home.0, &home.1, &name) {
+			a.save_library();
+			a.refresh_dial();
+		}
+	}
+
+	/// Delete on a folder row, or on a collection row in the All Lists view:
+	/// the row goes with everything in it, after asking and naming how much.
+	fn delete_folder(&self, app: &Rc<RefCell<App>>, home: &FolderHome) {
+		if is_custom_root(home) {
+			let text = LibraryError::CustomFixed.to_string();
+			return app.borrow_mut().say(&text);
+		}
+		let Some((name, stations, folders)) = folder_export(&app.borrow().library, home) else {
+			return;
+		};
+		let count = stations.len()
+			+ folders
+				.iter()
+				.map(|f| f.all_stations().len())
+				.sum::<usize>();
+		let question = context_menu::delete_question(&name, count);
+		if !modal(app, || {
+			confirm(&self.list, &question, &plain(s::DELETE_ITEM))
+		}) {
+			return;
+		}
+		let land = self.row_after_delete(home);
+		let mut a = app.borrow_mut();
+		if a.library.remove_at(&home.0, &home.1) {
+			a.save_library();
+			*self.landing.borrow_mut() = land;
+			a.refresh_dial();
+			// Focus lands nearby without tuning, as it does in Browse.
+			a.selected = self.current().and_then(|i| self.stations().get(i).cloned());
+		}
+	}
+
 	/// Handlers run with the app not borrowed; programmatic changes made
 	/// while it is borrowed return before borrowing it (`quiet`).
 	pub fn bind(&self, app: &Rc<RefCell<App>>, hooks: DialHooks) {
@@ -316,17 +439,27 @@ impl DialTree {
 			dispatch(&a, Action::Play);
 		});
 
-		let me = self.clone();
+		let (a, me) = (app.clone(), self.clone());
 		let on_delete = hooks.on_delete.clone();
 		self.list
 			.bind_internal(EventType::KEY_DOWN, move |e: Event| {
 				let Some(code) = e.get_key_code() else {
 					return e.skip(true);
 				};
+				let shifted = !e.control_down() && (e.alt_down() || e.shift_down());
 				let plain = !(e.control_down() || e.alt_down() || e.shift_down());
 				match code {
-					WXK_DELETE if plain => match (me.current(), &on_delete) {
-						(Some(i), Some(delete)) => {
+					// As in Browse: Alt+Up and Alt+Down work too.
+					WXK_UP | WXK_DOWN if shifted => {
+						e.skip(false);
+						a.borrow_mut().move_dial_row(code == WXK_UP);
+					}
+					WXK_DELETE if plain => match (me.selected_row(), &on_delete) {
+						(Some(Row::Folder { home, .. }), _) => {
+							e.skip(false);
+							me.delete_folder(&a, &home);
+						}
+						(Some(Row::Station(i)), Some(delete)) => {
 							e.skip(false);
 							delete(i);
 						}
@@ -340,7 +473,7 @@ impl DialTree {
 		let me = self.clone();
 		self.list.on_item_collapsed(move |e| {
 			if let Some(item) = e.get_item()
-				&& let Some(Row::Folder(key)) = me.row(&item)
+				&& let Some(Row::Folder { key, .. }) = me.row(&item)
 			{
 				me.note_state(key, false);
 			}
@@ -348,7 +481,7 @@ impl DialTree {
 		let me = self.clone();
 		self.list.on_item_expanding(move |e| {
 			if let Some(item) = e.get_item()
-				&& let Some(Row::Folder(key)) = me.row(&item)
+				&& let Some(Row::Folder { key, .. }) = me.row(&item)
 			{
 				me.note_state(key, true);
 			}
@@ -359,22 +492,13 @@ impl DialTree {
 		self.list
 			.bind_internal(EventType::CONTEXT_MENU, move |e: Event| {
 				e.skip(false);
-				// A folder row exports, like Browse's folders do; the
-				// main window used to offer a folder nothing at all.
-				if let Some(Row::Folder(key)) = me.selected_row() {
-					let (data, home, has_clip) = {
+				// A folder row is the user's own, as in Browse: it pastes,
+				// renames, deletes and exports.
+				if let Some(Row::Folder { home, .. }) = me.selected_row() {
+					let (data, has_clip) = {
 						let held = a.borrow();
 						(
-							folder_export(
-								&held.library,
-								held.settings.main_list.as_deref(),
-								&key,
-							),
-							folder_home(
-								&held.library,
-								held.settings.main_list.as_deref(),
-								&key,
-							),
+							folder_export(&held.library, &home),
 							held.station_clip.is_some(),
 						)
 					};
@@ -383,8 +507,14 @@ impl DialTree {
 							let mut items = Vec::new();
 							// Paste lands at this row's own level: on a
 							// collection row, beside its folders.
-							if has_clip && home.is_some() {
+							if has_clip {
 								items.push(context_menu::Item::PasteStation);
+							}
+							if !is_custom_root(&home) {
+								items.extend([
+									context_menu::Item::Rename,
+									context_menu::Item::Delete,
+								]);
 							}
 							items.push(context_menu::Item::Export);
 							match context_menu::popup(&me.list, &items) {
@@ -394,11 +524,16 @@ impl DialTree {
 									);
 								}
 								Some(context_menu::Choice::PasteStation) => {
-									if let Some((id, path)) = home {
-										a.borrow_mut().paste_into(
-											crate::app::PasteDest::Collection(id, path),
-										);
-									}
+									let (id, path) = home;
+									a.borrow_mut().paste_into(
+										crate::app::PasteDest::Collection(id, path),
+									);
+								}
+								Some(context_menu::Choice::Rename) => {
+									me.rename_folder(&a, &home);
+								}
+								Some(context_menu::Choice::Delete) => {
+									me.delete_folder(&a, &home);
 								}
 								_ => {}
 							}
@@ -432,75 +567,33 @@ impl DialTree {
 	}
 }
 
-/// A folder found by walking names, level by level.
-fn folder_by_names<'a>(folders: &'a [Folder], names: &[&str]) -> Option<&'a Folder> {
-	let (first, rest) = names.split_first()?;
-	let folder = folders.iter().find(|f| f.name == *first)?;
-	if rest.is_empty() {
-		Some(folder)
-	} else {
-		folder_by_names(&folder.folders, rest)
-	}
+/// Runs a modal with the app told a dialog is up, and not borrowed: the
+/// poll timer borrows it meanwhile.
+fn modal<R>(app: &Rc<RefCell<App>>, show: impl FnOnce() -> R) -> R {
+	app.borrow_mut().dialog_open = true;
+	let r = show();
+	app.borrow_mut().dialog_open = false;
+	r
 }
 
-/// What Export writes for a dial folder row, as (name, loose stations,
-/// folders): the folder itself, or — at the top of the All Lists view,
-/// where a folder row is a whole collection — everything in it.
+/// Custom Stations' own row in the All Lists view: it stays.
+fn is_custom_root(home: &FolderHome) -> bool {
+	home.1.is_empty() && home.0 == CUSTOM
+}
+
+/// What a dial folder row holds, as (name, loose stations, folders): the
+/// folder itself, or — at the top of the All Lists view, where a folder row
+/// is a whole collection — everything in it.
 fn folder_export(
 	lib: &Library,
-	main_list: Option<&str>,
-	key: &str,
+	(id, path): &FolderHome,
 ) -> Option<(String, Vec<Station>, Vec<Folder>)> {
-	let names: Vec<&str> = key.split('/').collect();
-	if main_list == Some(ALL_LISTS) {
-		let collection = lib.collections.iter().find(|c| c.name == names[0])?;
-		if names.len() == 1 {
-			return Some((
-				collection.name.clone(),
-				collection.stations.clone(),
-				collection.folders.clone(),
-			));
-		}
-		let folder = folder_by_names(&collection.folders, &names[1..])?;
-		return Some((
-			folder.name.clone(),
-			folder.stations.clone(),
-			folder.folders.clone(),
-		));
+	let c = lib.collections.iter().find(|c| c.id == *id)?;
+	if path.is_empty() {
+		return Some((c.name.clone(), c.stations.clone(), c.folders.clone()));
 	}
-	let collection = dial_collection(lib, main_list)?;
-	let folder = folder_by_names(&collection.folders, &names)?;
-	Some((
-		folder.name.clone(),
-		folder.stations.clone(),
-		folder.folders.clone(),
-	))
-}
-
-/// Where Paste lands for a dial folder row: its collection and the
-/// folder's index path — empty for a collection row itself, at the
-/// top of the All Lists view. Name-walked like `folder_export`.
-fn folder_home(
-	lib: &Library,
-	main_list: Option<&str>,
-	key: &str,
-) -> Option<(String, Vec<usize>)> {
-	let names: Vec<&str> = key.split('/').collect();
-	let (collection, rest): (&blindradio_core::library::Collection, &[&str]) =
-		if main_list == Some(ALL_LISTS) {
-			let c = lib.collections.iter().find(|c| c.name == names[0])?;
-			(c, &names[1..])
-		} else {
-			(dial_collection(lib, main_list)?, &names[..])
-		};
-	let mut path = Vec::new();
-	let mut level = &collection.folders;
-	for name in rest {
-		let i = level.iter().position(|f| f.name == *name)?;
-		path.push(i);
-		level = &level[i].folders;
-	}
-	Some((collection.id.clone(), path))
+	let f = c.folder_at(path)?;
+	Some((f.name.clone(), f.stations.clone(), f.folders.clone()))
 }
 
 /// How many stations live under a folder node, its subfolders included.
@@ -508,7 +601,7 @@ fn count_nodes(kids: &[DialNode]) -> usize {
 	kids.iter()
 		.map(|k| match k {
 			DialNode::Station(_) => 1,
-			DialNode::Folder(_, sub) => count_nodes(sub),
+			DialNode::Folder { kids, .. } => count_nodes(kids),
 		})
 		.sum()
 }

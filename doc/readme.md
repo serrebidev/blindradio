@@ -61,11 +61,14 @@ Networks holds the curated networks. Right opens a folder, Left closes it, and a
 that is still loading says
 `Loading`. Enter on `Load More` loads the next page.
 Shift+Up and Shift+Down move the focused row among its own kind on its level: a folder
-among the folders, a station among the stations (Alt+Up and Alt+Down work too). Rows in
+among the folders, a station among the stations, a collection among the collections
+(Alt+Up and Alt+Down work too). Rows in
 Collections or Custom Stations move in your library itself — a pasted or new station
-lands last in its folder, and Shift+Up walks it up into place; a directory folder keeps
+lands last in its folder, and Shift+Up walks it up into place; Custom Stations stays
+ahead of the other collections wherever they list together. A directory folder keeps
 the order you give it, remembered between sessions, since the directory's own order is
-not yours to change, and a directory's stations keep the source's order.
+not yours to change, and a directory's stations keep the source's order. The four top
+rows move the same way.
 A playlist's or folder's name shows how many stations live under it — English 24,
 Misc 15 — in Browse and in the main window's list alike; a remote directory's name
 stays bare, since its full count is not known until every level under it has loaded.
@@ -79,10 +82,10 @@ station and pasting it where a copy of it already lives completes the move inste
 refusing: the source copy goes away and the station stays filed where it already was. The main window's list takes
 the new order immediately, and Browse updates after a paste without reopening it.
 Delete on a station in Collections or Custom Stations removes it from that
-collection. Delete on a folder there removes the folder too — after asking, and
-naming how many stations go with it; a directory's folders are the directory's
+collection. Delete on a folder there, or on a collection itself, removes it too — after
+asking, and naming how many stations go with it; a directory's folders are the directory's
 own and cannot be deleted. A folder in Collections or Custom Stations also
-renames from its context menu (Rename), at any depth; a remote directory's
+renames and deletes from its context menu (Rename, Delete), at any depth; a remote directory's
 folders are the directory's own and cannot be renamed. New Folder, on a
 collection's name or inside one of its folders, creates a folder there — the
 way to make a home for stations someone suggests for a playlist.
@@ -292,11 +295,16 @@ FM Sound is the soft hiss BlindRadio plays while a new station tunes in, like a 
 crossing the band, so tuning never has dead air; turn it off and the gap is silent. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
-is a tree: All Playlists shows one folder per playlist with its directories inside, and a
+is a tree: All Playlists shows one folder per playlist with its directories inside, in the
+order you give them, and a
 single playlist shows its directories directly. The Filter box above the tree narrows it
 to the stations whose names contain what you type; clearing the box brings the whole tree
 back. In the tree itself, typing a letter jumps to the next station starting with it, the
-way lists usually work. A station in
+way lists usually work. Shift+Up and Shift+Down move the focused station, folder or, in
+All Playlists, collection, as they do in Browse (Alt+Up and Alt+Down work too); not while
+the Filter box has text in it. Delete on a station takes the copy you are on out of that
+list. Delete on a folder or collection removes it after asking, naming how many stations go with it, and
+Rename and Delete are on its context menu. Custom Stations itself stays. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name, info and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on

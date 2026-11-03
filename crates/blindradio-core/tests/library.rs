@@ -122,6 +122,37 @@ fn custom_collection_rules() {
 }
 
 #[test]
+fn places_name_a_folder_or_the_collection_itself() {
+	let mut l = Library::default();
+	let a = l.create_collection("A");
+	let b = l.create_collection("B");
+	let c = l.collection_mut(&b).unwrap();
+	c.add_folder(&[], "One");
+	c.add_folder(&[], "Two");
+
+	assert_eq!(l.move_at(&b, &[1], true), Some(vec![0]), "a folder");
+	assert_eq!(l.collections[2].folders[0].name, "Two");
+	assert_eq!(l.move_at(&b, &[0], true), None, "already first");
+	assert_eq!(l.move_at(&b, &[], true), Some(Vec::new()), "a collection");
+	assert_eq!(l.collections[1].id, b);
+	assert_eq!(l.move_at(&b, &[], true), None, "never above Custom Stations");
+	assert_eq!(l.move_at(CUSTOM, &[], false), None, "Custom Stations stays");
+
+	assert!(l.rename_at(&b, &[0], "Second"));
+	assert_eq!(l.collections[1].folders[0].name, "Second");
+	assert!(l.rename_at(&a, &[], "First"));
+	assert_eq!(l.collections[2].name, "First");
+	assert!(!l.rename_at(CUSTOM, &[], "Mine"), "Custom Stations is fixed");
+
+	assert!(l.remove_at(&b, &[0]));
+	assert_eq!(l.collections[1].folders.len(), 1);
+	assert!(!l.remove_at(&b, &[5]), "no such folder");
+	assert!(l.remove_at(&b, &[]));
+	assert!(!l.collections.iter().any(|c| c.id == b));
+	assert!(!l.remove_at(CUSTOM, &[]), "Custom Stations is fixed");
+}
+
+#[test]
 fn custom_stations_change_only_through_add_and_delete() {
 	let mut l = Library::default();
 	let s = l.add_custom("Mine", "http://m");

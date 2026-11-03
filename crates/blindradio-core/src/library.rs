@@ -872,13 +872,44 @@ impl Library {
 	}
 
 	/// Custom Stations stays first: it never moves and nothing moves above it.
-	pub fn move_collection(&mut self, id: &str, up: bool) {
+	/// True when the collection moved.
+	pub fn move_collection(&mut self, id: &str, up: bool) -> bool {
 		if id == CUSTOM {
-			return;
+			return false;
 		}
-		if let Some(i) = self.collections.iter().position(|c| c.id == id) {
-			step(&mut self.collections[1..], i - 1, up);
+		match self.collections.iter().position(|c| c.id == id) {
+			Some(i) => step(&mut self.collections[1..], i - 1, up) != i - 1,
+			None => false,
 		}
+	}
+
+	/// Renames the folder at `path` of a collection, or the collection itself
+	/// for an empty path. False for Custom Stations itself, or a wrong place.
+	pub fn rename_at(&mut self, id: &str, path: &[usize], name: &str) -> bool {
+		if path.is_empty() {
+			return self.rename_collection(id, name).is_ok();
+		}
+		self.collection_mut(id)
+			.is_some_and(|c| c.rename_folder(path, name))
+	}
+
+	/// Removes the folder at `path` of a collection, or the collection itself
+	/// for an empty path. False for Custom Stations itself, or a wrong place.
+	pub fn remove_at(&mut self, id: &str, path: &[usize]) -> bool {
+		if path.is_empty() {
+			return self.delete_collection(id).is_ok();
+		}
+		self.collection_mut(id)
+			.is_some_and(|c| c.remove_folder(path))
+	}
+
+	/// Moves the folder at `path` of a collection one step among its siblings,
+	/// or the collection itself for an empty path; its new path. None at an edge.
+	pub fn move_at(&mut self, id: &str, path: &[usize], up: bool) -> Option<Vec<usize>> {
+		if path.is_empty() {
+			return self.move_collection(id, up).then(Vec::new);
+		}
+		self.collection_mut(id)?.move_folder(path, up)
 	}
 
 	/// Count added; stations already in `to` stay as they are. Never into Custom Stations.

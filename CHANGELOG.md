@@ -5,6 +5,15 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.48
+
+- Shift+Up and Shift+Down now move a collection in Browse, and an open one keeps its rows as it moves. Custom Stations stays first among them. The four top rows of Browse move too, Collections and Custom Stations included.
+- Delete on a collection in Browse now asks and deletes it, as Delete on its context menu did. It answered "Only your own stations can be deleted". The context menu's question now also says how many stations go with it. A folder's context menu in Browse gains Delete.
+- Shift+Up and Shift+Down now work in the main window: a station among the stations on its level, a folder among its folders, and in All Playlists a collection among the collections. Alt+Up and Alt+Down work too. They do nothing while the Filter box has text in it.
+- Folders can now be renamed and deleted in the main window, so a folder left empty by a paste no longer sends you to Browse. Delete asks first and says how many stations go with it; Rename and Delete are also on the folder's context menu. In All Playlists the same goes for a collection, except Custom Stations.
+- All Playlists now lists collections in the order you give them, with Custom Stations first, instead of by name. Export All Playlists writes them in the same order.
+- Delete on a station in the main window now takes out the copy you are on when the same station is filed in several folders. It took out the first one. It also works in All Playlists, where it did nothing.
+
 ## 0.2.47
 
 - AC-3 and E-AC-3 audio now plays, in TS channels (DVB and ATSC), in HLS and as a bare stream. Surround is mixed down to stereo with the centre channel kept, so dialogue stays. No extra files are installed: the decoder is compiled into BlindRadio.

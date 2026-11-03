@@ -699,6 +699,212 @@ fn main_window_pastes_beside_the_focused_copy() {
 	assert_eq!(names(&saved, 2), ["Paste one", "Paste two"], "into Gamma");
 }
 
+/// Answers Yes in the confirmation with this title.
+fn answer_yes(app: &App, title: &str) {
+	let dialog = app.find(title, WAIT).unwrap_or_else(|| panic!("{title} asks"));
+	let yes = app
+		.automation
+		.create_matcher()
+		.from(dialog)
+		.timeout(5000)
+		.name("Yes")
+		.control_type(ControlType::Button)
+		.find_first()
+		.expect("Yes");
+	app.invoke(&yes);
+	std::thread::sleep(Duration::from_millis(500));
+}
+
+fn collection_names(app: &App) -> Vec<String> {
+	Library::load(&app.data)
+		.collections
+		.iter()
+		.map(|c| c.name.clone())
+		.collect()
+}
+
+/// Shift+Up and Shift+Down on a collection's own row in Browse, an open one keeping
+/// its rows, and the Delete key on it, which answered "only your own stations".
+#[test]
+#[ignore = "needs a desktop"]
+fn browse_moves_and_deletes_collections() {
+	let mut library = Library::default();
+	library.create_collection("Alpha");
+	let beta = library.create_collection("Beta");
+	library.create_collection("Gamma");
+	library.collection_mut(&beta).unwrap().stations = vec![station("custom:in", "In Beta")];
+	let settings = Settings {
+		play_on_move: false,
+		..Settings::default()
+	};
+	let app = App::with_settings("browse-collections", library, settings);
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	for name in ["Collections", "Beta 1"] {
+		TreeItemControl::try_from(app.row(&browse, name))
+			.unwrap()
+			.expand()
+			.unwrap();
+	}
+	app.select_row(&browse, "Beta 1");
+	app.press("{shift}{up}");
+	assert_eq!(
+		collection_names(&app),
+		["Custom Stations", "Beta", "Alpha", "Gamma"]
+	);
+	app.assert_selected(&browse, "Beta 1");
+	app.row(&browse, "In Beta");
+	app.press("{shift}{up}");
+	assert_eq!(
+		collection_names(&app),
+		["Custom Stations", "Beta", "Alpha", "Gamma"],
+		"never above Custom Stations"
+	);
+	app.press("{shift}{down}");
+	assert_eq!(
+		collection_names(&app),
+		["Custom Stations", "Alpha", "Beta", "Gamma"],
+		"focus goes with it"
+	);
+	app.select_row(&browse, "Gamma 0");
+	app.press("{delete}");
+	answer_yes(&app, "Delete");
+	assert_eq!(
+		collection_names(&app),
+		["Custom Stations", "Alpha", "Beta"],
+		"Delete takes the collection"
+	);
+}
+
+/// The main tree's All Playlists view: Shift+Up and Shift+Down move a collection, a
+/// folder and a station; a folder renames from its menu and goes with Delete.
+#[test]
+#[ignore = "needs a desktop"]
+fn main_window_moves_renames_and_deletes_rows() {
+	let mut library = Library::default();
+	let alpha = library.create_collection("Alpha");
+	library.create_collection("Beta");
+	let folder = |name: &str, stations| Folder {
+		name: name.into(),
+		stations,
+		folders: Vec::new(),
+	};
+	library.collection_mut(&alpha).unwrap().folders = vec![
+		folder(
+			"One",
+			vec![station("custom:x", "Ex"), station("custom:y", "Why")],
+		),
+		folder("Two", Vec::new()),
+		folder("Three", Vec::new()),
+	];
+	let settings = Settings {
+		main_list: Some("all-playlists".into()),
+		expand_dial_folders: true,
+		play_on_move: false,
+		..Settings::default()
+	};
+	let app = App::with_settings("main-moves", library, settings);
+	let folders = |app: &App| -> Vec<String> {
+		Library::load(&app.data).collections[1]
+			.folders
+			.iter()
+			.map(|f| f.name.clone())
+			.collect()
+	};
+
+	// A collection.
+	app.select_row(&app.main_tree(), "Beta 0");
+	app.press("{shift}{up}");
+	assert_eq!(collection_names(&app), ["Custom Stations", "Beta", "Alpha"]);
+	app.assert_selected(&app.main_tree(), "Beta 0");
+	app.press("{shift}{down}");
+	assert_eq!(collection_names(&app), ["Custom Stations", "Alpha", "Beta"]);
+
+	// A station.
+	app.select_row(&app.main_tree(), "Why");
+	app.press("{shift}{up}");
+	let saved = Library::load(&app.data);
+	assert_eq!(saved.collections[1].folders[0].stations[0].name, "Why");
+	app.assert_selected(&app.main_tree(), "Why");
+
+	// A folder, twice: focus goes with it.
+	app.select_row(&app.main_tree(), "Three 0");
+	app.press("{shift}{up}");
+	app.press("{shift}{up}");
+	assert_eq!(folders(&app), ["Three", "One", "Two"]);
+	app.assert_selected(&app.main_tree(), "Three 0");
+
+	// Rename from the folder's menu.
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Rename"));
+	let prompt = app.find("Rename", WAIT).expect("Rename asks");
+	prompt.send_keys("Tres{enter}", 60).expect("name");
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(folders(&app), ["Tres", "One", "Two"]);
+	app.assert_selected(&app.main_tree(), "Tres 0");
+
+	// Delete: the next folder takes its place.
+	app.press("{delete}");
+	answer_yes(&app, "Delete");
+	assert_eq!(folders(&app), ["One", "Two"]);
+	app.assert_selected(&app.main_tree(), "One 2");
+	// Keys still reach the tree after the confirmation closes.
+	app.press("{shift}{down}");
+	assert_eq!(folders(&app), ["Two", "One"]);
+}
+
+/// Two folders with one name: Delete takes the row focus is on, not the first by name.
+/// The same station filed in both: its Delete takes the copy focus is on. A station at
+/// a single list's own level moves too.
+#[test]
+#[ignore = "needs a desktop"]
+fn main_window_delete_takes_the_focused_row() {
+	let mut library = Library::default();
+	let shared = station("custom:shared", "Shared");
+	let extra = station("custom:extra", "Extra");
+	let folder = |stations| Folder {
+		name: "Same".into(),
+		stations,
+		folders: Vec::new(),
+	};
+	library.collections[0].stations =
+		vec![station("custom:one", "One"), station("custom:two", "Two")];
+	library.collections[0].folders = vec![
+		folder(vec![shared.clone()]),
+		folder(vec![shared, extra]),
+	];
+	let settings = Settings {
+		main_list: Some("custom".into()),
+		expand_dial_folders: true,
+		play_on_move: false,
+		..Settings::default()
+	};
+	let app = App::with_settings("main-delete", library, settings);
+	let custom = |app: &App| Library::load(&app.data).collections[0].clone();
+
+	app.select_row(&app.main_tree(), "One");
+	app.press("{shift}{down}");
+	assert_eq!(custom(&app).stations[0].name, "Two");
+	app.assert_selected(&app.main_tree(), "One");
+
+	// Down from the second Same's row onto its copy of Shared.
+	app.select_row(&app.main_tree(), "Same 2");
+	app.press("{down}");
+	app.press("{delete}");
+	let saved = custom(&app);
+	assert_eq!(saved.folders[0].stations.len(), 1, "the first copy stays");
+	assert_eq!(saved.folders[1].stations[0].name, "Extra");
+
+	// Up from Extra onto the second Same's own row.
+	app.select_row(&app.main_tree(), "Extra");
+	app.press("{left}");
+	app.press("{delete}");
+	answer_yes(&app, "Delete");
+	let saved = custom(&app);
+	assert_eq!(saved.folders.len(), 1, "one row goes");
+	assert_eq!(saved.folders[0].stations[0].name, "Shared", "the focused one");
+}
+
 /// Ctrl+I's layout: the playlist is a folder inside Custom Stations, a copy of
 /// the station also sits at the Custom root, and Play on Move is on. Pasting
 /// onto the playlist row must not answer "already in Custom Stations".

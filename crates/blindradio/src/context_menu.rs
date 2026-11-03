@@ -446,6 +446,15 @@ pub fn export_playlist(
 	}
 }
 
+/// Asked before a folder or a collection goes: names what goes with it.
+pub fn delete_question(name: &str, count: usize) -> String {
+	if count > 0 {
+		format!("{}{name} and its {count} stations?", s::DELETE_PREFIX)
+	} else {
+		format!("{}{name}?", s::DELETE_PREFIX)
+	}
+}
+
 /// Runs a station menu choice.
 pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, choice: Choice) {
 	let action = match choice {
