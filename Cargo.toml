@@ -9,4 +9,4 @@ shipfitter = { git = "https://github.com/serrebidev/shipfitter", branch = "zip-9
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.2.54"
+version = "0.2.55"
