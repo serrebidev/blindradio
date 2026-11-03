@@ -74,6 +74,8 @@ pub struct Details {
 	pub bitrate_kbps: Option<u32>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub homepage: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub call_sign: Option<String>,
 }
 
 impl Details {

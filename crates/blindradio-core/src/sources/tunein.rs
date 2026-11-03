@@ -30,6 +30,8 @@ struct Outline {
 	#[serde(default)]
 	guide_id: String,
 	#[serde(default)]
+	key: String,
+	#[serde(default)]
 	children: Vec<Outline>,
 }
 
@@ -59,6 +61,10 @@ impl TuneIn {
 
 	fn station(&self, o: &Outline) -> Option<Station> {
 		if o.kind != "audio" || o.item != "station" || !o.guide_id.starts_with('s') {
+			return None;
+		}
+		// "Z100 - Not Supported": TuneIn lists it but only serves a spoken refusal.
+		if o.key == "unavailable" {
 			return None;
 		}
 		let info = o.subtext.trim();

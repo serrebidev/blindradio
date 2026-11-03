@@ -14,11 +14,11 @@ fn json(path: &str, body: &str) -> Route {
 	}
 }
 
-const RB: &str = r#"[{"stationuuid":"u1","name":"Groove RB","url_resolved":"http://rb.test/1"}]"#;
+const RB: &str = r#"[{"stationuuid":"u1","name":"Salad Classic RB","url_resolved":"http://rb.test/1"}]"#;
 const TI: &str =
-	r#"{"body":[{"type":"audio","item":"station","text":"Groove TI","guide_id":"s1"}]}"#;
+	r#"{"body":[{"type":"audio","item":"station","text":"Salad Classic TI","guide_id":"s1"}]}"#;
 const IH_SEARCH: &str = r#"{"results":{"stations":[{"id":6655}]}}"#;
-const IH_LIVE: &str = r#"{"total":1,"hits":[{"id":6655,"name":"Groove IH","streams":{"shoutcast_stream":"http://ih.test/1"}}]}"#;
+const IH_LIVE: &str = r#"{"total":1,"hits":[{"id":6655,"name":"Salad Classic IH","streams":{"shoutcast_stream":"http://ih.test/1"}}]}"#;
 const IH_HISTORY: &str = r#"{"data":[{"title":"Song","artist":"Band","startTime":1793122765}]}"#;
 const SOMA: &str = r#"{"id":"groovesalad","songs":[{"title":"Tune","artist":"Soma","album":"A","date":"1793122407"},{"title":"  ","artist":"X","date":"1"},{"title":"Bare","artist":"","date":"x"}]}"#;
 
@@ -240,14 +240,66 @@ async fn search_merges_in_directory_order() {
 	let found = src.search(&q("salad classic")).await;
 	let labels: Vec<_> = found.iter().map(|s| s.source.label().to_owned()).collect();
 	assert_eq!(labels, ["Radio Browser", "TuneIn", "iHeartRadio", "SomaFM"]);
-	assert_eq!(found[0].name, "Groove RB");
+	assert_eq!(found[0].name, "Salad Classic RB");
 	assert_eq!(found[3].name, "Groove Salad Classic");
+}
+
+#[tokio::test]
+async fn search_drops_what_directories_guessed() {
+	let (_s, src) = sources(vec![
+		json("/json/stations/search", "[]"),
+		json(
+			"/Search.ashx",
+			r#"{"body":[
+{"type":"audio","item":"station","text":"730 CKNW","guide_id":"s1"},
+{"type":"audio","item":"station","text":"CerebroDigital","subtext":"cknw fans","guide_id":"s2"},
+{"text":"Search results (not playable)","children":[
+{"type":"audio","item":"station","text":"CKNW - Not Supported","key":"unavailable","guide_id":"s3"}]}]}"#,
+		),
+		json(
+			"/api/v3/search/all",
+			r#"{"results":{"stations":[{"id":1},{"id":2},{"id":3}]}}"#,
+		),
+		json(
+			"/api/v2/content/liveStations",
+			r#"{"total":3,"hits":[
+{"id":1,"name":"KFI AM 640","callLetters":"KFI-AM","genres":[{"name":"News & Talk"}],"streams":{"shoutcast_stream":"http://ih.test/1"}},
+{"id":2,"name":"Z100","callLetters":"CKNW-FM","genres":[{"name":"Top 40"}],"streams":{"shoutcast_stream":"http://ih.test/2"}},
+{"id":3,"name":"Smooth","callLetters":"KSMO-FM","genres":[{"name":"CKNW"}],"streams":{"shoutcast_stream":"http://ih.test/3"}}]}"#,
+		),
+		json(
+			"/stations/search",
+			r#"{"totalCount":2,"playables":[
+{"id":"a","name":"CKNW AM980","streams":[{"url":"http://rn.test/a","status":"VALID"}]},
+{"id":"b","name":"CKNB 95","streams":[{"url":"http://rn.test/b","status":"VALID"}]}]}"#,
+		),
+		json(
+			"/Search/UpdateSearch",
+			r#"[{"ID":7,"Name":"BlacknWhita","Format":"audio/mpeg","Bitrate":128,"Genre":"Pop","Listeners":1}]"#,
+		),
+	]);
+	let found = src.search(&q("cknw")).await;
+	let names: Vec<_> = found.iter().map(|s| s.name.as_str()).collect();
+	assert_eq!(names, ["730 CKNW", "Z100", "Smooth", "CKNW AM980"]);
+	assert_eq!(found[1].details.call_sign.as_deref(), Some("CKNW-FM"));
+	assert_eq!(found[1].details.genre.as_deref(), Some("Top 40"));
 }
 
 #[tokio::test]
 async fn search_includes_new_directories_in_order() {
 	let (_s, src) = sources(vec![
-		json("/Search.ashx", TI),
+		json(
+			"/json/stations/search",
+			r#"[{"stationuuid":"u1","name":"New directory RB","url_resolved":"http://rb.test/1"}]"#,
+		),
+		json(
+			"/Search.ashx",
+			r#"{"body":[{"type":"audio","item":"station","text":"New directory TI","guide_id":"s1"}]}"#,
+		),
+		json(
+			"/api/v2/content/liveStations",
+			r#"{"total":1,"hits":[{"id":6655,"name":"New directory IH","streams":{"shoutcast_stream":"http://ih.test/1"}}]}"#,
+		),
 		Route::Static {
 			path: "/yp.xml".into(),
 			content_type: "application/xml".into(),
@@ -282,14 +334,14 @@ async fn search_includes_new_directories_in_order() {
 
 #[tokio::test]
 async fn search_dedupes_by_stream_url() {
-	let rb = r#"[{"stationuuid":"u1","name":"RB copy","url_resolved":"{base}/Tune.ashx?id=s1&formats=mp3,aac,ogg,hls"}]"#;
+	let rb = r#"[{"stationuuid":"u1","name":"Salad Classic copy","url_resolved":"{base}/Tune.ashx?id=s1&formats=mp3,aac,ogg,hls"}]"#;
 	let (_s, src) = sources(vec![
 		json("/json/stations/search", rb),
 		json("/Search.ashx", TI),
 	]);
 	let found = src.search(&q("salad classic")).await;
 	let names: Vec<_> = found.iter().map(|s| s.name.as_str()).collect();
-	assert_eq!(names, ["RB copy", "Groove IH", "Groove Salad Classic"]);
+	assert_eq!(names, ["Salad Classic copy", "Salad Classic IH", "Groove Salad Classic"]);
 }
 
 #[tokio::test]

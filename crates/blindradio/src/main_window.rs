@@ -449,6 +449,8 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 			return;
 		};
 		if data.is_active() {
+			// A dialog closing lands here too.
+			crate::speech::focus_returning();
 			// Raising the frame during poll can activate it while App is borrowed.
 			let tree = a
 				.try_borrow()
@@ -466,6 +468,9 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 	let a = app.clone();
 	win.frame.track_menu_lifecycle(move |_, opening| {
 		a.borrow_mut().menu_open = opening;
+		if !opening {
+			crate::speech::focus_returning();
+		}
 	});
 
 	let a = app.clone();

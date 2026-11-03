@@ -6,11 +6,15 @@ use crate::station::{Source, Station};
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::time::{Duration, UNIX_EPOCH};
+use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::char::is_combining_mark;
 
 type TreeFuture<'a> = std::pin::Pin<
 	Box<dyn std::future::Future<Output = Result<(Vec<Station>, Vec<Folder>)>> + Send + 'a>,
 >;
 
+// A short-lived list row; boxing Station would touch every match for no measured gain.
+#[expect(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
 	Folder { id: String, name: String },
@@ -343,6 +347,58 @@ pub struct Sources {
 
 const SEARCH_TIMEOUT: Duration = Duration::from_secs(8);
 
+/// Lowercase letters and digits only, accents gone, with the offsets where words begin.
+/// The end of the text counts as an edge too.
+fn fold(text: &str) -> (String, Vec<usize>) {
+	let mut folded = String::new();
+	let mut edges = Vec::new();
+	let mut previous = None::<char>;
+	for c in text.nfd().filter(|c| !is_combining_mark(*c)) {
+		if c.is_alphanumeric()
+			&& previous.is_none_or(|p| !p.is_alphanumeric() || (p.is_lowercase() && c.is_uppercase()))
+		{
+			edges.push(folded.len());
+		}
+		if c.is_alphanumeric() {
+			folded.extend(c.to_lowercase());
+		}
+		previous = Some(c);
+	}
+	edges.push(folded.len());
+	(folded, edges)
+}
+
+/// Whether `text` holds every word of `query`. A word has to touch a word edge there, so
+/// "cknw" finds "730 CKNW" but not "BlacknWhita". Spaces and case do not count, so
+/// "serrebiradio" finds "Serrebi Radio" and "fm" finds "KISSFM". Scripts written without
+/// spaces have no edges to touch: any place in the text will do.
+/// ponytail: letters only, "radio 1" misses "Radio One"; add synonyms if that bites.
+fn holds_words(text: &str, query: &str) -> bool {
+	let (text, edges) = fold(text);
+	query.split_whitespace().all(|word| {
+		let word = fold(word).0;
+		text.match_indices(&word).any(|(at, _)| {
+			!word.is_ascii() || edges.contains(&at) || edges.contains(&(at + word.len()))
+		}) || word.is_empty()
+	})
+}
+
+/// Directories answer loosely: radio.net and iHeart by spelling distance, TuneIn by sound,
+/// others by the song playing now. Only name, genre and call sign count as a match.
+fn answers(station: &Station, name: &str) -> bool {
+	let details = &station.details;
+	let text = [
+		Some(station.name.as_str()),
+		details.genre.as_deref(),
+		details.call_sign.as_deref(),
+	]
+	.into_iter()
+	.flatten()
+	.collect::<Vec<_>>()
+	.join(" ");
+	holds_words(&text, name)
+}
+
 #[derive(Deserialize)]
 struct SomaSongs {
 	#[serde(default)]
@@ -548,7 +604,7 @@ impl Sources {
 			.chain(iprd)
 			.chain(radionet)
 			.chain(networks::search(q))
-			.filter(|s| seen.insert(s.url.clone()))
+			.filter(|s| answers(s, &q.name) && seen.insert(s.url.clone()))
 			.collect()
 	}
 
@@ -616,6 +672,42 @@ impl Sources {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn holds_words_keeps_real_matches_and_drops_loose_ones() {
+		for (text, query) in [
+			("730 CKNW", "cknw"),
+			("Global News Radio 980 CKNW", "CKNW"),
+			("SerrebiRadio HD Opus", "serrebiradio"),
+			("Serrebi Radio", "serrebiradio"),
+			("KISSFM", "fm"),
+			("KISS-FM", "kiss fm"),
+			("Rádio Comercial", "radio"),
+			("Radio Comercial", "rádio"),
+			("R&B Soul", "r&b"),
+			("93.9 WNYC", "wnyc"),
+			("Z100 WHTZ-FM", "whtz"),
+			("日本ラジオ局", "ラジオ"),
+			("anything", ""),
+			("anything", "!!"),
+		] {
+			assert!(holds_words(text, query), "{text} should hold {query}");
+		}
+		for (text, query) in [
+			("CKNB 95", "cknw"),
+			("KFI AM 640", "cknw"),
+			("BlacknWhita", "cknw"),
+			("Country Music Radio - Conway Twitty", "cknw"),
+			("CerebroDigital", "serrebiradio"),
+			("Radio Surprise The Live DJ Station", "serrebiradio"),
+			("Paradise FM", "radio paradise"),
+			("BBC Radio 2", "bbc radio 1"),
+			("Z104.3", "z100"),
+			("WNCI 97.9", "wnyc"),
+		] {
+			assert!(!holds_words(text, query), "{text} should not hold {query}");
+		}
+	}
 
 	#[test]
 	fn sort_query_fragments() {

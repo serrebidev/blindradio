@@ -156,6 +156,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				app.refresh_dial();
 				station
 			};
+			crate::speech::focus_returning();
 			a.borrow_mut().say(&format!("{}{}", s::ADDED, station.name));
 			d.end_modal(ID_OK);
 		});
@@ -286,6 +287,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				}
 				app.save_settings();
 			}
+			crate::speech::focus_returning();
 			a.borrow_mut().say(&format!("{}{}", s::SAVED, typed));
 			d.end_modal(ID_OK);
 		});

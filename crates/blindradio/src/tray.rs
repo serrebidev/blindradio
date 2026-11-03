@@ -154,6 +154,7 @@ pub fn install(app: &Rc<RefCell<App>>) -> Option<Tray> {
 	{
 		let (a, ids) = (app.clone(), ids.clone());
 		icon.on_menu(move |e| {
+			crate::speech::focus_returning();
 			let id = e.get_id();
 			let item = ids
 				.borrow()

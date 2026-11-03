@@ -137,6 +137,7 @@ fn to_entry(raw: Raw) -> Option<Entry> {
 				codec: known(codec),
 				bitrate_kbps: Some(stream.bitrate).filter(|&b| b > 0),
 				homepage: known(&raw.website),
+				call_sign: None,
 			},
 		},
 		country: country.into(),

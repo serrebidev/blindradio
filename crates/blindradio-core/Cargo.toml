@@ -10,6 +10,7 @@ reqwest = { version = "*", default-features = false, features = ["rustls", "stre
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync"] }
 serde_json = "*"
 percent-encoding = "*"
+unicode-normalization = "*"
 uuid = { version = "*", features = ["v4"] }
 bytes = "*"
 crossbeam-channel = "*"

@@ -47,6 +47,11 @@ Browser; Icecast also matches Genre when a Name is given. Other directories use 
 box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
 
+A station is listed only if every word in the Name box is in its name, genre or call sign.
+Case, accents and spaces do not matter: serrebiradio finds Serrebi Radio, and radio finds
+Rádio. A word must start or end a word in the station's name, so cknw does not find
+BlacknWhita. Numbers are not spelled out: radio 1 does not find Radio One.
+
 ## Browsing
 
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
@@ -338,6 +343,8 @@ Expand All Directories in the Main Window. With Play a Station as I Move to It o
 through a list only selects the station; Enter plays it. With Expand All Directories off,
 the main window's directories start collapsed, so a long list opens as a short list of
 directories to walk into; a directory you open or close by hand keeps its state either way.
+A message after a menu command or a closed dialog waits about half a second, so your screen
+reader reads the station list first and then the message, rather than cutting it off.
 FM Sound Between Stations, on the Playback tab, is the soft hiss BlindRadio plays while a new station tunes in, like a dial
 crossing the band, so tuning never has dead air; turn it off and the gap is silent. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —

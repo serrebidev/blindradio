@@ -30,6 +30,7 @@ pub fn lines(station: &Station, live: Option<&StreamFormat>) -> String {
 	[
 		(s::INFO_NAME, Some(station.name.clone())),
 		(s::COLUMN_INFO, station.info.clone()),
+		(s::INFO_CALL_SIGN, details.call_sign.clone()),
 		(s::INFO_GENRE, details.genre.clone()),
 		(s::INFO_COUNTRY, details.country.clone()),
 		(s::INFO_LANGUAGE, details.language.clone()),
@@ -98,6 +99,7 @@ mod tests {
 				codec: Some("MP3".into()),
 				bitrate_kbps: Some(128),
 				homepage: Some("http://jazz.example".into()),
+				call_sign: None,
 			},
 		}
 	}

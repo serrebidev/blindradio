@@ -320,6 +320,7 @@ pub const INFO_NAME: &str = "Name";
 pub const INFO_GENRE: &str = "Genre";
 pub const INFO_COUNTRY: &str = "Country";
 pub const INFO_LANGUAGE: &str = "Language";
+pub const INFO_CALL_SIGN: &str = "Call sign";
 pub const INFO_CODEC: &str = "Codec";
 pub const INFO_BITRATE: &str = "Bitrate";
 pub const INFO_SAMPLE_RATE: &str = "Sample rate";
