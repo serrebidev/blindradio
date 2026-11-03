@@ -397,6 +397,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 	open_on_first_item(window);
 	// wxMSW dispatches the choice before `popup_menu` returns.
 	window.popup_menu(&mut menu, None);
+	crate::speech::focus_returning();
 	let i = usize::try_from(chosen.get()?.checked_sub(FIRST_ID)?).ok()?;
 	choices.get(i).cloned()
 }

@@ -33,6 +33,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 
 ## UI traps
 - Screen reader names control from StaticText created just before it. Build label first. Creation order = name.
+- NVDA reads focus ~125 ms after menu closes, cancels speech. New path that returns focus: call `speech::focus_returning()`, message waits 500 ms (`FOCUS_SETTLES`), flushed in poll.
 - wxDragon passes events on. Consume with `event.skip(false)`, or key acts twice. Unhandled: `skip(true)`.
 - `app.selected` survives move onto main tree folder. Station command uses `App::station_here` (Ctrl+C, Ctrl+X: `focused_station`). Set a station first, then dispatch `Play` = trap on folder: use `App::play` or `PlayFavorite`. Dialogs empty `selected` on folders themselves.
 - Same station id can sit in several folders. Never find row by id first. Use row's parent (`DialTree::selected_home`).

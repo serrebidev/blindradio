@@ -433,6 +433,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			app.apply_buffers();
 			app.refresh_dial();
 			if recog_no_token {
+				crate::speech::focus_returning();
 				app.say_announced(s::RECOG_NO_TOKEN);
 			}
 			d.end_modal(ID_OK);

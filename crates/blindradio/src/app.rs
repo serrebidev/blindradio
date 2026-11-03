@@ -827,6 +827,7 @@ impl App {
 	pub fn poll(&mut self) {
 		#[cfg(windows)]
 		crate::status_strip::sync(&self.win);
+		self.speech.flush();
 		// Alt+Tab back in occasionally leaves the keyboard focus on
 		// the frame itself — no control holds it, and NVDA reads the
 		// menu bar ("File Stations Playback Recording Help"). The

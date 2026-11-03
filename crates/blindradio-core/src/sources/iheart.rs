@@ -49,6 +49,16 @@ struct Hit {
 	markets: Vec<Market>,
 	#[serde(default)]
 	streams: Streams,
+	#[serde(default, rename = "callLetters")]
+	call_letters: String,
+	#[serde(default)]
+	genres: Vec<HitGenre>,
+}
+
+#[derive(Deserialize)]
+struct HitGenre {
+	#[serde(default)]
+	name: String,
 }
 
 #[derive(Deserialize)]
@@ -116,13 +126,23 @@ fn to_station(h: Hit) -> Option<Station> {
 		.filter(|p| !p.is_empty())
 		.collect::<Vec<_>>()
 		.join(", ");
+	let genres = h
+		.genres
+		.iter()
+		.map(|g| g.name.trim())
+		.collect::<Vec<_>>()
+		.join(", ");
 	Some(Station {
 		id: format!("iheart:{}", h.id),
 		name: h.name.trim().to_owned(),
 		url,
 		source: Source::IHeart,
 		info: (!info.is_empty()).then_some(info),
-		details: Default::default(),
+		details: crate::station::Details {
+			genre: crate::station::known(&genres),
+			call_sign: crate::station::known(&h.call_letters),
+			..Default::default()
+		},
 	})
 }
 

@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.55
+
+- Search no longer lists stations that only sound like what you typed. Radio.net, iHeartRadio and TuneIn guess at near spellings, so CKNW also brought up CKNB, KFI and others, and Internet-Radio matched the song playing now. Every word you type must now be in the station's name, genre or call sign.
+- TuneIn no longer lists stations it marks Not Supported, in Search or in Browse. They only played a spoken refusal.
+- Station Info and Search now know the genre and call sign of iHeartRadio stations, so searching WHTZ finds Z100.
+- Messages after a menu command are no longer cut off. "Recording saved to..." and the like were said just as focus returned to the station tree, and your screen reader's reading of the tree stopped them. They now wait until that reading has started and follow it. The same goes for context menus, the tray menu, closing a dialog and coming back with Alt+Tab.
+
 ## 0.2.54
 
 - New Open Record Folder on the Recording menu: it opens the folder your recordings go to. It can be given a key in Keyboard Shortcuts.
