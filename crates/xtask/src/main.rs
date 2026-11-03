@@ -1,5 +1,5 @@
-//! Packaging and release plumbing: `cargo xtask dist-windows`, `dist-macos`, `dist-linux`,
-//! `version` and `release <version>`.
+//! Packaging for the cloud release (`release.yml`): `cargo xtask dist-windows`, `dist-macos`,
+//! `dist-linux`, `sign`, `update-check`, `minisign-key` and `version`.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -40,7 +40,6 @@ fn main() {
 		"dist-macos" => macos::dist(&root(), &dist_dir()),
 		#[cfg(target_os = "linux")]
 		"dist-linux" => linux::dist(&root(), &dist_dir()),
-		"release" => release(&args[1..]),
 		"minisign-key" => minisign_key(&args[1..]),
 		"sign" => sign_assets(&args[1..]),
 		"update-check" => update_check(&args[1..]),
@@ -51,141 +50,12 @@ fn main() {
 			}
 			Err(e) => Err(format!("version: {e}")),
 		},
-		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | release <version> | minisign-key <dir> | sign <file>…".to_string()),
+		_ => Err("usage: cargo xtask dist-windows | dist-macos | dist-linux | version | minisign-key <dir> | sign <file>… | update-check [version]".to_string()),
 	};
 	if let Err(e) = done {
 		eprintln!("xtask: {e}");
 		std::process::exit(1);
 	}
-}
-
-/// `cargo xtask release <version> [--windows-only] [--dry-run]`
-fn release(args: &[String]) -> Result<(), String> {
-	let mut version = None;
-	let mut windows_only = false;
-	let mut dry_run = false;
-	for arg in args {
-		match arg.as_str() {
-			"--windows-only" => windows_only = true,
-			"--dry-run" => dry_run = true,
-			v => version = Some(v.trim_start_matches('v').to_string()),
-		}
-	}
-	let version = version.ok_or("release needs a version, such as 0.2.0")?;
-	let root = root();
-
-	run("git", &["diff", "--quiet"], "the working tree is not clean")?;
-	let branch = output("git", &["branch", "--show-current"])?;
-	if branch.trim() != "main" {
-		return Err(format!("on {} , not main", branch.trim()));
-	}
-	run("cargo", &["test", "--workspace"], "tests failed")?;
-	run(
-		"cargo",
-		&["clippy", "--workspace", "--all-targets"],
-		"clippy failed",
-	)?;
-	if dry_run {
-		println!("xtask: dry run for {version}, nothing written or pushed");
-		return Ok(());
-	}
-
-	bump(&root, &version)?;
-	run("git", &["add", "Cargo.toml", "Cargo.lock"], "staging")?;
-	run(
-		"git",
-		&["commit", "-m", &format!("chore: release {version}")],
-		"committing the version",
-	)?;
-
-	dist_windows()?;
-	if !windows_only {
-		run(
-			"sh",
-			&["tools/build_linux_remote.sh"],
-			"the Linux leg failed",
-		)?;
-	}
-
-	let tag = format!("v{version}");
-	let notes = notes_for(&root, &version)?;
-	let notes_file = dist_dir().join("notes.md");
-	std::fs::write(&notes_file, notes).map_err(|e| format!("notes: {e}"))?;
-
-	run("git", &["tag", &tag], "tagging")?;
-	run("git", &["push", "origin", "main", &tag], "pushing")?;
-	run(
-		"gh",
-		&[
-			"release",
-			"create",
-			&tag,
-			"--draft",
-			"--title",
-			&format!("{APP} {version}"),
-			"--notes-file",
-			&notes_file.to_string_lossy(),
-		],
-		"creating the draft release",
-	)?;
-
-	let dist = dist_dir();
-	let mut assets = vec![
-		dist.join(format!("{APP}.zip")),
-		dist.join(format!("{APP}_setup.exe")),
-	];
-	if !windows_only {
-		assets.push(dist.join(format!("{APP}.AppImage")));
-		assets.push(dist.join(format!("{APP}.tar.gz")));
-	}
-	// Every asset carries its signature, so the updater can verify the download.
-	for asset in &assets {
-		if !sign_file(asset)? {
-			return Err("MINISIGN_KEY is not set, so nothing would be signed".to_string());
-		}
-	}
-	let mut upload: Vec<String> = vec![
-		"release".into(),
-		"upload".into(),
-		tag.clone(),
-		"--clobber".into(),
-	];
-	for asset in &assets {
-		upload.push(asset.to_string_lossy().to_string());
-		let name = asset.file_name().unwrap_or_default().to_string_lossy();
-		let sig = dist.join(format!("{name}.minisig"));
-		if sig.is_file() {
-			upload.push(sig.to_string_lossy().to_string());
-		}
-	}
-	let upload: Vec<&str> = upload.iter().map(String::as_str).collect();
-	run("gh", &upload, "uploading the assets")?;
-
-	if !windows_only {
-		run(
-			"gh",
-			&[
-				"workflow",
-				"run",
-				"macos-release.yml",
-				"-f",
-				&format!("tag={tag}"),
-			],
-			"dispatching the macOS build",
-		)?;
-		wait_for_macos(&tag)?;
-	}
-
-	// A leg that failed must not publish: every asset and signature has to be there.
-	verify_assets(&tag, windows_only)?;
-
-	run(
-		"gh",
-		&["release", "edit", &tag, "--draft=false", "--latest"],
-		"publishing",
-	)?;
-	println!("xtask: {APP} {version} is published");
-	Ok(())
 }
 
 /// Writes `<file>.minisig` beside `file`, the signature a ship-shape update verifies.
@@ -222,38 +92,6 @@ pub(crate) fn sign_file(path: &Path) -> Result<bool, String> {
 	std::fs::write(&out, signature.into_string())
 		.map_err(|e| format!("{}: {e}", Path::new(&out).display()))?;
 	Ok(true)
-}
-
-/// Fails unless every asset and its `.minisig` reached the release.
-fn verify_assets(tag: &str, windows_only: bool) -> Result<(), String> {
-	let mut names = vec![format!("{APP}.zip"), format!("{APP}_setup.exe")];
-	if !windows_only {
-		names.push(format!("{APP}.AppImage"));
-		names.push(format!("{APP}.tar.gz"));
-		names.push(format!("{APP}.dmg"));
-	}
-	let listed = output(
-		"gh",
-		&[
-			"release",
-			"view",
-			tag,
-			"--json",
-			"assets",
-			"--jq",
-			".assets[].name",
-		],
-	)?;
-	let present: Vec<&str> = listed.lines().map(str::trim).collect();
-	for name in &names {
-		for wanted in [name.clone(), format!("{name}.minisig")] {
-			if !present.contains(&wanted.as_str()) {
-				return Err(format!("{wanted} is missing from release {tag}"));
-			}
-		}
-	}
-	println!("xtask: {} has all {} files", tag, present.len());
-	Ok(())
 }
 
 /// `cargo xtask update-check [version]`: asks GitHub what a copy running `version` would be
@@ -342,132 +180,6 @@ fn minisign_key(args: &[String]) -> Result<(), String> {
 	// The second line is what the updater is given.
 	println!("{public}");
 	Ok(())
-}
-
-fn bump(root: &Path, version: &str) -> Result<(), String> {
-	let path = root.join("Cargo.toml");
-	let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-	let mut out = String::new();
-	let mut done = false;
-	for line in text.lines() {
-		if !done && line.starts_with("version = \"") {
-			out.push_str(&format!("version = \"{version}\""));
-			done = true;
-		} else {
-			out.push_str(line);
-		}
-		out.push('\n');
-	}
-	if !done {
-		return Err("no version line in the workspace manifest".to_string());
-	}
-	std::fs::write(&path, out).map_err(|e| format!("{}: {e}", path.display()))?;
-	run(
-		"cargo",
-		&["metadata", "--format-version", "1"],
-		"refreshing the lock",
-	)
-	.map(|_| ())
-}
-
-/// The release note: the `## <version>` section of the changelog.
-fn notes_for(root: &Path, version: &str) -> Result<String, String> {
-	let path = root.join("CHANGELOG.md");
-	let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-	let head = format!("## {version}");
-	let mut notes = Vec::new();
-	let mut inside = false;
-	for line in text.lines() {
-		if line.starts_with("## ") {
-			inside = line.trim() == head;
-			if inside {
-				continue;
-			}
-			if !notes.is_empty() {
-				break;
-			}
-		}
-		if inside {
-			notes.push(line);
-		}
-	}
-	if notes.is_empty() {
-		return Err(format!("no {head} section in CHANGELOG.md"));
-	}
-	Ok(notes.join("\n").trim().to_string())
-}
-
-/// Waits for the newest macOS run to finish, and fails if it did not succeed.
-fn wait_for_macos(tag: &str) -> Result<(), String> {
-	for _ in 0..120 {
-		let out = output(
-			"gh",
-			&[
-				"run",
-				"list",
-				"--workflow",
-				"macos-release.yml",
-				"--limit",
-				"1",
-				"--json",
-				"databaseId,status,conclusion,headBranch",
-			],
-		)?;
-		let started = out.contains(tag)
-			|| out.contains("\"status\":\"queued\"")
-			|| out.contains("\"status\":\"in_progress\"");
-		if out.contains("\"conclusion\":\"success\"") {
-			return Ok(());
-		}
-		if out.contains("\"conclusion\":\"failure\"")
-			|| out.contains("\"conclusion\":\"cancelled\"")
-		{
-			return Err("the macOS build failed".to_string());
-		}
-		if !started && out.contains("\"status\":\"completed\"") {
-			return Err("the macOS build did not run".to_string());
-		}
-		std::thread::sleep(std::time::Duration::from_secs(20));
-	}
-	Err("the macOS build did not finish in time".to_string())
-}
-
-/// `cargo` comes from the environment: it need not be on PATH.
-fn program(command: &str) -> String {
-	if command == "cargo" {
-		std::env::var("CARGO").unwrap_or_else(|_| command.to_string())
-	} else {
-		command.to_string()
-	}
-}
-
-fn run(command: &str, args: &[&str], what: &str) -> Result<(), String> {
-	let status = Command::new(program(command))
-		.args(args)
-		.current_dir(root())
-		.status()
-		.map_err(|e| format!("{what}: {command}: {e}"))?;
-	if status.success() {
-		Ok(())
-	} else {
-		Err(format!("{what} ({command} {})", args.join(" ")))
-	}
-}
-
-fn output(command: &str, args: &[&str]) -> Result<String, String> {
-	let out = Command::new(program(command))
-		.args(args)
-		.current_dir(root())
-		.output()
-		.map_err(|e| format!("{command}: {e}"))?;
-	if !out.status.success() {
-		return Err(format!(
-			"{command} {}: {}",
-			args.join(" "),
-			String::from_utf8_lossy(&out.stderr).trim()
-		));
-	}
-	Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
 fn dist_windows() -> Result<(), String> {
@@ -589,7 +301,7 @@ fn redist_dir() -> Result<PathBuf, String> {
 		.ok_or_else(|| "the VC++ runtime was not found; set VC_REDIST_DIR".to_string())
 }
 
-/// Signs with the owner's certificate; a missing one fails the release.
+/// Signs with the owner's certificate; a missing one fails the build.
 /// Cloud builds set BLINDRADIO_UNSIGNED: no owner certificate exists there,
 /// so the exe and the installer ship without Authenticode. The minisign
 /// signatures the updater verifies are unaffected.

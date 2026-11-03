@@ -1,0 +1,39 @@
+name: CI
+
+# Tests and clippy on every push and pull request. The cloud release calls this as its gate.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["AGENTS.md", "README.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["AGENTS.md", "README.md", "docs/**"]
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Tests and clippy
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets

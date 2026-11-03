@@ -187,6 +187,7 @@ pub enum RecognitionProvider {
 pub struct RecognitionSettings {
 	pub enabled: bool,
 	pub provider: RecognitionProvider,
+	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub audd_token: Option<String>,
 	/// Skip recognition while the stream itself supplies titles.
 	pub only_when_no_metadata: bool,
@@ -210,9 +211,13 @@ impl Default for RecognitionSettings {
 #[serde(default)]
 pub struct ScrobbleSettings {
 	pub enabled: bool,
+	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub listenbrainz_token: Option<String>,
+	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub lastfm_api_key: Option<String>,
+	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub lastfm_secret: Option<String>,
+	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub lastfm_session_key: Option<String>,
 	/// None is last.fm itself; set to a Libre.fm URL to scrobble there.
 	pub lastfm_base: Option<String>,

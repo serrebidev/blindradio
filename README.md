@@ -26,7 +26,7 @@ A vibe-coded, screen-reader-first internet radio player for Windows, macOS, and 
 - Thirteen global hotkeys with a shared shortcuts editor.
 - A status line that shows the station, how long it has played, how far behind live you are while time-shifted, and when a recording is running.
 - Tray icon with Play/Pause, Stop, favorites, Show and Exit; a second launch raises the first copy and exits.
-- Plays MP3, AAC and HE-AAC, Ogg Vorbis, Opus and FLAC, PLS and M3U playlists, and HLS live streams.
+- Plays MP3, MP2, AAC and HE-AAC (LATM too), AC-3 and E-AC-3, Ogg Vorbis, Opus and FLAC, MPEG-TS channels, PLS and M3U playlists, and HLS live streams, including fragmented MP4 and AES-128.
 - Daily update check and Help, Check for Updates; every download is verified with minisign before it installs.
 
 ## Help
@@ -40,7 +40,7 @@ For a version-by-version history, see the [changelog](CHANGELOG.md).
 
 **Windows**
 
-Download `BlindRadio.zip` (portable: extract anywhere and run `blindradio.exe`) or `BlindRadio_setup.exe` (per-user installer). Windows builds are signed.
+Download `BlindRadio.zip` (portable: extract anywhere and run `blindradio.exe`) or `BlindRadio_setup.exe` (per-user installer). Windows builds have no Authenticode signature, so SmartScreen may warn the first time.
 
 **macOS**
 
@@ -69,7 +69,7 @@ cargo test --workspace
 
 `cargo run -p blindradio-core --example tune --release` measures warm and cold tuning latency; `doc/latency.md` has the latest numbers.
 
-Releases are cut with `cargo xtask release <version>` from a Windows machine: it runs the tests and clippy, builds and signs Windows, dispatches macOS, builds Linux over SSH, and takes the release notes from that version's section of `CHANGELOG.md`. Never run a cloud release and a local one at the same time.
+Releases run on GitHub Actions: `gh workflow run release.yml -f version=<version>`. It runs the tests and clippy, bumps the version, builds Windows, macOS and Linux, and takes the release notes from that version's section of `CHANGELOG.md`, which must already be on `main`.
 
 ## Contributing
 

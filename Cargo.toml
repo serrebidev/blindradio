@@ -2,6 +2,10 @@
 members = ["crates/*"]
 resolver = "3"
 
+# zip 9: zip 8 carries RUSTSEC-2026-0367, 0368, 0369 and 0429. Drop when shipfitter takes it.
+[patch.crates-io]
+shipfitter = { git = "https://github.com/serrebidev/shipfitter", branch = "zip-9" }
+
 [workspace.package]
 edition = "2024"
 license = "MIT"

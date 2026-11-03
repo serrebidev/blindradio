@@ -82,6 +82,23 @@ fn keep_bad(path: &Path) {
 	let _ = std::fs::rename(path, bad);
 }
 
+/// Windows folders are per-user already; Unix files start readable by everyone.
+#[cfg(unix)]
+fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
+	use std::os::unix::fs::OpenOptionsExt;
+	std::fs::OpenOptions::new()
+		.write(true)
+		.create(true)
+		.truncate(true)
+		.mode(0o600)
+		.open(path)
+}
+
+#[cfg(not(unix))]
+fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
+	std::fs::File::create(path)
+}
+
 /// Writes `<file>.tmp` completely, then renames it over the target.
 pub fn save<T: Serialize>(path: &Path, value: &T) -> Result<()> {
 	if let Some(dir) = path.parent() {
@@ -89,7 +106,7 @@ pub fn save<T: Serialize>(path: &Path, value: &T) -> Result<()> {
 	}
 	let json = serde_json::to_vec_pretty(value).map_err(std::io::Error::from)?;
 	let tmp = sibling(path, ".tmp");
-	let mut file = std::fs::File::create(&tmp)?;
+	let mut file = create_private(&tmp)?;
 	file.write_all(&json)?;
 	file.sync_all()?;
 	drop(file);

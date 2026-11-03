@@ -18,7 +18,6 @@ pub enum Entry {
 	Separator,
 }
 
-/// Global Hotkeys… (plan 5) and Check for Updates (plan 6) join when they work.
 pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 	use Action as A;
 	use Entry::{Item, Separator, Sub};

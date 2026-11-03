@@ -3,7 +3,13 @@
 Readable release history for BlindRadio, newest first. When adjacent releases
 were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
-taken from this file by `cargo xtask release`.
+taken from this file by the release workflow.
+
+## 0.2.50
+
+- On Windows, the AudD, ListenBrainz and last.fm tokens in `settings.json` are now encrypted for your Windows account, so the file can be copied or synced without them. Yours are converted the next time Settings saves. A copy of the file on another PC or account opens with those fields blank, so enter them again there. On macOS and Linux they stay in the file, which is now readable only by you.
+- A key bound to Play in Keyboard Shortcuts now says `Nothing to play` on a folder in the main window. It played the station you were last on.
+- This release's tools were updated to clear four security advisories in the `zip` library. BlindRadio itself never used the affected code.
 
 ## 0.2.49
 

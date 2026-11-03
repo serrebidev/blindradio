@@ -1,11 +1,8 @@
 name: Release (cloud)
 
-# The cloud release path: the same gates and assets as `cargo xtask release`
-# on Brandon's PC, run entirely in Actions. Dispatch it with a version whose
-# `## <version>` section is already in CHANGELOG.md. Use one path per
-# release — never run this and a local xtask release for the same version.
-# The Windows leg is Authenticode-unsigned here (the owner's certificate
-# stays on his PC); every asset still carries its minisign signature.
+# The one release path. Dispatch it with a version whose `## <version>` section is already
+# in CHANGELOG.md. The Windows leg is Authenticode-unsigned (no certificate here); every
+# asset carries its minisign signature.
 
 on:
   workflow_dispatch:
@@ -27,27 +24,7 @@ env:
 
 jobs:
   gate:
-    name: Tests and clippy
-    runs-on: windows-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: main
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Test
-        run: cargo test --workspace
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets
+    uses: ./.github/workflows/ci.yml
 
   prepare:
     name: Bump, tag and draft

@@ -47,13 +47,7 @@ fn run(app: &Rc<RefCell<App>>, item: TrayItem) {
 	match item {
 		TrayItem::PlayPause => dispatch(app, Action::PlayPause),
 		TrayItem::Stop => dispatch(app, Action::Stop),
-		TrayItem::Favorite(i) => {
-			let station = app.borrow().library.favorites.get(i).cloned();
-			if let Some(station) = station {
-				app.borrow_mut().selected = Some(station);
-				dispatch(app, Action::Play);
-			}
-		}
+		TrayItem::Favorite(i) => dispatch(app, Action::PlayFavorite(i)),
 		TrayItem::Show => raise(app),
 		TrayItem::Exit => dispatch(app, Action::Exit),
 	}

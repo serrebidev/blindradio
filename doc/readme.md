@@ -289,6 +289,10 @@ Ctrl+T opens Settings (File menu). It has four tabs: General, Playback, Recordin
 which holds song recognition and scrobbling. Focus starts on the tabs: Left and Right change tab, Tab moves into
 the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all four.
 
+On Windows, the service tokens on the Songs tab are stored encrypted for your Windows account.
+If you copy your data folder to another PC or account, those fields open blank; enter them again
+there.
+
 The General checkboxes are Announce Song Titles, Announce
 Connection Status, Announce Actions, Close Lists When Playing, Play Last Station at Startup, Play a Station as
 I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, Check
