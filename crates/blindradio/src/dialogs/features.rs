@@ -1,5 +1,5 @@
-//! Feature Settings (Ctrl+T): the
-//! time-shift, recording, recognition and scrobble options, applied on OK.
+//! Settings (Ctrl+T), in tabs: general, playback, recording, and recognition and scrobbling.
+//! Every tab applies on OK.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -15,9 +15,18 @@ use crate::strings as s;
 
 const OK_ID: Id = ID_HIGHEST + 7001;
 
-pub(crate) fn field(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: &str) -> TextCtrl {
-	let text = StaticText::builder(dialog).with_label(label).build();
-	let control = TextCtrl::builder(dialog).build();
+/// A page of Settings, the first one added showing. The caller fills the sizer, then sets it.
+fn tab(notebook: &Notebook, title: &str) -> (Panel, BoxSizer) {
+	let panel = Panel::builder(notebook)
+		.with_style(PanelStyle::TabTraversal)
+		.build();
+	notebook.add_page(&panel, title, notebook.get_page_count() == 0, None);
+	(panel, BoxSizer::builder(Orientation::Vertical).build())
+}
+
+pub(crate) fn field(parent: &impl WxWidget, sizer: &BoxSizer, label: &str, value: &str) -> TextCtrl {
+	let text = StaticText::builder(parent).with_label(label).build();
+	let control = TextCtrl::builder(parent).build();
 	control.set_value(value);
 	sizer.add(
 		&text,
@@ -33,23 +42,23 @@ pub(crate) fn field(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: &str)
 /// typed; the slider shows it inside `range`, and the arrows move it by `step`. The field is
 /// what is read back, so a value is whatever was last typed or slid to.
 fn slider_field(
-	dialog: &Dialog,
+	parent: &impl WxWidget,
 	sizer: &BoxSizer,
 	label: &str,
 	range: (u32, u32),
 	step: i32,
 	value: u32,
 ) -> TextCtrl {
-	let text = field(dialog, sizer, label, &value.to_string());
+	let text = field(parent, sizer, label, &value.to_string());
 	let (min, max) = (range.0 as i32, range.1 as i32);
-	let caption = StaticText::builder(dialog)
+	let caption = StaticText::builder(parent)
 		.with_label(&format!(
 			"{}{}",
 			label.trim_end_matches(':'),
 			s::SLIDER_SUFFIX
 		))
 		.build();
-	let slider = Slider::builder(dialog)
+	let slider = Slider::builder(parent)
 		.with_min_value(min)
 		.with_max_value(max)
 		.with_value(value as i32)
@@ -93,22 +102,22 @@ fn slider_field(
 	text
 }
 
-fn check(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: bool) -> CheckBox {
-	let control = CheckBox::builder(dialog).with_label(label).build();
+fn check(parent: &impl WxWidget, sizer: &BoxSizer, label: &str, value: bool) -> CheckBox {
+	let control = CheckBox::builder(parent).with_label(label).build();
 	control.set_value(value);
 	sizer.add(&control, 0, SizerFlag::All, 5);
 	control
 }
 
 pub(crate) fn choice(
-	dialog: &Dialog,
+	parent: &impl WxWidget,
 	sizer: &BoxSizer,
 	label: &str,
 	items: &[&str],
 	at: usize,
 ) -> Choice {
-	let text = StaticText::builder(dialog).with_label(label).build();
-	let control = Choice::builder(dialog).build();
+	let text = StaticText::builder(parent).with_label(label).build();
+	let control = Choice::builder(parent).build();
 	for item in items {
 		control.append(item);
 	}
@@ -169,18 +178,19 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.collect();
 	collections.sort_by_key(|(_, name)| name.to_lowercase());
 	let dialog = Dialog::builder(&frame, s::FEATURES_TITLE).build();
-	let sizer = BoxSizer::builder(Orientation::Vertical).build();
+	let notebook = Notebook::builder(&dialog).build();
 
-	let ann_titles = check(&dialog, &sizer, s::ANNOUNCE_TITLES, current.announce_titles);
-	let ann_status = check(&dialog, &sizer, s::ANNOUNCE_STATUS, current.announce_status);
-	let ann_actions = check(&dialog, &sizer, s::ANNOUNCE_ACTIONS, current.announce_actions);
+	let (panel, sizer) = tab(&notebook, s::TAB_GENERAL);
+	let ann_titles = check(&panel, &sizer, s::ANNOUNCE_TITLES, current.announce_titles);
+	let ann_status = check(&panel, &sizer, s::ANNOUNCE_STATUS, current.announce_status);
+	let ann_actions = check(&panel, &sizer, s::ANNOUNCE_ACTIONS, current.announce_actions);
 	let close_lists = check(
-		&dialog,
+		&panel,
 		&sizer,
 		s::CLOSE_LISTS,
 		current.close_lists_when_playing,
 	);
-	let play_last = check(&dialog, &sizer, s::PLAY_LAST, current.play_last_at_startup);
+	let play_last = check(&panel, &sizer, s::PLAY_LAST, current.play_last_at_startup);
 	let startup_items: Vec<&str> = std::iter::once(s::STARTUP_DEFAULT)
 		.chain(std::iter::once(s::STARTUP_ALL))
 		.chain(collections.iter().map(|(_, name)| name.as_str()))
@@ -194,20 +204,23 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			.map(|i| i + 2)
 			.unwrap_or(0),
 	};
-	let startup_list = choice(&dialog, &sizer, s::STARTUP_LIST, &startup_items, startup_at);
+	let startup_list = choice(&panel, &sizer, s::STARTUP_LIST, &startup_items, startup_at);
 	let expand_dial = check(
-		&dialog,
+		&panel,
 		&sizer,
 		s::EXPAND_DIAL_FOLDERS,
 		current.expand_dial_folders,
 	);
-	let fm_sound = check(&dialog, &sizer, s::FM_SOUND, current.fm_sound);
-	let updates_auto = check(&dialog, &sizer, s::CHECK_UPDATES_AUTO, current.check_updates);
-	let play_move = check(&dialog, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
-	let tray = check(&dialog, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
-	let max_start = check(&dialog, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
+	let updates_auto = check(&panel, &sizer, s::CHECK_UPDATES_AUTO, current.check_updates);
+	let play_move = check(&panel, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
+	let tray = check(&panel, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
+	let max_start = check(&panel, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
+	panel.set_sizer(sizer, true);
+
+	let (panel, sizer) = tab(&notebook, s::TAB_PLAYBACK);
+	let fm_sound = check(&panel, &sizer, s::FM_SOUND, current.fm_sound);
 	let buffer_start = slider_field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::BUFFER_START,
 		BufferSettings::START_MS,
@@ -215,7 +228,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		current.buffers.start_ms,
 	);
 	let buffer_refill = slider_field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::BUFFER_REFILL,
 		BufferSettings::REFILL_SECONDS,
@@ -223,60 +236,66 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		current.buffers.refill_limit_seconds,
 	);
 	let buffer_hls = slider_field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::BUFFER_HLS,
 		BufferSettings::HLS_SEGMENTS,
 		1,
 		current.buffers.hls_segments_behind,
 	);
-	let ts_on = check(&dialog, &sizer, s::TS_ENABLE, current.timeshift.enabled);
+	let ts_on = check(&panel, &sizer, s::TS_ENABLE, current.timeshift.enabled);
 	let ts_minutes = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::TS_MINUTES,
 		&current.timeshift.minutes.to_string(),
 	);
-	let ts_ring = check(&dialog, &sizer, s::TS_RING, current.timeshift.encoded_ring);
+	let ts_ring = check(&panel, &sizer, s::TS_RING, current.timeshift.encoded_ring);
 	let ts_max_mb = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::TS_MAX_MB,
 		&current.timeshift.max_mb.to_string(),
 	);
 	let seek_step = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SEEK_STEP,
 		&current.timeshift.seek_step_seconds.to_string(),
 	);
+	panel.set_sizer(sizer, true);
+
+	let (panel, sizer) = tab(&notebook, s::TAB_RECORDING);
 	let format_at = FORMATS
 		.iter()
 		.position(|f| *f == current.recording.format)
 		.unwrap_or(0);
 	let format = choice(
-		&dialog,
+		&panel,
 		&sizer,
 		s::REC_FORMAT,
 		&[s::FMT_ORIGINAL, s::FMT_WAV, s::FMT_MP3, s::FMT_FLAC],
 		format_at,
 	);
 	let bitrate = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::REC_BITRATE,
 		&current.recording.mp3_bitrate_kbps.to_string(),
 	);
-	let vbr = check(&dialog, &sizer, s::REC_VBR, current.recording.mp3_vbr);
+	let vbr = check(&panel, &sizer, s::REC_VBR, current.recording.mp3_vbr);
 	let rec_dir = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::REC_DIR,
 		current.recording.dir.as_deref().unwrap_or(""),
 	);
-	let recog_on = check(&dialog, &sizer, s::RECOG_ENABLE, current.recognition.enabled);
+	panel.set_sizer(sizer, true);
+
+	let (panel, sizer) = tab(&notebook, s::TAB_SONGS);
+	let recog_on = check(&panel, &sizer, s::RECOG_ENABLE, current.recognition.enabled);
 	let provider = choice(
-		&dialog,
+		&panel,
 		&sizer,
 		s::RECOG_PROVIDER,
 		&[s::PROV_METADATA, s::PROV_AUDD],
@@ -286,54 +305,58 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		},
 	);
 	let audd_token = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::RECOG_TOKEN,
 		current.recognition.audd_token.as_deref().unwrap_or(""),
 	);
 	let only_meta = check(
-		&dialog,
+		&panel,
 		&sizer,
 		s::RECOG_ONLY_META,
 		current.recognition.only_when_no_metadata,
 	);
 	let recog_announce = check(
-		&dialog,
+		&panel,
 		&sizer,
 		s::RECOG_ANNOUNCE,
 		current.recognition.announce,
 	);
-	let scrob_on = check(&dialog, &sizer, s::SCROB_ENABLE, current.scrobble.enabled);
+	let scrob_on = check(&panel, &sizer, s::SCROB_ENABLE, current.scrobble.enabled);
 	let lb_token = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SCROB_LB_TOKEN,
 		current.scrobble.listenbrainz_token.as_deref().unwrap_or(""),
 	);
 	let fm_key = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SCROB_KEY,
 		current.scrobble.lastfm_api_key.as_deref().unwrap_or(""),
 	);
 	let fm_secret = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SCROB_SECRET,
 		current.scrobble.lastfm_secret.as_deref().unwrap_or(""),
 	);
 	let fm_session = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SCROB_SESSION,
 		current.scrobble.lastfm_session_key.as_deref().unwrap_or(""),
 	);
 	let fm_base = field(
-		&dialog,
+		&panel,
 		&sizer,
 		s::SCROB_BASE,
 		current.scrobble.lastfm_base.as_deref().unwrap_or(""),
 	);
+	panel.set_sizer(sizer, true);
+
+	let sizer = BoxSizer::builder(Orientation::Vertical).build();
+	sizer.add(&notebook, 1, SizerFlag::Expand | SizerFlag::All, 5);
 	let ok = footer(&dialog, sizer);
 	dialog.set_sizer_and_fit(sizer, true);
 
@@ -416,8 +439,10 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		});
 	}
 
-	ann_titles.set_focus();
-	crate::dialogs::run(app, dialog, Action::FeatureSettings, ann_titles, &token)
+	// The tab strip first, so the tabs are heard. A hidden page's control cannot take focus,
+	// which is also why Ctrl+T comes back here and not to a check box.
+	notebook.set_focus();
+	crate::dialogs::run(app, dialog, Action::FeatureSettings, notebook, &token)
 }
 
 /// A tri-state override as a choice index: 0 global, 1 on, 2 off.

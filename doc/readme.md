@@ -138,7 +138,7 @@ Opus and Vorbis streams, which send song titles in their own tags, show them lik
 
 ## Buffers
 
-Settings (Ctrl+T) has three buffer settings. Each is a text field you can type any number
+The Playback tab of Settings (Ctrl+T) has three buffer settings. Each is a text field you can type any number
 into, followed by a slider that moves with it. Lower numbers play closer to live; higher ones ride
 out a poor connection. A change applies to the next station you open, and the start buffer and
 refill limit also apply to the one playing.
@@ -221,14 +221,16 @@ makes a folder inside the focused one. F2 renames a collection or a folder, Dele
 after asking, Delete on a station removes it, Alt+Up and Alt+Down reorder, Shift+Up and
 Shift+Down move a folder among its siblings, a station's context
 menu moves it between folders, and the Applications key on a collection adds every station of
-one collection to another. Ctrl+Shift+L adds the playing station to a collection.
+one collection to another. Ctrl+Shift+L adds the focused station to a collection, or the playing one when no row is
+focused.
 
 Stations can also be copied between places: Copy Station on a station's context menu (or
 Ctrl+C) copies it — any station, including one found in Browse or a directory — Cut Station
 (Ctrl+X) marks it to move, and Paste Station (Ctrl+V) puts it beside the focused station, or
 into the folder or collection the Applications key was pressed on. Pasting a cut station into
 another folder of its own collection moves it there; a plain copy leaves the original where
-it was. Paste into Favorites works the same way from the Favorites window.
+it was. Ctrl+C and Ctrl+X work only on a station: on a folder they say so and change nothing. Copy
+Stream URL, Add to Favorites, Add to Collection and Edit Station also do nothing on a folder. Paste into Favorites works the same way from the Favorites window.
 
 ## Song history
 
@@ -283,15 +285,19 @@ due, playback stops.
 
 ## Settings
 
-Ctrl+T opens Settings (File menu). The General checkboxes are Announce Song Titles, Announce
-Connection Status, Close Lists When Playing, Play Last Station at Startup, Play a Station as
+Ctrl+T opens Settings (File menu). It has four tabs: General, Playback, Recording, and Songs,
+which holds song recognition and scrobbling. Focus starts on the tabs: Left and Right change tab, Tab moves into
+the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all four.
+
+The General checkboxes are Announce Song Titles, Announce
+Connection Status, Announce Actions, Close Lists When Playing, Play Last Station at Startup, Play a Station as
 I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, Check
 for Updates Automatically (the daily update check; Help, Check for Updates always works), and
-Expand All Directories in the Main Window, and FM Sound Between Stations. With Play a Station as I Move to It off, moving
+Expand All Directories in the Main Window. With Play a Station as I Move to It off, moving
 through a list only selects the station; Enter plays it. With Expand All Directories off,
 the main window's directories start collapsed, so a long list opens as a short list of
 directories to walk into; a directory you open or close by hand keeps its state either way.
-FM Sound is the soft hiss BlindRadio plays while a new station tunes in, like a dial
+FM Sound Between Stations, on the Playback tab, is the soft hiss BlindRadio plays while a new station tunes in, like a dial
 crossing the band, so tuning never has dead air; turn it off and the gap is silent. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
@@ -308,13 +314,13 @@ Rename and Delete are on its context menu. Custom Stations itself stays. A stati
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name, info and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on
-the context menu). The time-shift, recording, recognition and scrobbling options live in
-the same window.
+the context menu). The time-shift options are on the Playback tab, the recording options on
+the Recording tab, and the recognition and scrobbling options on the Songs tab.
 
 ## Recognizing a song when a station sends no title
 
 BlindRadio does not use Shazam. It uses AudD, and only when you turn it on: open
-Settings (Ctrl+T), check Recognize Songs Without Metadata, set Recognition Service
+Settings (Ctrl+T), go to its Songs tab, check Recognize Songs Without Metadata, set Recognition Service
 to AudD, and paste an AudD token. A token is free from audd.io: sign up there and
 copy the API token from your account. Without a token nothing is recognized, and
 saving Settings with recognition on but no token says so. With a token, a short
@@ -333,6 +339,9 @@ Once a day, ten seconds after it starts, BlindRadio asks GitHub whether a newer 
 published and offers it. Help, Check for Updates asks at once and says when there is nothing new.
 The download is verified before it is used; a portable copy updates itself in place and keeps its
 data folder, and an installed copy runs the new installer. BlindRadio restarts by itself.
+
+Help, View Changelog opens the release history in your browser, and works offline. Help, Go to
+BlindRadio GitHub Page opens the project's page.
 
 ## Tray icon
 

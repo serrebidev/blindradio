@@ -553,6 +553,15 @@ impl App {
 			.or_else(|| self.tuner.playing().cloned())
 	}
 
+	/// What a station command acts on. `selected` outlives a move onto a main tree folder,
+	/// and the folder is no station: nothing is, even with one playing.
+	pub fn station_here(&self) -> Option<Station> {
+		if !self.dialog_open && self.win.stations.on_folder() {
+			return None;
+		}
+		self.selected_or_playing()
+	}
+
 	/// Dial tuning: a user-driven focus move in a station list.
 	/// Moving to another station ends any recording in progress:
 	/// play_now finishes it, and a tuner focus change drops the
@@ -676,7 +685,7 @@ impl App {
 			Action::VolumeUp => self.set_volume(self.volume() + VOLUME_STEP),
 			Action::VolumeDown => self.set_volume(self.volume() - VOLUME_STEP),
 			Action::SetVolume(v) => self.set_volume(i32::from(v)),
-			Action::ToggleFavorite => match self.selected_or_playing() {
+			Action::ToggleFavorite => match self.station_here() {
 				Some(st) => {
 					let added = self.library.toggle_favorite(&st);
 					self.say(if added {
@@ -686,7 +695,7 @@ impl App {
 					});
 					self.save_library();
 				}
-				None => self.say(s::NOTHING_PLAYING),
+				None => self.say(s::NO_STATION_HERE),
 			},
 			Action::PlayFavorite(i) => match self.library.favorites.get(i).cloned() {
 				Some(st) => self.play(st),
@@ -733,6 +742,8 @@ impl App {
 			// The main window shows them (`main_window::dispatch`): they are modal.
 			Action::About
 			| Action::Help
+			| Action::ViewChangelog
+			| Action::GitHubPage
 			| Action::OpenSearch
 			| Action::OpenBrowse
 			| Action::OpenFavorites
@@ -754,16 +765,14 @@ impl App {
 			| Action::FeatureSettings
 			| Action::EditStation => {}
 			Action::CopyUrl => self.copy_url(),
-			Action::CopyStation => {
-				if let Some(st) = self.selected.clone() {
-					self.copy_station(&st, false);
-				}
-			}
-			Action::CutStation => {
-				if let Some(st) = self.selected.clone() {
-					self.copy_station(&st, true);
-				}
-			}
+			Action::CopyStation => match self.focused_station() {
+				Some(st) => self.copy_station(&st, false),
+				None => self.say(s::NOTHING_TO_COPY),
+			},
+			Action::CutStation => match self.focused_station() {
+				Some(st) => self.copy_station(&st, true),
+				None => self.say(s::NOTHING_TO_CUT),
+			},
 			Action::PasteStation => {
 				// Paste lands where the user is standing: the open
 				// dialog's focused row first (Browse states it), then
@@ -1548,7 +1557,7 @@ impl App {
 			},
 		);
 		let favorite = self
-			.selected_or_playing()
+			.station_here()
 			.is_some_and(|st| self.library.is_favorite(&st.id));
 		let label = menus::favorite_label(favorite);
 		if set_label(win.favorite, &menus::plain(label))
@@ -1950,6 +1959,16 @@ impl App {
 		Some(PasteDest::Collection(id, path))
 	}
 
+	/// The station Ctrl+C and Ctrl+X act on. `selected` outlives a move onto a main tree
+	/// folder, so there the row itself decides; the dialogs empty `selected` on their folders.
+	fn focused_station(&self) -> Option<Station> {
+		if self.dialog_open {
+			return self.selected.clone();
+		}
+		let rows = self.win.stations.stations();
+		self.win.stations.current().and_then(|i| rows.get(i).cloned())
+	}
+
 	/// Copy or cut a station onto the clipboard. A cut station stays
 	/// where it is until Paste takes it out of its home.
 	pub fn copy_station(&mut self, station: &Station, cut: bool) {
@@ -2183,7 +2202,7 @@ impl App {
 
 	/// Copy Stream URL: the focused station's URL, read back from the clipboard.
 	fn copy_url(&mut self) {
-		match self.selected_or_playing() {
+		match self.station_here() {
 			Some(st) => {
 				let ok = clipboard::copy(&st.url);
 				self.say(clipboard::message(ok));

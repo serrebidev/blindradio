@@ -77,6 +77,10 @@ pub enum Action {
 	/// Help > Check for Updates.
 	CheckForUpdates,
 	Help,
+	/// Help > View Changelog: the embedded release history, in the browser.
+	ViewChangelog,
+	/// Help > Go to BlindRadio GitHub Page.
+	GitHubPage,
 	About,
 	/// Fetch the SerrebiRadio starter list again.
 	GetStarter,

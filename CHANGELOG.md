@@ -5,6 +5,15 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by `cargo xtask release`.
 
+## 0.2.49
+
+- Ctrl+C and Ctrl+X in the main window now work only on a station. On a folder they copied or cut the station you were last on; now they say `Nothing to copy` or `Nothing to cut` and leave what you copied before alone.
+- Copy Stream URL, Add to Favorites, Add to Collection and Edit Station no longer act on the station you were last on while a folder is focused in the main window. Copy Stream URL says `Nothing to copy`; the others say `No station here`. With no row focused they still use the playing station.
+- Settings (Ctrl+T) now has four tabs: General, Playback, Recording and Songs, which holds song recognition and scrobbling. Focus starts on the tabs. Left and Right change tab there, Tab moves into the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all four.
+- Some Settings Alt letters changed so that no two on a tab share one: Announce Actions is Alt+T, Startup List Alt+I, Ring Size Alt+Z, Recordings Folder Alt+O, Only When the Stream Gives No Title Alt+I and last.fm Secret Alt+L.
+- The Help menu gains View Changelog, which opens the release history in your browser and works offline, and Go to BlindRadio GitHub Page. Both can be given a key in Keyboard Shortcuts.
+- User Guide now says `Could not open the browser` when no browser opens. It did nothing.
+
 ## 0.2.48
 
 - Shift+Up and Shift+Down now move a collection in Browse, and an open one keeps its rows as it moves. Custom Stations stays first among them. The four top rows of Browse move too, Collections and Custom Stations included.

@@ -529,6 +529,7 @@ fn buffer_slider_and_field_stay_together() {
 			app.find("Settings", Duration::from_secs(5))
 		})
 		.expect("Settings");
+	app.press("{right}");
 	let field = control(&dialog, "Start buffer, in milliseconds:", ControlType::Edit);
 	let slider = control(
 		&dialog,
@@ -549,6 +550,7 @@ fn buffer_slider_and_field_stay_together() {
 	// Any number can be typed; the same field reads back what the window saved.
 	app.press("{ctrl}t");
 	let dialog = app.find("Settings", WAIT).expect("Settings");
+	app.press("{right}");
 	let field = control(&dialog, "Start buffer, in milliseconds:", ControlType::Edit);
 	assert_eq!(field_text(&field), "900");
 	field
@@ -560,6 +562,85 @@ fn buffer_slider_and_field_stay_together() {
 	app.invoke(&control(&dialog, "OK", ControlType::Button));
 	std::thread::sleep(Duration::from_millis(500));
 	assert_eq!(saved(), 2345);
+}
+
+/// Settings opens on its tab strip; arrows and Ctrl+Tab change tab, from the OK button too, and
+/// OK saves what every tab holds.
+#[test]
+#[ignore = "needs a desktop"]
+fn settings_tabs_are_reached_by_keyboard_and_all_save() {
+	let app = App::start("settings-tabs", Library::default());
+	let dialog = (0..4)
+		.find_map(|_| {
+			app.press("{ctrl}t");
+			app.find("Settings", Duration::from_secs(5))
+		})
+		.expect("Settings");
+	let control = |name: &str, kind| {
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.timeout(5000)
+			.name(name)
+			.control_type(kind)
+			.find_first()
+			.unwrap_or_else(|e| panic!("{name}: {e}"))
+	};
+	let focused = || app.automation.get_focused_element().expect("focus");
+	let shows = |name: &str, kind| {
+		let found = control(name, kind);
+		assert!(!found.is_offscreen().unwrap(), "{name} shows");
+		found
+	};
+	assert_eq!(focused().get_name().unwrap(), "General", "starts on the tab strip");
+	// A tab strip too wide for the window grows these arrows and hides tabs behind them.
+	assert!(
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.timeout(500)
+			.control_type(ControlType::Spinner)
+			.find_first()
+			.is_err(),
+		"every tab fits"
+	);
+	shows("Announce Song Titles", ControlType::CheckBox);
+
+	app.press("{right}");
+	assert_eq!(focused().get_name().unwrap(), "Playback");
+	shows("Seek Step (Seconds)", ControlType::Edit);
+	app.press("{tab}");
+	assert_eq!(
+		focused().get_name().unwrap(),
+		"FM sound between stations",
+		"Tab goes into the page"
+	);
+
+	app.press("{ctrl}{tab}");
+	shows("Recordings Folder (blank is the default)", ControlType::Edit);
+
+	control("OK", ControlType::Button).set_focus().expect("focus OK");
+	std::thread::sleep(Duration::from_millis(300));
+	app.press("{ctrl}{tab}");
+	let token = shows("AudD Token", ControlType::Edit);
+	token
+		.get_pattern::<UIValuePattern>()
+		.expect("value")
+		.set_value("from-the-last-tab")
+		.expect("type");
+
+	app.press("{ctrl}t");
+	assert_eq!(
+		focused().get_control_type().unwrap(),
+		ControlType::TabItem,
+		"Ctrl+T comes back to the tab strip"
+	);
+	app.invoke(&control("OK", ControlType::Button));
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(
+		Settings::load(&app.data).recognition.audd_token.as_deref(),
+		Some("from-the-last-tab")
+	);
 }
 
 /// Shift+Up and Shift+Down move a favorite, as in Browse.
@@ -697,6 +778,87 @@ fn main_window_pastes_beside_the_focused_copy() {
 	app.press("{ctrl}v");
 	let saved = Library::load(&app.data);
 	assert_eq!(names(&saved, 2), ["Paste one", "Paste two"], "into Gamma");
+}
+
+/// Ctrl+C and Ctrl+X on a folder row leave the clipboard alone, whatever was last focused:
+/// they answer that nothing is there, and Paste still does what the last real copy or cut asked.
+#[test]
+#[ignore = "needs a desktop"]
+fn main_window_copy_and_cut_need_a_station_row() {
+	let folder = |name: &str, stations| Folder {
+		name: name.into(),
+		stations,
+		folders: Vec::new(),
+	};
+	let mut library = Library::default();
+	library.collections[0].folders = vec![
+		folder(
+			"Alpha",
+			vec![station("custom:one", "Row one"), station("custom:two", "Row two")],
+		),
+		folder("Beta", Vec::new()),
+		folder("Gamma", Vec::new()),
+	];
+	let settings = Settings {
+		main_list: Some("custom".into()),
+		expand_dial_folders: true,
+		play_on_move: false,
+		..Settings::default()
+	};
+	let app = App::with_settings("copy-folder", library, settings);
+	let names = |i: usize| -> Vec<String> {
+		Library::load(&app.data).collections[0].folders[i]
+			.stations
+			.iter()
+			.map(|s| s.name.clone())
+			.collect()
+	};
+	let tree = app.main_tree();
+
+	// On a station Ctrl+D acts; on a folder neither it nor Ctrl+U reaches the last station.
+	let favorites = || Library::load(&app.data).favorites.len();
+	app.select_row(&tree, "Row one");
+	app.press("{ctrl}d");
+	assert_eq!(favorites(), 1, "a station row");
+	app.select_row(&tree, "Beta 0");
+	app.press("{ctrl}d");
+	assert!(
+		app.control("No station here", ControlType::Text, Duration::from_secs(3)).is_some(),
+		"it says so"
+	);
+	assert_eq!(favorites(), 1, "a folder row");
+	app.press("{ctrl}u");
+	assert!(
+		app.control("Nothing to copy", ControlType::Text, Duration::from_secs(3)).is_some(),
+		"no URL from a folder"
+	);
+
+	// A copy stays a copy: Ctrl+X on a folder must not turn it into a cut.
+	app.select_row(&tree, "Row one");
+	app.press("{ctrl}c");
+	app.select_row(&tree, "Beta 0");
+	app.press("{ctrl}x");
+	assert!(
+		app.control("Nothing to cut", ControlType::Text, Duration::from_secs(3)).is_some(),
+		"it says so"
+	);
+	app.press("{ctrl}v");
+	assert_eq!(names(1), ["Row one"], "into Beta");
+	assert_eq!(names(0), ["Row one", "Row two"], "still in Alpha: it was a copy");
+
+	// A cut stays a cut: Ctrl+C on a folder must not turn it into a copy.
+	let tree = app.main_tree();
+	app.select_row(&tree, "Row two");
+	app.press("{ctrl}x");
+	app.select_row(&tree, "Gamma 0");
+	app.press("{ctrl}c");
+	assert!(
+		app.control("Nothing to copy", ControlType::Text, Duration::from_secs(3)).is_some(),
+		"it says so"
+	);
+	app.press("{ctrl}v");
+	assert_eq!(names(2), ["Row two"], "into Gamma");
+	assert_eq!(names(0), ["Row one"], "gone from Alpha: it was a cut");
 }
 
 /// Answers Yes in the confirmation with this title.

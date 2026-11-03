@@ -153,7 +153,19 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			help::about(&frame);
 		}
 		Action::Help => {
-			help::open(&help::guide(), "readme.html");
+			if !help::open(&help::guide(), "readme.html") {
+				app.borrow_mut().say(s::NO_BROWSER);
+			}
+		}
+		Action::ViewChangelog => {
+			if !help::open(&help::changelog(), "changelog.html") {
+				app.borrow_mut().say(s::NO_BROWSER);
+			}
+		}
+		Action::GitHubPage => {
+			if !help::open_website() {
+				app.borrow_mut().say(s::NO_BROWSER);
+			}
 		}
 		Action::OpenSearch => {
 			if let Some(next) = dialogs::search::show(app) {
@@ -191,13 +203,13 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			}
 		}
 		Action::AddToCollection => {
-			let station = app.borrow().selected_or_playing();
+			let station = app.borrow().station_here();
 			match station {
 				Some(st) => {
 					let frame = app.borrow().win.frame;
 					dialogs::add_to_collection::choose(app, &frame, &st);
 				}
-				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+				None => app.borrow_mut().say(s::NO_STATION_HERE),
 			}
 		}
 		Action::OpenUrl => {
@@ -255,14 +267,14 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			}
 		}
 		Action::EditStation => {
-			let station = app.borrow().selected_or_playing();
+			let station = app.borrow().station_here();
 			match station {
 				Some(st) => {
 					if let Some(next) = dialogs::custom_station::show_edit(app, &st) {
 						dispatch(app, next);
 					}
 				}
-				None => app.borrow_mut().say(s::NOTHING_PLAYING),
+				None => app.borrow_mut().say(s::NO_STATION_HERE),
 			}
 		}
 		a => app.borrow_mut().run(a),

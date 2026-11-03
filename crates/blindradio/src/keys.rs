@@ -99,6 +99,8 @@ pub enum KeyAction {
 	KeyboardShortcuts,
 	CheckForUpdates,
 	Help,
+	ViewChangelog,
+	GitHubPage,
 	About,
 	Exit,
 	Close,
@@ -108,7 +110,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 72] = [
+	pub const ALL: [KeyAction; 74] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -178,6 +180,8 @@ impl KeyAction {
 		K::KeyboardShortcuts,
 		K::CheckForUpdates,
 		K::Help,
+		K::ViewChangelog,
+		K::GitHubPage,
 		K::About,
 		K::Exit,
 		K::Close,
@@ -221,6 +225,8 @@ impl KeyAction {
 			| K::KeyboardShortcuts
 			| K::CheckForUpdates
 			| K::Help
+			| K::ViewChangelog
+			| K::GitHubPage
 			| K::About
 			| K::Exit
 			| K::Close => 3,
@@ -300,6 +306,8 @@ impl KeyAction {
 			K::KeyboardShortcuts => "keyboard_shortcuts",
 			K::CheckForUpdates => "check_for_updates",
 			K::Help => "help",
+			K::ViewChangelog => "view_changelog",
+			K::GitHubPage => "github_page",
 			K::About => "about",
 			K::Exit => "exit",
 			K::Close => "close",
@@ -380,6 +388,8 @@ impl KeyAction {
 			K::KeyboardShortcuts => plain(s::KEYBOARD_SHORTCUTS),
 			K::CheckForUpdates => plain(s::CHECK_UPDATES),
 			K::Help => plain(s::USER_GUIDE),
+			K::ViewChangelog => plain(s::VIEW_CHANGELOG),
+			K::GitHubPage => plain(s::GITHUB_PAGE),
 			K::About => plain(s::ABOUT),
 			K::Exit => plain(s::EXIT),
 			K::Close => s::KB_CLOSE_DIALOG.to_string(),
@@ -515,6 +525,8 @@ impl KeyAction {
 			K::KeyboardShortcuts => Action::KeyboardShortcuts,
 			K::CheckForUpdates => Action::CheckForUpdates,
 			K::Help => Action::Help,
+			K::ViewChangelog => Action::ViewChangelog,
+			K::GitHubPage => Action::GitHubPage,
 			K::About => Action::About,
 			K::Exit => Action::Exit,
 			K::Close => Action::Close,
@@ -633,6 +645,8 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::KeyboardShortcuts => K::KeyboardShortcuts,
 		Action::CheckForUpdates => K::CheckForUpdates,
 		Action::Help => K::Help,
+		Action::ViewChangelog => K::ViewChangelog,
+		Action::GitHubPage => K::GitHubPage,
 		Action::About => K::About,
 		Action::Exit => K::Exit,
 		_ => return None,

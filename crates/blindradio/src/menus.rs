@@ -137,6 +137,9 @@ pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
 			s::MENU_HELP,
 			vec![
 				Item(s::USER_GUIDE, keys(&A::Help), A::Help),
+				Item(s::VIEW_CHANGELOG, keys(&A::ViewChangelog), A::ViewChangelog),
+				Item(s::GITHUB_PAGE, keys(&A::GitHubPage), A::GitHubPage),
+				Separator,
 				Item(s::CHECK_UPDATES, keys(&A::CheckForUpdates), A::CheckForUpdates),
 				Item(s::ABOUT, keys(&A::About), A::About),
 			],
@@ -346,6 +349,8 @@ mod tests {
 			("Settings…", "Ctrl+T"),
 			("Keyboard Shortcuts…", ""),
 			("User Guide", "F1"),
+			("View Changelog", ""),
+			("Go to BlindRadio GitHub Page", ""),
 			("About BlindRadio", ""),
 			("Exit", ""),
 		];

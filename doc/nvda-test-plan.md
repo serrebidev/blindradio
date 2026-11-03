@@ -31,7 +31,8 @@ Expected speech is quoted. Numbered steps are one pass; note the step number wit
     Ctrl+M reads `Muted`, then `Unmuted`. Recording: `Record Ctrl+R`, `Pause Recording
     Ctrl+Shift+R`, `Record Each Song to Its Own File` (a check item that ticks and stays
     ticked), `Write Buffer…`, `Scheduled Recordings…`.
-13. Help: `About BlindRadio` opens the about box; Escape closes it.
+13. Help: `View Changelog` opens the release history in the browser, `Go to BlindRadio GitHub
+    Page` opens the project's page, and `About BlindRadio` opens the about box; Escape closes it.
 
 ## Dial tuning and lists
 
@@ -141,7 +142,9 @@ Expected speech is quoted. Numbered steps are one pass; note the step number wit
 66. Audio Device: choosing a device plays through it and is remembered.
 67. Unplug it while playing: `Device lost. Using default.` and the submenu checks `Default`.
 68. Plug it back: `Using <name>` and the submenu checks it.
-69. The four File check items survive a restart.
+69. The four File check items survive a restart. Settings (Ctrl+T) opens on the `General` tab:
+    Left and Right read each tab, Tab enters the page and reads its first control by name, and
+    Ctrl+Tab changes tab from a control or from OK.
 70. Exit saves the station and volume; the next start honours both.
 
 ## App keys in every window

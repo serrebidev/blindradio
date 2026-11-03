@@ -133,6 +133,11 @@ impl DialTree {
 		self.row(&item)
 	}
 
+	/// Whether a folder or collection row is selected.
+	pub fn on_folder(&self) -> bool {
+		matches!(self.selected_row(), Some(Row::Folder { .. }))
+	}
+
 	/// The list the focused row stands in, as a collection and index path: a
 	/// folder row's own, a station row's parent folder, else the dial
 	/// collection's root. The same station can be filed in several lists, and

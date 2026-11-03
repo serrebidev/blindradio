@@ -16,6 +16,7 @@ fn commit_hash() -> String {
 fn main() {
 	println!("cargo:rerun-if-changed=build.rs");
 	println!("cargo:rerun-if-changed=../../doc/readme.md");
+	println!("cargo:rerun-if-changed=../../CHANGELOG.md");
 	println!("cargo:rerun-if-changed=assets/blindradio.ico");
 
 	let hash = commit_hash();
@@ -41,6 +42,18 @@ fn main() {
 		&page,
 	) {
 		panic!("the user guide does not convert: {e}");
+	}
+	// No table of contents: one entry per release would bury the newest under a long list.
+	if let Err(e) = docs::convert_deflated(
+		Path::new("../../CHANGELOG.md"),
+		&out.join("changelog.html"),
+		&Page {
+			title: "BlindRadio Changelog",
+			toc_depth: 0,
+			..Page::default()
+		},
+	) {
+		panic!("the changelog does not convert: {e}");
 	}
 
 	if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
