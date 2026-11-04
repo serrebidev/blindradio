@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.63
+
+- F5, F6 and F7 now measure from what you are hearing. Many stations, such as WNYC, send up to 15 seconds of audio the moment you connect, and BlindRadio counted that as time behind live, so F5 said 0:16 after two seconds of play. F5 now says how far back it really went, F6 always goes back, and F7 returns to live without a gap. Pausing at live also resumes where you stopped, not further ahead.
+- The FM sound between stations now plays at one fixed level, whatever the volume of the station you are tuning to. Mute still silences it.
+- In Edit Station, you now hear each Equalizer and Equalizer Preset choice as you move through them, if that station is playing. OK keeps it, Cancel puts back what was there.
+- Delete on a station in the main window's tree now asks before removing it, from the key and from the context menu.
+
 ## 0.2.62
 
 - Settings has a new Sources tab where you can turn each directory and network on or off. Press Space on a row, or use the buttons to change a whole list. One that is off leaves Browse and Search. Stations you saved from it keep playing.

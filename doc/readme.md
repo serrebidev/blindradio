@@ -161,6 +161,10 @@ refill limit also apply to the one playing.
 - HLS segments behind live: where a live HLS stream starts, 1 to 10 segments back from the newest.
   The default is 2. At 1 a segment can arrive only just in time, so it can stutter.
 
+Many stations send up to about 15 seconds of audio the moment you connect, so playback starts that
+far behind the broadcast and stays there. Live in BlindRadio means what you would hear without
+going back: F5, F6, F7 and "behind live" all count from there, so that burst is not counted.
+
 For one stream right now, File → Open URL plays an address you paste without adding it
 anywhere — handy for a quick listen or testing a stream. It still appears under Recently
 Played, and from there it can be favorited or added to a collection like any station.
@@ -241,8 +245,9 @@ preset eases the gain back to normal.
 A station can have its own equalizer. In Edit Station, Equalizer is Use Global, On or
 Off. Use Global follows the Ctrl+E settings. Off plays that station with no equalizer. On
 plays it through the preset you pick in Equalizer Preset, even with the equalizer off in
-Ctrl+E: the built-in ones, Custom and your saved presets. The choice is applied when you
-press OK and each time the station starts, and moving to another station returns to that
+Ctrl+E: the built-in ones, Custom and your saved presets. If the station is playing, you hear
+each choice as you move through them; OK keeps it and Cancel puts back what was there. After
+that it applies each time the station starts, and moving to another station returns to that
 station's setting. So a very quiet station can always play through Loudness while the
 rest stay as they are. If you delete a saved preset, stations using it go back to Use
 Global. Ctrl+E and the equalizer hotkey always change the global settings; when the
@@ -382,7 +387,7 @@ directories to walk into; a directory you open or close by hand keeps its state 
 A message after a menu command or a closed dialog waits about half a second, so your screen
 reader reads the station list first and then the message, rather than cutting it off.
 FM Sound Between Stations, on the Playback tab, is the soft hiss BlindRadio plays while a new station tunes in, like a dial
-crossing the band, so tuning never has dead air; turn it off and the gap is silent. The Startup List chooses what the main list shows when the app starts: the default
+crossing the band, so tuning never has dead air; turn it off and the gap is silent. It plays at one fixed level, whatever the volume of the station you are tuning to, and Mute silences it. The Startup List chooses what the main list shows when the app starts: the default
 stations, All Playlists, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
 is a tree: All Playlists shows one folder per playlist with its directories inside, in the
@@ -393,7 +398,7 @@ back. In the tree itself, typing a letter jumps to the next station starting wit
 way lists usually work. Shift+Up and Shift+Down move the focused station, folder or, in
 All Playlists, collection, as they do in Browse (Alt+Up and Alt+Down work too); not while
 the Filter box has text in it. Delete on a station takes the copy you are on out of that
-list. Delete on a folder or collection removes it after asking, naming how many stations go with it, and
+list, after asking. Delete on a folder or collection removes it after asking, naming how many stations go with it, and
 Rename and Delete are on its context menu. Custom Stations itself stays. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name, info and stream URL everywhere it appears.

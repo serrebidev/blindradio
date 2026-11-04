@@ -806,8 +806,30 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let ms = |frame: u64| frame * 1000 / u64::from(buffer.rate());
 		let now = ms(buffer.live_edge());
 		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
-		let playhead = if cursor == u64::MAX { now } else { ms(cursor) };
+		let playhead = ms(if cursor == u64::MAX { status.live_frame(buffer) } else { cursor });
 		Some((ms(buffer.start()), now, playhead))
+	}
+
+	/// Where live playback stands on the marks' timeline. Session time in
+	/// ring mode already is that: a burst arrives in a moment and plays out.
+	pub fn live_ms(&self) -> Option<u64> {
+		let (buffer, status) = self.shift.as_ref()?;
+		if let Some(feed) = &self.ring_feed {
+			return Some(feed.now_ms());
+		}
+		Some(status.live_frame(buffer) * 1000 / u64::from(buffer.rate()))
+	}
+
+	/// How far behind live the oldest audio held is, in seconds. Ring mode
+	/// asks the ring: its deep history reaches past the decoded window.
+	pub fn buffer_depth_seconds(&self) -> f32 {
+		let Some((buffer, status)) = &self.shift else {
+			return 0.0;
+		};
+		match &self.ring_feed {
+			Some(feed) => feed.now_ms().saturating_sub(feed.ring_start_ms()) as f32 / 1000.0,
+			None => status.depth_seconds(buffer),
+		}
 	}
 
 	/// A title landed at the live edge: it starts a segment there.

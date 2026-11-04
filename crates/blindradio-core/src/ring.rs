@@ -110,7 +110,11 @@ impl PcmRing {
 	}
 
 	pub fn len_ms(&self) -> u32 {
-		(self.buf.lock().len() as u64 / 2 * 1000 / self.rate as u64) as u32
+		(self.frames() * 1000 / self.rate as u64) as u32
+	}
+
+	pub fn frames(&self) -> u64 {
+		self.buf.lock().len() as u64 / 2
 	}
 
 	/// Drops all but the newest `keep_ms`, or more if this stream arrives in lumps further apart

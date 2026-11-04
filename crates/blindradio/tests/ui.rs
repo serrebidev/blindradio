@@ -1146,6 +1146,7 @@ fn main_window_delete_takes_the_focused_row() {
 	app.select_row(&app.main_tree(), "Same 2");
 	app.press("{down}");
 	app.press("{delete}");
+	answer_yes(&app, "Delete");
 	let saved = custom(&app);
 	assert_eq!(saved.folders[0].stations.len(), 1, "the first copy stays");
 	assert_eq!(saved.folders[1].stations[0].name, "Extra");
@@ -1269,6 +1270,7 @@ fn deleting_the_last_main_row_plays_the_one_before() {
 	app.select_row(&tree, "Two");
 	assert!(app.window.get_name().unwrap().contains("Two"));
 	app.press("{delete}");
+	answer_yes(&app, "Delete");
 	app.assert_selected(&tree, "One");
 	assert!(
 		app.window.get_name().unwrap().contains("One"),
@@ -1322,6 +1324,7 @@ fn main_context_menu_deletes_a_station_from_its_collection() {
 	app.select_row(&tree, "One");
 	app.press("{shift}{f10}");
 	app.invoke(&app.menu_item("Delete"));
+	answer_yes(&app, "Delete");
 	std::thread::sleep(Duration::from_millis(600));
 	app.assert_selected(&tree, "Two");
 	let saved = Library::load(&app.data);
@@ -2217,6 +2220,7 @@ fn playback_reveals_the_main_tree_and_file_exports_are_reachable() {
 	app.assert_selected(&tree, "One");
 	tree.set_focus().unwrap();
 	app.press("{delete}");
+	answer_yes(&app, "Delete");
 	app.assert_selected(&tree, "Two");
 	assert!(
 		app.window.get_name().unwrap().contains("Two"),

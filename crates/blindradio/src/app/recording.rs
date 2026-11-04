@@ -87,9 +87,8 @@ impl App {
 				self.shift_song = Some(segment.title.clone());
 				let behind = self
 					.tuner
-					.segments()
-					.last()
-					.map_or(0, |last| last.end_ms.saturating_sub(segment.start_ms));
+					.live_ms()
+					.map_or(0, |live| live.saturating_sub(segment.start_ms));
 				let mut text = segment.title;
 				if self.settings.announce_status {
 					let behind = fmt_dur(behind as f32 / 1000.0);
