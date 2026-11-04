@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.57
+
+- Record in the Recording menu is now checked while a recording is in progress.
+- With JAWS running, messages are now spoken by JAWS itself, so "Recording saved to..." and the rest reach it directly, wherever you are working.
+- Ending a recording from the menu can hold the window for a moment. The saved message now waits until that is over and your screen reader has started reading the station tree, so the reading does not cut it off.
+
 ## 0.2.56
 
 - 357 more stations in Networks, counting the new networks below. ABC Australia gains 33, mostly regional. NPR gains 39, including more states. Minnesota Public Radio gains The Current and the YourClassical streams, and NTS gains its 16 Infinite Mixtapes. Capital, Heart, Smooth, Classic FM, Radio X, RTÉ, RNZ, FRISKY and WHFF gain channels too. 1.FM gains 39 channels and its current channel names. 181.fm gains 6 Christmas channels. Radio Paradise gains Sanctuary, WFMU gains UbuWeb Radio and Mushroom FM gains Mushroom Pot.

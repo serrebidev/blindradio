@@ -25,6 +25,13 @@ global-hotkey = "*"
 # Loads NVDA's controller client DLL at runtime (speech.rs); the DLL
 # itself ships beside the exe, nothing is linked.
 libloading = "*"
+# JAWS speech (jaws.rs), over its COM object.
+windows = { version = "*", features = [
+	"Win32_System_Com",
+	"Win32_System_Ole",
+	"Win32_System_Variant",
+	"Win32_UI_WindowsAndMessaging",
+] }
 
 [build-dependencies]
 embed-manifest = "*"

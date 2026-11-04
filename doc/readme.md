@@ -263,7 +263,7 @@ played, otherwise what you have heard since you tuned in. Copy and Enter copy th
 
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
 folder, in the format Settings chooses. While a recording is in progress, the window title
-ends with the word Recording. Closing the app ends a recording too, so closing (or Exit)
+ends with the word Recording and Record in the Recording menu is checked. Closing the app ends a recording too, so closing (or Exit)
 asks first the same way; hiding to the tray keeps recording and never asks. Changing stations ends a recording, so the app asks first:
 a confirmation names what happens — the recording stops, what is recorded so far is
 saved — and only your Yes changes the station. The Recording menu holds it all: Record,
@@ -414,9 +414,9 @@ Song changes are announced in the buffer too, under the same Announce Song Title
 setting as live ones: as playback moves forward through the buffer and the next song
 starts, it is spoken.
 
-The global hot keys work from any app. With NVDA running, announcements are spoken by
-NVDA itself, so they reach you wherever you are working, not only in the BlindRadio
-window. The status bar holds the position line — how long the station has played, live
+The global hot keys work from any app. With NVDA or JAWS running, announcements are spoken
+by that screen reader itself, so they reach you wherever you are working, not only in the
+BlindRadio window. The status bar holds the position line — how long the station has played, live
 or how far behind, whether a recording is running, and the stream's format; the station
 and song stay in the title, where they do not crowd it out. On Windows it is the standard
 Windows status bar control in its own borderless window along the main window's bottom

@@ -199,9 +199,16 @@ impl App {
 		self.show_line(&line, &bar);
 	}
 
-	/// Button labels, the favorites menu item and the volume slider follow the state.
+	/// Button labels, the favorites and Record menu items and the volume slider follow the state.
 	pub(super) fn refresh(&self) {
 		let win = &self.win;
+		// Windows flips a check item when it is chosen, so this also takes back a failed start.
+		if let Some(bar) = win.frame.get_menu_bar() {
+			let recording = self.tuner.is_recording();
+			if bar.is_item_checked(self.menus.record) != recording {
+				bar.check_item(self.menus.record, recording);
+			}
+		}
 		let playing = self.tuner.playing().is_some();
 		let shift_paused = self
 			.tuner

@@ -21,6 +21,11 @@ const WAIT: Duration = Duration::from_secs(20);
 #[link(name = "user32")]
 unsafe extern "system" {
 	fn keybd_event(key: u8, scan: u8, flags: u32, extra: usize);
+	fn GetMenu(window: isize) -> isize;
+	fn GetSubMenu(menu: isize, position: i32) -> isize;
+	fn GetMenuItemID(menu: isize, position: i32) -> u32;
+	fn GetMenuState(menu: isize, position: u32, flags: u32) -> u32;
+	fn PostMessageW(window: isize, message: u32, wparam: usize, lparam: isize) -> i32;
 }
 
 fn station(id: &str, name: &str) -> Station {
@@ -1384,6 +1389,61 @@ fn segment_keys_say_so_when_there_are_no_segments() {
 	let app = App::start("no-segments-write", Library::default());
 	app.press("{ctrl}{f5}");
 	app.message_with("No segments");
+}
+
+/// Record's check in the Recording menu. Commands are posted, no key is sent, so this holds
+/// even with someone else at the keyboard.
+#[test]
+#[ignore = "needs a desktop"]
+fn record_is_checked_only_while_recording() {
+	const WM_COMMAND: u32 = 0x0111;
+	const MF_BYPOSITION: u32 = 0x400;
+	const MF_CHECKED: u32 = 0x8;
+	let url = icy_station();
+	let mut library = Library::default();
+	library.collections[0].stations = vec![Station {
+		url,
+		..station("custom:icy", "Test FM")
+	}];
+	let rec = std::env::temp_dir().join(format!("blindradio-ui-check-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&rec);
+	let mut settings = Settings {
+		main_list: Some("custom".into()),
+		..Settings::default()
+	};
+	settings.recording.dir = Some(rec.to_string_lossy().into_owned());
+	let app = App::with_settings("record-check", library, settings);
+	let window: isize = app.window.get_native_window_handle().unwrap().into();
+	let (playback, recording) = unsafe {
+		let bar = GetMenu(window);
+		(GetSubMenu(bar, 2), GetSubMenu(bar, 3))
+	};
+	let post = |menu: isize| unsafe {
+		PostMessageW(window, WM_COMMAND, GetMenuItemID(menu, 0) as usize, 0);
+	};
+	let checked = || unsafe { GetMenuState(recording, 0, MF_BYPOSITION) & MF_CHECKED != 0 };
+	let settles = |want: bool| {
+		for _ in 0..40 {
+			if checked() == want {
+				return;
+			}
+			std::thread::sleep(Duration::from_millis(50));
+		}
+		panic!("Record checked should be {want}");
+	};
+
+	// Nothing plays, so nothing records: Windows flips the check, the app takes it back.
+	post(recording);
+	std::thread::sleep(Duration::from_millis(500));
+	settles(false);
+
+	post(playback);
+	std::thread::sleep(Duration::from_secs(2));
+	post(recording);
+	settles(true);
+	post(recording);
+	settles(false);
+	let _ = std::fs::remove_dir_all(&rec);
 }
 
 #[test]
