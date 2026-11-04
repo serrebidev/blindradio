@@ -89,8 +89,19 @@ jobs:
           else:
               sys.exit("no version line in the workspace manifest")
           open("Cargo.toml", "w").write("".join(lines))
+          # The lock's copy of our own version moves with the manifest. Left to cargo, the
+          # change makes it resolve our `*` dependencies again and settle on older versions
+          # the lock already holds, so what ships is not what the gate tested.
+          import re
+          blocks = open("Cargo.lock").read().split("[[package]]\n")
+          for i, block in enumerate(blocks):
+              # Only workspace members have no source line.
+              if i and "\nsource = " not in block:
+                  blocks[i] = re.sub(r'^version = ".*"$', f'version = "{version}"', block, count=1, flags=re.M)
+          open("Cargo.lock", "w").write("[[package]]\n".join(blocks))
           PY
-          cargo metadata --format-version 1 > /dev/null
+          # Fails if the lock would still change.
+          cargo metadata --locked --format-version 1 > /dev/null
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.toml Cargo.lock
