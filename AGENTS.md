@@ -28,6 +28,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 ## Code map
 - `app.rs` = `App`, `run`, `poll`. Children in `app/`: `status`, `dial`, `stations`, `recording`, `global_keys`. Child sees App privates. Child method called elsewhere = `pub(super)`.
 - `dialogs/browse.rs` = model + tests. `dialogs/browse/view.rs` = window.
+- `speech.rs` = message path: NVDA (`nvda.rs`), then JAWS (`jaws.rs`), then UIA live region. JAWS path never run under JAWS: won't launch it beside owner's NVDA.
 - `status_strip.rs` = own window + hand-built UIA provider, so NVDA+End finds status bar. Read its header before touching.
 - `sources/live365.rs` reads web page data, no open API. Site rewrite empties it. How: `docs/radio-directory-sources.md`.
 - `core/segments.rs` = title bookmarks, jump + write. Marks in ms on tuner timeline: decoded = frame time, ring = session time. Mode switch clears them. Title at playhead = `Tuner::heard_title`, never wall clock.

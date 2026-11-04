@@ -59,7 +59,13 @@ impl Hold {
 	/// Keeps the message and answers true while it must wait. A later message waits
 	/// behind an earlier one, so order holds.
 	fn keep(&mut self, text: &str, priority: Priority, now: Instant) -> bool {
-		let wait = self.until.is_some_and(|until| now < until) || !self.held.is_empty();
+		// Past its time and no poll has cleared it: the command that said this held the
+		// window (ending a recording does). The reader cannot read a window that does not
+		// answer, so the wait starts over now.
+		if self.until.is_some_and(|until| now >= until) {
+			self.focus_returning(now);
+		}
+		let wait = self.until.is_some() || !self.held.is_empty();
 		if wait {
 			self.held.push((text.to_owned(), priority));
 		}
@@ -111,12 +117,13 @@ impl Speech {
 	}
 
 	fn speak(&self, text: &str, priority: Priority) {
-		// Through NVDA itself when it is running: the live region is
-		// only heard while BlindRadio is the foreground app, which made
+		// Through NVDA or JAWS itself when one is running: the live region
+		// is only heard while BlindRadio is the foreground app, which made
 		// the global hot key's announcement silent everywhere else.
-		// NVDA not running (or another reader in charge) keeps the
-		// live region.
-		if !crate::nvda::speak(text, priority == Priority::High) {
+		// NVDA first, so a PC running both never hears it twice. Any other
+		// reader keeps the live region.
+		let interrupt = priority == Priority::High;
+		if !crate::nvda::speak(text, interrupt) && !crate::jaws::speak(text, interrupt) {
 			live_region::announce_with_priority(self.label, text, priority);
 		}
 	}
@@ -143,11 +150,25 @@ mod tests {
 		assert!(hold.keep("one", Priority::Low, start));
 		let settled = start + FOCUS_SETTLES;
 		assert!(hold.due(settled - Duration::from_millis(1)).is_empty());
-		assert!(hold.keep("two", Priority::High, settled), "stays behind one");
+		assert!(hold.keep("two", Priority::High, settled - Duration::from_millis(1)));
 		let due: Vec<_> = hold.due(settled).into_iter().map(|(text, _)| text).collect();
-		assert_eq!(due, ["one", "two"]);
+		assert_eq!(due, ["one", "two"], "two stays behind one");
 		assert!(!hold.keep("three", Priority::Low, settled));
 		assert!(hold.due(settled).is_empty());
+	}
+
+	#[test]
+	fn a_command_that_held_the_window_still_waits_for_the_focus_reading() {
+		let start = Instant::now();
+		let mut hold = Hold::default();
+		hold.focus_returning(start);
+		// No poll ran: the command took longer than the wait.
+		let done = start + FOCUS_SETTLES + Duration::from_millis(300);
+		assert!(hold.keep("saved", Priority::Low, done));
+		assert!(hold.due(done).is_empty(), "the wait starts over");
+		let due = hold.due(done + FOCUS_SETTLES);
+		assert_eq!(due.len(), 1);
+		assert!(!hold.keep("free again", Priority::Low, done + FOCUS_SETTLES));
 	}
 
 	#[test]

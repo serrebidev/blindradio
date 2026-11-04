@@ -181,6 +181,8 @@ pub struct MenuIds {
 	actions: Vec<Action>,
 	/// Add to / Remove from Favorites, relabelled as the station changes.
 	pub favorite: Id,
+	/// Record, checked while a recording is in progress.
+	pub record: Id,
 }
 
 const FIRST_ID: Id = ID_HIGHEST + 1;
@@ -202,6 +204,7 @@ pub fn build(frame: &Frame, settings: &Settings, devices: &[String]) -> MenuIds 
 	let mut ids = MenuIds {
 		actions: Vec::new(),
 		favorite: wxdragon::id::ID_NONE,
+		record: wxdragon::id::ID_NONE,
 	};
 	let mut bar = MenuBar::builder();
 	for (title, entries) in menus(settings) {
@@ -234,6 +237,10 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 					{
 						item.check(true);
 					}
+				} else if *action == Action::Record {
+					// App::refresh keeps the check on what the tuner is doing.
+					ids.record = id;
+					menu.append(id, &menu_label(label, keys), "", ItemKind::Check);
 				} else {
 					menu.append(id, &menu_label(label, keys), "", ItemKind::Normal);
 				}
