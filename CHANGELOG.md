@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.61
+
+- New directory: Online Radio Box, in Browse and Search. It offers By Genre and each region of the world, with that region's countries inside.
+- Song History (Ctrl+Y) now reaches back up to a week for stations Online Radio Box follows. Older songs show how long ago they played, such as 2 d 3 h.
+- Song History now finds many more stations' own lists, from any directory: StreamTheWorld stations such as .977 and Radio 538, Live365, laut.fm, AzuraCast stations such as WHFF, BBC, KEXP and Radio Paradise. These lists come first, then Online Radio Box continues from where they end.
+
 ## 0.2.60
 
 - Station Info now looks up TuneIn stations, adding slogan, genre, location, language and homepage where TuneIn gives them. It works for stations TuneIn will not play where you are, such as MS NOW.

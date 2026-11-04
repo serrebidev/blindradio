@@ -74,7 +74,10 @@ pub fn ago(t: SystemTime, now: SystemTime) -> String {
 			(h, 0) => format!("{h} h"),
 			(h, m) => format!("{h} h {m} min"),
 		},
-		_ => format!("{} d", mins / 1440),
+		_ => match (mins / 1440, mins % 1440 / 60) {
+			(d, 0) => format!("{d} d"),
+			(d, h) => format!("{d} d {h} h"),
+		},
 	}
 }
 
@@ -143,6 +146,7 @@ mod tests {
 		assert_eq!(a(4800), "1 h 20 min");
 		assert_eq!(a(86_400), "1 d");
 		assert_eq!(a(2 * 86_400 + 5), "2 d");
+		assert_eq!(a(2 * 86_400 + 3 * 3600 + 5), "2 d 3 h");
 		assert_eq!(ago(t(2_000_000), now), "Just now");
 	}
 }

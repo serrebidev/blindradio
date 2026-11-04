@@ -42,7 +42,7 @@ Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any.
 Name box starts the search; the results replace the list and the first result plays.
 
 Search combines Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast, Internet-Radio,
-IPRD, Radio.net, Live365 and the curated networks. Genre, Country and Language filters apply to Radio
+IPRD, Radio.net, Live365, Online Radio Box and the curated networks. Genre, Country and Language filters apply to Radio
 Browser; Icecast also matches Genre when a Name is given. Other directories use the Name
 box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
@@ -61,7 +61,7 @@ BlacknWhita. Numbers are not spelled out: radio 1 does not find Radio One.
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
 holds the BlindRadio Directory, Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast,
 Internet-Radio, IPRD, Recommended Radio Streams,
-Radio.net and Live365. The BlindRadio Directory is the community's own submitted stations,
+Radio.net, Live365 and Online Radio Box. The BlindRadio Directory is the community's own submitted stations,
 kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
 folder (a country or a category), each playlist's groups are its subfolders, and the
 app reads the repository live, so new
@@ -107,7 +107,8 @@ Recommended Radio Streams offers one folder per category, read live from its Git
 repository, and is not part of Search. Radio.net offers Top Stations, Local Stations, By
 Genre, By Country, By Language and By Topic. TuneIn offers Local Radio, Music, Talk, Sports
 and By Location. iHeartRadio offers All Stations, Genres and By City. Live365
-offers one folder per genre, with its sub-genres inside. Radio
+offers one folder per genre, with its sub-genres inside. Online Radio Box offers By Genre and
+one folder per region of the world, with that region's countries inside. Radio
 Browser offers By Genre, By Country, By Language, By State and Top Stations. A listed station may be offline or unavailable in your region.
 
 Networks carries English-language broadcasters and internet networks, among them BBC, NPR,
@@ -275,6 +276,13 @@ Stream URL, Add to Favorites, Add to Collection and Edit Station also do nothing
 
 Ctrl+Y shows what played: the station's published history when it has one, with when each song
 played, otherwise what you have heard since you tuned in. Copy and Enter copy the focused song.
+
+Published history comes from the station's own list where one exists: iHeartRadio, SomaFM,
+StreamTheWorld stations, Live365, laut.fm, AzuraCast stations, BBC, KEXP and Radio Paradise.
+These usually cover hours. Online Radio Box continues from there, up to a week back. It is used
+only when it clearly lists the same station: the same stream, or the same name in the same
+country. So some stations have no history, and some of what it lists is not a song, such as a
+show's name. Times on its older rows can be an hour out across a clock change.
 
 ## Recording
 

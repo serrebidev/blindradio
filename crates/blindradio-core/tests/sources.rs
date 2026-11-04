@@ -38,8 +38,15 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		iprd: s.base.clone(),
 		radionet: s.base.clone(),
 		live365: s.base.clone(),
+		orb: s.base.clone(),
 		directory: s.base.clone(),
 		recommended: s.base.clone(),
+		triton: s.base.clone(),
+		live365_api: s.base.clone(),
+		laut_fm: s.base.clone(),
+		bbc: s.base.clone(),
+		kexp: s.base.clone(),
+		radio_paradise: s.base.clone(),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -458,6 +465,178 @@ async fn history_found_by_url_after_dedupe() {
 	let mut copy = station("rb:u10", Source::RadioBrowser);
 	copy.url = "https://ice1.somafm.com/groovesalad-128-mp3".into();
 	assert_eq!(src.history(&copy).await.unwrap()[0].title, "Soma - Tune");
+}
+
+fn on(url: &str) -> Station {
+	let mut st = station("rb:u1", Source::RadioBrowser);
+	url.clone_into(&mut st.url);
+	st
+}
+
+#[tokio::test]
+async fn open_history_is_found_from_the_stream_address() {
+	let triton = r#"<nowplaying-info-list><nowplaying-info type="track"><property name="cue_time_start"><![CDATA[2000000]]></property><property name="cue_title"><![CDATA[Song]]></property><property name="track_artist_name"><![CDATA[Band]]></property></nowplaying-info></nowplaying-info-list>"#;
+	let (s, src) = sources(vec![
+		json("/public/nowplaying", triton),
+		json(
+			"/station/a1",
+			r#"{"current-track":{"title":"Now","artist":"A","start":"2026-11-04 08:05:16.45+00:00"},"last-played":[{"title":"Then","artist":"B","start":"2026-11-04 08:00:00+00:00"}]}"#,
+		),
+		json(
+			"/station/eins/last_songs",
+			r#"[{"title":"Lights","artist":{"name":"John"},"started_at":"2026-11-04 08:51:19 +0100"}]"#,
+		),
+		json(
+			"/api/nowplaying/hits",
+			r#"{"now_playing":{"played_at":300,"song":{"artist":"A","title":"Now","text":"A - Now"}},"song_history":[{"played_at":100,"song":{"artist":"","title":"","text":"Only Text"}}]}"#,
+		),
+		json(
+			"/v2/services/bbc_6music/segments/latest",
+			r#"{"data":[{"segment_type":"music","titles":{"primary":"Suede","secondary":"Trash"},"offset":{"label":"Now Playing"}},{"segment_type":"speech","titles":{"primary":"News","secondary":"Now"},"offset":{"label":"1 Minute Ago"}}]}"#,
+		),
+		json(
+			"/v2/plays/",
+			r#"{"results":[{"play_type":"airbreak","artist":null,"song":null,"airdate":"2026-11-04T00:10:00-08:00"},{"play_type":"trackplay","artist":"Puma Blue","song":"Croak Dream","airdate":"2026-11-04T00:07:32-08:00"}]}"#,
+		),
+		json(
+			"/api/nowplaying_list_v2022",
+			r#"{"song":[{"artist":"Lips","title":"Superman","play_time":1793779723550}]}"#,
+		),
+	]);
+	let first = |items: Option<Vec<_>>| {
+		let items: Vec<blindradio_core::sources::HistoryItem> = items.unwrap();
+		items[0].title.clone()
+	};
+	let stw = "https://playerservices.streamtheworld.com/api/livestream-redirect/977_HITS.mp3";
+	assert_eq!(first(src.history(&on(stw)).await), "Band - Song");
+	assert!(s.last_query("/public/nowplaying").unwrap().contains("mountName=977_HITS"));
+
+	let live = src.history(&on("https://streaming.live365.com/a1")).await.unwrap();
+	assert_eq!(live.iter().map(|i| i.title.as_str()).collect::<Vec<_>>(), ["A - Now", "B - Then"]);
+	assert_eq!(
+		first(src.history(&on("https://eins.stream.laut.fm/eins")).await),
+		"John - Lights"
+	);
+	let azura = src.history(&on(&format!("{}/listen/hits/radio.mp3", s.base))).await.unwrap();
+	assert_eq!(azura[0].title, "A - Now");
+	assert_eq!(azura[1].title, "Only Text");
+	let bbc = src
+		.history(&on("http://x.akamaized.net/live/ww/bbc_6music/bbc_6music.isml/a.m3u8"))
+		.await
+		.unwrap();
+	assert_eq!(bbc.len(), 1, "speech is not a song");
+	assert_eq!(bbc[0].title, "Suede - Trash");
+	assert_eq!(
+		first(src.history(&on("https://kexp-mp3-128.streamguys1.com/kexp128.mp3")).await),
+		"Puma Blue - Croak Dream"
+	);
+	assert_eq!(
+		first(src.history(&on("https://stream.radioparadise.com/aac-128")).await),
+		"Lips - Superman"
+	);
+	assert!(s.last_query("/api/nowplaying_list_v2022").unwrap().contains("chan=0"));
+}
+
+const ORB_ROW: &str = r#"<ul><li class="stations__station"><ul class="stations__station__tags"><li><a>jazz</a></li></ul><ul class="stations__station__info"><li><a class="i-flag us" title="United States"></a></li></ul><button class="b-play station_play" stream="http://orb.test/salad" streamType="mp3" radioId="us.salad" radioName="Salad Classic ORB"></button></li></ul>"#;
+
+fn html(path: &str, body: &str) -> Route {
+	Route::Static {
+		path: path.into(),
+		content_type: "text/html".into(),
+		body: body.as_bytes().to_vec(),
+	}
+}
+
+#[tokio::test]
+async fn orb_browse_and_search() {
+	let list = format!(
+		r#"{ORB_ROW}<dl class="pagination"><dd><a href="https://x/ca/?p=1">2</a></dd></dl>"#
+	);
+	let (s, src) = sources(vec![
+		html("/genres/", r#"<div id="tags"><a href="/genre/jazz/">jazz</a></div>"#),
+		html(
+			"/Oceania/",
+			r#"<ul class="countries__countries-list"><li><a href="/as/">American Samoa</a></li></ul>"#,
+		),
+		html("/ca/", &list),
+		html("/genre/jazz/", ORB_ROW),
+		html("/search", ORB_ROW),
+	]);
+	assert!(
+		src.children("dir", Sort::default())
+			.await
+			.unwrap()
+			.contains(&folder("orb", "Online Radio Box"))
+	);
+	let root = src.children("orb", Sort::default()).await.unwrap();
+	assert_eq!(root[0], folder("orb/genres", "By Genre"));
+	assert!(root.contains(&folder("orb/region/Oceania", "Oceania")));
+	assert_eq!(
+		src.children("orb/genres", Sort::default()).await.unwrap(),
+		[folder("orb/genre/jazz", "jazz")]
+	);
+	assert_eq!(
+		src.children("orb/region/Oceania", Sort::default()).await.unwrap(),
+		[folder("orb/country/as", "American Samoa")]
+	);
+	let country = src.children("orb/country/ca", Sort::default()).await.unwrap();
+	assert!(matches!(&country[0], Node::Station(st) if st.id == "orb:us.salad"));
+	assert_eq!(
+		country[1],
+		Node::LoadMore {
+			id: "orb/country/ca@1".into()
+		}
+	);
+	let last = src.children("orb/country/ca@1", Sort::default()).await.unwrap();
+	assert!(s.last_query("/ca/").unwrap().contains("p=1"));
+	assert!(!last.iter().any(|n| matches!(n, Node::LoadMore { .. })), "{last:?}");
+	assert_eq!(
+		src.children("orb/genre/jazz", Sort::default()).await.unwrap().len(),
+		1
+	);
+	let found = src.search(&q("salad classic")).await;
+	assert!(found.iter().any(|st| st.source == Source::OnlineRadioBox), "{found:?}");
+}
+
+#[tokio::test]
+async fn orb_carries_history_on_from_the_stations_own_list() {
+	let page = r#"<div class="station-onair__localtime"><nobr>(<a>now in Here</a> 12:00)</nobr></div><table class="tablelist-schedule"><tr><td class="tablelist-schedule__time">Live</td><td class="track_history_item">Now - Live</td></tr></table>"#;
+	let older = r#"<table class="tablelist-schedule"><tr><td class="tablelist-schedule__time">12:00</td><td class="track_history_item">Old - Song</td></tr></table>"#;
+	let triton = format!(
+		r#"<nowplaying-info-list><nowplaying-info type="track"><property name="cue_time_start"><![CDATA[{}000]]></property><property name="cue_title"><![CDATA[Song]]></property><property name="track_artist_name"><![CDATA[Band]]></property></nowplaying-info></nowplaying-info-list>"#,
+		std::time::SystemTime::now()
+			.duration_since(UNIX_EPOCH)
+			.unwrap()
+			.as_secs()
+			- 60
+	);
+	let mut routes = vec![
+		html("/search", ORB_ROW),
+		json("/public/nowplaying", &triton),
+		html("/us/salad/playlist/", page),
+	];
+	for back in 1..8 {
+		routes.push(html(&format!("/us/salad/playlist/{back}"), older));
+	}
+	let (_s, src) = sources(routes);
+
+	// Found by its stream, so the name does not have to match.
+	let alone = src.history(&on("http://orb.test/salad")).await.unwrap();
+	assert_eq!(alone.len(), 8);
+	assert_eq!(alone[0].title, "Now - Live");
+	assert_eq!(alone[1].title, "Old - Song");
+	assert!(alone[1].played_at.is_some());
+
+	// A station with no match gets nothing from it.
+	assert_eq!(src.history(&on("http://elsewhere.test/x")).await, None);
+
+	// By its own id, after a list of its own: only what is older than that list.
+	let mut both = on("https://playerservices.streamtheworld.com/api/livestream-redirect/M.mp3");
+	both.id = "orb:us.salad".into();
+	let joined = src.history(&both).await.unwrap();
+	assert_eq!(joined[0].title, "Band - Song");
+	assert!(joined.iter().skip(1).all(|i| i.title == "Old - Song"), "{joined:?}");
+	assert_eq!(joined.len(), 8, "the live row is newer than the list and drops out");
 }
 
 const RN_LIST: &str = r#"{"totalCount":2,"playables":[{"id":"one","name":"One FM","genres":["Pop"],"city":"Berlin","country":"DE","streams":[{"url":"http://rn.test/1","status":"VALID"}]},{"id":"two","name":"Two FM","genres":[],"city":"","country":"","streams":[{"url":"","status":"INVALID"}]}]}"#;
