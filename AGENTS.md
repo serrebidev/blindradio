@@ -31,6 +31,8 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - `speech.rs` = message path: NVDA (`nvda.rs`), then JAWS (`jaws.rs`), then UIA live region. JAWS path never run under JAWS: won't launch it beside owner's NVDA.
 - `status_strip.rs` = own window + hand-built UIA provider, so NVDA+End finds status bar. Read its header before touching.
 - `sources/live365.rs` reads web page data, no open API. Site rewrite empties it. How: `docs/radio-directory-sources.md`.
+- `sources/orb.rs` = Online Radio Box: reads web pages, no API. Terms do not offer this use, owner's call. Browse, search, week of songs. Match by stream, or name + country: name alone shows wrong station's songs. How: `docs/radio-sources-research-2026-11-04.md`.
+- `sources/played.rs` = open song lists, picked from stream URL: Triton, Live365, laut.fm, AzuraCast, BBC, KEXP, Radio Paradise. `Sources::history`: own list first, ORB adds older rows.
 - `core/segments.rs` = title bookmarks, jump + write. Marks in ms on tuner timeline: decoded = frame time, ring = session time. Mode switch clears them. Title at playhead = `Tuner::heard_title`, never wall clock.
 
 ## UI traps

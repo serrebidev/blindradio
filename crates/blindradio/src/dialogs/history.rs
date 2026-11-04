@@ -36,6 +36,8 @@ fn fill(
 		list.insert_column(1, s::COLUMN_PLAYED, ListColumnFormat::Left, 120);
 	}
 	let now = SystemTime::now();
+	// A week of songs is thousands of rows.
+	list.freeze();
 	for (i, item) in found.iter().enumerate() {
 		let row = i as i64;
 		list.insert_item(row, &item.title, None);
@@ -45,6 +47,7 @@ fn fill(
 			list.set_item_text_by_column(row, 1, &history::ago(at, now));
 		}
 	}
+	list.thaw();
 	*items.borrow_mut() = found;
 }
 

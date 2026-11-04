@@ -40,6 +40,8 @@ pub mod internet_radio;
 pub mod iprd;
 pub mod live365;
 pub mod networks;
+pub mod orb;
+mod played;
 pub mod radio_browser;
 pub mod radionet;
 pub mod shoutcast;
@@ -301,8 +303,15 @@ pub struct Endpoints {
 	pub iprd: String,
 	pub radionet: String,
 	pub live365: String,
+	pub orb: String,
 	pub directory: String,
 	pub recommended: String,
+	pub triton: String,
+	pub live365_api: String,
+	pub laut_fm: String,
+	pub bbc: String,
+	pub kexp: String,
+	pub radio_paradise: String,
 }
 
 impl Default for Endpoints {
@@ -318,8 +327,15 @@ impl Default for Endpoints {
 			iprd: "https://iprd-org.github.io/iprd".into(),
 			radionet: "https://prod.radio-api.net".into(),
 			live365: "https://live365.com".into(),
+			orb: "https://onlineradiobox.com".into(),
 			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
 			recommended: "https://api.github.com/repos/deroverda/recommended-radio-streams".into(),
+			triton: "https://np.tritondigital.com".into(),
+			live365_api: "https://api.live365.com".into(),
+			laut_fm: "https://api.laut.fm".into(),
+			bbc: "https://rms.api.bbc.co.uk".into(),
+			kexp: "https://api.kexp.org".into(),
+			radio_paradise: "https://api.radioparadise.com".into(),
 		}
 	}
 }
@@ -344,6 +360,8 @@ pub struct Sources {
 	iprd: iprd::Iprd,
 	radionet: radionet::RadioNet,
 	live365: live365::Live365,
+	orb: orb::Orb,
+	played: played::Played,
 	directory: directory::Directory,
 	recommended: directory::Directory,
 	somafm_base: String,
@@ -403,6 +421,20 @@ fn answers(station: &Station, name: &str) -> bool {
 	holds_words(&text, name)
 }
 
+/// `own` then the rows of `older` from before it. A list without times cannot be joined.
+fn older_rows_follow(
+	own: Option<Vec<HistoryItem>>,
+	older: Option<Vec<HistoryItem>>,
+) -> Option<Vec<HistoryItem>> {
+	let Some(mut own) = own.filter(|o| !o.is_empty()) else {
+		return older;
+	};
+	if let (Some(oldest), Some(older)) = (own.last().and_then(|i| i.played_at), older) {
+		own.extend(older.into_iter().filter(|i| i.played_at.is_some_and(|at| at < oldest)));
+	}
+	Some(own)
+}
+
 #[derive(Deserialize)]
 struct SomaSongs {
 	#[serde(default)]
@@ -423,6 +455,8 @@ impl Sources {
 	pub fn new(client: reqwest::Client, endpoints: Endpoints) -> Sources {
 		Sources {
 			client,
+			played: played::Played::new(&endpoints),
+			orb: orb::Orb::new(endpoints.orb),
 			rb: radio_browser::RadioBrowser::new(endpoints.radio_browser),
 			tunein: tunein::TuneIn::new(endpoints.tunein),
 			iheart: iheart::IHeart::new(endpoints.iheart),
@@ -459,6 +493,7 @@ impl Sources {
 			("iprd", "IPRD"),
 			("radionet", "Radio.net"),
 			("live365", "Live365"),
+			("orb", "Online Radio Box"),
 			("brdir", "BlindRadio Directory"),
 			("recommended", "Recommended Radio Streams"),
 		]
@@ -486,6 +521,7 @@ impl Sources {
 			"iprd" => self.iprd.children(&self.client, id, sort).await,
 			"radionet" => self.radionet.children(&self.client, id).await,
 			"live365" => self.live365.children(&self.client, id, sort).await,
+			"orb" => self.orb.children(&self.client, id).await,
 			"brdir" => self.directory.children(&self.client, id).await,
 			"recommended" => self.recommended.children(&self.client, id).await,
 			"net" => Ok(networks::children(id)),
@@ -555,7 +591,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb) = tokio::join!(
 			bounded(self.rb.search(&self.client, q)),
 			async {
 				if name_given {
@@ -613,6 +649,13 @@ impl Sources {
 					vec![]
 				}
 			},
+			async {
+				if name_given {
+					bounded(self.orb.search(&self.client, q)).await
+				} else {
+					vec![]
+				}
+			},
 		);
 		let mut seen = HashSet::new();
 		rb.into_iter()
@@ -624,6 +667,7 @@ impl Sources {
 			.chain(iprd)
 			.chain(radionet)
 			.chain(live365)
+			.chain(orb)
 			.chain(networks::search(q))
 			.filter(|s| answers(s, &q.name) && seen.insert(s.url.clone()))
 			.collect()
@@ -656,7 +700,17 @@ impl Sources {
 	}
 
 	/// Published song history, newest first; `None` when the station has none or it failed.
+	/// The station's own list is the most exact and covers hours. Online Radio Box carries on
+	/// from there for the rest of the week.
 	pub async fn history(&self, station: &Station) -> Option<Vec<HistoryItem>> {
+		let (own, week) = tokio::join!(
+			self.own_history(station),
+			tokio::time::timeout(SEARCH_TIMEOUT, self.orb.history(&self.client, station)),
+		);
+		older_rows_follow(own, week.ok().flatten())
+	}
+
+	async fn own_history(&self, station: &Station) -> Option<Vec<HistoryItem>> {
 		// Dedupe keeps the first copy of a stream, so look up by URL as well as by id.
 		let ih = match &station.source {
 			Source::IHeart => Some(station.id.clone()),
@@ -664,6 +718,9 @@ impl Sources {
 		};
 		if let Some(id) = ih {
 			return self.iheart.history(&self.client, &id).await.ok();
+		}
+		if let Some(items) = self.played.history(&self.client, &station.url).await {
+			return Some(items);
 		}
 		let key = networks::networks()
 			.iter()

@@ -1,7 +1,7 @@
 //! Optional live checks for the additional directories; fixtures cover normal CI.
 use blindradio_core::net::client;
 use blindradio_core::sources::{Endpoints, Node, SearchQuery, Sort, Sources};
-use blindradio_core::station::Source;
+use blindradio_core::station::{Source, Station};
 
 async fn check(root: &str, branch: &str, name: &str, source: Source) {
 	let sources = Sources::new(client(), Endpoints::default());
@@ -21,6 +21,63 @@ async fn check(root: &str, branch: &str, name: &str, source: Source) {
 	let matches = found.iter().filter(|s| s.source == source).count();
 	assert!(matches > 0, "{root} returned no search results for {name}");
 	println!("{root}: {count} browse stations, {matches} search results");
+}
+
+#[tokio::test]
+#[ignore = "network"]
+async fn orb_live_browse_search_and_week() {
+	check("orb", "orb/country/ca", "jazz", Source::OnlineRadioBox).await;
+	let sources = Sources::new(client(), Endpoints::default());
+	let genres = sources.children("orb/genres", Sort::default()).await.unwrap();
+	assert!(genres.len() > 200, "{}", genres.len());
+	let countries = sources.children("orb/region/Europe", Sort::default()).await.unwrap();
+	assert!(countries.len() > 30, "{}", countries.len());
+	let page = sources.children("orb/genre/jazz", Sort::default()).await.unwrap();
+	assert!(page.iter().any(|n| matches!(n, Node::LoadMore { .. })));
+	let station = Station {
+		id: "orb:us.kexpfm".into(),
+		name: "KEXP 90.3 FM".into(),
+		url: "https://edg1-iad-kexp.streamguys1.com/kexp64.aac".into(),
+		source: Source::OnlineRadioBox,
+		info: None,
+		details: Default::default(),
+	};
+	let songs = sources.history(&station).await.unwrap();
+	let oldest = songs.last().unwrap().played_at.unwrap();
+	let age = std::time::SystemTime::now().duration_since(oldest).unwrap().as_secs();
+	println!("{} songs, oldest {} h ago: {}", songs.len(), age / 3600, songs.last().unwrap().title);
+	assert!(songs.len() > 1000, "{}", songs.len());
+	assert!(age > 6 * 86_400 && age < 9 * 86_400, "{age}");
+	assert!(songs.windows(2).all(|p| p[0].played_at >= p[1].played_at));
+}
+
+/// Every open list answers for a station that uses it.
+#[tokio::test]
+#[ignore = "network"]
+async fn song_history_live_from_stream_addresses() {
+	let sources = Sources::new(client(), Endpoints::default());
+	for url in [
+		"https://playerservices.streamtheworld.com/api/livestream-redirect/977_HITS_SC.mp3",
+		"https://streaming.live365.com/a62479",
+		"https://eins.stream.laut.fm/eins",
+		"https://azuracast.whff.radio/listen/my_whff_hip-hop/radio.mp3",
+		"http://as-hls-ww-live.akamaized.net/pool_01505109/live/ww/bbc_6music/bbc_6music.isml/a.m3u8",
+		"https://kexp-mp3-128.streamguys1.com/kexp128.mp3",
+		"https://stream.radioparadise.com/aac-128",
+	] {
+		let station = Station {
+			id: "custom:x".into(),
+			name: "Nothing To Match".into(),
+			url: url.into(),
+			source: Source::Custom,
+			info: None,
+			details: Default::default(),
+		};
+		let songs = sources.history(&station).await.unwrap_or_default();
+		println!("{url}: {} {:?}", songs.len(), songs.first());
+		assert!(!songs.is_empty(), "{url}");
+		assert!(songs[0].played_at.is_some(), "{url}");
+	}
 }
 
 #[tokio::test]
