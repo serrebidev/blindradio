@@ -254,7 +254,23 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	);
 	// Only On has a preset: Use Global and Off leave this out of the tab order.
 	eq_preset.enable(eq_at == 1);
-	eq_mode.on_selection_changed(move |_| eq_preset.enable(eq_mode.get_selection() == Some(1)));
+	// Heard as it is chosen when this station is playing. OK keeps it; every
+	// other way out takes it back below.
+	let preview = {
+		let (a, id, eq) = (app.clone(), station.id.clone(), eq.clone());
+		move || {
+			let own = equalizer::station_eq(&eq, eq_mode.get_selection(), eq_preset.get_selection());
+			a.borrow_mut().preview_station_eq(&id, own);
+		}
+	};
+	{
+		let preview = preview.clone();
+		eq_mode.on_selection_changed(move |_| {
+			eq_preset.enable(eq_mode.get_selection() == Some(1));
+			preview();
+		});
+	}
+	eq_preset.on_selection_changed(move |_| preview());
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
 		.with_label(s::OK)
@@ -316,7 +332,9 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	}
 
 	name.set_focus();
-	crate::dialogs::run(app, dialog, Action::EditStation, name, &token)
+	let next = crate::dialogs::run(app, dialog, Action::EditStation, name, &token);
+	app.borrow_mut().refresh_eq();
+	next
 }
 
 #[cfg(test)]

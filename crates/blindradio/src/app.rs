@@ -72,15 +72,6 @@ pub fn behind_after(behind: f32, delta_seconds: i32, depth: f32) -> f32 {
 	(behind - delta_seconds as f32).clamp(0.0, depth.max(0.0))
 }
 
-/// The buffer's depth in seconds: live edge minus its oldest frame.
-pub fn buffer_depth(buffer: &blindradio_core::timeshift::ShiftBuffer) -> f32 {
-	let rate = buffer.rate();
-	if rate == 0 {
-		return 0.0;
-	}
-	buffer.live_edge().saturating_sub(buffer.start()) as f32 / rate as f32
-}
-
 /// `3:20` under an hour, `1:02:33` over it.
 pub fn fmt_dur(seconds: f32) -> String {
 	let total = seconds.max(0.0) as u64;
@@ -1173,23 +1164,24 @@ impl App {
 		// from BEFORE the seek (a first skip back from live said
 		// "Live"). Compute where the seek lands instead.
 		let before = status.behind_seconds(&buffer);
+		let depth = self.tuner.buffer_depth_seconds();
 		self.tuner.shift_seek(direction * step);
 		if self.settings.announce_status {
-			let after = behind_after(before, direction * step, buffer_depth(&buffer));
+			let after = behind_after(before, direction * step, depth);
 			self.say_behind(after);
 		}
 	}
 
 	fn seek_start(&mut self) {
-		let Some((buffer, status)) = self.tuner.shift() else {
+		if self.tuner.shift().is_none() {
 			return;
-		};
-		let _ = status;
+		}
+		let depth = self.tuner.buffer_depth_seconds();
 		self.tuner.shift_start();
 		if self.settings.announce_status {
 			// The jump lands at the buffer's oldest audio: a full
 			// buffer depth behind live, whatever the status still says.
-			self.say_behind(buffer_depth(&buffer));
+			self.say_behind(depth);
 		}
 	}
 
@@ -1291,9 +1283,25 @@ impl App {
 	pub fn refresh_eq(&mut self) {
 		let id = self.tuner.playing().map_or("", |p| p.id.as_str());
 		let eq = crate::dialogs::equalizer::for_station(&self.settings, id);
+		self.hear_eq(eq);
+	}
+
+	fn hear_eq(&mut self, eq: EqSettings) {
 		if eq != self.heard_eq {
 			self.heard_eq = eq.clone();
 			self.mixer(MixerCmd::Eq(eq));
+		}
+	}
+
+	/// Edit Station's equalizer choices, heard as they are made when that
+	/// station is the one playing. Nothing is kept: `refresh_eq` undoes it.
+	pub fn preview_station_eq(
+		&mut self,
+		station_id: &str,
+		own: Option<blindradio_core::settings::StationEq>,
+	) {
+		if self.tuner.playing().is_some_and(|p| p.id == station_id) {
+			self.hear_eq(crate::dialogs::equalizer::with_own(&self.settings, own.as_ref()));
 		}
 	}
 

@@ -65,6 +65,67 @@ fn each_dev_station_produces_audio() {
 	assert!(failed.is_empty(), "{failed:#?}");
 }
 
+/// WNYC bursts about 15 s on connect. Five seconds in, the jump to the buffer's start is five
+/// seconds back: the burst is not behind live. Fails if the server stops bursting.
+#[test]
+#[ignore = "network"]
+fn a_connect_burst_is_not_behind_live() {
+	use blindradio_core::output::{MixerCmd, MixerCore};
+	use blindradio_core::stream::Taps;
+	use blindradio_core::timeshift::{ShiftBuffer, ShiftStatus};
+	use std::sync::Arc;
+
+	const RATE: u32 = 48_000;
+	let engine = engine();
+	let mut station = dev_stations().remove(0);
+	station.id = "wnyc-burst".into();
+	station.url = "http://fm939.wnyc.org/wnycfm".into();
+	let buffer = Arc::new(ShiftBuffer::new(RATE, 1));
+	let status = Arc::new(ShiftStatus::new());
+	engine.ctx.taps.lock().insert(
+		station.id.clone(),
+		Taps {
+			shift: Some(buffer.clone()),
+			..Taps::default()
+		},
+	);
+	let (stream, _) = first_audio(&engine, &station).unwrap();
+	let mut mixer = MixerCore::new(RATE);
+	mixer.handle(MixerCmd::SetActive {
+		ring: Some(stream.ring.clone()),
+		token: 1,
+	});
+	mixer.handle(MixerCmd::ShiftAttach {
+		buffer: buffer.clone(),
+		status: status.clone(),
+	});
+	// Real time, in 10 ms passes like the audio callback.
+	let mut out = vec![0.0; RATE as usize / 100 * 2];
+	let mut tick = |mixer: &mut MixerCore, passes: u32| {
+		for _ in 0..passes {
+			mixer.render(&mut out);
+			std::thread::sleep(Duration::from_millis(10));
+		}
+	};
+	let heard_from = Instant::now();
+	while stream.ring.len_ms() == 0 && heard_from.elapsed() < FIRST_AUDIO {
+		tick(&mut mixer, 1);
+	}
+	let played_from = Instant::now();
+	tick(&mut mixer, 500);
+	let played = played_from.elapsed().as_secs_f32();
+	let received = buffer.buffered_seconds();
+	let depth = status.depth_seconds(&buffer);
+	println!("played {played:.1} s, received {received:.1} s, depth {depth:.1} s");
+	assert!(received > played + 5.0, "the server no longer bursts: {received}");
+	assert!((depth - played).abs() < 1.5, "depth {depth}, played {played}");
+	mixer.handle(MixerCmd::ShiftSeek(i32::MIN));
+	tick(&mut mixer, 5);
+	let behind = status.behind_seconds(&buffer);
+	println!("after the jump to the start: {behind:.1} s behind live");
+	assert!((behind - played).abs() < 1.5, "behind {behind}, played {played}");
+}
+
 #[test]
 #[ignore = "network"]
 fn gzipped_hls_station_plays() {

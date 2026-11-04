@@ -131,6 +131,13 @@ pub struct ShiftStatus {
 	pub cursor: AtomicU64,
 	pub paused: AtomicBool,
 	pub attached: AtomicBool,
+	/// Frames in the buffer the live ring has not played yet, written by the
+	/// mixer. Servers burst audio on connect (WNYC about 15 s): it lands here
+	/// at once but plays out over time, and stays ahead of live playback.
+	pub backlog: AtomicU64,
+	/// The replay decoder is still racing to the newest byte, so the window's
+	/// edge is short of the truth and the backlog cannot be taken off it.
+	pub catching_up: AtomicBool,
 }
 
 impl ShiftStatus {
@@ -139,7 +146,19 @@ impl ShiftStatus {
 			cursor: AtomicU64::new(u64::MAX),
 			paused: AtomicBool::new(false),
 			attached: AtomicBool::new(false),
+			backlog: AtomicU64::new(0),
+			catching_up: AtomicBool::new(false),
 		}
+	}
+
+	/// The frame live playback stands at: what the ring plays next, not the
+	/// newest audio received.
+	pub fn live_frame(&self, buffer: &ShiftBuffer) -> u64 {
+		let edge = buffer.live_edge();
+		if self.catching_up.load(Ordering::Relaxed) {
+			return edge;
+		}
+		edge.saturating_sub(self.backlog.load(Ordering::Relaxed))
 	}
 
 	/// Seconds behind live; 0 at the live edge.
@@ -148,7 +167,12 @@ impl ShiftStatus {
 		if cursor == u64::MAX {
 			return 0.0;
 		}
-		buffer.live_edge().saturating_sub(cursor) as f32 / buffer.rate() as f32
+		self.live_frame(buffer).saturating_sub(cursor) as f32 / buffer.rate() as f32
+	}
+
+	/// How far behind live the buffer's oldest audio is.
+	pub fn depth_seconds(&self, buffer: &ShiftBuffer) -> f32 {
+		self.live_frame(buffer).saturating_sub(buffer.start()) as f32 / buffer.rate() as f32
 	}
 }
 
@@ -225,6 +249,13 @@ mod tests {
 		let s = ShiftStatus::new();
 		assert_eq!(s.behind_seconds(&b), 0.0);
 		s.cursor.store(4_000, Ordering::Relaxed);
+		assert_eq!(s.behind_seconds(&b), 6.0);
+		// 2 s the ring has yet to play: live stands at frame 8000, not at the edge.
+		s.backlog.store(2_000, Ordering::Relaxed);
+		assert_eq!(s.behind_seconds(&b), 4.0);
+		assert_eq!(s.depth_seconds(&b), 8.0);
+		// A replay window still decoding has no backlog to take off yet.
+		s.catching_up.store(true, Ordering::Relaxed);
 		assert_eq!(s.behind_seconds(&b), 6.0);
 	}
 }

@@ -154,12 +154,19 @@ fn fill_presets(preset: &Choice, settings: &EqSettings) {
 /// the global equalizer. For the mixer only, never saved as the global one.
 /// A saved preset deleted since leaves the station on the global equalizer.
 pub fn for_station(settings: &Settings, station_id: &str) -> EqSettings {
+	with_own(
+		settings,
+		settings
+			.station_overrides
+			.get(station_id)
+			.and_then(|o| o.eq.as_ref()),
+	)
+}
+
+/// What a station's own equalizer choice plays through.
+pub fn with_own(settings: &Settings, own: Option<&StationEq>) -> EqSettings {
 	let mut eq = settings.eq.clone();
-	match settings
-		.station_overrides
-		.get(station_id)
-		.and_then(|o| o.eq.as_ref())
-	{
+	match own {
 		None => {}
 		Some(StationEq::Off) => eq.enabled = false,
 		Some(StationEq::Preset(preset)) => {

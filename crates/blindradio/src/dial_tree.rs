@@ -419,6 +419,17 @@ impl DialTree {
 		}
 	}
 
+	/// Delete on a station row asks first, naming it, as a folder's does.
+	fn ask_delete_station(&self, app: &Rc<RefCell<App>>, index: usize) -> bool {
+		let Some(station) = self.stations().get(index).cloned() else {
+			return false;
+		};
+		let question = context_menu::delete_question(&station.name, 0);
+		modal(app, || {
+			confirm(&self.list, &question, &plain(s::DELETE_ITEM))
+		})
+	}
+
 	/// Handlers run with the app not borrowed; programmatic changes made
 	/// while it is borrowed return before borrowing it (`quiet`).
 	pub fn bind(&self, app: &Rc<RefCell<App>>, hooks: DialHooks) {
@@ -471,7 +482,9 @@ impl DialTree {
 						}
 						(Some(Row::Station(i)), Some(delete)) => {
 							e.skip(false);
-							delete(i);
+							if me.ask_delete_station(&a, i) {
+								delete(i);
+							}
 						}
 						_ => e.skip(true),
 					},
@@ -578,7 +591,11 @@ impl DialTree {
 				}
 				match (items, focused) {
 					(Ok(items), Some((i, st))) => match context_menu::popup(&me.list, &items) {
-						Some(context_menu::Choice::Delete) => a.borrow_mut().delete_from_dial(i),
+						Some(context_menu::Choice::Delete) => {
+							if me.ask_delete_station(&a, i) {
+								a.borrow_mut().delete_from_dial(i);
+							}
+						}
 						Some(choice) => context_menu::apply(&a, &me.list, &st, choice),
 						None => {}
 					},

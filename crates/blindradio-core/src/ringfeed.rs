@@ -143,6 +143,7 @@ impl RingFeed {
 
 	fn prime_inner(&self, target_ms: u64, wait: bool) -> Arc<ShiftBuffer> {
 		self.kill_thread();
+		self.core.status.catching_up.store(true, Ordering::Relaxed);
 		let start = match self.core.ring.start_ms() {
 			Some(ring_start) => target_ms.max(ring_start),
 			None => target_ms,
@@ -218,6 +219,7 @@ struct RingReader {
 	buf: Vec<u8>,
 	pos: usize,
 	dead: Arc<AtomicBool>,
+	status: Arc<ShiftStatus>,
 }
 
 impl Read for RingReader {
@@ -252,6 +254,7 @@ impl Read for RingReader {
 				self.pos = 0;
 				continue;
 			}
+			self.status.catching_up.store(false, Ordering::Relaxed);
 			thread::sleep(Duration::from_millis(50));
 		}
 	}
@@ -289,6 +292,7 @@ fn feed_loop(core: Arc<FeedCore>, dead: Arc<AtomicBool>, from_ms: u64, window: A
 		buf: Vec::new(),
 		pos: 0,
 		dead: dead.clone(),
+		status: core.status.clone(),
 	};
 	// No format hint: symphonia probes the ring bytes themselves.
 	let Ok(mut decoder) = Decoder::new(Box::new(reader), None) else {
@@ -352,6 +356,7 @@ mod tests {
 			buf: Vec::new(),
 			pos: 0,
 			dead: dead.clone(),
+			status: Arc::new(ShiftStatus::new()),
 		};
 		let (tx, rx) = std::sync::mpsc::channel();
 		let handle = thread::spawn(move || {

@@ -24,10 +24,12 @@ const CROSSFADE_MS: u64 = 25;
 const TAIL_MS: u64 = 5;
 /// Target stream buffer when the device range allows it.
 const BUFFER_MS: u32 = 10;
-/// Peak of the hiss between stations, before volume: soft, like a dial between stations.
+/// Peak of the hiss between stations: soft, like a dial between stations. Fixed, so not
+/// scaled by the volume, which jumps to each station's remembered level as it is tuned.
+/// Mute still silences it. Same level the hiss had at the default volume, 0.8.
 // ponytail: fixed level and tone; the on/off setting listeners asked for exists
 // (MixerCmd::Hiss, Settings' FM sound), louder/quieter would ride the same path.
-const HISS_LEVEL: f32 = 0.08;
+const HISS_LEVEL: f32 = 0.064;
 /// One-pole lowpass on the hiss: dulls white noise toward a radio's softer static.
 const HISS_TONE: f32 = 0.3;
 
@@ -240,12 +242,12 @@ impl MixerCore {
 			MixerCmd::ShiftPause(paused) => {
 				if let Some((buffer, status)) = &self.shift {
 					if paused && self.shift_cursor.is_none() {
-						// Freeze at the live edge; the buffer keeps filling past it.
-						self.shift_cursor = Some(buffer.live_edge());
+						// Freeze where live playback stands; the buffer keeps filling past it.
+						self.shift_cursor = Some(status.live_frame(buffer));
 					}
 					self.shift_paused = paused;
 					status.paused.store(paused, Ordering::Relaxed);
-					if !paused && self.shift_cursor == Some(buffer.live_edge()) {
+					if !paused && self.shift_cursor == Some(status.live_frame(buffer)) {
 						self.shift_cursor = None;
 						status.cursor.store(u64::MAX, Ordering::Relaxed);
 					}
@@ -253,11 +255,14 @@ impl MixerCore {
 			}
 			MixerCmd::ShiftSeek(seconds) => {
 				if let Some((buffer, status)) = &self.shift {
-					let edge = buffer.live_edge();
-					let base = self.shift_cursor.unwrap_or(edge) as i64;
+					// From where playback stands, not the newest audio: a connect burst
+					// puts that far ahead, and a step back from it would land forward.
+					let live = status.live_frame(buffer);
+					let start = buffer.start();
+					let base = self.shift_cursor.unwrap_or(live) as i64;
 					let target = (base + seconds as i64 * buffer.rate() as i64)
-						.clamp(buffer.start() as i64, edge as i64) as u64;
-					self.shift_cursor = if target >= edge { None } else { Some(target) };
+						.clamp(start as i64, live.max(start) as i64) as u64;
+					self.shift_cursor = if target >= live { None } else { Some(target) };
 					if self.shift_cursor.is_none() {
 						// Live from here on: say so in the status at once.
 						// Render only writes the status while shifted, so a
@@ -271,9 +276,10 @@ impl MixerCore {
 			}
 			MixerCmd::ShiftSeekTo(frame) => {
 				if let Some((buffer, status)) = &self.shift {
-					let edge = buffer.live_edge();
-					let target = frame.clamp(buffer.start(), edge);
-					self.shift_cursor = (target < edge).then_some(target);
+					let live = status.live_frame(buffer);
+					let start = buffer.start();
+					let target = frame.clamp(start, live.max(start));
+					self.shift_cursor = (target < live).then_some(target);
 					status
 						.cursor
 						.store(self.shift_cursor.unwrap_or(u64::MAX), Ordering::Relaxed);
@@ -307,6 +313,10 @@ impl MixerCore {
 		self.a.clear();
 		self.a.resize(out.len(), 0.0);
 		let mut got = 0;
+		if let Some((_, status)) = &self.shift {
+			let backlog = self.active.as_ref().map_or(0, |ring| ring.frames());
+			status.backlog.store(backlog, Ordering::Relaxed);
+		}
 		// Time-shifted playback reads the buffer at the cursor instead of the
 		// ring; the ring is drained and dropped so its producer never blocks.
 		let shifted = self.shift.is_some() && (self.shift_paused || self.shift_cursor.is_some());
@@ -318,12 +328,12 @@ impl MixerCore {
 			}
 			if !self.shift_paused {
 				let cursor = self.shift_cursor.unwrap_or(0);
-				let (buffer, _) = self.shift.as_ref().unwrap();
+				let (buffer, status) = self.shift.as_ref().unwrap();
 				let n = buffer.read_at(cursor, &mut self.a);
 				got = n / 2;
 				let next = cursor + got as u64;
-				// Reaching the live edge hands playback back to the ring.
-				self.shift_cursor = if next >= buffer.live_edge() { None } else { Some(next) };
+				// Reaching live hands playback back to the ring, which plays on from this frame.
+				self.shift_cursor = if next >= status.live_frame(buffer) { None } else { Some(next) };
 			}
 			if let Some((_, status)) = &self.shift {
 				status
@@ -405,6 +415,13 @@ impl MixerCore {
 		// Before the hiss: the Loudness leveler would ride it up to near full scale.
 		self.eq.process(&mut self.a);
 
+		// Station audio takes the volume, the hiss does not.
+		let vol = if self.muted { 0.0 } else { self.volume };
+		for s in &mut self.a {
+			*s *= vol;
+		}
+		let hiss_mix = if self.muted { 0.0 } else { 1.0 };
+
 		// Hiss covers every frame the active station does not, easing in and out over a crossfade.
 		for f in 0..frames {
 			let want = if self.hiss && self.hiss_enabled && !self.shift_paused && f >= got {
@@ -420,15 +437,14 @@ impl MixerCore {
 				self.noise ^= self.noise << 5;
 				let white = self.noise as f32 / u32::MAX as f32 * 2.0 - 1.0;
 				self.noise_lp += (white - self.noise_lp) * HISS_TONE;
-				let s = self.noise_lp * self.hiss_level * self.hiss_gain;
+				let s = self.noise_lp * self.hiss_level * self.hiss_gain * hiss_mix;
 				self.a[2 * f] += s;
 				self.a[2 * f + 1] += s;
 			}
 		}
 
-		let vol = if self.muted { 0.0 } else { self.volume };
 		for (o, &s) in out.iter_mut().zip(&self.a) {
-			*o = (s * vol).clamp(-1.0, 1.0);
+			*o = s.clamp(-1.0, 1.0);
 		}
 
 		if got > 0 { self.pending.take() } else { None }
@@ -1318,6 +1334,22 @@ mod tests {
 	}
 
 	#[test]
+	fn hiss_ignores_the_volume_until_muted() {
+		let peak_at = |volume: f32, muted: bool| {
+			let mut m = MixerCore::new(1000);
+			m.handle(MixerCmd::Volume(volume));
+			m.handle(MixerCmd::Mute(muted));
+			m.handle(MixerCmd::Tune);
+			let out = render_frames(&mut m, 500);
+			out.iter().fold(0.0f32, |p, s| p.max(s.abs()))
+		};
+		let loud = peak_at(1.0, false);
+		assert!(loud > 0.0, "hiss sounds");
+		assert_eq!(peak_at(0.1, false), loud, "same level whatever the next station's volume");
+		assert_eq!(peak_at(0.0, true), 0.0, "mute silences it");
+	}
+
+	#[test]
 	fn hiss_stays_soft_under_loudness() {
 		let rate = 48_000;
 		let mut m = MixerCore::new(rate);
@@ -1443,6 +1475,74 @@ mod tests {
 		m.handle(MixerCmd::ShiftLive);
 		let out = render_frames(&mut m, 10);
 		assert!(out.iter().all(|s| *s == 0.0), "no ring, no sound");
+	}
+
+	/// A server bursts 10 s on connect, and 2 s of it have played.
+	fn burst_setup() -> (MixerCore, Arc<ShiftBuffer>, Arc<ShiftStatus>, Arc<PcmRing>) {
+		let buffer = Arc::new(ShiftBuffer::new(1000, 1));
+		let status = Arc::new(ShiftStatus::new());
+		let ring = Arc::new(PcmRing::new(1000, 60.0));
+		let mut m = MixerCore::new(1000);
+		m.handle(MixerCmd::SetActive { ring: Some(ring.clone()), token: 1 });
+		m.handle(MixerCmd::ShiftAttach {
+			buffer: buffer.clone(),
+			status: status.clone(),
+		});
+		ring.push(&vec![0.5; 20_000]);
+		buffer.push(&vec![0.5; 20_000]);
+		render_frames(&mut m, 2_000);
+		render_frames(&mut m, 1); // the status catches up with the last pass
+		(m, buffer, status, ring)
+	}
+
+	#[test]
+	fn a_connect_burst_is_not_behind_live() {
+		let (mut m, buffer, status, _ring) = burst_setup();
+		assert_eq!(status.behind_seconds(&buffer), 0.0, "playing live");
+		let depth = status.depth_seconds(&buffer);
+		assert!((1.9..2.1).contains(&depth), "only what has played: {depth}");
+		// The jump to the start lands 2 s back, not 10.
+		m.handle(MixerCmd::ShiftSeek(i32::MIN));
+		render_frames(&mut m, 1);
+		let behind = status.behind_seconds(&buffer);
+		assert!((1.9..2.1).contains(&behind), "behind: {behind}");
+	}
+
+	#[test]
+	fn a_step_back_never_lands_ahead_of_playback() {
+		let (mut m, _buffer, status, _ring) = burst_setup();
+		m.handle(MixerCmd::ShiftSeek(-1));
+		let at = status.cursor.load(Ordering::Relaxed);
+		render_frames(&mut m, 1);
+		let at = if at == u64::MAX { status.cursor.load(Ordering::Relaxed) } else { at };
+		assert!((900..=1_100).contains(&at), "a second before frame 2000: {at}");
+	}
+
+	#[test]
+	fn forward_to_live_goes_on_from_the_ring_without_running_dry() {
+		let (mut m, buffer, status, ring) = burst_setup();
+		m.handle(MixerCmd::ShiftSeek(-1));
+		render_frames(&mut m, 100);
+		let held = ring.frames();
+		assert!(held > 7_000, "the ring plays on underneath: {held}");
+		m.handle(MixerCmd::ShiftSeek(5));
+		assert_eq!(status.cursor.load(Ordering::Relaxed), u64::MAX, "live");
+		assert_eq!(status.behind_seconds(&buffer), 0.0);
+		render_frames(&mut m, 100);
+		assert_eq!(m.strikes, 0, "no dry-out");
+	}
+
+	#[test]
+	fn pausing_at_live_resumes_where_it_stopped() {
+		let (mut m, buffer, status, ring) = burst_setup();
+		m.handle(MixerCmd::ShiftPause(true));
+		render_frames(&mut m, 500);
+		render_frames(&mut m, 1); // the status catches up with the last pass
+		let at = status.cursor.load(Ordering::Relaxed);
+		assert!((1_900..=2_100).contains(&at), "frozen at playback, not the newest audio: {at}");
+		let behind = status.behind_seconds(&buffer);
+		assert!((0.4..0.7).contains(&behind), "the pause counts: {behind}");
+		assert!(ring.frames() > 7_000);
 	}
 }
 
