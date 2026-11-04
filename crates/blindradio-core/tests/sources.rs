@@ -1,5 +1,6 @@
 mod common;
 
+use blindradio_core::library::Folder;
 use blindradio_core::net::client;
 use blindradio_core::sources::{Endpoints, Filters, Node, SearchQuery, Sort, Sources};
 use blindradio_core::station::{Source, Station};
@@ -96,6 +97,29 @@ async fn tree_keeps_the_folder_structure() {
 		.map(|s| s.name.as_str())
 		.collect();
 	assert_eq!(names, ["BBB"]);
+}
+
+#[tokio::test]
+async fn tree_up_to_stops_at_the_cap() {
+	let (_s, src) = sources(vec![
+		json(
+			"/contents",
+			r#"[{"name":"Public Radio.m3u","type":"file"}]"#,
+		),
+		Route::Static {
+			path: "/contents/Public%20Radio.m3u".into(),
+			content_type: "text/plain".into(),
+			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",AAA\nhttp://pr.test/1\n#EXTINF:-1 group-title=\"NPR\",BBB\nhttp://pr.test/2\n#EXTINF:-1,CCC\nhttp://pr.test/3\n"
+				.as_bytes()
+				.to_vec(),
+		},
+	]);
+	let held = |(stations, folders): (Vec<Station>, Vec<Folder>)| {
+		stations.len() + folders.iter().map(|f| f.all_stations().len()).sum::<usize>()
+	};
+	let id = "brdir/Public%20Radio";
+	assert_eq!(held(src.tree_up_to(id, Sort::default(), 2).await.unwrap()), 2);
+	assert_eq!(held(src.tree_up_to(id, Sort::default(), usize::MAX).await.unwrap()), 3);
 }
 
 #[tokio::test]

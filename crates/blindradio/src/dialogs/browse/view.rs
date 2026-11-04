@@ -2,6 +2,10 @@
 
 use super::*;
 
+/// Most stations a directory's folder files in one go: a whole directory
+/// would crawl for hours and bloat the library.
+const ADD_CAP: usize = 5000;
+
 /// The wx tree over the model. Every change the program makes runs `quiet`; handlers return
 /// at once then, before borrowing the app or the model.
 struct View {
@@ -443,7 +447,11 @@ impl View {
 
 	/// After the library changed; focus that went with its item lands nearby without tuning.
 	fn refresh_local(&self, app: &Rc<RefCell<App>>) {
-		self.model.borrow_mut().refresh_local(&app.borrow().library);
+		self.refresh_local_in(&mut app.borrow_mut());
+	}
+
+	fn refresh_local_in(&self, a: &mut App) {
+		self.model.borrow_mut().refresh_local(&a.library);
 		self.sync(None);
 		for root in self.model.borrow().local_roots() {
 			self.sync_deep(Some(root));
@@ -452,12 +460,60 @@ impl View {
 		self.expand_open(None);
 		self.show_focus();
 		let m = self.model.borrow();
-		let mut a = app.borrow_mut();
 		a.selected = m.focus().and_then(|f| m.station(f)).cloned();
 		a.paste_home = m
 			.focus()
 			.and_then(|f| m.paste_home(f))
 			.map(|(id, path)| crate::app::PasteDest::Collection(id, path));
+	}
+
+	/// Files a directory's folder: its whole subtree from the source, as one folder with its
+	/// structure kept. Its own token: closing Browse mid-way must not lose the stations.
+	fn add_folder(
+		self: &Rc<Self>,
+		app: &Rc<RefCell<App>>,
+		window: &WindowToken,
+		f: usize,
+		dest: impl FnOnce(&mut Library) -> StationDest + 'static,
+	) {
+		let (name, key) = {
+			let m = self.model.borrow();
+			(m.label(f).to_owned(), m.key(f).map(str::to_owned))
+		};
+		let Some(key) = key else { return };
+		let mut a = app.borrow_mut();
+		a.say(&format!("{}{name}", s::ADDING));
+		let sources = a.sources.clone();
+		let sort = self.sort.get();
+		let (v, window) = (self.clone(), window.clone());
+		a.bridge.spawn(
+			WindowToken::new(),
+			async move { sources.tree_up_to(&key, sort, ADD_CAP).await },
+			move |app: &mut App, r| {
+				match r {
+					Ok((stations, folders)) => {
+						let folder = Folder {
+							name,
+							stations,
+							folders,
+						};
+						let count = folder.all_stations().len();
+						if count == 0 {
+							return app.say(s::NOTHING_TO_ADD);
+						}
+						let dest = dest(&mut app.library);
+						app.add_folder_to(&dest, folder, count >= ADD_CAP);
+					}
+					Err(e) => {
+						eprintln!("browse add {name}: {e}");
+						app.say(s::NOT_SAVED);
+					}
+				}
+				if window.is_open() {
+					v.refresh_local_in(app);
+				}
+			},
+		);
 	}
 
 	fn context_menu(self: &Rc<Self>, app: &Rc<RefCell<App>>, token: &WindowToken) {
@@ -519,10 +575,20 @@ impl View {
 					items
 				} else {
 					let m = self.model.borrow();
-					if m.stations_under(f).is_empty() {
+					let loaded = !m.stations_under(f).is_empty();
+					let mut items = if m.is_folder(f) && !m.is_local(f) && m.parent(f).is_some() {
+						// A directory's folder files whole, loaded or not.
+						context_menu::folder_items(&app.borrow().library)
+					} else {
+						Vec::new()
+					};
+					if loaded {
+						items.push(context_menu::Item::Export);
+					}
+					if items.is_empty() {
 						return app.borrow_mut().say(text);
 					}
-					vec![context_menu::Item::Export]
+					items
 				}
 			}
 		};
@@ -639,17 +705,21 @@ impl View {
 				let Some(key) = key else { return };
 				let sources = app.borrow().sources.clone();
 				let sort = self.sort.get();
-				let (v, a) = (self.clone(), app.clone());
+				let v = self.clone();
 				app.borrow().bridge.spawn(
 					token.clone(),
 					async move { sources.tree(&key, sort).await },
-					move |_: &mut App, r| match r {
+					move |a: &mut App, r| match r {
 						Ok((stations, folders)) => {
-							context_menu::export_playlist(&a, &v.tree, &name, &stations, &folders)
+							let said =
+								context_menu::export_dialog(&v.tree, &name, &stations, &folders);
+							if let Some(said) = said {
+								a.say(&said);
+							}
 						}
 						Err(e) => {
 							eprintln!("browse export {name}: {e}");
-							a.borrow_mut().say(s::NOT_SAVED);
+							a.say(s::NOT_SAVED);
 						}
 					},
 				);
@@ -665,6 +735,32 @@ impl View {
 				}
 			}
 			(None, _, Choice::Delete) => self.delete(app, f),
+			(None, None, Choice::Favorite) => {
+				self.add_folder(app, token, f, |_| StationDest::Favorites(Vec::new()));
+			}
+			(None, None, Choice::AddAllTo(id)) => {
+				self.add_folder(app, token, f, move |_| StationDest::Collection {
+					id,
+					path: Vec::new(),
+				});
+			}
+			(None, None, Choice::NewCollection) => {
+				// Made when the stations arrive: a folder that fails leaves no empty one.
+				if let Some(name) =
+					prompt_text(&self.tree, s::COLLECTION_NAME, s::NEW_COLLECTION_TITLE)
+				{
+					self.add_folder(app, token, f, move |lib| StationDest::Collection {
+						id: lib.create_collection(&name),
+						path: Vec::new(),
+					});
+				}
+			}
+			(None, None, Choice::AddToFavoriteFolder(path)) => {
+				self.add_folder(app, token, f, move |_| StationDest::Favorites(path));
+			}
+			(None, None, Choice::AddToCollectionFolder(id, path)) => {
+				self.add_folder(app, token, f, move |_| StationDest::Collection { id, path });
+			}
 			_ => {}
 		}
 		self.refresh_local(app);

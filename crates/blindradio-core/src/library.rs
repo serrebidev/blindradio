@@ -70,6 +70,22 @@ impl Folder {
 		out
 	}
 
+	/// Takes in `other`'s stations and folders: a folder of the same name (any case)
+	/// merges, a station already on its level stays once. How many stations arrived.
+	pub fn merge(&mut self, other: Folder) -> usize {
+		let mut added = 0;
+		for s in other.stations {
+			if !self.stations.iter().any(|x| x.id == s.id) {
+				self.stations.push(s);
+				added += 1;
+			}
+		}
+		for f in other.folders {
+			added += self.child_mut(&f.name).merge(f);
+		}
+		added
+	}
+
 	pub fn contains_id(&self, id: &str) -> bool {
 		self.stations.iter().any(|s| s.id == id)
 			|| self.folders.iter().any(|f| f.contains_id(id))
@@ -84,7 +100,11 @@ impl Folder {
 	pub fn remove_id(&mut self, id: &str) -> bool {
 		let before = self.stations.len();
 		self.stations.retain(|s| s.id != id);
-		self.stations.len() != before || self.folders.iter_mut().any(|f| f.remove_id(id))
+		let mut hit = self.stations.len() != before;
+		for f in &mut self.folders {
+			hit |= f.remove_id(id);
+		}
+		hit
 	}
 
 	/// The folder at the end of `path` (indices into nested `folders`), if it exists.
@@ -132,7 +152,11 @@ impl Collection {
 	pub fn remove_id(&mut self, id: &str) -> bool {
 		let before = self.stations.len();
 		self.stations.retain(|s| s.id != id);
-		self.stations.len() != before || self.folders.iter_mut().any(|f| f.remove_id(id))
+		let mut hit = self.stations.len() != before;
+		for f in &mut self.folders {
+			hit |= f.remove_id(id);
+		}
+		hit
 	}
 
 	pub fn contains_id(&self, id: &str) -> bool {
@@ -760,6 +784,26 @@ impl Library {
 			}
 			None => false,
 		}
+	}
+
+	/// Files a whole folder inside `dest`, merged into a folder of the same name there.
+	/// How many stations arrived; None when `dest` is gone.
+	pub fn add_folder_to(&mut self, dest: &StationDest, folder: Folder) -> Option<usize> {
+		let list = match dest {
+			StationDest::Favorites(path) => self.fav_folder_list_at_mut(path)?,
+			StationDest::Collection { id, path } => {
+				self.collection_mut(id)?.folder_list_at_mut(path)?
+			}
+		};
+		let lower = folder.name.to_lowercase();
+		let at = match list.iter().position(|f| f.name.to_lowercase() == lower) {
+			Some(i) => i,
+			None => {
+				list.push(Folder::new(&folder.name));
+				list.len() - 1
+			}
+		};
+		Some(list[at].merge(folder))
 	}
 
 	/// Every folder of every collection, Custom Stations included, for

@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.64
+
+- In Browse, the context menu on a directory's folder, such as Celine Dion under By Genre in Online Radio Box, now adds the whole folder and its stations at once: Add to Favorites, Add to Collection (with New Collection), Add to Favorites Folder and Add to Collection Folder. It arrives as a folder with its subfolders kept, and you hear how many stations came. Adding the same folder again only brings what is new. One add stops at 5000 stations and says so, so a whole directory cannot run for hours.
+- Removing a station from Favorites or a collection now takes out every copy in its folders, not only the first one found.
+- Export on a directory's folder in Browse now says how many stations it wrote. The file was saved before too, but the message was lost to an internal error.
+
 ## 0.2.63
 
 - F5, F6 and F7 now measure from what you are hearing. Many stations, such as WNYC, send up to 15 seconds of audio the moment you connect, and BlindRadio counted that as time behind live, so F5 said 0:16 after two seconds of play. F5 now says how far back it really went, F6 always goes back, and F7 returns to live without a gap. Pausing at live also resumes where you stopped, not further ahead.

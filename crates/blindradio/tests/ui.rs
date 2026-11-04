@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 use std::process::{Child, Command};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use blindradio_core::library::{Folder, Library};
 use blindradio_core::settings::{EqPreset, Settings, StationEq};
@@ -301,6 +301,104 @@ fn favorites_dial_tunes_on_arrow() {
 	assert!(
 		app.window.get_name().unwrap().contains("Two"),
 		"the next station plays"
+	);
+}
+
+/// A directory's folder files whole, unopened, as one folder. Networks need no network.
+#[test]
+#[ignore = "needs a desktop"]
+fn browse_adds_a_directory_folder_whole() {
+	let mut library = Library::default();
+	library.create_collection("English");
+	let app = App::with_settings(
+		"add-folder",
+		library,
+		Settings {
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	let landed = |check: &dyn Fn(&Library) -> bool| {
+		let deadline = Instant::now() + WAIT;
+		while Instant::now() < deadline {
+			if check(&Library::load(&app.data)) {
+				return true;
+			}
+			std::thread::sleep(Duration::from_millis(100));
+		}
+		false
+	};
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	let networks = app.row(&browse, "Networks");
+	TreeItemControl::try_from(networks.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.select_row(&networks, "BBC");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Add to Favorites"));
+	assert!(
+		landed(&|l| l.fav_folders.first().is_some_and(|f| {
+			f.name == "BBC" && !f.all_stations().is_empty()
+		})),
+		"BBC arrives in Favorites as a folder, stations inside"
+	);
+	// The submenu's first row is the collection.
+	app.select_row(&networks, "BBC");
+	app.press("{shift}{f10}");
+	app.press("c");
+	app.press("{enter}");
+	assert!(
+		landed(&|l| l.collections.iter().any(|c| {
+			c.name == "English" && c.folders.first().is_some_and(|f| f.name == "BBC")
+		})),
+		"BBC arrives in the collection as a folder"
+	);
+}
+
+/// Export on a directory's folder runs from a bridge callback, which holds the app:
+/// the message after saving once panicked there and was lost.
+#[test]
+#[ignore = "needs a desktop"]
+fn browse_exports_a_directory_folder_and_says_so() {
+	let app = App::with_settings(
+		"export-folder",
+		Library::default(),
+		Settings {
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	app.press("{ctrl}g");
+	let browse = app.find("Browse", WAIT).expect("Browse");
+	let networks = app.row(&browse, "Networks");
+	TreeItemControl::try_from(networks.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	let bbc = app.select_row(&networks, "BBC");
+	TreeItemControl::try_from(bbc).unwrap().expand().unwrap();
+	std::thread::sleep(Duration::from_millis(800));
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Export…"));
+	let dialog = app
+		.find("&Export…", WAIT)
+		.or_else(|| app.find("Export…", WAIT))
+		.expect("save dialog");
+	let out = app.data.join("out.m3u");
+	dialog
+		.send_keys(&format!("{}{{enter}}", out.display()), 20)
+		.expect("type path");
+	let deadline = Instant::now() + WAIT;
+	while !out.exists() && Instant::now() < deadline {
+		std::thread::sleep(Duration::from_millis(100));
+	}
+	let written = std::fs::read_to_string(&out).expect("file written");
+	let said = format!("Exported {}", written.matches("#EXTINF").count());
+	assert!(
+		app.control(&said, ControlType::Text, WAIT).is_some(),
+		"the message line says {said}"
 	);
 }
 

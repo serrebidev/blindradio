@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use blindradio_core::library::{CUSTOM, Library};
+use blindradio_core::library::{CUSTOM, Folder, Library, StationDest};
 use blindradio_core::sources::{Node, Sort, SortField, Sources};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};

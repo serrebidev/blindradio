@@ -177,6 +177,11 @@ pub const DELETE_ITEM: &str = "&Delete";
 pub const ADDED_TO: &str = "Added to ";
 /// Prefix: `Removed from <collection>`.
 pub const REMOVED_FROM: &str = "Removed from ";
+/// Prefix: `Adding <folder>`.
+pub const ADDING: &str = "Adding ";
+pub const NOTHING_TO_ADD: &str = "Nothing to add";
+/// Suffix when a folder held more than is filed in one go.
+pub const STOPPED_THERE: &str = ", stopped there";
 
 // Search.
 pub const SEARCH_TITLE: &str = "Search";

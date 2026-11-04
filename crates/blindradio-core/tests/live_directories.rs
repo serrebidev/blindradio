@@ -34,6 +34,9 @@ async fn orb_live_browse_search_and_week() {
 	assert!(countries.len() > 30, "{}", countries.len());
 	let page = sources.children("orb/genre/jazz", Sort::default()).await.unwrap();
 	assert!(page.iter().any(|n| matches!(n, Node::LoadMore { .. })));
+	let (filed, _) = sources.tree_up_to("orb/genre/celine_dion", Sort::default(), 5000).await.unwrap();
+	println!("{} stations under Celine Dion", filed.len());
+	assert!(!filed.is_empty());
 	let station = Station {
 		id: "orb:us.kexpfm".into(),
 		name: "KEXP 90.3 FM".into(),
