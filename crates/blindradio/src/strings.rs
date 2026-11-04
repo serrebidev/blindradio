@@ -258,6 +258,7 @@ pub const COLUMN_SONG: &str = "Song";
 pub const COLUMN_PLAYED: &str = "Played";
 pub const COPY: &str = "&Copy";
 pub const EQUALIZER_TITLE: &str = "Equalizer";
+pub const EQUALIZER_OWN_TITLE: &str = "Equalizer, global. This station has its own";
 pub const PRESET: &str = "&Preset";
 pub const BASS: &str = "&Bass (dB)";
 pub const MID: &str = "&Mid (dB)";
@@ -380,6 +381,8 @@ pub const OFF: &str = "Off";
 pub const ST_TS_MINUTES: &str = "Buffer &Minutes (blank is global)";
 pub const ST_RECOG: &str = "Song &Recognition";
 pub const ST_SCROB: &str = "Scro&bbling";
+pub const ST_EQ: &str = "&Equalizer";
+pub const ST_EQ_PRESET: &str = "Equalizer Pre&set";
 
 // Global hotkeys.
 pub const GLOBAL_HOTKEYS: &str = "&Global Hotkeys…";
@@ -408,6 +411,7 @@ pub const HOTKEY_TAKEN: &str = "Hotkey taken: ";
 pub const HOTKEYS_UNAVAILABLE: &str = "Hotkeys unavailable";
 pub const EQ_ON: &str = "Equalizer on";
 pub const EQ_OFF: &str = "Equalizer off";
+pub const EQ_OWN: &str = ". This station has its own";
 pub const NO_FAVORITES: &str = "No favorites";
 pub const SHOW_WINDOW: &str = "&Show BlindRadio";
 

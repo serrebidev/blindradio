@@ -402,6 +402,9 @@ impl MixerCore {
 		let done = self.fade_frames;
 		self.fading.retain(|(_, pos)| *pos < done);
 
+		// Before the hiss: the Loudness leveler would ride it up to near full scale.
+		self.eq.process(&mut self.a);
+
 		// Hiss covers every frame the active station does not, easing in and out over a crossfade.
 		for f in 0..frames {
 			let want = if self.hiss && self.hiss_enabled && !self.shift_paused && f >= got {
@@ -423,7 +426,6 @@ impl MixerCore {
 			}
 		}
 
-		self.eq.process(&mut self.a);
 		let vol = if self.muted { 0.0 } else { self.volume };
 		for (o, &s) in out.iter_mut().zip(&self.a) {
 			*o = (s * vol).clamp(-1.0, 1.0);
@@ -1313,6 +1315,30 @@ mod tests {
 		assert_eq!(m.eq_settings, eq);
 		assert!(m.active.as_ref().is_some_and(|a| Arc::ptr_eq(a, &ring)));
 		assert_eq!(m.volume, 0.5);
+	}
+
+	#[test]
+	fn hiss_stays_soft_under_loudness() {
+		let rate = 48_000;
+		let mut m = MixerCore::new(rate);
+		m.handle(MixerCmd::Eq(EqSettings {
+			enabled: true,
+			preset: crate::settings::EqPreset::Loudness,
+			bass: 8,
+			mid: -2,
+			treble: 6,
+			..EqSettings::default()
+		}));
+		m.handle(MixerCmd::Tune);
+		let mut out = vec![0.0; 9600];
+		let mut peak = 0.0f32;
+		// The leveler would have 3 s to ride it up.
+		for _ in 0..30 {
+			m.render(&mut out);
+			peak = peak.max(out.iter().fold(0.0, |p, s| p.max(s.abs())));
+		}
+		assert!(peak > 0.0, "hiss sounds");
+		assert!(peak <= HISS_LEVEL, "hiss not amplified: {peak}");
 	}
 
 	#[test]

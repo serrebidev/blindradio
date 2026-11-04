@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use blindradio_core::eq;
-use blindradio_core::settings::{EqPreset, EqSettings, SavedEqPreset};
+use blindradio_core::settings::{EqPreset, EqSettings, SavedEqPreset, Settings, StationEq};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
@@ -131,17 +131,85 @@ pub fn selection_index(settings: &EqSettings) -> usize {
 		.unwrap_or(0)
 }
 
-/// Fill the preset choice: the built-ins, then the saved presets, with
-/// the selection on whatever the settings say is in use.
+/// Every row of a preset choice: the built-ins, then the saved presets.
+pub fn preset_labels(settings: &EqSettings) -> Vec<&str> {
+	PRESETS
+		.iter()
+		.map(|p| p.label())
+		.chain(settings.saved.iter().map(|p| p.name.as_str()))
+		.collect()
+}
+
+/// Fill the preset choice, with the selection on whatever the settings
+/// say is in use.
 fn fill_presets(preset: &Choice, settings: &EqSettings) {
 	preset.clear();
-	for p in PRESETS {
-		preset.append(p.label());
-	}
-	for p in &settings.saved {
-		preset.append(&p.name);
+	for label in preset_labels(settings) {
+		preset.append(label);
 	}
 	preset.set_selection(selection_index(settings) as u32);
+}
+
+/// What a station plays through: its own choice from Edit Station, else
+/// the global equalizer. For the mixer only, never saved as the global one.
+/// A saved preset deleted since leaves the station on the global equalizer.
+pub fn for_station(settings: &Settings, station_id: &str) -> EqSettings {
+	let mut eq = settings.eq.clone();
+	match settings
+		.station_overrides
+		.get(station_id)
+		.and_then(|o| o.eq.as_ref())
+	{
+		None => {}
+		Some(StationEq::Off) => eq.enabled = false,
+		Some(StationEq::Preset(preset)) => {
+			apply_preset(&mut eq, *preset);
+			eq.enabled = true;
+		}
+		Some(StationEq::Saved(name)) => {
+			if let Some(saved) = settings.eq.saved.iter().find(|p| &p.name == name) {
+				apply_saved(&mut eq, saved);
+				eq.enabled = true;
+			}
+		}
+	}
+	eq
+}
+
+/// Edit Station's two choices for a station's equalizer: Use Global, On
+/// or Off, and the row in `preset_labels`. Loudness waits there for a
+/// station with no preset yet: quiet stations are why this exists.
+pub fn station_choices(settings: &EqSettings, own: Option<&StationEq>) -> (usize, usize) {
+	let at = |preset: EqPreset| PRESETS.iter().position(|p| *p == preset).unwrap_or(0);
+	let loudness = at(EqPreset::Loudness);
+	match own {
+		None => (0, loudness),
+		Some(StationEq::Off) => (2, loudness),
+		Some(StationEq::Preset(preset)) => (1, at(*preset)),
+		Some(StationEq::Saved(name)) => settings
+			.saved
+			.iter()
+			.position(|p| &p.name == name)
+			.map_or((0, loudness), |row| (1, PRESETS.len() + row)),
+	}
+}
+
+/// Those two choices back as what the station keeps.
+pub fn station_eq(settings: &EqSettings, mode: Option<u32>, preset: Option<u32>) -> Option<StationEq> {
+	match mode {
+		Some(1) => {
+			let row = preset.unwrap_or(0) as usize;
+			match PRESETS.get(row) {
+				Some(built_in) => Some(StationEq::Preset(*built_in)),
+				None => settings
+					.saved
+					.get(row - PRESETS.len())
+					.map(|p| StationEq::Saved(p.name.clone())),
+			}
+		}
+		Some(2) => Some(StationEq::Off),
+		_ => None,
+	}
 }
 
 /// Up and Right raise, Down and Left lower, by one dB: a native trackbar lowers on Up.
@@ -172,7 +240,13 @@ fn slider(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: i8) -> Slider {
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::EQUALIZER_TITLE).build();
+	// This dialog sets the global equalizer, which the playing station may not be using.
+	let title = if app.borrow().playing_has_own_eq() {
+		s::EQUALIZER_OWN_TITLE
+	} else {
+		s::EQUALIZER_TITLE
+	};
+	let dialog = Dialog::builder(&frame, title).build();
 	let current = app.borrow().settings.eq.clone();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
@@ -414,6 +488,77 @@ mod tests {
 		assert!(delete_saved(&mut eq, "Headphones"));
 		assert!(eq.saved.is_empty());
 		assert!(!delete_saved(&mut eq, "Headphones"));
+	}
+
+	fn with_station_eq(own: Option<StationEq>) -> Settings {
+		let mut settings = Settings::default();
+		settings.eq.enabled = true;
+		apply_preset(&mut settings.eq, EqPreset::Warm);
+		settings.eq.saved.push(SavedEqPreset {
+			name: "Quiet".into(),
+			bass: 1,
+			mid: 2,
+			treble: 3,
+		});
+		settings.station_overrides.entry("st".into()).or_default().eq = own;
+		settings
+	}
+
+	#[test]
+	fn a_station_plays_through_its_own_equalizer() {
+		let bands = |e: &EqSettings| (e.enabled, e.preset, e.bass, e.mid, e.treble);
+		// Global: as the Equalizer dialog has it, and for any other station.
+		let global = (true, EqPreset::Warm, 3, 1, -2);
+		let settings = with_station_eq(None);
+		assert_eq!(bands(&for_station(&settings, "st")), global);
+		// Global off stays off for a Global station, on for its own preset.
+		let mut off = with_station_eq(Some(StationEq::Preset(EqPreset::Loudness)));
+		off.eq.enabled = false;
+		assert!(for_station(&off, "st").enabled);
+		assert!(!for_station(&off, "other").enabled);
+		// Loudness is what starts the leveler, so the preset itself must arrive.
+		let settings = with_station_eq(Some(StationEq::Preset(EqPreset::Loudness)));
+		assert_eq!(
+			bands(&for_station(&settings, "st")),
+			(true, EqPreset::Loudness, 8, -2, 6)
+		);
+		assert_eq!(bands(&for_station(&settings, "other")), global);
+		assert_eq!(settings.eq.preset, EqPreset::Warm, "global left alone");
+		let settings = with_station_eq(Some(StationEq::Off));
+		assert!(!for_station(&settings, "st").enabled);
+		let settings = with_station_eq(Some(StationEq::Saved("Quiet".into())));
+		assert_eq!(
+			bands(&for_station(&settings, "st")),
+			(true, EqPreset::Custom, 1, 2, 3)
+		);
+		let settings = with_station_eq(Some(StationEq::Saved("Gone".into())));
+		assert_eq!(bands(&for_station(&settings, "st")), global);
+	}
+
+	#[test]
+	fn station_choices_round_trip() {
+		let settings = with_station_eq(None).eq;
+		let loudness = PRESETS.iter().position(|p| *p == EqPreset::Loudness).unwrap();
+		for own in [
+			None,
+			Some(StationEq::Off),
+			Some(StationEq::Preset(EqPreset::Voice)),
+			Some(StationEq::Preset(EqPreset::Custom)),
+			Some(StationEq::Saved("Quiet".into())),
+		] {
+			let (mode, preset) = station_choices(&settings, own.as_ref());
+			assert_eq!(
+				station_eq(&settings, Some(mode as u32), Some(preset as u32)),
+				own
+			);
+		}
+		assert_eq!(station_choices(&settings, None), (0, loudness));
+		assert_eq!(
+			station_choices(&settings, Some(&StationEq::Saved("Gone".into()))),
+			(0, loudness),
+			"a deleted preset shows what the station plays through"
+		);
+		assert_eq!(preset_labels(&settings).len(), PRESETS.len() + 1);
 	}
 
 	#[test]

@@ -223,6 +223,16 @@ pub struct ScrobbleSettings {
 	pub lastfm_base: Option<String>,
 }
 
+/// A station's own equalizer, chosen in Edit Station.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum StationEq {
+	Off,
+	Preset(EqPreset),
+	/// A preset the user saved, by name.
+	Saved(String),
+}
+
 /// Per-station overrides; a None field inherits the global setting.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -233,6 +243,7 @@ pub struct StationSettings {
 	/// The volume last set while this station played; applied again
 	/// whenever the station starts.
 	pub volume: Option<f32>,
+	pub eq: Option<StationEq>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -502,8 +513,14 @@ mod tests {
 				recognition: Some(true),
 				scrobble: None,
 				volume: Some(0.4),
+				eq: Some(StationEq::Saved("Quiet".into())),
 			},
 		);
+		let json = serde_json::to_string(&s).unwrap();
+		let back: Settings = serde_json::from_str(&json).unwrap();
+		assert_eq!(back.station_overrides["st:1"].eq, s.station_overrides["st:1"].eq);
+		let old: StationSettings = serde_json::from_str(r#"{"volume":0.5}"#).unwrap();
+		assert_eq!(old.eq, None, "a settings file from before it means global");
 		assert_eq!(s.volume_for("st:1"), 0.4);
 		assert_eq!(s.volume_for("st:2"), s.volume);
 		assert_eq!(s.timeshift_minutes_for("st:1"), 5);

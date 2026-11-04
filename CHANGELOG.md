@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.59
+
+- A station can now have its own equalizer. In Edit Station, Equalizer is Use Global, On or Off, and On offers Equalizer Preset with every preset, your saved ones included. It switches by itself as you move between stations, so a very quiet station can always play through Loudness while the others stay as they are.
+- With Loudness on, the hiss between stations no longer grows to nearly full volume. It now stays as soft as with the equalizer off.
+
 ## 0.2.58
 
 - TuneIn stations it marks Not Supported are back in Search and Browse, and BlindRadio now tries them. Many were only marked that way because BlindRadio did not tell TuneIn which formats it plays, so Z100 - MyRadioZ and others now list and play normally.
