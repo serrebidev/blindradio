@@ -62,6 +62,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 ## Release
 - Cloud only: `gh workflow run release.yml -f version=X`. `## X` in `CHANGELOG.md` on main first.
 - Workflow: gate (`ci.yml`), bump + tag + draft, Windows, Linux, macOS, verify, publish. 20-40 min. Same version again resumes unpublished draft. Published = refused.
+- Bump edits own version in `Cargo.lock` too, then `cargo metadata --locked`. Manifest alone = cargo re-resolves `*` deps, drops to older copies in lock, ships what gate never tested.
 - Windows assets Authenticode-unsigned. Minisign on everything.
 - Publish needs 10 files: zip, setup.exe, dmg, AppImage, tar.gz, each with `.minisig`.
 - Check after: `cargo xtask update-check <old version>`: asks GitHub, downloads, verifies.
