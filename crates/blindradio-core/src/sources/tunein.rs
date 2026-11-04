@@ -42,6 +42,23 @@ struct Outline {
 	children: Vec<Outline>,
 }
 
+#[derive(Deserialize)]
+struct Described {
+	#[serde(default)]
+	body: Vec<Description>,
+}
+
+/// Any of these can be JSON null.
+#[derive(Deserialize, Default)]
+struct Description {
+	genre_name: Option<String>,
+	location: Option<String>,
+	slogan: Option<String>,
+	language: Option<String>,
+	/// The station's own site. A blank one is common.
+	url: Option<String>,
+}
+
 /// The Browse query of a link worth following. Shows and podcasts are not stations.
 fn browse_query(o: &Outline) -> Option<String> {
 	if o.kind != "link" || matches!(o.key.as_str(), "nextShows" | "podcast") {
@@ -152,6 +169,24 @@ impl TuneIn {
 		let mut seen = std::collections::HashSet::new();
 		out.retain(|n| !matches!(n, Node::Station(s) if !seen.insert(s.id.clone())));
 		Ok(out)
+	}
+
+	/// What TuneIn's lists leave out, for Station Info. It answers for stations it will not
+	/// play as well, and with nothing for one it does not know.
+	pub async fn describe(&self, client: &reqwest::Client, guide_id: &str) -> Result<Details> {
+		let guide = utf8_percent_encode(guide_id, NON_ALPHANUMERIC);
+		let reply: Described =
+			get_json(client, &self.url("Describe", &format!("id={guide}&render=json"))).await?;
+		let d = reply.body.into_iter().next().unwrap_or_default();
+		let text = |field: Option<String>| field.as_deref().and_then(known);
+		Ok(Details {
+			genre: text(d.genre_name),
+			location: text(d.location),
+			slogan: text(d.slogan),
+			language: text(d.language),
+			homepage: text(d.url),
+			..Details::default()
+		})
 	}
 
 	/// TuneIn has no genre, country or language filters; they are ignored.

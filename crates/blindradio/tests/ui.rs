@@ -1588,6 +1588,50 @@ fn edit_station_shows_and_clears_the_info() {
 	app.assert_selected(&tree, "WNYC Operavore");
 }
 
+/// Needs the network: asks the real TuneIn. The lines arrive with the reader still in place.
+#[test]
+#[ignore = "needs a desktop and the network"]
+fn station_info_looks_up_a_tunein_station() {
+	let mut library = Library::default();
+	let mut bbc = station("tunein:s24939", "BBC Radio 1");
+	bbc.source = Source::TuneIn;
+	library.collections[0].stations = vec![bbc];
+	let app = App::with_settings(
+		"info-tunein",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	app.select_row(&app.main_tree(), "BBC Radio 1");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Station Info…"));
+	let dialog = app.find("Station Info", WAIT).expect("Station Info");
+	let text = app
+		.automation
+		.create_matcher()
+		.from(dialog)
+		.control_type(ControlType::Edit)
+		.timeout(5000)
+		.find_first()
+		.expect("details");
+	let value = text.get_pattern::<UIValuePattern>().unwrap();
+	let mut got = String::new();
+	for _ in 0..50 {
+		got = value.get_value().unwrap();
+		if got.contains("Language: ") {
+			break;
+		}
+		std::thread::sleep(Duration::from_millis(200));
+	}
+	assert!(got.contains("Language: English"), "{got}");
+	assert!(got.contains("Location: "), "{got}");
+	assert!(got.starts_with("Name: BBC Radio 1"), "{got}");
+	assert!(text.has_keyboard_focus().unwrap(), "focus stays on the text");
+}
+
 /// The preset waits behind On, and both land in the station's overrides.
 #[test]
 #[ignore = "needs a desktop"]

@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.60
+
+- Station Info now looks up TuneIn stations, adding slogan, genre, location, language and homepage where TuneIn gives them. It works for stations TuneIn will not play where you are, such as MS NOW.
+- BlindRadio now tells Radio Browser when one of its stations has played for ten seconds, as Radio Browser asks every app to do. Its popular lists depend on these counts. Radio Browser sees your IP address and the station. Turn it off with Report Plays to Radio Browser in Settings, General.
+
 ## 0.2.59
 
 - A station can now have its own equalizer. In Edit Station, Equalizer is Use Global, On or Off, and On offers Equalizer Preset with every preset, your saved ones included. It switches by itself as you move between stations, so a very quiet station can always play through Loudness while the others stay as they are.

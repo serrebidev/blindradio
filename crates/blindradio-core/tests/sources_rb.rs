@@ -27,6 +27,15 @@ fn rb(routes: Vec<Route>) -> (TestServer, RadioBrowser) {
 	(s, rb)
 }
 
+#[tokio::test]
+async fn a_play_is_reported_by_station_uuid() {
+	// Path segments are percent-encoded down to the dashes; the real server reads them back.
+	let path = "/json/url/abc%2D1";
+	let (s, rb) = rb(vec![json(path, r#"{"ok":true,"url":"http://x"}"#)]);
+	rb.report_play(&client(), "abc-1").await.unwrap();
+	assert_eq!(s.hits(path), 1);
+}
+
 fn names(nodes: &[Node]) -> Vec<&str> {
 	nodes
 		.iter()

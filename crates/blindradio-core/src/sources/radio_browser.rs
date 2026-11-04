@@ -158,6 +158,7 @@ fn to_station(r: RbStation) -> Option<Station> {
 			homepage: known(&r.homepage),
 			call_sign: None,
 			unavailable: None,
+			..crate::station::Details::default()
 		},
 	})
 }
@@ -214,6 +215,12 @@ impl RadioBrowser {
 			url.push_str(query);
 		}
 		url
+	}
+
+	/// Counts a play, which Radio Browser asks of every client: its popularity sort rests on this.
+	pub async fn report_play(&self, client: &reqwest::Client, uuid: &str) -> Result<()> {
+		get_json::<serde::de::IgnoredAny>(client, &self.url(&["url", uuid], "")).await?;
+		Ok(())
 	}
 
 	async fn list(&self, client: &reqwest::Client, kind: &str, query: &str) -> Result<Vec<Named>> {

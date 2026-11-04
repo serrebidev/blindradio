@@ -30,9 +30,11 @@ pub fn lines(station: &Station, live: Option<&StreamFormat>) -> String {
 	[
 		(s::INFO_NAME, Some(station.name.clone())),
 		(s::COLUMN_INFO, station.info.clone()),
+		(s::INFO_SLOGAN, details.slogan.clone()),
 		(s::INFO_CALL_SIGN, details.call_sign.clone()),
 		(s::INFO_GENRE, details.genre.clone()),
 		(s::INFO_COUNTRY, details.country.clone()),
+		(s::INFO_LOCATION, details.location.clone()),
 		(s::INFO_LANGUAGE, details.language.clone()),
 		(s::INFO_CODEC, codec),
 		(s::INFO_BITRATE, bitrate),
@@ -76,8 +78,30 @@ pub fn show(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	sizer.add(&close, 0, SizerFlag::All, 5);
 	dialog.set_sizer(sizer, true);
 	dialog.set_size(Size::new(560, 400));
+	let token = WindowToken::new();
+	// TuneIn's lists hold almost nothing, so it is asked here. The window does not wait: the lines
+	// arrive while the reader is still on the first. A failure leaves what is already shown.
+	if let Some(guide) = station.id.strip_prefix("tunein:").map(str::to_owned) {
+		let mut shown = station.clone();
+		let a = app.borrow();
+		let sources = a.sources.clone();
+		a.bridge.spawn(
+			token.clone(),
+			async move { sources.tunein_details(&guide).await },
+			move |_: &mut App, found| {
+				let Some(found) = found.ok().filter(|d| !d.is_empty()) else {
+					return;
+				};
+				// The copy is dropped with this window: TuneIn's row is what stays saved.
+				shown.details = found;
+				let at = text.get_insertion_point();
+				text.change_value(&lines(&shown, live.as_ref()));
+				text.set_insertion_point(at);
+			},
+		);
+	}
 	text.set_focus();
-	crate::dialogs::run(app, dialog, Action::StationInfo, text, &WindowToken::new())
+	crate::dialogs::run(app, dialog, Action::StationInfo, text, &token)
 }
 
 #[cfg(test)]
@@ -101,8 +125,25 @@ mod tests {
 				homepage: Some("http://jazz.example".into()),
 				call_sign: None,
 				unavailable: None,
+				..Details::default()
 			},
 		}
+	}
+
+	#[test]
+	fn location_and_slogan_show_where_a_directory_gives_them() {
+		let tunein = Station {
+			details: Details {
+				slogan: Some("Breaking News".into()),
+				location: Some("London, UK".into()),
+				..Details::default()
+			},
+			..station()
+		};
+		let got = lines(&tunein, None);
+		assert!(got.contains("Slogan: Breaking News\n"), "{got}");
+		assert!(got.contains("Location: London, UK\n"), "{got}");
+		assert!(!lines(&station(), None).contains("Slogan"));
 	}
 
 	#[test]
