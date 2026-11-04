@@ -49,6 +49,14 @@ pub struct Memory {
 	sort: Sort,
 }
 
+impl Memory {
+	/// Drops what Browse loaded and where it stood, so folders turned off leave with them.
+	pub fn forget(&mut self) {
+		self.path.clear();
+		self.cache.clear();
+	}
+}
+
 enum Children {
 	Unloaded,
 	/// The placeholder child.

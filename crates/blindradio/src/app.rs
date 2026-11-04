@@ -458,10 +458,11 @@ impl App {
 		let readonly = !writable(&data);
 		let timer = Timer::new(&win.frame);
 		Ok(App {
-			sources: Arc::new(Sources::new(
-				engine.ctx.client.clone(),
-				Endpoints::default(),
-			)),
+			sources: {
+				let sources = Sources::new(engine.ctx.client.clone(), Endpoints::default());
+				sources.set_disabled(settings.disabled_sources.clone());
+				Arc::new(sources)
+			},
 			filters: None,
 			browse: browse::Memory::default(),
 			dialog_open: false,

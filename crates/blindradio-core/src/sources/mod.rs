@@ -4,7 +4,8 @@ use crate::Result;
 use crate::library::Folder;
 use crate::station::{Source, Station};
 use serde::Deserialize;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
+use std::sync::RwLock;
 use std::time::{Duration, UNIX_EPOCH};
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
@@ -365,6 +366,7 @@ pub struct Sources {
 	directory: directory::Directory,
 	recommended: directory::Directory,
 	somafm_base: String,
+	disabled: RwLock<BTreeSet<String>>,
 }
 
 const SEARCH_TIMEOUT: Duration = Duration::from_secs(8);
@@ -469,6 +471,7 @@ impl Sources {
 			directory: directory::Directory::new(endpoints.directory),
 			recommended: directory::Directory::recommended(endpoints.recommended),
 			somafm_base: endpoints.somafm,
+			disabled: RwLock::default(),
 		}
 	}
 
@@ -481,8 +484,27 @@ impl Sources {
 			.into()
 	}
 
+	/// Turns folders off by browse id, such as `tunein` or `net/bbc`. Off means gone from Browse
+	/// and Search. Saved stations keep playing.
+	pub fn set_disabled(&self, ids: BTreeSet<String>) {
+		if let Ok(mut disabled) = self.disabled.write() {
+			*disabled = ids;
+		}
+	}
+
+	fn on(&self, id: &str) -> bool {
+		self.disabled.read().is_ok_and(|d| !d.contains(id))
+	}
+
+	fn enabled(&self, nodes: Vec<Node>) -> Vec<Node> {
+		nodes
+			.into_iter()
+			.filter(|n| !matches!(n, Node::Folder { id, .. } if !self.on(id)))
+			.collect()
+	}
+
 	/// The station directories, the children of the `dir` root, in name order.
-	fn directories() -> Vec<Node> {
+	pub fn directories() -> Vec<Node> {
 		let mut dirs: Vec<Node> = [
 			("rb", "Radio Browser"),
 			("tunein", "TuneIn"),
@@ -510,8 +532,11 @@ impl Sources {
 	/// other directories have no ordering and ignore it.
 	pub async fn children(&self, id: &str, sort: Sort) -> Result<Vec<Node>> {
 		let head = id.split(['/', '@']).next().unwrap_or("");
+		if !self.on(head) || !self.on(id) {
+			return Ok(vec![]);
+		}
 		match head {
-			"dir" => Ok(Self::directories()),
+			"dir" => Ok(self.enabled(Self::directories())),
 			"rb" => self.rb.children(&self.client, id, sort).await,
 			"tunein" => self.tunein.children(&self.client, id).await,
 			"iheart" => self.iheart.children(&self.client, id).await,
@@ -524,7 +549,7 @@ impl Sources {
 			"orb" => self.orb.children(&self.client, id).await,
 			"brdir" => self.directory.children(&self.client, id).await,
 			"recommended" => self.recommended.children(&self.client, id).await,
-			"net" => Ok(networks::children(id)),
+			"net" => Ok(self.enabled(networks::children(id))),
 			_ => Ok(vec![]),
 		}
 	}
@@ -592,65 +617,71 @@ impl Sources {
 		}
 		let name_given = !q.name.trim().is_empty();
 		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb) = tokio::join!(
-			bounded(self.rb.search(&self.client, q)),
 			async {
-				if name_given {
+				if self.on("rb") {
+					bounded(self.rb.search(&self.client, q)).await
+				} else {
+					vec![]
+				}
+			},
+			async {
+				if name_given && self.on("tunein") {
 					bounded(self.tunein.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("iheart") {
 					bounded(self.iheart.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("icecast") {
 					bounded(self.icecast.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("shoutcast") {
 					bounded(self.shoutcast.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("internet-radio") {
 					bounded(self.internet_radio.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("iprd") {
 					bounded(self.iprd.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("radionet") {
 					bounded(self.radionet.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("live365") {
 					bounded(self.live365.search(&self.client, q)).await
 				} else {
 					vec![]
 				}
 			},
 			async {
-				if name_given {
+				if name_given && self.on("orb") {
 					bounded(self.orb.search(&self.client, q)).await
 				} else {
 					vec![]
@@ -668,12 +699,19 @@ impl Sources {
 			.chain(radionet)
 			.chain(live365)
 			.chain(orb)
-			.chain(networks::search(q))
+			.chain(networks::search(q).into_iter().filter(|s| {
+				s.id.split(':')
+					.nth(1)
+					.is_none_or(|slug| self.on(&format!("net/{slug}")))
+			}))
 			.filter(|s| answers(s, &q.name) && seen.insert(s.url.clone()))
 			.collect()
 	}
 
 	pub async fn filters(&self) -> Filters {
+		if !self.on("rb") {
+			return Filters::default();
+		}
 		let (genres, countries, languages) = tokio::join!(
 			self.rb.genres(&self.client),
 			self.rb.countries(&self.client),
@@ -688,7 +726,7 @@ impl Sources {
 
 	/// Counts a play with the directory that wants it: only Radio Browser does.
 	pub async fn report_play(&self, station_id: &str) -> Result<()> {
-		match station_id.strip_prefix("rb:") {
+		match station_id.strip_prefix("rb:").filter(|_| self.on("rb")) {
 			Some(uuid) => self.rb.report_play(&self.client, uuid).await,
 			None => Ok(()),
 		}
@@ -705,9 +743,18 @@ impl Sources {
 	pub async fn history(&self, station: &Station) -> Option<Vec<HistoryItem>> {
 		let (own, week) = tokio::join!(
 			self.own_history(station),
-			tokio::time::timeout(SEARCH_TIMEOUT, self.orb.history(&self.client, station)),
+			async {
+				if self.on("orb") {
+					tokio::time::timeout(SEARCH_TIMEOUT, self.orb.history(&self.client, station))
+						.await
+						.ok()
+						.flatten()
+				} else {
+					None
+				}
+			},
 		);
-		older_rows_follow(own, week.ok().flatten())
+		older_rows_follow(own, week)
 	}
 
 	async fn own_history(&self, station: &Station) -> Option<Vec<HistoryItem>> {

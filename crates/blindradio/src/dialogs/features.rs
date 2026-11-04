@@ -1,10 +1,12 @@
-//! Settings (Ctrl+T), in tabs: general, playback, recording, and recognition and scrobbling.
+//! Settings (Ctrl+T), in tabs: general, playback, recording, recognition and scrobbling, sources.
 //! Every tab applies on OK.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use blindradio_core::settings::{BufferSettings, RecordFormat, RecognitionProvider};
+use blindradio_core::sources::{Node, Sources, networks};
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
 
@@ -130,6 +132,121 @@ pub(crate) fn choice(
 	);
 	sizer.add(&control, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	control
+}
+
+/// One on/off list of the Sources tab. Each row of this plain list box says its state in words,
+/// so any screen reader reads it without a checked state to expose.
+#[derive(Clone)]
+struct Toggles {
+	app: Rc<RefCell<App>>,
+	list: ListBox,
+	/// Browse id, name, on.
+	rows: Rc<RefCell<Vec<(String, String, bool)>>>,
+}
+
+impl Toggles {
+	/// The label first: creation order names the list.
+	fn new(
+		app: &Rc<RefCell<App>>,
+		panel: &Panel,
+		sizer: &BoxSizer,
+		labels: [&str; 3],
+		folders: Vec<Node>,
+		disabled: &BTreeSet<String>,
+	) -> Toggles {
+		let text = StaticText::builder(panel).with_label(labels[0]).build();
+		let list = ListBox::builder(panel).build();
+		let rows: Vec<_> = folders
+			.into_iter()
+			.filter_map(|node| match node {
+				Node::Folder { id, name } => {
+					let on = !disabled.contains(&id);
+					Some((id, name, on))
+				}
+				_ => None,
+			})
+			.collect();
+		let items: Vec<String> = rows.iter().map(row_text).collect();
+		list.append_items(&items.iter().map(String::as_str).collect::<Vec<_>>());
+		list.set_selection(0, true);
+		let on = Button::builder(panel).with_label(labels[1]).build();
+		let off = Button::builder(panel).with_label(labels[2]).build();
+		let buttons = BoxSizer::builder(Orientation::Horizontal).build();
+		buttons.add(&on, 0, SizerFlag::All, 5);
+		buttons.add(&off, 0, SizerFlag::All, 5);
+		sizer.add(
+			&text,
+			0,
+			SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
+			5,
+		);
+		sizer.add(&list, 1, SizerFlag::Expand | SizerFlag::All, 5);
+		sizer.add_sizer(&buttons, 0, SizerFlag::All, 0);
+		let me = Toggles {
+			app: app.clone(),
+			list,
+			rows: Rc::new(RefCell::new(rows)),
+		};
+		let flip = me.clone();
+		list.on_key_down(move |e| {
+			let WindowEventData::Keyboard(key) = e else {
+				return;
+			};
+			if key.get_key_code() == Some(32) {
+				flip.flip();
+				key.event.skip(false);
+			} else {
+				key.event.skip(true);
+			}
+		});
+		let flip = me.clone();
+		list.on_item_double_clicked(move |_| flip.flip());
+		let all = me.clone();
+		on.on_click(move |_| all.all(true));
+		let all = me.clone();
+		off.on_click(move |_| all.all(false));
+		me
+	}
+
+	fn flip(&self) {
+		let Some(at) = self.list.get_selection() else {
+			return;
+		};
+		let text = {
+			let mut rows = self.rows.borrow_mut();
+			let Some(row) = rows.get_mut(at as usize) else {
+				return;
+			};
+			row.2 = !row.2;
+			row_text(row)
+		};
+		// Selecting the rewritten row again is what makes NVDA read its new state.
+		self.list.set_string(at, &text);
+		self.list.set_selection(at, true);
+	}
+
+	fn all(&self, on: bool) {
+		let at = self.list.get_selection().unwrap_or(0);
+		for (i, row) in self.rows.borrow_mut().iter_mut().enumerate() {
+			row.2 = on;
+			self.list.set_string(i as u32, &row_text(row));
+		}
+		self.list.set_selection(at, true);
+		let said = if on { s::SOURCE_ON } else { s::SOURCE_OFF };
+		self.app.borrow_mut().say_announced(said);
+	}
+
+	fn off(&self) -> Vec<String> {
+		let rows = self.rows.borrow();
+		rows.iter()
+			.filter(|row| !row.2)
+			.map(|row| row.0.clone())
+			.collect()
+	}
+}
+
+fn row_text((_, name, on): &(String, String, bool)) -> String {
+	format!("{name}: {}", if *on { s::SOURCE_ON } else { s::SOURCE_OFF })
 }
 
 fn footer(dialog: &Dialog, sizer: BoxSizer) -> Button {
@@ -356,6 +473,29 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	);
 	panel.set_sizer(sizer, true);
 
+	let (panel, sizer) = tab(&notebook, s::TAB_SOURCES);
+	let directories = Toggles::new(
+		app,
+		&panel,
+		&sizer,
+		[
+			s::SOURCES_DIRECTORIES,
+			s::DIRECTORIES_ALL_ON,
+			s::DIRECTORIES_ALL_OFF,
+		],
+		Sources::directories(),
+		&current.disabled_sources,
+	);
+	let nets = Toggles::new(
+		app,
+		&panel,
+		&sizer,
+		[s::SOURCES_NETWORKS, s::NETWORKS_ALL_ON, s::NETWORKS_ALL_OFF],
+		networks::children("net"),
+		&current.disabled_sources,
+	);
+	panel.set_sizer(sizer, true);
+
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(&notebook, 1, SizerFlag::Expand | SizerFlag::All, 5);
 	let ok = footer(&dialog, sizer);
@@ -427,9 +567,16 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.scrobble.lastfm_secret = blank_none(&fm_secret.get_value());
 			st.scrobble.lastfm_session_key = blank_none(&fm_session.get_value());
 			st.scrobble.lastfm_base = blank_none(&fm_base.get_value());
+			let disabled: BTreeSet<String> = directories.off().into_iter().chain(nets.off()).collect();
+			let sources_changed = st.disabled_sources != disabled;
+			st.disabled_sources = disabled;
 			let recog_no_token = st.recognition.enabled
 				&& st.recognition.provider == RecognitionProvider::Audd
 				&& st.recognition.audd_token.is_none();
+			if sources_changed {
+				app.sources.set_disabled(app.settings.disabled_sources.clone());
+				app.browse.forget();
+			}
 			app.save_settings();
 			app.apply_fm_sound();
 			app.apply_buffers();

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -303,6 +303,9 @@ pub struct Settings {
 	/// reordered at the source: parent folder id ("" for the roots) to
 	/// its folder ids in the user's order.
 	pub browse_order: BTreeMap<String, Vec<String>>,
+	/// Directories and networks turned off, by browse id such as `tunein` or `net/bbc`.
+	/// Stored as what is off, so anything added later starts on.
+	pub disabled_sources: BTreeSet<String>,
 }
 
 impl Default for Settings {
@@ -337,6 +340,7 @@ impl Default for Settings {
 			station_overrides: BTreeMap::new(),
 			schedules: Vec::new(),
 			browse_order: BTreeMap::new(),
+			disabled_sources: BTreeSet::new(),
 		}
 	}
 }

@@ -7,6 +7,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Build: `cargo build`. Gate: `cargo test --workspace`, `cargo clippy --workspace --all-targets`. CI runs gate on push + PR (`ci.yml`), Windows only.
 - Desktop UI, real window, takes keyboard: `cargo test -p blindradio --test ui -- --ignored --test-threads=1`.
 - First UI run after rebuild loses keys, tests fail at random. Rerun before believing. Rare single flake remains, passes alone.
+- Installed copy running = test exe exits, "the window appears" times out. Instance name comes from `USERNAME`: set it to anything else for the test run.
 - Network tests: `tests/live*.rs`, `#[ignore]`.
 - Ear check: `cargo run -p blindradio-core --example probe --release [warm_secs]`. Latency: `--example tune`, numbers in `doc/latency.md`.
 
@@ -29,6 +30,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - `app.rs` = `App`, `run`, `poll`. Children in `app/`: `status`, `dial`, `stations`, `recording`, `global_keys`. Child sees App privates. Child method called elsewhere = `pub(super)`.
 - `dialogs/browse.rs` = model + tests. `dialogs/browse/view.rs` = window.
 - `speech.rs` = message path: NVDA (`nvda.rs`), then JAWS (`jaws.rs`), then UIA live region. JAWS path never run under JAWS: won't launch it beside owner's NVDA.
+- `Settings.disabled_sources` = browse ids turned off (`tunein`, `net/bbc`), Sources tab in `dialogs/features.rs`. `Sources::set_disabled` filters Browse + Search. New directory: add to `Sources::directories`, gate its `search` with `self.on(id)`.
 - `status_strip.rs` = own window + hand-built UIA provider, so NVDA+End finds status bar. Read its header before touching.
 - `sources/live365.rs` reads web page data, no open API. Site rewrite empties it. How: `docs/radio-directory-sources.md`.
 - `sources/orb.rs` = Online Radio Box: reads web pages, no API. Terms do not offer this use, owner's call. Browse, search, week of songs. Match by stream, or name + country: name alone shows wrong station's songs. How: `docs/radio-sources-research-2026-11-04.md`.

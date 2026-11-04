@@ -141,6 +141,40 @@ async fn directories_list_iprd_and_recommended_not_laut_fm() {
 	assert!(!dirs.iter().any(|n| n.name() == "laut.fm"));
 }
 
+#[tokio::test]
+async fn folders_turned_off_leave_browse_and_search() {
+	let (_s, src) = sources(vec![]);
+	let net = blindradio_core::sources::networks::networks()
+		.iter()
+		.find(|n| n.stations.len() > 1)
+		.unwrap();
+	let net_id = format!("net/{}", net.slug);
+	let query = SearchQuery {
+		name: net.stations[0].name.clone(),
+		..Default::default()
+	};
+	let station_id = format!("net:{}:{}", net.slug, net.stations[0].slug);
+	let found = |list: &[Station]| list.iter().any(|s| s.id == station_id);
+	let listed = |list: &[Node], id: &str| {
+		list.iter()
+			.any(|n| matches!(n, Node::Folder { id: got, .. } if got == id))
+	};
+	assert!(found(&src.search(&query).await));
+
+	src.set_disabled([String::from("tunein"), net_id.clone()].into());
+	let sort = Sort::default();
+	assert!(!listed(&src.children("dir", sort).await.unwrap(), "tunein"));
+	assert!(listed(&src.children("dir", sort).await.unwrap(), "rb"));
+	assert!(src.children("tunein", sort).await.unwrap().is_empty());
+	assert!(!listed(&src.children("net", sort).await.unwrap(), &net_id));
+	assert!(src.children(&net_id, sort).await.unwrap().is_empty());
+	assert!(!found(&src.search(&query).await), "the network leaves search");
+
+	src.set_disabled(Default::default());
+	assert!(listed(&src.children("net", sort).await.unwrap(), &net_id));
+	assert!(!src.children(&net_id, sort).await.unwrap().is_empty());
+}
+
 #[test]
 fn a_saved_laut_fm_station_still_loads() {
 	let s: Station =
