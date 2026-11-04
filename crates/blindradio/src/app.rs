@@ -46,6 +46,15 @@ const LINE_REST: Duration = Duration::from_millis(300);
 const SETTINGS_REST: Duration = Duration::from_secs(1);
 /// The daily check waits until the window and the first station are settled.
 const UPDATE_DELAY: Duration = Duration::from_secs(10);
+/// Audio this long makes a play: moving along the dial hears a station without choosing it.
+const PLAY_COUNTS: Duration = Duration::from_secs(10);
+
+/// The station heard first is still the one playing, and has been for `PLAY_COUNTS`.
+fn play_counts(heard: Option<&(String, Instant)>, playing: Option<&str>, now: Instant) -> bool {
+	heard.is_some_and(|(id, since)| {
+		playing == Some(id.as_str()) && now.saturating_duration_since(*since) >= PLAY_COUNTS
+	})
+}
 
 /// The tuner sends mixer commands through it while the app switches devices on it.
 pub struct SharedOutput(Rc<RefCell<Output>>);
@@ -375,6 +384,8 @@ pub struct App {
 	shift_song: Option<String>,
 	/// When the playing station started sounding; drives the status line.
 	playing_since: Option<Instant>,
+	/// The station whose audio started, and when, until its play has been counted.
+	play_heard: Option<(String, Instant)>,
 	/// The status line without its time suffixes.
 	status_base: RefCell<String>,
 	/// The status line as last written to the bar, suffixes and all; the
@@ -484,6 +495,7 @@ impl App {
 			song: None,
 			shift_song: None,
 			playing_since: None,
+			play_heard: None,
 			status_base: RefCell::new(String::new()),
 			status_line: RefCell::new(String::new()),
 			last_status_tick: Instant::now(),
@@ -852,6 +864,14 @@ impl App {
 		for event in events {
 			self.tuner_event(event);
 		}
+		if play_counts(
+			self.play_heard.as_ref(),
+			self.tuner.playing().map(|p| p.id.as_str()),
+			now,
+		) && let Some((id, _)) = self.play_heard.take()
+		{
+			self.report_play(id);
+		}
 		for done in self.bridge.ready() {
 			done(self);
 		}
@@ -961,6 +981,7 @@ impl App {
 		match event {
 			TunerEvent::Playing { station_id } => {
 				self.playing_since = Some(Instant::now());
+				self.play_heard = Some((station_id.clone(), Instant::now()));
 				// Dial tuning stays quiet: the audio is the confirmation.
 				if let Some(name) = self.playing_name(&station_id) {
 					self.say_kind(Kind::Status, &name);
@@ -1284,6 +1305,21 @@ impl App {
 		})
 	}
 
+	/// Best effort: a play that fails to count is nobody's problem.
+	fn report_play(&self, station_id: String) {
+		if !self.settings.report_plays {
+			return;
+		}
+		let sources = self.sources.clone();
+		self.bridge.spawn(
+			WindowToken::new(),
+			async move {
+				let _ = sources.report_play(&station_id).await;
+			},
+			|_: &mut App, ()| {},
+		);
+	}
+
 	/// The FM sound toggled in Settings: the mixer hears it at once.
 	/// Name Automatically's lookup, on the shared HTTP client.
 	pub fn station_name_lookup(
@@ -1329,6 +1365,18 @@ fn set_label(button: Button, label: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn a_play_counts_only_for_the_station_still_playing_after_the_wait() {
+		let start = Instant::now();
+		let later = start + PLAY_COUNTS;
+		let heard = ("rb:a".to_string(), start);
+		assert!(play_counts(Some(&heard), Some("rb:a"), later));
+		assert!(!play_counts(Some(&heard), Some("rb:a"), later - Duration::from_secs(1)));
+		assert!(!play_counts(Some(&heard), Some("rb:b"), later), "moved on");
+		assert!(!play_counts(Some(&heard), None, later), "stopped");
+		assert!(!play_counts(None, Some("rb:a"), later), "already counted");
+	}
 
 	#[test]
 	fn file_exports_preserve_scopes_and_nested_folders() {

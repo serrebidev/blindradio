@@ -642,6 +642,19 @@ impl Sources {
 		}
 	}
 
+	/// Counts a play with the directory that wants it: only Radio Browser does.
+	pub async fn report_play(&self, station_id: &str) -> Result<()> {
+		match station_id.strip_prefix("rb:") {
+			Some(uuid) => self.rb.report_play(&self.client, uuid).await,
+			None => Ok(()),
+		}
+	}
+
+	/// What Station Info can add from TuneIn, by guide id.
+	pub async fn tunein_details(&self, guide_id: &str) -> Result<crate::station::Details> {
+		self.tunein.describe(&self.client, guide_id).await
+	}
+
 	/// Published song history, newest first; `None` when the station has none or it failed.
 	pub async fn history(&self, station: &Station) -> Option<Vec<HistoryItem>> {
 		// Dedupe keeps the first copy of a stream, so look up by URL as well as by id.

@@ -68,6 +68,11 @@ pub struct Details {
 	pub genre: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub country: Option<String>,
+	/// Finer than a country, in the directory's own words: `London, UK`.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub location: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub slogan: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub language: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]

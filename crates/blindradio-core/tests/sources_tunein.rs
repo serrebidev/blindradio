@@ -51,6 +51,34 @@ async fn tunein_location_folders() {
 }
 
 #[tokio::test]
+async fn tunein_describes_a_station_it_will_not_play() {
+	// Shape of MS NOW's real reply: nulls and blanks are common.
+	let (s, t) = tunein(
+		"/Describe.ashx",
+		r#"{"head":{"status":"200"},"body":[{"element":"station","guide_id":"s297990",
+		"name":"MS NOW","slogan":"Breaking News","url":"","location":"US","language":"English",
+		"genre_name":"Progressive Talk","region_id":null,"current_song":null,"is_available":false}]}"#,
+	);
+	let got = t.describe(&client(), "s297990").await.unwrap();
+	assert_eq!(got.slogan.as_deref(), Some("Breaking News"));
+	assert_eq!(got.location.as_deref(), Some("US"));
+	assert_eq!(got.language.as_deref(), Some("English"));
+	assert_eq!(got.genre.as_deref(), Some("Progressive Talk"));
+	assert_eq!(got.homepage, None, "a blank is nothing");
+	let q = s.last_query("/Describe.ashx").unwrap();
+	assert!(q.contains("id=s297990") && q.contains("render=json"), "{q}");
+
+	// A null field, and a station it does not know: nothing to add, not an error.
+	let (_s, t) = tunein("/Describe.ashx", r#"{"body":[{"slogan":null,"url":"http://x"}]}"#);
+	assert_eq!(t.describe(&client(), "s1").await.unwrap().homepage.as_deref(), Some("http://x"));
+	let (_s, t) = tunein(
+		"/Describe.ashx",
+		r#"{"head":{"status":"400","fault":"Station not found"},"body":[]}"#,
+	);
+	assert!(t.describe(&client(), "s1").await.unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn tunein_root_needs_no_request() {
 	let t = TuneIn::new("http://127.0.0.1:0");
 	let nodes = t.children(&client(), "tunein").await.unwrap();

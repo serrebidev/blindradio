@@ -139,6 +139,7 @@ fn to_entry(raw: Raw) -> Option<Entry> {
 				homepage: known(&raw.website),
 				call_sign: None,
 				unavailable: None,
+				..Details::default()
 			},
 		},
 		country: country.into(),

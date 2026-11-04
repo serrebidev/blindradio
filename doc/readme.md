@@ -209,8 +209,10 @@ in Browse, a station in a collection also offers Delete, which takes out the cop
 category it says `Nothing to do here`.
 
 Station Info, on every station's menu, opens a read-only window you can read line by line and copy
-from: name, info, genre, country, language, codec, bitrate, directory, homepage and stream URL,
-whichever the station's directory gives. Radio Browser gives the most. Sample rate and channels come
+from: name, info, slogan, genre, country, location, language, codec, bitrate, directory, homepage and
+stream URL, whichever the station's directory gives. Radio Browser gives the most. A TuneIn station
+is looked up as the window opens, so its slogan, genre, location, language and homepage join the
+lines a moment later, even for a station TuneIn will not play where you are. Sample rate and channels come
 from the stream itself, so they show while that station plays, and what the stream says about its
 codec and bitrate wins over the directory. Station Info has no key until you give it one in Keyboard Shortcuts.
 
@@ -355,8 +357,11 @@ there.
 The General checkboxes are Announce Song Titles, Announce
 Connection Status, Announce Actions, Close Lists When Playing, Play Last Station at Startup, Play a Station as
 I Move to It, Hide to the System Tray When Closed, Maximize the Window at Startup, Check
-for Updates Automatically (the daily update check; Help, Check for Updates always works), and
-Expand All Directories in the Main Window. With Play a Station as I Move to It off, moving
+for Updates Automatically (the daily update check; Help, Check for Updates always works), Report
+Plays to Radio Browser, and Expand All Directories in the Main Window. Report Plays is on by
+default: when a station from Radio Browser has played for ten seconds, BlindRadio tells Radio
+Browser which station, as its rules ask of every app, and that is what its popular lists are built
+from. Radio Browser sees your IP address and the station, nothing else. With Play a Station as I Move to It off, moving
 through a list only selects the station; Enter plays it. With Expand All Directories off,
 the main window's directories start collapsed, so a long list opens as a short list of
 directories to walk into; a directory you open or close by hand keeps its state either way.

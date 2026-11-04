@@ -212,6 +212,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		current.expand_dial_folders,
 	);
 	let updates_auto = check(&panel, &sizer, s::CHECK_UPDATES_AUTO, current.check_updates);
+	let report_plays = check(&panel, &sizer, s::REPORT_PLAYS, current.report_plays);
 	let play_move = check(&panel, &sizer, s::PLAY_ON_MOVE, current.play_on_move);
 	let tray = check(&panel, &sizer, s::CLOSE_TO_TRAY, current.close_to_tray);
 	let max_start = check(&panel, &sizer, s::MAXIMIZE_START, current.maximize_on_start);
@@ -379,6 +380,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				_ => None,
 			};
 			st.check_updates = updates_auto.get_value();
+			st.report_plays = report_plays.get_value();
 			st.play_on_move = play_move.get_value();
 			st.expand_dial_folders = expand_dial.get_value();
 			st.fm_sound = fm_sound.get_value();
