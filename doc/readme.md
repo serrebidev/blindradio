@@ -23,7 +23,7 @@ under focus at once, with no speech beyond your screen reader's own. Opening a l
 station and plays it.
 
 - Letters jump to the next name starting with that letter.
-- Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once.
+- Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once. Enter also starts a new time-shift buffer, and so does moving away from a station and back. When a station reconnects by itself, it keeps its buffer.
 - Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
 - Delete removes it from that list.
 - Alt+Up and Alt+Down reorder where the list allows it.
@@ -46,6 +46,10 @@ IPRD, Radio.net, Live365 and the curated networks. Genre, Country and Language f
 Browser; Icecast also matches Genre when a Name is given. Other directories use the Name
 box. With Name empty, only Radio Browser searches the selected filters. A directory that
 fails or takes too long is skipped so the others can still return results.
+
+TuneIn lists some stations it says will not play here. They stay in the list with TuneIn's
+reason beside the name, and BlindRadio still tries them when you play one. If it fails, the
+message gives that reason, such as Not available in your country.
 
 A station is listed only if every word in the Name box is in its name, genre or call sign.
 Case, accents and spaces do not matter: serrebiradio finds Serrebi Radio, and radio finds

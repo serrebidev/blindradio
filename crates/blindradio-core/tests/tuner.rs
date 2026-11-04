@@ -157,6 +157,7 @@ enum RecCmd {
 	Volume(f32),
 	Mute(bool),
 	Tune,
+	ShiftAttach,
 }
 
 impl std::fmt::Debug for RecCmd {
@@ -170,6 +171,7 @@ impl std::fmt::Debug for RecCmd {
 			RecCmd::Volume(v) => f.debug_tuple("Volume").field(v).finish(),
 			RecCmd::Mute(m) => f.debug_tuple("Mute").field(m).finish(),
 			RecCmd::Tune => f.write_str("Tune"),
+			RecCmd::ShiftAttach => f.write_str("ShiftAttach"),
 		}
 	}
 }
@@ -186,9 +188,9 @@ impl Sink for RecSink {
 			MixerCmd::Volume(v) => RecCmd::Volume(v),
 			MixerCmd::Mute(m) => RecCmd::Mute(m),
 			MixerCmd::Tune => RecCmd::Tune,
+			MixerCmd::ShiftAttach { .. } => RecCmd::ShiftAttach,
 			MixerCmd::Eq(_) | MixerCmd::Hiss(_) | MixerCmd::Buffers { .. } => return,
-			MixerCmd::ShiftAttach { .. }
-			| MixerCmd::ShiftPause(_)
+			MixerCmd::ShiftPause(_)
 			| MixerCmd::ShiftSeek(_)
 			| MixerCmd::ShiftSeekTo(_)
 			| MixerCmd::ShiftLive
@@ -394,6 +396,113 @@ fn play_restarts_the_playing_station() {
 	f.tuner.play(&list[1], f.t0 + ms(2000));
 	assert_eq!(f.fake.start_count(1), 2, "play restarts the playing station");
 	assert_eq!(f.tuner.playing().map(|s| s.id.as_str()), Some("s1"));
+}
+
+/// The mixer forgets its buffer on every start, so one only counts attached after the last.
+fn attached_since_last_start(sink: &RecSink) -> bool {
+	let cmds = sink.cmds();
+	let start = cmds
+		.iter()
+		.rposition(|c| matches!(c, RecCmd::SetActive { ring: Some(_), .. }))
+		.expect("a start");
+	cmds[start..].iter().any(|c| matches!(c, RecCmd::ShiftAttach))
+}
+
+fn buffered_fixture(encoded_ring: bool, dir: &std::path::Path) -> Fixture {
+	let mut settings = blindradio_core::settings::Settings::default();
+	settings.timeshift.enabled = true;
+	settings.timeshift.minutes = 1;
+	settings.timeshift.encoded_ring = encoded_ring;
+	settings.recording.dir = Some(dir.to_string_lossy().into_owned());
+	let mut f = fixture();
+	f.tuner.set_settings(Arc::new(Mutex::new(settings)));
+	f
+}
+
+#[test]
+fn reconnecting_keeps_the_buffer_and_playing_builds_a_new_one() {
+	for encoded_ring in [false, true] {
+		let dir = tempfile::tempdir().unwrap();
+		let mut f = buffered_fixture(encoded_ring, dir.path());
+		let list = stations(3);
+		let at = |s: u64| f.t0 + ms(s * 1000);
+		let buffer = |t: &Tuner<FakeFactory, RecSink>| t.shift().expect("a buffer").0;
+
+		f.tuner.play(&list[1], at(1));
+		assert!(attached_since_last_start(&f.sink), "first play");
+		let first = buffer(&f.tuner);
+
+		// The stream reconnects by itself: nothing starts, nothing is lost.
+		f.fake.emit(1, StreamEvent::Reconnecting);
+		f.fake.emit(1, StreamEvent::Reconnected);
+		f.tuner.poll(at(2), &[]);
+		assert!(Arc::ptr_eq(&first, &buffer(&f.tuner)), "reconnect keeps it");
+		assert_eq!(f.fake.start_count(1), 1);
+
+		// Enter on the playing station.
+		f.tuner.play(&list[1], at(3));
+		assert!(attached_since_last_start(&f.sink), "Enter");
+		let second = buffer(&f.tuner);
+		assert!(!Arc::ptr_eq(&first, &second), "Enter builds a new one");
+
+		// The stream gives up: the buffer stays until the user acts.
+		f.fake.emit(1, StreamEvent::Failed("Lost".into()));
+		f.tuner.poll(at(4), &[]);
+		assert!(Arc::ptr_eq(&second, &buffer(&f.tuner)));
+		f.tuner.play(&list[1], at(5));
+		assert!(attached_since_last_start(&f.sink), "Enter after the loss");
+		let third = buffer(&f.tuner);
+		assert!(!Arc::ptr_eq(&second, &third));
+
+		// Focus on it after a loss restarts it too.
+		f.fake.emit(1, StreamEvent::Failed("Lost".into()));
+		f.tuner.poll(at(6), &[]);
+		f.tuner.focus(&list, 1, at(7));
+		assert!(attached_since_last_start(&f.sink), "focus after the loss");
+		let fourth = buffer(&f.tuner);
+		assert!(!Arc::ptr_eq(&third, &fourth));
+
+		// Away and back.
+		f.tuner.focus(&list, 2, at(8));
+		f.tuner.focus(&list, 1, at(9));
+		assert!(attached_since_last_start(&f.sink), "away and back");
+		assert!(!Arc::ptr_eq(&fourth, &buffer(&f.tuner)));
+	}
+}
+
+#[test]
+fn a_restart_during_a_recording_keeps_the_recording_and_its_buffer() {
+	let dir = tempfile::tempdir().unwrap();
+	let mut f = buffered_fixture(false, dir.path());
+	let list = stations(3);
+	f.tuner.play(&list[1], f.t0);
+	let first = f.tuner.shift().unwrap().0;
+	f.tuner.start_recording(None).unwrap();
+	f.fake.emit(1, StreamEvent::Failed("Lost".into()));
+	f.tuner.poll(f.t0 + ms(1000), &[]);
+	f.tuner.focus(&list, 1, f.t0 + ms(2000));
+	assert!(f.tuner.is_recording(), "the recording goes on");
+	assert!(attached_since_last_start(&f.sink));
+	assert!(Arc::ptr_eq(&first, &f.tuner.shift().unwrap().0));
+}
+
+#[test]
+fn turning_the_buffer_on_takes_effect_on_the_next_play() {
+	let dir = tempfile::tempdir().unwrap();
+	let mut settings = blindradio_core::settings::Settings::default();
+	settings.timeshift.enabled = false;
+	settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+	let settings = Arc::new(Mutex::new(settings));
+	let mut f = fixture();
+	f.tuner.set_settings(settings.clone());
+	let list = stations(3);
+	f.tuner.play(&list[1], f.t0);
+	assert!(f.tuner.shift().is_none());
+	settings.lock().timeshift.enabled = true;
+	settings.lock().timeshift.minutes = 1;
+	f.tuner.play(&list[1], f.t0 + ms(1000));
+	assert!(f.tuner.shift().is_some());
+	assert!(attached_since_last_start(&f.sink));
 }
 
 #[test]

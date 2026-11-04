@@ -157,6 +157,7 @@ fn to_station(r: RbStation) -> Option<Station> {
 			bitrate_kbps: Some(r.bitrate).filter(|&b| b > 0),
 			homepage: known(&r.homepage),
 			call_sign: None,
+			unavailable: None,
 		},
 	})
 }

@@ -78,6 +78,9 @@ pub struct Details {
 	pub homepage: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub call_sign: Option<String>,
+	/// Why the directory says it will not play. Said only when playing it fails.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub unavailable: Option<String>,
 }
 
 impl Details {
