@@ -354,9 +354,15 @@ due, playback stops.
 
 ## Settings
 
-Ctrl+T opens Settings (File menu). It has four tabs: General, Playback, Recording, and Songs,
-which holds song recognition and scrobbling. Focus starts on the tabs: Left and Right change tab, Tab moves into
-the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all four.
+Ctrl+T opens Settings (File menu). It has five tabs: General, Playback, Recording, Songs,
+which holds song recognition and scrobbling, and Sources. Focus starts on the tabs: Left and Right change tab, Tab moves into
+the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all five.
+
+The Sources tab has one list of directories and one of networks. Each row says on or off. Space or a double
+click changes the row, and buttons under each list turn all of it on or off. A directory or network that is off leaves
+Browse and Search, and new ones start on. Stations you saved from it stay in your lists and keep playing.
+With Radio Browser off, Search has no genre, country or language lists and plays are not reported to it.
+With Online Radio Box off, Song History no longer reaches back through it.
 
 On Windows, the service tokens on the Songs tab are stored encrypted for your Windows account.
 If you copy your data folder to another PC or account, those fields open blank; enter them again

@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.62
+
+- Settings has a new Sources tab where you can turn each directory and network on or off. Press Space on a row, or use the buttons to change a whole list. One that is off leaves Browse and Search. Stations you saved from it keep playing.
+
 ## 0.2.61
 
 - New directory: Online Radio Box, in Browse and Search. It offers By Genre and each region of the world, with that region's countries inside.

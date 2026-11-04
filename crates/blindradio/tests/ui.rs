@@ -674,6 +674,68 @@ fn settings_tabs_are_reached_by_keyboard_and_all_save() {
 	);
 }
 
+/// The Sources tab turns a directory off with Space, and the row says so when Settings opens again.
+#[test]
+#[ignore = "needs a desktop"]
+fn sources_tab_turns_a_directory_off() {
+	let app = App::start("sources-tab", Library::default());
+	let dialog = (0..4)
+		.find_map(|_| {
+			app.press("{ctrl}t");
+			app.find("Settings", Duration::from_secs(5))
+		})
+		.expect("Settings");
+	for _ in 0..4 {
+		app.press("{right}");
+	}
+	let list = |dialog: &UIElement| {
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.timeout(5000)
+			.name("Directories, Space turns on or off")
+			.control_type(ControlType::List)
+			.find_first()
+			.expect("directories")
+	};
+	list(&dialog).set_focus().expect("focus list");
+	std::thread::sleep(Duration::from_millis(300));
+	app.press("{space}");
+	std::thread::sleep(Duration::from_millis(300));
+	let ok = app
+		.automation
+		.create_matcher()
+		.from(dialog.clone())
+		.timeout(5000)
+		.name("OK")
+		.control_type(ControlType::Button)
+		.find_first()
+		.expect("OK");
+	app.invoke(&ok);
+	std::thread::sleep(Duration::from_millis(500));
+	assert_eq!(
+		Settings::load(&app.data)
+			.disabled_sources
+			.into_iter()
+			.collect::<Vec<_>>(),
+		["brdir"]
+	);
+
+	app.press("{ctrl}t");
+	let dialog = app.find("Settings", WAIT).expect("Settings");
+	for _ in 0..4 {
+		app.press("{right}");
+	}
+	let row = app
+		.automation
+		.create_matcher()
+		.from(list(&dialog))
+		.timeout(5000)
+		.name("BlindRadio Directory: off")
+		.find_first();
+	assert!(row.is_ok(), "the row says it is off");
+}
+
 /// Shift+Up and Shift+Down move a favorite, as in Browse.
 #[test]
 #[ignore = "needs a desktop"]

@@ -40,6 +40,15 @@ info@airablenow.com, but an NDA may not suit a public repository, which is an op
 
 Song history: none found.
 
+Checked again the same day, on request to implement it:
+
+- GitHub, most stars and most recent: [Radio-API](https://github.com/KIMB-technologies/Radio-API) (87 stars, pushed 2026-10-21), [go-kef-w2](https://github.com/hilli/go-kef-w2) (20 stars, pushed 2026-07-04), [Crestron-MediaPlayer-SDK](https://github.com/KittyKatMiauwMiauw/Crestron-MediaPlayer-SDK) (8 stars), [fairable](https://github.com/Half-Shot/fairable) (5 stars), [frontier-airable](https://github.com/seife/frontier-airable) (0 stars, pushed 2026-02-24).
+- None reads the catalogue on its own. go-kef-w2 asks the owner's own speaker, and the URLs it holds carry a per-maker host such as `<number>.airable.io`. Radio-API, fairable and frontier-airable stand in for the server. The Crestron SDK was only seen in code search hits.
+- [Music Assistant](https://github.com/orgs/music-assistant/discussions/3505) turned the same request down on 2026-09-12: "do not provide a free or public API that open-source projects like Music Assistant can legally integrate".
+- airable.fm shows only a login page. Its script names no catalogue address, and `/api`, `/radios` and `/search` answer 404 without a login. What a signed-in page calls was not looked at.
+
+So the code has no Airable source. The only routes are the NDA, or a user's own airable.fm account if the portal's calls prove usable.
+
 ## Online Radio Box
 
 ### What it offers
