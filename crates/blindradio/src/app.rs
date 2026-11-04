@@ -354,6 +354,8 @@ pub struct App {
 	played: Vec<Station>,
 	/// Index into `played` of the entry playing now.
 	played_at: Option<usize>,
+	/// What the mixer was last told to play through.
+	heard_eq: EqSettings,
 	/// The station tree's filter, typed in the filter box; empty shows all.
 	dial_filter: String,
 	/// Playback changed behind a modal: the main tree catches up when it closes.
@@ -432,7 +434,8 @@ impl App {
 		let output = Output::start(settings.audio_device.as_deref())?;
 		output.send(MixerCmd::Volume(settings.volume));
 		output.send(MixerCmd::Mute(settings.muted));
-		output.send(MixerCmd::Eq(settings.eq.clone()));
+		let heard_eq = settings.eq.clone();
+		output.send(MixerCmd::Eq(heard_eq.clone()));
 		output.send(MixerCmd::Hiss(settings.fm_sound));
 		let engine = Engine::new(&data.join(store::RESOLVE_FILE), output.sample_rate)?;
 		let rendered = output.rendered().clone();
@@ -470,6 +473,7 @@ impl App {
 			remembered: None,
 			played: Vec::new(),
 			played_at: None,
+			heard_eq,
 			dial_filter: String::new(),
 			reveal_on_close: false,
 			dial: false,
@@ -611,6 +615,7 @@ impl App {
 		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
 		self.apply_station_volume(station);
+		self.refresh_eq();
 		if self.settings.play_on_move {
 			self.note_played(station);
 		}
@@ -1111,6 +1116,7 @@ impl App {
 			self.win.stations.list.set_focus();
 		}
 		self.apply_station_volume(&station);
+		self.refresh_eq();
 		self.library.add_recent(&station);
 		self.save_library();
 		if self.settings.last_station.as_ref() != Some(&station) {
@@ -1250,11 +1256,32 @@ impl App {
 			.set_settings(Arc::new(parking_lot::Mutex::new(self.settings.clone())));
 	}
 
-	/// The equalizer changed: heard at once and remembered.
+	/// The global equalizer changed: remembered, and heard at once unless
+	/// the playing station has its own.
 	pub fn set_eq(&mut self, eq: EqSettings) {
 		self.settings.eq = eq;
-		self.mixer(MixerCmd::Eq(self.settings.eq.clone()));
+		self.refresh_eq();
 		self.save_settings();
+	}
+
+	/// The mixer takes what the playing station plays through. Sent only on
+	/// a change: moving along the dial comes here per key.
+	pub fn refresh_eq(&mut self) {
+		let id = self.tuner.playing().map_or("", |p| p.id.as_str());
+		let eq = crate::dialogs::equalizer::for_station(&self.settings, id);
+		if eq != self.heard_eq {
+			self.heard_eq = eq.clone();
+			self.mixer(MixerCmd::Eq(eq));
+		}
+	}
+
+	pub fn playing_has_own_eq(&self) -> bool {
+		self.tuner.playing().is_some_and(|p| {
+			self.settings
+				.station_overrides
+				.get(&p.id)
+				.is_some_and(|o| o.eq.is_some())
+		})
 	}
 
 	/// The FM sound toggled in Settings: the mixer hears it at once.

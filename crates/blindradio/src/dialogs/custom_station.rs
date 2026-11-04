@@ -12,6 +12,7 @@ use wxdragon::prelude::*;
 use crate::action::Action;
 use crate::app::App;
 use crate::bridge::WindowToken;
+use crate::dialogs::equalizer;
 use crate::dialogs::features::{blank_none, choice, field, tri, untri};
 use crate::strings as s;
 
@@ -168,7 +169,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 /// Edit Station: the Add Custom fields filled in with the station's name,
 /// info and URL, and the station's own settings (buffer minutes, recognition,
-/// scrobbling) below them — one dialog since the merge; there is no
+/// scrobbling, equalizer) below them — one dialog since the merge; there is no
 /// separate Station Settings anymore. Saving rewrites every held copy
 /// (collections, favorites), so an imported playlist's station can be
 /// renamed and re-pointed in place.
@@ -235,6 +236,25 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		&[s::USE_GLOBAL, s::ON, s::OFF],
 		tri(current.scrobble),
 	);
+	let eq = app.borrow().settings.eq.clone();
+	let (eq_at, preset_at) = equalizer::station_choices(&eq, current.eq.as_ref());
+	let eq_mode = choice(
+		&dialog,
+		&sizer,
+		s::ST_EQ,
+		&[s::USE_GLOBAL, s::ON, s::OFF],
+		eq_at,
+	);
+	let eq_preset = choice(
+		&dialog,
+		&sizer,
+		s::ST_EQ_PRESET,
+		&equalizer::preset_labels(&eq),
+		preset_at,
+	);
+	// Only On has a preset: Use Global and Off leave this out of the tab order.
+	eq_preset.enable(eq_at == 1);
+	eq_mode.on_selection_changed(move |_| eq_preset.enable(eq_mode.get_selection() == Some(1)));
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
 		.with_label(s::OK)
@@ -272,6 +292,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				// Not this dialog's to set: the level the station
 				// remembers from playing it.
 				volume: current.volume,
+				eq: equalizer::station_eq(&eq, eq_mode.get_selection(), eq_preset.get_selection()),
 			};
 			{
 				let mut app = a.borrow_mut();
@@ -286,6 +307,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 					app.settings.station_overrides.insert(id.clone(), entry);
 				}
 				app.save_settings();
+				app.refresh_eq();
 			}
 			crate::speech::focus_returning();
 			a.borrow_mut().say(&format!("{}{}", s::SAVED, typed));

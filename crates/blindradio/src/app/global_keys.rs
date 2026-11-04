@@ -74,6 +74,7 @@ impl App {
 		eq.enabled = !eq.enabled;
 		let text = if eq.enabled { s::EQ_ON } else { s::EQ_OFF };
 		self.set_eq(eq);
-		self.say(text);
+		let own = if self.playing_has_own_eq() { s::EQ_OWN } else { "" };
+		self.say(&format!("{text}{own}"));
 	}
 }

@@ -199,7 +199,7 @@ default is Custom Stations, where new stations went before the choice existed.
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Edit Station and, when you have favorites folders, Add to Favorites Folder.
 Edit Station holds the station's name, its info (the text after the name in the lists, which you can change or clear), its stream URL and its own settings — buffer
-minutes, song recognition and scrobbling for that station alone; there is no separate
+minutes, song recognition, scrobbling and equalizer for that station alone; there is no separate
 Station Settings dialog anymore.
 When a collection has folders it also offers Add to Collection Folder, which files the
 station straight into one — Custom Stations' folders included, so a station found in
@@ -234,6 +234,17 @@ gain the way FFmpeg's dynaudnorm and mpv's normalization do, bringing quiet
 stations up to the level of loud ones and hot ones down, without clipping —
 near-silence is left alone, so dead air is not amplified. Leaving the Loudness
 preset eases the gain back to normal.
+
+A station can have its own equalizer. In Edit Station, Equalizer is Use Global, On or
+Off. Use Global follows the Ctrl+E settings. Off plays that station with no equalizer. On
+plays it through the preset you pick in Equalizer Preset, even with the equalizer off in
+Ctrl+E: the built-in ones, Custom and your saved presets. The choice is applied when you
+press OK and each time the station starts, and moving to another station returns to that
+station's setting. So a very quiet station can always play through Loudness while the
+rest stay as they are. If you delete a saved preset, stations using it go back to Use
+Global. Ctrl+E and the equalizer hotkey always change the global settings; when the
+playing station has its own, the title of the dialog and the hotkey's message say so.
+
 Up and Down move a band by one dB, PageUp and PageDown by one dB too, and Home and End
 go to the ends. Moving a band by hand makes the preset Custom — and Custom remembers
 your bands: switch to another preset and back and your tuning is still there.

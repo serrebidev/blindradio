@@ -7,7 +7,7 @@ use std::process::{Child, Command};
 use std::time::Duration;
 
 use blindradio_core::library::{Folder, Library};
-use blindradio_core::settings::Settings;
+use blindradio_core::settings::{EqPreset, Settings, StationEq};
 use blindradio_core::station::{Source, Station};
 use uiautomation::actions::{ExpandCollapse, SelectionItem};
 use uiautomation::controls::{ListItemControl, TreeItemControl, WindowControl};
@@ -1586,6 +1586,58 @@ fn edit_station_shows_and_clears_the_info() {
 	assert_eq!(saved.collections[0].stations[0].name, "WNYC Operavore");
 	assert_eq!(saved.collections[0].stations[0].info, None);
 	app.assert_selected(&tree, "WNYC Operavore");
+}
+
+/// The preset waits behind On, and both land in the station's overrides.
+#[test]
+#[ignore = "needs a desktop"]
+fn edit_station_keeps_its_own_equalizer() {
+	let mut library = Library::default();
+	library.collections[0].stations = vec![station("custom:quiet", "Quiet")];
+	let app = App::with_settings(
+		"edit-eq",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			play_on_move: false,
+			..Settings::default()
+		},
+	);
+	app.select_row(&app.main_tree(), "Quiet");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Edit Station…"));
+	let dialog = app.find("Edit Station", WAIT).expect("Edit Station");
+	let control = |name: &str, kind: ControlType| {
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.name(name)
+			.control_type(kind)
+			.timeout(5000)
+			.find_first()
+			.expect(name)
+	};
+	let preset = control("Equalizer Preset", ControlType::ComboBox);
+	assert!(!preset.is_enabled().unwrap(), "no preset under Use Global");
+	let mode = control("Equalizer", ControlType::ComboBox);
+	let value = |e: &UIElement| e.get_pattern::<UIValuePattern>().unwrap().get_value().unwrap();
+	// A fresh exe loses first keys: press until it lands, and never past On.
+	for _ in 0..5 {
+		if value(&mode) == "On" {
+			break;
+		}
+		mode.set_focus().unwrap();
+		app.press("{down}");
+	}
+	assert_eq!(value(&mode), "On");
+	assert!(preset.is_enabled().unwrap(), "On offers the presets");
+	assert_eq!(value(&preset), "Loudness");
+	app.invoke(&control("OK", ControlType::Button));
+	std::thread::sleep(Duration::from_millis(600));
+	assert_eq!(
+		Settings::load(&app.data).station_overrides["custom:quiet"].eq,
+		Some(StationEq::Preset(EqPreset::Loudness))
+	);
 }
 
 /// Ctrl+V used to ignore the focused row here and land in the main list's root.
