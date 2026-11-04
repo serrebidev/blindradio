@@ -282,9 +282,9 @@ async fn search_drops_what_directories_guessed() {
 	]);
 	let found = src.search(&q("cknw")).await;
 	let names: Vec<_> = found.iter().map(|s| s.name.as_str()).collect();
-	assert_eq!(names, ["730 CKNW", "Z100", "Smooth", "CKNW AM980"]);
-	assert_eq!(found[1].details.call_sign.as_deref(), Some("CKNW-FM"));
-	assert_eq!(found[1].details.genre.as_deref(), Some("Top 40"));
+	assert_eq!(names, ["730 CKNW", "CKNW", "Z100", "Smooth", "CKNW AM980"]);
+	assert_eq!(found[2].details.call_sign.as_deref(), Some("CKNW-FM"));
+	assert_eq!(found[2].details.genre.as_deref(), Some("Top 40"));
 }
 
 #[tokio::test]

@@ -56,6 +56,7 @@ enum Children {
 	Loaded(Vec<usize>),
 }
 
+#[expect(clippy::large_enum_variant)]
 enum Kind {
 	Folder {
 		id: String,

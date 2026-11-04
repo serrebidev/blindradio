@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.58
+
+- TuneIn stations it marks Not Supported are back in Search and Browse, and BlindRadio now tries them. Many were only marked that way because BlindRadio did not tell TuneIn which formats it plays, so Z100 - MyRadioZ and others now list and play normally.
+- A TuneIn station that still will not play, such as MS NOW outside the United States, shows TuneIn's reason beside its name. Playing it says "Failed:", its name and that reason, not a generic failure.
+
+- Pressing Enter on a station, or moving back onto one whose connection was lost, now always builds a new time-shift buffer. Before, the station played with no working buffer until you switched to another and back. When a station reconnects by itself it still keeps its buffer.
+
 ## 0.2.57
 
 - Record in the Recording menu is now checked while a recording is in progress.

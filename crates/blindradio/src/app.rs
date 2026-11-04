@@ -991,8 +991,17 @@ impl App {
 			TunerEvent::Announce(song) => self.say_kind(Kind::Title, &song),
 			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, s::RECONNECTING),
 			TunerEvent::Reconnected { .. } => self.say_kind(Kind::Info, s::RECONNECTED),
-			TunerEvent::Failed { name, .. } => {
-				self.say_kind(Kind::Failure, &format!("{}{name}", s::FAILED));
+			TunerEvent::Failed {
+				station_id, name, ..
+			} => {
+				let why = self
+					.tuner
+					.playing()
+					.filter(|p| p.id == station_id)
+					.and_then(|p| p.details.unavailable.as_deref())
+					.map(|why| format!(" - {why}"))
+					.unwrap_or_default();
+				self.say_kind(Kind::Failure, &format!("{}{name}{why}", s::FAILED));
 			}
 			// The status line's per-second tick picks the format up.
 			TunerEvent::Format { .. } => {}

@@ -100,6 +100,7 @@ mod tests {
 				bitrate_kbps: Some(128),
 				homepage: Some("http://jazz.example".into()),
 				call_sign: None,
+				unavailable: None,
 			},
 		}
 	}

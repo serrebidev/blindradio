@@ -3,9 +3,14 @@
 use super::{Node, SearchQuery};
 use crate::Result;
 use crate::net::get_json;
-use crate::station::{Source, Station};
+use crate::station::{Details, Source, Station, known};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Deserialize;
+
+/// What the app can play. Without it TuneIn marks stations "No compatible stream" and
+/// tunes them to a spoken refusal.
+const FORMATS: &str = "formats=mp3,aac,ogg,hls";
+const NOT_SUPPORTED: &str = " - Not Supported";
 
 pub struct TuneIn {
 	base: String,
@@ -89,20 +94,26 @@ impl TuneIn {
 		if o.kind != "audio" || o.item != "station" || !o.guide_id.starts_with('s') {
 			return None;
 		}
-		// "Z100 - Not Supported": TuneIn lists it but only serves a spoken refusal.
-		if o.key == "unavailable" {
-			return None;
-		}
 		let info = o.subtext.trim();
 		let guide = utf8_percent_encode(&o.guide_id, NON_ALPHANUMERIC);
+		let text = o.text.trim();
+		// "MS NOW - Not Supported": TuneIn's word for today and this place, so the row stays
+		// and playing it finds out. Its reason is only spoken if that fails.
+		let unavailable = o.key == "unavailable";
 		Some(Station {
 			id: format!("tunein:{}", o.guide_id),
-			name: o.text.trim().to_owned(),
-			// Without formats= TuneIn answers with a "notcompatible" stream.
-			url: self.url("Tune", &format!("id={guide}&formats=mp3,aac,ogg,hls")),
+			name: text
+				.strip_suffix(NOT_SUPPORTED)
+				.filter(|_| unavailable)
+				.unwrap_or(text)
+				.to_owned(),
+			url: self.url("Tune", &format!("id={guide}&{FORMATS}")),
 			source: Source::TuneIn,
 			info: (!info.is_empty()).then(|| info.to_owned()),
-			details: Default::default(),
+			details: Details {
+				unavailable: known(info).filter(|_| unavailable),
+				..Details::default()
+			},
 		})
 	}
 
@@ -127,6 +138,12 @@ impl TuneIn {
 			}
 			None => return Ok(vec![]),
 		};
+		// TuneIn's next-page links already carry it.
+		let query = if query.contains("formats=") {
+			query
+		} else {
+			format!("{query}&{FORMATS}")
+		};
 		let reply: Reply =
 			get_json(client, &self.url("Browse", &format!("{query}&render=json"))).await?;
 		let mut out = Vec::new();
@@ -142,7 +159,7 @@ impl TuneIn {
 		let name = utf8_percent_encode(q.name.trim(), NON_ALPHANUMERIC);
 		let reply: Reply = get_json(
 			client,
-			&self.url("Search", &format!("query={name}&types=station&render=json")),
+			&self.url("Search", &format!("query={name}&types=station&{FORMATS}&render=json")),
 		)
 		.await?;
 		let mut out = Vec::new();

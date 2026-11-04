@@ -378,10 +378,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		// An explicit play always connects afresh: dropping the
 		// station's open stream makes tune() take the cold path, so
 		// Enter on the station already playing restarts it — the way
-		// to hear an edited URL without switching away and back. The
-		// taps are keyed by station and re-attach, so the time-shift
-		// buffer carries over. Focus moves keep the warm path and
-		// never restart a sounding station.
+		// to hear an edited URL without switching away and back, and
+		// tune() builds it a new time-shift buffer. Focus moves keep the
+		// warm path and never restart a sounding station. A stream's own
+		// reconnects never come here, so they keep the buffer.
 		self.open.retain(|o| o.station.id != station.id);
 		self.tune(station, Vec::new(), false, now);
 	}
@@ -521,6 +521,13 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					self.settle.title(title, now);
 				}
 				None => {
+					// Starting the playing station over means a new buffer. A recording
+					// still running keeps its taps: Enter has ended it by now, so this is
+					// a lost connection or a new output rate, and detaching would end it
+					// with no word to the user.
+					if self.tap_station.as_deref() == Some(target.id.as_str()) && !self.is_recording() {
+						self.detach_taps();
+					}
 					// Silence first: the old station must never keep playing under a new focus.
 					// The old station fades into hiss until this one comes in: no dead air, never the old station.
 					self.sink.send(MixerCmd::Tune);
@@ -598,6 +605,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// and a fresh recorder slot. Re-activating the same station keeps them.
 	fn attach_taps(&mut self, station: &Station) {
 		if self.tap_station.as_deref() == Some(station.id.as_str()) {
+			// Only a running recording gets here. The mixer dropped its buffer
+			// on this start and must be given it back.
+			if let Some((buffer, status)) = self.shift.clone() {
+				self.ring_paused_at = None;
+				self.sink.send(MixerCmd::ShiftAttach { buffer, status });
+			}
 			return;
 		}
 		self.detach_taps();

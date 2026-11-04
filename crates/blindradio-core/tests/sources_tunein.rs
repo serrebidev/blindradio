@@ -124,6 +124,49 @@ async fn tunein_city_stations_flattened() {
 }
 
 #[tokio::test]
+async fn tunein_keeps_what_it_calls_unavailable_and_says_which_formats_we_play() {
+	const SEARCHED: &str = r#"{"body":[{"text":"Search results (not playable)","children":[
+{"type":"audio","item":"station","text":"MS NOW - Not Supported","subtext":"Not available in your country","key":"unavailable","guide_id":"s297990"},
+{"type":"audio","item":"station","text":"Open - Not Supported Yet","subtext":"A slogan","guide_id":"s2"}]}]}"#;
+	let (s, t) = tunein("/Search.ashx", SEARCHED);
+	let q = SearchQuery {
+		name: "ms now".into(),
+		..Default::default()
+	};
+	let found = t.search(&client(), &q).await.unwrap();
+	let sent = s.last_query("/Search.ashx").unwrap();
+	assert!(sent.contains("formats=mp3,aac,ogg,hls"), "{sent}");
+	assert_eq!(found[0].name, "MS NOW");
+	assert_eq!(found[0].info.as_deref(), Some("Not available in your country"));
+	assert_eq!(
+		found[0].details.unavailable.as_deref(),
+		Some("Not available in your country")
+	);
+	assert_eq!(found[1].name, "Open - Not Supported Yet");
+	assert_eq!(found[1].details.unavailable, None, "a slogan is no reason");
+
+	let (s, t) = tunein("/Browse.ashx", SEARCHED);
+	t.children(&client(), "tunein/c=talk").await.unwrap();
+	let sent = s.last_query("/Browse.ashx").unwrap();
+	assert!(sent.contains("formats=mp3,aac,ogg,hls"), "{sent}");
+	let next = "tunein/offset=26&id=c1&formats=mp3,aac,ogg,hls&filter=s";
+	t.children(&client(), next).await.unwrap();
+	let sent = s.last_query("/Browse.ashx").unwrap();
+	assert_eq!(sent.matches("formats=").count(), 1, "{sent}");
+}
+
+#[tokio::test]
+async fn tuning_a_refused_station_fails_instead_of_playing_a_refusal() {
+	// What Tune.ashx really answers for a station blocked here.
+	let s = serve(vec![Route::Static {
+		path: "/Tune.ashx".into(),
+		content_type: "audio/x-mpegurl".into(),
+		body: b"#STATUS: 400\n".to_vec(),
+	}]);
+	assert!(blindradio_core::net::open(&client(), &s.url("/Tune.ashx")).await.is_err());
+}
+
+#[tokio::test]
 async fn tunein_station_url_uses_tune() {
 	let (s, t) = tunein("/Browse.ashx", CITY);
 	let nodes = t.children(&client(), "tunein/r100289").await.unwrap();

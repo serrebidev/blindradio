@@ -1391,6 +1391,42 @@ fn segment_keys_say_so_when_there_are_no_segments() {
 	app.message_with("No segments");
 }
 
+/// TuneIn's reason is said once playing the station has really failed. A posted command,
+/// no key is sent.
+#[test]
+#[ignore = "needs a desktop"]
+fn a_refused_station_is_tried_and_says_why() {
+	use std::io::{Read, Write};
+	let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+	let url = format!("http://{}/Tune.ashx", listener.local_addr().unwrap());
+	std::thread::spawn(move || {
+		for mut sock in listener.incoming().flatten() {
+			let _ = sock.read(&mut [0; 4096]);
+			let _ = sock.write_all(
+				b"HTTP/1.1 200 OK\r\nContent-Type: audio/x-mpegurl\r\nContent-Length: 13\r\nConnection: close\r\n\r\n#STATUS: 400\n",
+			);
+		}
+	});
+	let mut refused = Station {
+		url,
+		..station("tunein:s1", "Blocked FM")
+	};
+	refused.details.unavailable = Some("Not available in your country".into());
+	let mut library = Library::default();
+	library.collections[0].stations = vec![refused];
+	let settings = Settings {
+		main_list: Some("custom".into()),
+		..Settings::default()
+	};
+	let app = App::with_settings("refused", library, settings);
+	let window: isize = app.window.get_native_window_handle().unwrap().into();
+	unsafe {
+		let playback = GetSubMenu(GetMenu(window), 2);
+		PostMessageW(window, 0x0111, GetMenuItemID(playback, 0) as usize, 0);
+	}
+	app.message_with("Failed: Blocked FM - Not available in your country");
+}
+
 /// Record's check in the Recording menu. Commands are posted, no key is sent, so this holds
 /// even with someone else at the keyboard.
 #[test]
