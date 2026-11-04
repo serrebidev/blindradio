@@ -213,6 +213,13 @@ Ctrl+N offers. For your own station it also offers Delete Custom Station. In the
 in Browse, a station in a collection also offers Delete, which takes out the copy you are on. On a
 category it says `Nothing to do here`.
 
+In Browse, a directory's folder, such as Celine Dion under By Genre in Online Radio Box, offers
+Add to Favorites, Add to Collection (with New Collection), Add to Favorites Folder and Add to
+Collection Folder. Each adds the whole folder: it arrives as a folder of that name with its
+stations and subfolders inside, loaded or not, and you hear how many stations came. Adding it
+again, or a folder of the same name, brings only what is new into the one already there. One
+add stops at 5000 stations and says so.
+
 Station Info, on every station's menu, opens a read-only window you can read line by line and copy
 from: name, info, slogan, genre, country, location, language, codec, bitrate, directory, homepage and
 stream URL, whichever the station's directory gives. Radio Browser gives the most. A TuneIn station

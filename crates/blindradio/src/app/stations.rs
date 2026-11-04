@@ -1,5 +1,7 @@
 //! Station clipboard and filing: copy, cut, paste, favorites, collections.
 
+use blindradio_core::library::StationDest;
+
 use super::*;
 
 impl App {
@@ -227,6 +229,25 @@ impl App {
 			self.save_library();
 			self.refresh_dial();
 		}
+	}
+
+	/// Browse: a directory's whole folder lands at `dest`. Says how many
+	/// stations arrived, and when `capped` left some of the folder behind.
+	pub fn add_folder_to(&mut self, dest: &StationDest, folder: Folder, capped: bool) {
+		let Some(n) = self.library.add_folder_to(dest, folder) else {
+			return self.say(s::NOT_SAVED);
+		};
+		let name = self
+			.library
+			.destinations()
+			.into_iter()
+			.find(|(_, d)| d == dest)
+			.map(|(label, _)| label)
+			.unwrap_or_default();
+		let tail = if capped { s::STOPPED_THERE } else { "" };
+		self.say(&format!("{}{n}{}{name}{tail}", s::ADDED, s::TO));
+		self.save_library();
+		self.refresh_dial();
 	}
 
 	pub fn add_to_new_collection(&mut self, name: &str, station: &Station) {

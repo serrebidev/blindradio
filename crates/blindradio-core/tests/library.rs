@@ -288,6 +288,73 @@ fn favorites_folders_hold_stations() {
 }
 
 #[test]
+fn whole_folder_files_and_merges() {
+	use blindradio_core::library::{Folder, StationDest};
+	let mut l = Library::default();
+	let genre = |stations: &[&str], inner: &[&str]| Folder {
+		name: "Celine Dion".into(),
+		stations: stations.iter().map(|id| st(id)).collect(),
+		folders: vec![Folder {
+			name: "Live".into(),
+			stations: inner.iter().map(|id| st(id)).collect(),
+			folders: Vec::new(),
+		}],
+	};
+	let fav = StationDest::Favorites(Vec::new());
+	assert_eq!(l.add_folder_to(&fav, genre(&["a", "b"], &["c"])), Some(3));
+	assert_eq!(l.fav_folders.len(), 1);
+	assert_eq!(l.fav_folders[0].folders[0].stations[0].id, "c");
+	// A second time merges: no second folder, only what is new arrives.
+	assert_eq!(l.add_folder_to(&fav, genre(&["b", "d"], &["c"])), Some(1));
+	assert_eq!(l.fav_folders.len(), 1);
+	assert_eq!(l.fav_folders[0].stations.len(), 3);
+
+	let jazz = l.create_collection("Jazz");
+	let root = StationDest::Collection {
+		id: jazz.clone(),
+		path: Vec::new(),
+	};
+	assert_eq!(l.add_folder_to(&root, genre(&["a"], &[])), Some(1));
+	let rock = l.collection_mut(&jazz).unwrap().add_folder(&[], "Rock").unwrap();
+	let inside = StationDest::Collection {
+		id: jazz.clone(),
+		path: rock,
+	};
+	assert_eq!(l.add_folder_to(&inside, genre(&["a"], &[])), Some(1));
+	let c = l.collection_mut(&jazz).unwrap();
+	assert_eq!(c.folders[1].folders[0].name, "Celine Dion");
+
+	let gone = StationDest::Collection {
+		id: jazz,
+		path: vec![9],
+	};
+	assert_eq!(l.add_folder_to(&gone, genre(&["a"], &[])), None);
+}
+
+#[test]
+fn removal_takes_every_copy() {
+	use blindradio_core::library::Folder;
+	let leaf = |name: &str| Folder {
+		name: name.into(),
+		stations: vec![st("a")],
+		folders: Vec::new(),
+	};
+	let two = || Folder {
+		name: "Pop".into(),
+		stations: vec![st("a")],
+		folders: vec![leaf("One"), leaf("Two")],
+	};
+	let mut l = Library::default();
+	l.fav_folders.push(two());
+	assert!(!l.toggle_favorite(&st("a")), "toggle takes it out");
+	assert!(!l.is_favorite("a"), "every copy went, not only the first");
+	let id = l.create_collection("C");
+	l.collection_mut(&id).unwrap().folders.push(two());
+	assert!(!l.toggle_in_collection(&id, &st("a")));
+	assert!(!l.collection_mut(&id).unwrap().contains_id("a"));
+}
+
+#[test]
 fn collection_folders_and_removal() {
 	let mut l = Library::default();
 	let id = l.create_collection("C");

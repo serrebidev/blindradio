@@ -45,6 +45,9 @@ pub enum Item {
 	NewCollection,
 	/// Every other collection, id and name (Add All to Collection).
 	AddAllTo(Vec<(String, String)>),
+	/// A directory's folder: every collection but Custom Stations, id and
+	/// name, then New Collection (Add to Collection).
+	AddFolderTo(Vec<(String, String)>),
 	/// Every favorites folder: its path and its display name.
 	AddToFavoriteFolder(Vec<(Vec<usize>, String)>),
 	/// Every folder of every collection, Custom Stations included:
@@ -124,13 +127,7 @@ pub fn items_for(
 					items.insert(7, Item::PasteStation);
 				}
 			}
-			if !lib.fav_folders.is_empty() {
-				items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
-			}
-			let collection_folders = lib.collection_folder_list();
-			if !collection_folders.is_empty() {
-				items.push(Item::AddToCollectionFolder(collection_folders));
-			}
+			push_folder_menus(lib, &mut items);
 			// Imported stations get `custom:` ids too, so only Custom Stations membership counts.
 			let custom = lib
 				.collections
@@ -163,6 +160,33 @@ pub fn items_for(
 		}
 		Target::Other => Err(s::NOTHING_TO_DO),
 	}
+}
+
+/// Add to Favorites Folder and Add to Collection Folder, when such folders exist.
+fn push_folder_menus(lib: &Library, items: &mut Vec<Item>) {
+	if !lib.fav_folders.is_empty() {
+		items.push(Item::AddToFavoriteFolder(fav_folder_list(lib)));
+	}
+	let collection_folders = lib.collection_folder_list();
+	if !collection_folders.is_empty() {
+		items.push(Item::AddToCollectionFolder(collection_folders));
+	}
+}
+
+/// The menu of a directory's folder: where the whole folder can be filed.
+pub fn folder_items(lib: &Library) -> Vec<Item> {
+	let mut items = vec![
+		Item::Favorite(false),
+		Item::AddFolderTo(
+			lib.collections
+				.iter()
+				.filter(|c| c.id != CUSTOM)
+				.map(|c| (c.id.clone(), c.name.clone()))
+				.collect(),
+		),
+	];
+	push_folder_menus(lib, &mut items);
+	items
 }
 
 /// Every favorites folder with its path, parents first, names joined.
@@ -339,6 +363,28 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				}
 				menu.append_submenu(sub, s::ADD_ALL_SUB, "");
 			}
+			Item::AddFolderTo(collections) => {
+				let sub = Menu::builder().build();
+				catch(&sub);
+				for (id, name) in collections {
+					sub.append(
+						add(Choice::AddAllTo(id.clone())),
+						&escape(name),
+						"",
+						ItemKind::Normal,
+					);
+				}
+				if !collections.is_empty() {
+					sub.append_separator();
+				}
+				sub.append(
+					add(Choice::NewCollection),
+					s::NEW_COLLECTION,
+					"",
+					ItemKind::Normal,
+				);
+				menu.append_submenu(sub, s::ADD_TO_COLLECTION_SUB, "");
+			}
 			Item::AddToFavoriteFolder(folders) => {
 				let sub = Menu::builder().build();
 				catch(&sub);
@@ -432,6 +478,19 @@ pub fn export_playlist(
 	stations: &[Station],
 	folders: &[Folder],
 ) {
+	if let Some(said) = export_dialog(parent, name, stations, folders) {
+		app.borrow_mut().say(&said);
+	}
+}
+
+/// The save dialog and the write; what to say, None when it was cancelled.
+/// For a bridge callback, which holds the app already and says it there.
+pub fn export_dialog(
+	parent: &dyn WxWidget,
+	name: &str,
+	stations: &[Station],
+	folders: &[Folder],
+) -> Option<String> {
 	let file = FileDialog::builder(parent)
 		.with_message(s::EXPORT)
 		.with_default_file(&format!("{}{}", name, s::M3U_EXTENSION))
@@ -439,23 +498,21 @@ pub fn export_playlist(
 		.with_style(FileDialogStyle::Save | FileDialogStyle::OverwritePrompt)
 		.build();
 	if file.show_modal() != ID_OK {
-		return;
+		return None;
 	}
-	let Some(path) = file.get_path() else {
-		return;
-	};
+	let path = file.get_path()?;
 	let count = stations.len()
 		+ folders
 			.iter()
 			.map(|f| f.all_stations().len())
 			.sum::<usize>();
-	match import::export_m3u_tree(stations, folders, std::path::Path::new(&path)) {
-		Ok(()) => app.borrow_mut().say(&format!("{}{}", s::EXPORTED, count)),
+	Some(match import::export_m3u_tree(stations, folders, std::path::Path::new(&path)) {
+		Ok(()) => format!("{}{}", s::EXPORTED, count),
 		Err(e) => {
 			eprintln!("export: {e}");
-			app.borrow_mut().say(s::NOT_SAVED);
+			s::NOT_SAVED.to_owned()
 		}
-	}
+	})
 }
 
 /// Asked before a folder or a collection goes: names what goes with it.
@@ -531,6 +588,31 @@ mod tests {
 			info: None,
 			details: Default::default(),
 		}
+	}
+
+	#[test]
+	fn directory_folder_files_anywhere_but_custom_root() {
+		let mut lib = Library::default();
+		assert_eq!(
+			folder_items(&lib),
+			vec![Item::Favorite(false), Item::AddFolderTo(vec![])],
+			"no folders yet: no folder menus, New Collection still reachable"
+		);
+		let jazz = lib.create_collection("Jazz");
+		lib.add_custom("Mine", "http://mine");
+		lib.collection_mut(&jazz).unwrap().add_folder(&[], "Rock");
+		lib.add_fav_folder(&[], "Saved");
+		let items = folder_items(&lib);
+		assert_eq!(
+			items[1],
+			Item::AddFolderTo(vec![(jazz.clone(), "Jazz".into())]),
+			"Custom Stations is not offered"
+		);
+		assert_eq!(items[2], Item::AddToFavoriteFolder(vec![(vec![0], "Saved".into())]));
+		assert_eq!(
+			items[3],
+			Item::AddToCollectionFolder(vec![(jazz, vec![0], "Jazz / Rock".into())])
+		);
 	}
 
 	#[test]

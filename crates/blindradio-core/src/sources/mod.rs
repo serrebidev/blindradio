@@ -562,9 +562,20 @@ impl Sources {
 	/// id already visited is not walked again, so a looping source
 	/// cannot spin forever.
 	pub async fn tree(&self, id: &str, sort: Sort) -> Result<(Vec<Station>, Vec<Folder>)> {
+		self.tree_up_to(id, sort, usize::MAX).await
+	}
+
+	/// `tree` that stops asking the source once it holds `cap` stations.
+	pub async fn tree_up_to(
+		&self,
+		id: &str,
+		sort: Sort,
+		cap: usize,
+	) -> Result<(Vec<Station>, Vec<Folder>)> {
 		let mut seen = HashSet::new();
 		seen.insert(id.to_string());
-		self.tree_walk(id, sort, &mut seen).await
+		let mut left = cap;
+		self.tree_walk(id, sort, &mut seen, &mut left).await
 	}
 
 	fn tree_walk<'a>(
@@ -572,6 +583,7 @@ impl Sources {
 		id: &'a str,
 		sort: Sort,
 		seen: &'a mut HashSet<String>,
+		left: &'a mut usize,
 	) -> TreeFuture<'a> {
 		Box::pin(async move {
 			let mut stations = Vec::new();
@@ -580,16 +592,21 @@ impl Sources {
 			// A directory's pages can overlap.
 			let mut station_ids = HashSet::new();
 			while let Some(next) = level.pop() {
+				if *left == 0 {
+					break;
+				}
 				for node in self.children(&next, sort).await? {
 					match node {
 						Node::Station(s) => {
-							if station_ids.insert(s.id.clone()) {
+							if *left > 0 && station_ids.insert(s.id.clone()) {
 								stations.push(s);
+								*left -= 1;
 							}
 						}
 						Node::Folder { id, name } => {
-							if seen.insert(id.clone()) {
-								let (inner_s, inner_f) = self.tree_walk(&id, sort, seen).await?;
+							if *left > 0 && seen.insert(id.clone()) {
+								let (inner_s, inner_f) =
+									self.tree_walk(&id, sort, seen, left).await?;
 								folders.push(Folder {
 									name,
 									stations: inner_s,
