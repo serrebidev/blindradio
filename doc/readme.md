@@ -248,10 +248,10 @@ through the default.
 ## Equalizer
 
 Ctrl+E opens the equalizer: Preset, ten frequency sliders from 60 Hz to 16 kHz, Preamp,
-Enable Preamp and Enabled. Moving a band enables
-the equalizer and is heard at once. Choosing a preset only moves the sliders and reads
-the bands — Enabled stays exactly as you left it, so arrowing through presets to compare
-them never switches the equalizer on; check Enabled yourself to hear one. The presets include None,
+Enable Preamp and Enabled. Moving a band, moving the Preamp or
+choosing a preset only changes the values and reads the bands — Enabled and Enable
+Preamp stay exactly as you left them, so arrowing through presets or sliders to
+compare them never switches anything on; check the boxes yourself to hear a change. The presets include None,
 Techno, Soft Rock, Soft, Ska, Rock, Reggae, Pop, Party, Loudness, Live, Large Hall, Laptop Speakers
 and Headphones, Full Treble, Full Bass and Treble, Full Bass, Dance, Club and Classical, plus Bass
 Boost, Treble Boost, Bass and Treble, Voice, Warm, Clarity and Custom. Preamp has a separate

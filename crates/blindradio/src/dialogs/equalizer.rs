@@ -47,9 +47,8 @@ pub const PRESETS: [EqPreset; 26] = [
 /// A band moved by hand makes the preset Custom; the value is clamped.
 /// The hand-tuned set is also written to the Custom store, so it
 /// survives a trip through a named preset and back.
-/// Moving a band also enables the equalizer: a hand move means "use
-/// this", and a separate trip to the Enabled box is how the dialog
-/// shipped presets that changed nothing anyone could hear.
+/// A hand move never enables the equalizer (Brandon's rule): the
+/// Enabled box is the user's switch alone, same as choosing a preset.
 pub fn set_band(settings: &mut EqSettings, band: usize, db: i32) {
 	let db = db.clamp(-i32::from(eq::MAX_DB), i32::from(eq::MAX_DB)) as i8;
 	let Some(value) = settings.bands.get_mut(band) else { return };
@@ -59,18 +58,17 @@ pub fn set_band(settings: &mut EqSettings, band: usize, db: i32) {
 	settings.custom_bands = settings.bands;
 	settings.custom_preamp_db = settings.preamp_db;
 	settings.custom_preamp_enabled = settings.preamp_enabled;
-	settings.enabled = true;
 }
 
+/// The preamp slider changes the value only: Enable Preamp and
+/// Enabled stay exactly as the user left them (Brandon's rule).
 pub fn set_preamp(settings: &mut EqSettings, db: i32) {
 	settings.preamp_db = db.clamp(-i32::from(eq::MAX_PREAMP_DB), i32::from(eq::MAX_PREAMP_DB)) as i8;
 	settings.custom_preamp_db = settings.preamp_db;
+	settings.custom_preamp_enabled = settings.preamp_enabled;
 	settings.custom_bands = settings.bands;
 	settings.preset = EqPreset::Custom;
 	settings.saved_name = None;
-	settings.preamp_enabled = true;
-	settings.custom_preamp_enabled = true;
-	settings.enabled = true;
 }
 
 /// A preset moves the bands with it; Custom restores its own stored
@@ -425,7 +423,6 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			}
 			let mut eq = a.borrow().settings.eq.clone();
 			set_band(&mut eq, band, e.get_value());
-			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 		// One dB a press, Home and End to the ends; the native trackbar goes its own way.
@@ -454,7 +451,6 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			slider.set_value(value);
 			let mut eq = a.borrow().settings.eq.clone();
 			set_band(&mut eq, band, value);
-			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 	}
@@ -464,8 +460,6 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			if programmatic.get() { return; }
 			let mut eq = a.borrow().settings.eq.clone();
 			set_preamp(&mut eq, e.get_value());
-			preamp_enabled.set_value(true);
-			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 		let a = app.clone();
@@ -483,8 +477,6 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			preamp.set_value(value);
 			let mut eq = a.borrow().settings.eq.clone();
 			set_preamp(&mut eq, value);
-			preamp_enabled.set_value(true);
-			enabled.set_value(eq.enabled);
 			a.borrow_mut().set_eq(eq);
 		});
 	}
@@ -649,10 +641,11 @@ mod tests {
 	}
 
 	#[test]
-	fn choosing_a_preset_never_enables_the_equalizer() {
+	fn only_the_enabled_box_enables_the_equalizer() {
 		// Brandon's rule: arrowing through presets to compare them
-		// kept checking Enabled on its own. The box is manual; only a
-		// hand band move (a deliberate edit) still enables.
+		// kept checking Enabled on its own, and so did moving a band
+		// or the preamp slider. The boxes are manual; sliders and
+		// presets change values only.
 		let mut eq = EqSettings::default();
 		assert!(!eq.enabled);
 		apply_preset(&mut eq, EqPreset::BassBoost);
@@ -669,7 +662,16 @@ mod tests {
 		apply_saved(&mut eq, &saved);
 		assert!(!eq.enabled, "a saved preset leaves Enabled alone");
 		set_band(&mut eq, 0, 3);
-		assert!(eq.enabled, "a hand move is heard at once");
+		assert!(!eq.enabled, "a hand band move leaves Enabled alone");
+		set_preamp(&mut eq, 5);
+		assert!(!eq.enabled, "a preamp move leaves Enabled alone");
+		assert!(!eq.preamp_enabled, "a preamp move leaves Enable Preamp alone");
+		// With the boxes checked by hand, moves leave them checked.
+		eq.enabled = true;
+		eq.preamp_enabled = true;
+		set_band(&mut eq, 1, -2);
+		set_preamp(&mut eq, -4);
+		assert!(eq.enabled && eq.preamp_enabled, "moves never touch the boxes either way");
 	}
 
 	#[test]

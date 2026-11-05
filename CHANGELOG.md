@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.67
+
+- The Equalizer's sliders no longer switch anything on: moving a band or the Preamp changes the value only, and Enabled and Enable Preamp stay exactly as you left them — the same rule presets already followed. Check the boxes yourself when you want to hear the change.
+
 ## 0.2.66
 
 - The Equalizer now has ten frequency bands, the requested listening presets, and an adjustable Preamp with its own on/off switch.
