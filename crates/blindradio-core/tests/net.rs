@@ -50,6 +50,24 @@ async fn open_direct_audio_keeps_response() {
 }
 
 #[tokio::test]
+async fn station_page_links_open_audio_and_supply_automatic_names() {
+	let s = serve(vec![
+		text("/serrebiradio", "text/html", r#"<div id="a-player" data-stream="/live"></div>"#),
+		named("/live", b"icy-name: SerrebiRadio\r\n"),
+	]);
+	let base = reqwest::Url::parse(&s.base).unwrap();
+	let host = "liveonlineradio.net";
+	let address = format!("127.0.0.1:{}", base.port().unwrap()).parse().unwrap();
+	let client = reqwest::Client::builder().no_proxy().resolve(host, address).build().unwrap();
+	let page = format!("http://{host}:{}/serrebiradio", base.port().unwrap());
+	let Opened::Audio { final_url, .. } = open(&client, &page).await.unwrap() else {
+		panic!("expected audio");
+	};
+	assert_eq!(final_url, format!("http://{host}:{}/live", base.port().unwrap()));
+	assert_eq!(station_name(&client, &page).await.unwrap(), "SerrebiRadio");
+}
+
+#[tokio::test]
 async fn open_follows_pls_to_audio() {
 	let s = serve(vec![
 		text(

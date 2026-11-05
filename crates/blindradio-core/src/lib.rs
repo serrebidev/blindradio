@@ -26,6 +26,7 @@ pub mod settings;
 pub mod sleep;
 pub mod sources;
 pub mod station;
+mod station_page;
 pub mod store;
 pub mod stream;
 pub mod timeshift;

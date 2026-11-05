@@ -89,7 +89,7 @@ fn page_url(text: &str) -> Result<Url> {
 /// Loopback and private addresses: a public page has no business making this PC call them.
 /// Names that resolve to such an address are not caught; no secret comes back from them
 /// either, only whether they play.
-fn is_local(url: &Url) -> bool {
+pub(crate) fn is_local(url: &Url) -> bool {
 	let Some(host) = url.host_str() else {
 		return true;
 	};
@@ -135,7 +135,7 @@ fn rank_of(url: &Url) -> Option<Rank> {
 	telling.then_some(Rank::Word)
 }
 
-fn selector(css: &str) -> Selector {
+pub(crate) fn selector(css: &str) -> Selector {
 	Selector::parse(css).expect("valid selector")
 }
 

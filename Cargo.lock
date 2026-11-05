@@ -196,6 +196,7 @@ name = "blindradio-core"
 version = "0.2.64"
 dependencies = [
  "aes",
+ "base64",
  "bytes",
  "cpal",
  "crossbeam-channel",

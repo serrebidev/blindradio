@@ -169,6 +169,13 @@ For one stream right now, File → Open URL plays an address you paste without a
 anywhere — handy for a quick listen or testing a stream. It still appears under Recently
 Played, and from there it can be favorited or added to a collection like any station.
 
+Open URL and Add Custom Station also accept station page links from radio.net, TuneIn,
+Zeno.FM, Streema (including language subdomains such as fr.streema.com), and Live Online Radio.
+Paste the page's address where you would put a stream URL. BlindRadio looks up the station's
+stream when you play it. Saved stations keep the page link, so a changed stream address can
+be found again. These links also work with Name Automatically. A station that is offline or
+unavailable in your country can still fail to play.
+
 When you only have a web page with a player on it, File → Detect Audio Stream on Page… finds the
 address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its
 frames and its scripts, tries every stream address they name, and lists the ones that work; the

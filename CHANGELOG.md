@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.65
+
+- Open URL and Add Custom Station now accept station page links from radio.net, TuneIn, Zeno.FM, Streema (including language subdomains), and Live Online Radio. Playing a saved link looks up its stream automatically. Name Automatically also follows these pages to the stream's name.
+
 ## 0.2.64
 
 - In Browse, the context menu on a directory's folder, such as Celine Dion under By Genre in Online Radio Box, now adds the whole folder and its stations at once: Add to Favorites, Add to Collection (with New Collection), Add to Favorites Folder and Add to Collection Folder. It arrives as a folder with its subfolders kept, and you hear how many stations came. Adding the same folder again only brings what is new. One add stops at 5000 stations and says so, so a whole directory cannot run for hours.

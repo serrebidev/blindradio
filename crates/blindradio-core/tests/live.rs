@@ -179,6 +179,31 @@ async fn detects_the_streams_of_real_pages() {
 	assert!(!found.is_empty(), "{page}");
 }
 
+#[tokio::test]
+#[ignore = "network"]
+async fn opens_directory_station_page_links() {
+	use blindradio_core::net::{Opened, client, open};
+	let client = client();
+	for page in [
+		"https://www.radio.net/s/wnyc",
+		"https://tunein.com/radio/SerrebiRadio-s357750/",
+		"https://zeno.fm/radio/serrebiradio/",
+		"https://fr.streema.com/radios/SerrebiRadio.ca",
+		"https://liveonlineradio.net/serrebiradio",
+	] {
+		let opened = tokio::time::timeout(Duration::from_secs(30), open(&client, page))
+			.await.expect(page).unwrap_or_else(|e| panic!("{page}: {e}"));
+		match opened {
+			Opened::Audio { mut response, final_url, head } => {
+				assert!(final_url != page, "{page}");
+				assert!(!head.is_empty() || tokio::time::timeout(Duration::from_secs(10), response.chunk()).await.unwrap().unwrap().is_some(), "{page}: no audio");
+				println!("{page}: {final_url}");
+			}
+			Opened::Hls { playlist_url, .. } => println!("{page}: {playlist_url}"),
+		}
+	}
+}
+
 #[test]
 #[ignore = "network"]
 fn opus_station_says_what_is_playing() {

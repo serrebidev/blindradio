@@ -147,6 +147,7 @@ fn open_at<'a>(
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
 		}
+		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = match fetch(client, &url).await {
 			Ok(response) => response,
 			Err(e) => match (e.is_connect(), http_twin(&url)) {
@@ -206,7 +207,12 @@ fn open_at<'a>(
 		}
 		// A slow or endless text body is judged on what arrived by the deadline.
 		let deadline = tokio::time::Instant::now() + SNIFF_DEADLINE;
-		while body.len() < SNIFF_LIMIT {
+		let limit = if crate::station_page::is_page(&final_url) {
+			crate::station_page::MAX_BYTES
+		} else {
+			SNIFF_LIMIT
+		};
+		while body.len() < limit {
 			match tokio::time::timeout_at(deadline, response.chunk()).await {
 				Ok(Ok(Some(c))) => body.extend_from_slice(&c),
 				Ok(Ok(None)) | Err(_) => break,
@@ -214,6 +220,11 @@ fn open_at<'a>(
 			}
 		}
 		let text = String::from_utf8_lossy(&body).into_owned();
+		if (ct.contains("html") || text.trim_start().starts_with('<'))
+			&& let Some(urls) = crate::station_page::streams(&final_url, &text)
+		{
+			return open_first(client, urls, depth + 1).await;
+		}
 		let entries = match sniff(&text) {
 			Some(PlaylistKind::Hls) => {
 				return Ok(Opened::Hls {
@@ -286,6 +297,7 @@ fn name_at<'a>(
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
 		}
+		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = fetch(client, &url).await.map_err(http_err)?;
 		let status = response.status().as_u16();
 		if status >= 400 {
@@ -302,6 +314,26 @@ fn name_at<'a>(
 			}
 		}
 		let mut body = read_head(&mut response).await?;
+		if crate::station_page::is_page(&final_url)
+			&& response.headers().get("content-type")
+				.and_then(|v| v.to_str().ok()).is_some_and(|ct| ct.contains("html"))
+		{
+			while body.len() < crate::station_page::MAX_BYTES {
+				match response.chunk().await {
+					Ok(Some(chunk)) => body.extend_from_slice(&chunk),
+					Ok(None) => break,
+					Err(e) => return Err(http_err(e)),
+				}
+			}
+			let text = String::from_utf8_lossy(&body);
+			let urls = crate::station_page::streams(&final_url, &text).unwrap_or_default();
+			for url in urls {
+				if let Ok(name) = name_at(client, url, depth + 1).await {
+					return Ok(name);
+				}
+			}
+			return Err(not_a_stream());
+		}
 		let text = String::from_utf8_lossy(&body).into_owned();
 		let kind = sniff(&text);
 		if matches!(kind, Some(PlaylistKind::Pls | PlaylistKind::M3u)) {
