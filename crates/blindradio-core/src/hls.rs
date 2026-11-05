@@ -48,6 +48,7 @@ pub async fn run_hls(
 		p => (url, p),
 	};
 	let mut playlist = media(playlist)?;
+	let titled = extinf_is_a_title(&url);
 	let target = Duration::from_secs(playlist.target_duration.max(1));
 	let limit = target.max(MIN_FETCH);
 	let mut next = playlist.media_sequence;
@@ -111,7 +112,12 @@ pub async fn run_hls(
 			};
 			progress = Instant::now();
 			// An ID3 TIT2 in the segment is the stream's own title; #EXTINF is the fallback.
-			let extinf = segment.title.as_deref().map(str::trim).unwrap_or("");
+			let extinf = segment
+				.title
+				.as_deref()
+				.filter(|_| titled)
+				.map(str::trim)
+				.unwrap_or("");
 			let title = id3.unwrap_or_else(|| extinf.to_owned());
 			if !title.is_empty() {
 				on_title(Some(title));
@@ -141,6 +147,13 @@ pub async fn run_hls(
 			Err(e) => last_err = Some(e),
 		}
 	}
+}
+
+/// Twitch's #EXTINF says `live`, or `Amazon|2474283100495.0` during an ad: never a title.
+fn extinf_is_a_title(playlist: &Url) -> bool {
+	!playlist
+		.host_str()
+		.is_some_and(|h| h.ends_with(".ttvnw.net"))
 }
 
 /// Decoder hint for the first audio from TS or `run_hls`: by its first bytes, else MPEG audio.
@@ -704,6 +717,14 @@ mod tests {
 		assert_eq!(audio_rendition(&all, &v).map(String::as_str), Some("main"));
 		let muxed = [audio("aac", None, true)];
 		assert_eq!(audio_rendition(&muxed, &v), None, "muxed into the variant");
+	}
+
+	#[test]
+	fn twitch_extinf_is_never_a_title() {
+		let of = |u: &str| extinf_is_a_title(&Url::parse(u).unwrap());
+		assert!(!of("https://video-weaver.sea02.hls.ttvnw.net/v1/playlist/x.m3u8"));
+		assert!(of("https://radio.example/live.m3u8"));
+		assert!(of("https://ttvnw.net.example/live.m3u8"));
 	}
 
 	#[test]

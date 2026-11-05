@@ -176,6 +176,14 @@ stream when you play it. Saved stations keep the page link, so a changed stream 
 be found again. These links also work with Name Automatically. A station that is offline or
 unavailable in your country can still fail to play.
 
+YouTube and Twitch live streams work the same way: paste the link to the video, the channel's live
+page or the Twitch channel, and BlindRadio plays only the audio. The first time, it downloads
+two helper programs, yt-dlp and Deno, about 60 MB for YouTube, and says so while it does. Twitch
+needs only yt-dlp. They are kept up to date on their own, in BlindRadio's folder under your local
+cache, not in your settings. A link to a channel that is not on the air says Not live, and an
+ordinary video that is not a live stream says the same. Finding a stream takes a few seconds, so
+hiss plays until it starts. Twitch ads play like the rest of the stream.
+
 When you only have a web page with a player on it, File → Detect Audio Stream on Page… finds the
 address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its
 frames and its scripts, tries every stream address they name, and lists the ones that work; the

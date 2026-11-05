@@ -50,6 +50,29 @@ async fn open_direct_audio_keeps_response() {
 }
 
 #[tokio::test]
+async fn a_labeled_playlist_past_the_sniff_limit_is_read_whole() {
+	// YouTube's live playlists pass 64 KB; cut there, the last address ends halfway.
+	let mut body = String::from("#EXTM3U\n#EXT-X-TARGETDURATION:5\n");
+	while body.len() < 100 * 1024 {
+		body += &format!("#EXTINF:5.0,\nhttp://x.example/{:0>200}.ts\n", body.len());
+	}
+	let s = serve(vec![text("/live.m3u8", "application/vnd.apple.mpegurl", &body)]);
+	let Opened::Hls { playlist, .. } = open(&client(), &s.url("/live.m3u8")).await.unwrap() else {
+		panic!("expected a playlist");
+	};
+	assert_eq!(playlist, body);
+}
+
+#[test]
+fn resolve_cache_never_keeps_a_live_stream() {
+	let dir = tempfile::tempdir().unwrap();
+	let mut cache = ResolveCache::load(&dir.path().join("resolve.json"));
+	let page = "https://www.youtube.com/watch?v=x";
+	cache.put(page, "https://manifest.googlevideo.com/api/manifest/ip/1.2.3.4/index.m3u8");
+	assert_eq!(cache.get(page), None);
+}
+
+#[tokio::test]
 async fn station_page_links_open_audio_and_supply_automatic_names() {
 	let s = serve(vec![
 		text("/serrebiradio", "text/html", r#"<div id="a-player" data-stream="/live"></div>"#),

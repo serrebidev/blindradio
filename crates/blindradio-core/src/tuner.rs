@@ -394,6 +394,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.1
 			.into_iter()
 			.map(|i| stations[i].clone())
+			// Warming one would run yt-dlp for a station nobody asked to hear.
+			.filter(|s| !crate::live::is_page(&s.url))
 			.collect();
 		self.tune(target, warm, repeat, now);
 	}

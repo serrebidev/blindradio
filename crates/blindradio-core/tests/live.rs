@@ -65,6 +65,58 @@ fn each_dev_station_produces_audio() {
 	assert!(failed.is_empty(), "{failed:#?}");
 }
 
+/// Through the real path, helpers included: `url` must be live now. May download about 62 MB.
+fn live_page_plays(url: &str) {
+	let engine = engine();
+	let station: Station =
+		serde_json::from_value(serde_json::json!({"id": "x", "name": "x", "url": url})).unwrap();
+	let (tx, rx) = mpsc::channel();
+	let _stream = start(
+		&station,
+		&engine.ctx,
+		Box::new(move |event| {
+			let _ = tx.send(event);
+		}),
+	);
+	let started = Instant::now();
+	while started.elapsed() < Duration::from_secs(300) {
+		match rx.recv_timeout(Duration::from_secs(1)) {
+			Ok(StreamEvent::FirstAudio) => {
+				println!("{url} first audio {} ms", started.elapsed().as_millis());
+				return;
+			}
+			Ok(StreamEvent::Failed(reason)) => panic!("{url}: {reason}"),
+			Ok(StreamEvent::Title(title)) => println!("title {title:?}"),
+			_ => {}
+		}
+	}
+	panic!("{url}: no audio");
+}
+
+/// BBC Persian's YouTube stream, on the air around the clock.
+#[test]
+#[ignore = "network"]
+fn a_youtube_live_link_plays() {
+	live_page_plays("https://www.youtube.com/watch?v=bLAJZTSl2_Y");
+}
+
+/// The BBC network's own fMP4 audio of the same channel, no helpers involved.
+#[test]
+#[ignore = "network"]
+fn bbc_persian_audio_plays() {
+	live_page_plays(
+		"https://vs-cmaf-pushb-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_persian_tv/t=3840/a=pa4/al=en-GB/ap=main/b=128000/main.fmp4.m3u8",
+	);
+}
+
+/// Set `BLINDRADIO_TWITCH` to a channel that is live now.
+#[test]
+#[ignore = "network"]
+fn a_twitch_live_link_plays() {
+	let channel = std::env::var("BLINDRADIO_TWITCH").expect("BLINDRADIO_TWITCH");
+	live_page_plays(&format!("https://www.twitch.tv/{channel}"));
+}
+
 /// WNYC bursts about 15 s on connect. Five seconds in, the jump to the buffer's start is five
 /// seconds back: the burst is not behind live. Fails if the server stops bursting.
 #[test]
