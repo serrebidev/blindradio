@@ -378,6 +378,17 @@ fn shortlist(mut found: Vec<Candidate>, page: &Url) -> Vec<Candidate> {
 /// when the page cannot be read.
 pub async fn detect(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 	let page = page_url(page)?;
+	if crate::live::is_page(page.as_str()) {
+		let live = crate::live::lookup(client, page.as_str()).await?;
+		return Ok(vec![Station {
+			id: format!("url:{page}"),
+			name: live.name,
+			url: page.to_string(),
+			source: Source::Custom,
+			info: None,
+			details: Details::default(),
+		}]);
+	}
 	let direct = Candidate {
 		url: page.clone(),
 		rank: Rank::Extension,

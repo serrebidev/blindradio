@@ -279,6 +279,15 @@ async fn run(
 	ring: Arc<PcmRing>,
 	shared: Arc<Shared>,
 ) {
+	// A first YouTube or Twitch play downloads for a minute or more: said, not just hiss.
+	if crate::live::needs_install(&url) {
+		shared.emit(StreamEvent::Title(Some(crate::live::INSTALLING.into())));
+		let installed = crate::live::install(&ctx.client, &url).await;
+		shared.emit(StreamEvent::Title(None));
+		if let Err(e) = installed {
+			return shared.emit(StreamEvent::Failed(e.to_string()));
+		}
+	}
 	let mut conn = match connect(&ctx, &url).await {
 		Ok(c) => c,
 		Err(reason) => return shared.emit(StreamEvent::Failed(reason)),
@@ -316,9 +325,13 @@ async fn connect(ctx: &EngineCtx, url: &str) -> std::result::Result<Conn, String
 		}
 		ctx.cache.lock().remove(url);
 	}
-	let budget = START_BUDGET
-		.saturating_sub(began.elapsed())
-		.max(MIN_STATION_BUDGET);
+	let budget = if crate::live::is_page(url) {
+		crate::live::BUDGET
+	} else {
+		START_BUDGET
+			.saturating_sub(began.elapsed())
+			.max(MIN_STATION_BUDGET)
+	};
 	let (conn, final_url) = timeout(budget, open_audio(ctx, url))
 		.await
 		.unwrap_or_else(|_| Err("No data".to_owned()))?;

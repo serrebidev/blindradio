@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.68
+
+- YouTube and Twitch live streams now play. Paste the link into Open URL, Add Custom Station or Detect Audio Stream on Page and BlindRadio plays only the audio. The first time, it downloads yt-dlp and, for YouTube, Deno, and says so while it does; both then keep themselves up to date. Saved stations keep the link, so a new stream address is found each time. A channel that is not on the air says Not live. Twitch ads play like the rest of the stream.
+- BBC Persian TV joins the BBC network in Browse, as 128k audio.
+- Long HLS playlists are now read whole. One past 64 KB used to be cut off, and its last address failed.
+
 ## 0.2.67
 
 - The Equalizer's sliders no longer switch anything on: moving a band or the Preamp changes the value only, and Enabled and Enable Preamp stay exactly as you left them — the same rule presets already followed. Check the boxes yourself when you want to hear the change.

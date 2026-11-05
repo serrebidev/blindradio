@@ -88,6 +88,12 @@
         "info": "MP3 56k"
       },
       {
+        "slug": "persian-tv",
+        "name": "Persian TV",
+        "url": "https://vs-cmaf-pushb-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_persian_tv/t=3840/a=pa4/al=en-GB/ap=main/b=128000/main.fmp4.m3u8",
+        "info": "AAC 128k"
+      },
+      {
         "slug": "radio-scotland",
         "name": "Radio Scotland",
         "url": "http://as-hls-ww-live.akamaized.net/pool_43322914/live/ww/bbc_radio_scotland_fm/bbc_radio_scotland_fm.isml/bbc_radio_scotland_fm-audio%3d128000.norewind.m3u8",

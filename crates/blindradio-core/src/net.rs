@@ -9,6 +9,9 @@ use std::time::Duration;
 
 const MAX_DEPTH: u8 = 3;
 const SNIFF_LIMIT: usize = 64 * 1024;
+/// A body labeled a playlist is read whole: YouTube's live ones pass 64 KB, and a cut one ends in
+/// half an address.
+const PLAYLIST_LIMIT: usize = 1024 * 1024;
 const SNIFF_DEADLINE: Duration = Duration::from_secs(3);
 /// Bytes read from an unlabeled body before judging it: enough for a playlist's first line
 /// or three TS packets.
@@ -147,6 +150,10 @@ fn open_at<'a>(
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
 		}
+		if crate::live::is_page(&url) {
+			let live = crate::live::lookup(client, &url).await?;
+			return open_at(client, live.stream, depth + 1).await;
+		}
 		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = match fetch(client, &url).await {
 			Ok(response) => response,
@@ -209,6 +216,8 @@ fn open_at<'a>(
 		let deadline = tokio::time::Instant::now() + SNIFF_DEADLINE;
 		let limit = if crate::station_page::is_page(&final_url) {
 			crate::station_page::MAX_BYTES
+		} else if explicit_playlist {
+			PLAYLIST_LIMIT
 		} else {
 			SNIFF_LIMIT
 		};
@@ -283,7 +292,12 @@ const NAME_TS_BYTES: usize = 512 * 1024;
 /// playlist gives it, the service name in its TS, else a name made from the address. `Err` when
 /// nothing answers at all. The user can always edit what this finds.
 pub async fn station_name(client: &reqwest::Client, url: &str) -> Result<String> {
-	tokio::time::timeout(NAME_DEADLINE, name_at(client, url.to_owned(), 0))
+	let deadline = if crate::live::is_page(url) {
+		crate::live::BUDGET
+	} else {
+		NAME_DEADLINE
+	};
+	tokio::time::timeout(deadline, name_at(client, url.to_owned(), 0))
 		.await
 		.unwrap_or_else(|_| Err(CoreError::Http("No data".into())))
 }
@@ -296,6 +310,9 @@ fn name_at<'a>(
 	Box::pin(async move {
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
+		}
+		if crate::live::is_page(&url) {
+			return Ok(crate::live::lookup(client, &url).await?.name);
 		}
 		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = fetch(client, &url).await.map_err(http_err)?;
@@ -452,6 +469,11 @@ impl ResolveCache {
 	/// A final URL with its own query (a session id or token, as amperwave and DLF hand out) is
 	/// not kept: reusing it measured slower than redirecting again (1.4 s against 0.6 s).
 	pub fn put(&mut self, url: &str, final_url: &str) {
+		// Its stream expires and holds this PC's address in its path, where the query test can't see.
+		if crate::live::is_page(url) {
+			self.map.remove(url);
+			return;
+		}
 		let query = |u: &str| {
 			reqwest::Url::parse(u)
 				.ok()

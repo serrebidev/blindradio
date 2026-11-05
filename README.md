@@ -28,6 +28,7 @@ A vibe-coded, screen-reader-first internet radio player for Windows, macOS, and 
 - A status line that shows the station, how long it has played, how far behind live you are while time-shifted, and when a recording is running.
 - Tray icon with Play/Pause, Stop, favorites, Show and Exit; a second launch raises the first copy and exits.
 - Plays MP3, MP2, AAC and HE-AAC (LATM too), AC-3 and E-AC-3, Ogg Vorbis, Opus and FLAC, MPEG-TS channels, PLS and M3U playlists, and HLS live streams, including fragmented MP4 and AES-128.
+- Plays the audio of YouTube and Twitch live streams from their links, using yt-dlp and Deno, downloaded the first time and kept up to date.
 - Daily update check and Help, Check for Updates; every download is verified with minisign before it installs.
 
 ## Help

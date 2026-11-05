@@ -7,7 +7,9 @@ version.workspace = true
 [dependencies]
 thiserror = "*"
 reqwest = { version = "*", default-features = false, features = ["rustls", "stream", "form", "multipart", "json", "gzip"] }
-tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync"] }
+tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync", "process"] }
+sha2 = "*"
+zip = { version = "*", default-features = false, features = ["deflate"] }
 serde_json = "*"
 percent-encoding = "*"
 unicode-normalization = "*"
