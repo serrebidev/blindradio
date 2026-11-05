@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.66
+
+- The Equalizer now has ten frequency bands, the requested listening presets, and an adjustable Preamp with its own on/off switch.
+- Edit Station now offers a per-station metadata offset from -30 to 30 seconds. It corrects title timing, history, segment navigation and segment recordings.
+- Streema station pages, including MSNBC Live Audio, resolve to playable streams.
+
 ## 0.2.65
 
 - Open URL and Add Custom Station now accept station page links from radio.net, TuneIn, Zeno.FM, Streema (including language subdomains), and Live Online Radio. Playing a saved link looks up its stream automatically. Name Automatically also follows these pages to the stream's name.

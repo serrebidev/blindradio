@@ -211,8 +211,12 @@ default is Custom Stations, where new stations went before the choice existed.
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Edit Station and, when you have favorites folders, Add to Favorites Folder.
 Edit Station holds the station's name, its info (the text after the name in the lists, which you can change or clear), its stream URL and its own settings — buffer
-minutes, song recognition, scrobbling and equalizer for that station alone; there is no separate
+minutes, song recognition, scrobbling, equalizer and metadata timing offset for that station alone; there is no separate
 Station Settings dialog anymore.
+Metadata Offset accepts whole seconds from -30 to 30. Leave it blank for Default, which keeps
+the stream's timing. A positive value delays early metadata; a negative value moves late metadata
+back. The corrected title timing drives the now-playing line, history, segment navigation and
+segment recordings.
 When a collection has folders it also offers Add to Collection Folder, which files the
 station straight into one — Custom Stations' folders included, so a station found in
 Search or Browse can be filed into an imported playlist's folder, the same places
@@ -243,12 +247,15 @@ through the default.
 
 ## Equalizer
 
-Ctrl+E opens the equalizer: Preset, Bass, Mid, Treble and Enabled. Moving a band enables
+Ctrl+E opens the equalizer: Preset, ten frequency sliders from 60 Hz to 16 kHz, Preamp,
+Enable Preamp and Enabled. Moving a band enables
 the equalizer and is heard at once. Choosing a preset only moves the sliders and reads
 the bands — Enabled stays exactly as you left it, so arrowing through presets to compare
-them never switches the equalizer on; check Enabled yourself to hear one. The presets are Flat, Bass
-Boost, Treble Boost, Bass and Treble, Loudness, Voice, Warm, Clarity, Laptop Speakers
-and Custom. The bands reach further into the middle of the spectrum than they used to,
+them never switches the equalizer on; check Enabled yourself to hear one. The presets include None,
+Techno, Soft Rock, Soft, Ska, Rock, Reggae, Pop, Party, Loudness, Live, Large Hall, Laptop Speakers
+and Headphones, Full Treble, Full Bass and Treble, Full Bass, Dance, Club and Classical, plus Bass
+Boost, Treble Boost, Bass and Treble, Voice, Warm, Clarity and Custom. Preamp has a separate
+enable switch and value; saved presets keep both. The bands reach further into the middle of the spectrum than they used to,
 so a preset is plainly heard on speakers as well as headphones; Loudness is the
 strongest smile of the set. Loudness also levels the volume itself: it rides the
 gain the way FFmpeg's dynaudnorm and mpv's normalization do, bringing quiet
@@ -334,7 +341,7 @@ the buffer does.
 
 Segments need the time-shift buffer and a station that sends titles, or song recognition.
 A station that sends none says `No segments`. The boundaries carry the station's own
-timing, so a second either side is normal, and a recognized song is marked when it is
+timing, including its Metadata Offset, so a second either side is normal, and a recognized song is marked when it is
 recognized, which can be well after it began. A blank title marks nothing, so the audio
 stays with the title before it.
 

@@ -1,19 +1,14 @@
-//! Three-band equalizer: RBJ low shelf, peaking mid and high shelf, per channel.
+//! Ten-band equalizer with an independent preamp, per channel.
 
 use std::f64::consts::PI;
 
 use crate::settings::{EqPreset, EqSettings};
 
-// Shelf corners sit wide (250 Hz / 3 kHz) on purpose: at 120 Hz / 6 kHz
-// a boost only moved the far ends of the spectrum, and on laptop or TV
-// speakers the change was barely felt (Brandon's report). Wide shelves
-// move the bands small speakers actually reproduce.
-const LOW_HZ: f64 = 250.0;
-const MID_HZ: f64 = 1000.0;
-const MID_Q: f64 = 0.9;
-const HIGH_HZ: f64 = 3000.0;
+const FREQUENCIES: [f64; 10] = [60.0, 170.0, 310.0, 600.0, 1_000.0, 3_000.0, 6_000.0, 12_000.0, 14_000.0, 16_000.0];
+const BAND_Q: f64 = 1.4;
 /// Band gain limit in dB, either way.
-pub const MAX_DB: i8 = 12;
+pub const MAX_DB: i8 = 16;
+pub const MAX_PREAMP_DB: i8 = 12;
 /// On/off crossfade, as long as the mixer's warm-swap crossfade.
 const FADE_MS: f64 = 25.0;
 
@@ -40,47 +35,91 @@ const DOWN_SECONDS: f64 = 0.05;
 const KNEE: f64 = 0.95;
 
 impl EqPreset {
-	/// Band gains in dB (bass, mid, treble); `None` for Custom.
-	pub fn bands(self) -> Option<(i8, i8, i8)> {
+	/// Band gains in dB; `None` for Custom.
+	pub fn bands(self) -> Option<[i8; 10]> {
 		match self {
-			EqPreset::Flat => Some((0, 0, 0)),
-			EqPreset::BassBoost => Some((6, 0, 0)),
-			EqPreset::TrebleBoost => Some((0, 0, 6)),
-			EqPreset::BassAndTreble => Some((6, 0, 6)),
-			// DVBViewer-style loudness: strong smiles at both ends, so
-			// it is plainly heard even on speakers, not just headphones.
-			EqPreset::Loudness => Some((8, -2, 6)),
-			EqPreset::Voice => Some((-3, 4, 1)),
-			EqPreset::Warm => Some((3, 1, -2)),
-			EqPreset::Clarity => Some((-1, 3, 6)),
-			// Small speakers reproduce neither deep bass nor air; put
-			// the energy in the middle where they can play it.
-			EqPreset::LaptopSpeakers => Some((-4, 4, 3)),
+			EqPreset::Flat => Some([0; 10]),
+			EqPreset::BassBoost => Some([6, 6, 6, 3, 0, 0, 0, 0, 0, 0]),
+			EqPreset::TrebleBoost => Some([0, 0, 0, 0, 0, 3, 6, 6, 6, 6]),
+			EqPreset::BassAndTreble => Some([6, 5, 3, 0, 0, 0, 3, 5, 6, 6]),
+			EqPreset::Loudness => Some([8, 8, 6, 3, 0, 4, 6, 6, 6, 6]),
+			EqPreset::Classical => Some([0, 0, 0, 0, 0, 0, -7, -7, -7, -10]),
+			EqPreset::Club => Some([0, 0, 8, 6, 6, 6, 3, 0, 0, 0]),
+			EqPreset::Dance => Some([10, 7, 2, 0, 0, -6, -7, -7, 0, 0]),
+			EqPreset::FullBass => Some([-8, 10, 10, 6, 2, -4, -8, -10, -11, -11]),
+			EqPreset::FullBassTreble => Some([7, 6, 0, -7, -5, 2, 8, 11, 12, 12]),
+			EqPreset::FullTreble => Some([-10, -10, -10, -4, 2, 11, 16, 16, 16, 16]),
+			EqPreset::LargeHall => Some([10, 10, 6, 6, 0, -5, -5, -5, 0, 0]),
+			EqPreset::Live => Some([-5, 0, 4, 6, 6, 6, 4, 2, 2, 2]),
+			EqPreset::Party => Some([7, 7, 0, 0, 0, 0, 0, 0, 7, 7]),
+			EqPreset::Pop => Some([-2, 5, 7, 8, 6, 0, -2, -2, -2, -2]),
+			EqPreset::Reggae => Some([0, 0, 0, -6, 0, 6, 6, 0, 0, 0]),
+			EqPreset::Rock => Some([8, 5, -6, -8, -3, 4, 9, 11, 11, 11]),
+			EqPreset::Ska => Some([-2, -5, -4, 0, 4, 6, 9, 10, 11, 10]),
+			EqPreset::Soft => Some([5, 2, 0, -2, 0, 4, 8, 10, 11, 12]),
+			EqPreset::SoftRock => Some([4, 4, 2, 0, -4, -6, -3, 0, 2, 9]),
+			EqPreset::Techno => Some([8, 6, 0, -6, -5, 0, 8, 10, 10, 9]),
+			EqPreset::Voice => Some([-3, -2, -1, 2, 4, 4, 2, 1, 0, 0]),
+			EqPreset::Warm => Some([3, 2, 1, 0, 1, 1, 0, -1, -2, -2]),
+			EqPreset::Clarity => Some([-1, -1, 0, 1, 3, 3, 4, 5, 6, 6]),
+			EqPreset::LaptopSpeakers => Some([-4, -4, -2, 0, 2, 4, 4, 3, 2, 0]),
 			EqPreset::Custom => None,
 		}
 	}
 
 	pub fn label(self) -> &'static str {
 		match self {
-			EqPreset::Flat => "Flat",
+			EqPreset::Flat => "None",
 			EqPreset::BassBoost => "Bass Boost",
 			EqPreset::TrebleBoost => "Treble Boost",
 			EqPreset::BassAndTreble => "Bass and Treble",
 			EqPreset::Loudness => "Loudness",
+			EqPreset::Classical => "Classical",
+			EqPreset::Club => "Club",
+			EqPreset::Dance => "Dance",
+			EqPreset::FullBass => "Full Bass",
+			EqPreset::FullBassTreble => "Full Bass and Treble",
+			EqPreset::FullTreble => "Full Treble",
+			EqPreset::LargeHall => "Large Hall",
+			EqPreset::Live => "Live",
+			EqPreset::Party => "Party",
+			EqPreset::Pop => "Pop",
+			EqPreset::Reggae => "Reggae",
+			EqPreset::Rock => "Rock",
+			EqPreset::Ska => "Ska",
+			EqPreset::Soft => "Soft",
+			EqPreset::SoftRock => "Soft Rock",
+			EqPreset::Techno => "Techno",
 			EqPreset::Voice => "Voice",
 			EqPreset::Warm => "Warm",
 			EqPreset::Clarity => "Clarity",
-			EqPreset::LaptopSpeakers => "Laptop Speakers",
+			EqPreset::LaptopSpeakers => "Laptop Speakers and Headphones",
 			EqPreset::Custom => "Custom",
+		}
+	}
+
+	pub fn preamp_db(self) -> i8 {
+		match self {
+			EqPreset::Classical => 12,
+			EqPreset::Club | EqPreset::Party | EqPreset::Pop => 6,
+			EqPreset::Dance | EqPreset::Rock => 5,
+			EqPreset::FullBass => 5,
+			EqPreset::FullBassTreble => 4,
+			EqPreset::FullTreble => 3,
+			EqPreset::LargeHall => 5,
+			EqPreset::Live => 7,
+			EqPreset::Reggae => 8,
+			EqPreset::Ska => 6,
+			EqPreset::Soft => 5,
+			EqPreset::SoftRock => 7,
+			EqPreset::Techno => 5,
+			_ => 0,
 		}
 	}
 }
 
 pub fn describe(s: &EqSettings) -> String {
-	format!(
-		"Bass {} dB, Mid {} dB, Treble {} dB",
-		s.bass, s.mid, s.treble
-	)
+	format!("{}; Preamp {} dB, {}", s.preset.label(), s.preamp_db, if s.preamp_enabled { "on" } else { "off" })
 }
 
 #[derive(Clone, Copy, Default)]
@@ -96,9 +135,7 @@ struct Biquad {
 
 #[derive(Clone, Copy)]
 enum Kind {
-	LowShelf,
 	Peak,
-	HighShelf,
 }
 
 impl Biquad {
@@ -110,33 +147,13 @@ impl Biquad {
 		let (b0, b1, b2, a0, a1, a2);
 		match kind {
 			Kind::Peak => {
-				let alpha = sin / (2.0 * MID_Q);
+				let alpha = sin / (2.0 * BAND_Q);
 				b0 = 1.0 + alpha * a;
 				b1 = -2.0 * cos;
 				b2 = 1.0 - alpha * a;
 				a0 = 1.0 + alpha / a;
 				a1 = -2.0 * cos;
 				a2 = 1.0 - alpha / a;
-			}
-			Kind::LowShelf | Kind::HighShelf => {
-				// Shelf slope 1.
-				let alpha = sin / 2.0 * 2f64.sqrt();
-				let t = 2.0 * a.sqrt() * alpha;
-				if matches!(kind, Kind::LowShelf) {
-					b0 = a * ((a + 1.0) - (a - 1.0) * cos + t);
-					b1 = 2.0 * a * ((a - 1.0) - (a + 1.0) * cos);
-					b2 = a * ((a + 1.0) - (a - 1.0) * cos - t);
-					a0 = (a + 1.0) + (a - 1.0) * cos + t;
-					a1 = -2.0 * ((a - 1.0) + (a + 1.0) * cos);
-					a2 = (a + 1.0) + (a - 1.0) * cos - t;
-				} else {
-					b0 = a * ((a + 1.0) + (a - 1.0) * cos + t);
-					b1 = -2.0 * a * ((a - 1.0) + (a + 1.0) * cos);
-					b2 = a * ((a + 1.0) + (a - 1.0) * cos - t);
-					a0 = (a + 1.0) - (a - 1.0) * cos + t;
-					a1 = 2.0 * ((a - 1.0) - (a + 1.0) * cos);
-					a2 = (a + 1.0) - (a - 1.0) * cos - t;
-				}
 			}
 		}
 		self.b0 = b0 / a0;
@@ -162,7 +179,7 @@ pub struct Eq {
 	/// switching the EQ on or off never clicks. 0 is bit-exact bypass.
 	wet: f64,
 	wet_step: f64,
-	bands: [Biquad; 3],
+	bands: [Biquad; 10],
 	/// The Loudness preset's leveler is on (see the constants above).
 	level: bool,
 	/// The leveler's current gain; rides toward its target and back
@@ -171,6 +188,9 @@ pub struct Eq {
 	/// The leveler's reference peak: the loudest recent frame,
 	/// decaying over REF_SECONDS.
 	lev_ref: f64,
+	preamp: f64,
+	preamp_target: f64,
+	preamp_step: f64,
 }
 
 impl Eq {
@@ -181,17 +201,24 @@ impl Eq {
 			active: false,
 			wet: 0.0,
 			wet_step: 1.0 / (rate * FADE_MS / 1000.0).max(1.0),
-			bands: [Biquad::default(); 3],
+			bands: [Biquad::default(); 10],
 			level: false,
 			lev_gain: 1.0,
 			lev_ref: 0.0,
+			preamp: 1.0,
+			preamp_target: 1.0,
+			preamp_step: 4.0 / (rate * FADE_MS / 1000.0).max(1.0),
 		}
 	}
 
 	pub fn set(&mut self, s: &EqSettings) {
-		let db = |v: i8| v.clamp(-MAX_DB, MAX_DB);
-		let gains = [db(s.bass), db(s.mid), db(s.treble)];
+		let gains = s.bands.map(|v| v.clamp(-MAX_DB, MAX_DB));
 		self.active = s.enabled && gains.iter().any(|&g| g != 0);
+		self.preamp_target = if s.enabled && s.preamp_enabled {
+			10f64.powf(s.preamp_db.clamp(-MAX_PREAMP_DB, MAX_PREAMP_DB) as f64 / 20.0)
+		} else {
+			1.0
+		};
 		self.level = s.enabled && s.preset == EqPreset::Loudness;
 		if self.active && self.wet == 0.0 {
 			// State left from long ago would ring in as a burst.
@@ -199,13 +226,8 @@ impl Eq {
 				b.z = [[0.0; 2]; 2];
 			}
 		}
-		let spec = [
-			(Kind::LowShelf, LOW_HZ),
-			(Kind::Peak, MID_HZ),
-			(Kind::HighShelf, HIGH_HZ),
-		];
-		for ((band, (kind, hz)), g) in self.bands.iter_mut().zip(spec).zip(gains) {
-			band.tune(kind, self.rate, hz, g as f64);
+		for ((band, hz), g) in self.bands.iter_mut().zip(FREQUENCIES).zip(gains) {
+			band.tune(Kind::Peak, self.rate, hz.min(self.rate * 0.45), g as f64);
 		}
 	}
 
@@ -213,13 +235,16 @@ impl Eq {
 	pub fn process(&mut self, stereo: &mut [f32]) {
 		// The leveler may still be riding its gain home after the
 		// Loudness preset was left; that is work even with the EQ off.
+		let preamp_active = (self.preamp - self.preamp_target).abs() > 0.0001;
+		let preamp_on = (self.preamp - 1.0).abs() > 0.0001;
 		let settling = self.level || (self.lev_gain - 1.0).abs() > 0.002;
-		if !self.active && self.wet == 0.0 && !settling {
+		if !self.active && self.wet == 0.0 && !settling && !preamp_active && !preamp_on {
 			return;
 		}
 		let target = if self.active { 1.0 } else { 0.0 };
 		for frame in stereo.as_chunks_mut::<2>().0 {
 			self.wet += (target - self.wet).clamp(-self.wet_step, self.wet_step);
+			self.preamp += (self.preamp_target - self.preamp).clamp(-self.preamp_step, self.preamp_step);
 			let mut mixed = [0.0f64; 2];
 			for (ch, v) in frame.iter_mut().enumerate() {
 				let dry = *v as f64;
@@ -228,7 +253,7 @@ impl Eq {
 					x = b.run(ch, x);
 				}
 				// Linear: wet and dry are the same signal, so equal-power would bulge.
-				mixed[ch] = dry + (x - dry) * self.wet;
+				mixed[ch] = (dry + (x - dry) * self.wet) * self.preamp;
 			}
 			if settling {
 				self.ride_level(&mut mixed);
@@ -294,9 +319,7 @@ mod tests {
 		EqSettings {
 			enabled: true,
 			preset: EqPreset::Custom,
-			bass,
-			mid,
-			treble,
+			bands: [bass, bass, bass, mid, mid, mid, treble, treble, treble, treble],
 			..EqSettings::default()
 		}
 	}
@@ -369,7 +392,7 @@ mod tests {
 	#[test]
 	fn bass_boost_raises_lows_only() {
 		let s = settings(6, 0, 0);
-		assert!((gain_db(&s, 50.0) - 6.0).abs() < 0.7);
+		assert!(gain_db(&s, 60.0) > 4.0);
 		assert!(gain_db(&s, 5000.0).abs() < 0.7);
 	}
 
@@ -378,6 +401,19 @@ mod tests {
 		let s = settings(0, 0, -6);
 		assert!(gain_db(&s, 10_000.0) < -4.0);
 		assert!(gain_db(&s, 100.0).abs() < 0.7);
+	}
+
+	#[test]
+	fn preamp_changes_gain_and_has_its_own_switch() {
+		let on = EqSettings {
+			enabled: true,
+			preamp_enabled: true,
+			preamp_db: 6,
+			..EqSettings::default()
+		};
+		assert!((gain_db(&on, 440.0) - 6.0).abs() < 0.2);
+		let off = EqSettings { preamp_enabled: false, ..on };
+		assert!(gain_db(&off, 440.0).abs() < 0.2);
 	}
 
 	#[test]
@@ -396,15 +432,15 @@ mod tests {
 	#[test]
 	fn preset_values_and_labels() {
 		let all = [
-			(EqPreset::Flat, Some((0, 0, 0)), "Flat"),
-			(EqPreset::BassBoost, Some((6, 0, 0)), "Bass Boost"),
-			(EqPreset::TrebleBoost, Some((0, 0, 6)), "Treble Boost"),
-			(EqPreset::BassAndTreble, Some((6, 0, 6)), "Bass and Treble"),
-			(EqPreset::Loudness, Some((8, -2, 6)), "Loudness"),
-			(EqPreset::Voice, Some((-3, 4, 1)), "Voice"),
-			(EqPreset::Warm, Some((3, 1, -2)), "Warm"),
-			(EqPreset::Clarity, Some((-1, 3, 6)), "Clarity"),
-			(EqPreset::LaptopSpeakers, Some((-4, 4, 3)), "Laptop Speakers"),
+			(EqPreset::Flat, Some([0; 10]), "None"),
+			(EqPreset::BassBoost, Some([6, 6, 6, 3, 0, 0, 0, 0, 0, 0]), "Bass Boost"),
+			(EqPreset::TrebleBoost, Some([0, 0, 0, 0, 0, 3, 6, 6, 6, 6]), "Treble Boost"),
+			(EqPreset::BassAndTreble, Some([6, 5, 3, 0, 0, 0, 3, 5, 6, 6]), "Bass and Treble"),
+			(EqPreset::Loudness, Some([8, 8, 6, 3, 0, 4, 6, 6, 6, 6]), "Loudness"),
+			(EqPreset::Voice, Some([-3, -2, -1, 2, 4, 4, 2, 1, 0, 0]), "Voice"),
+			(EqPreset::Warm, Some([3, 2, 1, 0, 1, 1, 0, -1, -2, -2]), "Warm"),
+			(EqPreset::Clarity, Some([-1, -1, 0, 1, 3, 3, 4, 5, 6, 6]), "Clarity"),
+			(EqPreset::LaptopSpeakers, Some([-4, -4, -2, 0, 2, 4, 4, 3, 2, 0]), "Laptop Speakers and Headphones"),
 			(EqPreset::Custom, None, "Custom"),
 		];
 		for (p, bands, label) in all {
@@ -418,8 +454,10 @@ mod tests {
 		// Brandon: DVBViewer's loudness is felt on speakers, ours was
 		// not. Measured on this curve: 300 Hz +2.4 dB, 3 kHz +2.7 dB,
 		// 100 Hz +7.8 dB — a smile small speakers can reproduce.
-		let (b, m, t) = EqPreset::Loudness.bands().unwrap();
-		let s = settings(b, m, t);
+		let s = EqSettings {
+			bands: EqPreset::Loudness.bands().unwrap(),
+			..settings(0, 0, 0)
+		};
 		assert!(gain_db(&s, 300.0) > 2.0, "low shelf reaches 300 Hz");
 		assert!(gain_db(&s, 3000.0) > 2.0, "high shelf reaches 3 kHz");
 	}
@@ -430,9 +468,7 @@ mod tests {
 		EqSettings {
 			enabled: true,
 			preset: EqPreset::Loudness,
-			bass: 0,
-			mid: 0,
-			treble: 0,
+			bands: [0; 10],
 			..EqSettings::default()
 		}
 	}
@@ -504,7 +540,7 @@ mod tests {
 	fn describe_exact() {
 		assert_eq!(
 			describe(&settings(6, 0, -3)),
-			"Bass 6 dB, Mid 0 dB, Treble -3 dB"
+			"Custom; Preamp 0 dB, off"
 		);
 	}
 }

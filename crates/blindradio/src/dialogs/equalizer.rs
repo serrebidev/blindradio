@@ -1,4 +1,4 @@
-//! Equalizer (Ctrl+E): a preset and three bands, heard and saved at once.
+//! Equalizer (Ctrl+E): presets, ten bands and preamp, heard and saved at once.
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -15,25 +15,34 @@ use crate::strings as s;
 
 /// Every built-in preset the choice offers, in this order. The user's
 /// saved presets follow them in the list.
-pub const PRESETS: [EqPreset; 10] = [
+pub const PRESETS: [EqPreset; 26] = [
+	EqPreset::Techno,
+	EqPreset::SoftRock,
+	EqPreset::Soft,
+	EqPreset::Ska,
+	EqPreset::Rock,
+	EqPreset::Reggae,
+	EqPreset::Pop,
+	EqPreset::Party,
+	EqPreset::Loudness,
+	EqPreset::Live,
+	EqPreset::LargeHall,
+	EqPreset::LaptopSpeakers,
+	EqPreset::FullTreble,
+	EqPreset::FullBassTreble,
+	EqPreset::FullBass,
+	EqPreset::Dance,
+	EqPreset::Club,
+	EqPreset::Classical,
 	EqPreset::Flat,
 	EqPreset::BassBoost,
 	EqPreset::TrebleBoost,
 	EqPreset::BassAndTreble,
-	EqPreset::Loudness,
 	EqPreset::Voice,
 	EqPreset::Warm,
 	EqPreset::Clarity,
-	EqPreset::LaptopSpeakers,
 	EqPreset::Custom,
 ];
-
-#[derive(Clone, Copy)]
-pub enum Band {
-	Bass,
-	Mid,
-	Treble,
-}
 
 /// A band moved by hand makes the preset Custom; the value is clamped.
 /// The hand-tuned set is also written to the Custom store, so it
@@ -41,17 +50,26 @@ pub enum Band {
 /// Moving a band also enables the equalizer: a hand move means "use
 /// this", and a separate trip to the Enabled box is how the dialog
 /// shipped presets that changed nothing anyone could hear.
-pub fn set_band(settings: &mut EqSettings, band: Band, db: i32) {
+pub fn set_band(settings: &mut EqSettings, band: usize, db: i32) {
 	let db = db.clamp(-i32::from(eq::MAX_DB), i32::from(eq::MAX_DB)) as i8;
-	match band {
-		Band::Bass => settings.bass = db,
-		Band::Mid => settings.mid = db,
-		Band::Treble => settings.treble = db,
-	}
+	let Some(value) = settings.bands.get_mut(band) else { return };
+	*value = db;
 	settings.preset = EqPreset::Custom;
 	settings.saved_name = None;
-	(settings.custom_bass, settings.custom_mid, settings.custom_treble) =
-		(settings.bass, settings.mid, settings.treble);
+	settings.custom_bands = settings.bands;
+	settings.custom_preamp_db = settings.preamp_db;
+	settings.custom_preamp_enabled = settings.preamp_enabled;
+	settings.enabled = true;
+}
+
+pub fn set_preamp(settings: &mut EqSettings, db: i32) {
+	settings.preamp_db = db.clamp(-i32::from(eq::MAX_PREAMP_DB), i32::from(eq::MAX_PREAMP_DB)) as i8;
+	settings.custom_preamp_db = settings.preamp_db;
+	settings.custom_bands = settings.bands;
+	settings.preset = EqPreset::Custom;
+	settings.saved_name = None;
+	settings.preamp_enabled = true;
+	settings.custom_preamp_enabled = true;
 	settings.enabled = true;
 }
 
@@ -65,22 +83,24 @@ pub fn apply_preset(settings: &mut EqSettings, preset: EqPreset) {
 	settings.preset = preset;
 	settings.saved_name = None;
 	if preset == EqPreset::Custom {
-		(settings.bass, settings.mid, settings.treble) = (
-			settings.custom_bass,
-			settings.custom_mid,
-			settings.custom_treble,
-		);
-	} else if let Some((bass, mid, treble)) = preset.bands() {
-		(settings.bass, settings.mid, settings.treble) = (bass, mid, treble);
+		settings.bands = settings.custom_bands;
+		settings.preamp_db = settings.custom_preamp_db;
+		settings.preamp_enabled = settings.custom_preamp_enabled;
+	} else if let Some(bands) = preset.bands() {
+		settings.bands = bands;
+		settings.preamp_db = preset.preamp_db();
 	}
 }
 
 /// A saved preset applies like a built-in one and becomes the Custom
 /// store too, so it is still there if the user then moves a band.
 pub fn apply_saved(settings: &mut EqSettings, saved: &SavedEqPreset) {
-	(settings.bass, settings.mid, settings.treble) = (saved.bass, saved.mid, saved.treble);
-	(settings.custom_bass, settings.custom_mid, settings.custom_treble) =
-		(saved.bass, saved.mid, saved.treble);
+	settings.bands = saved.bands;
+	settings.custom_bands = saved.bands;
+	settings.preamp_db = saved.preamp_db;
+	settings.custom_preamp_db = saved.preamp_db;
+	settings.preamp_enabled = saved.preamp_enabled;
+	settings.custom_preamp_enabled = saved.preamp_enabled;
 	settings.preset = EqPreset::Custom;
 	settings.saved_name = Some(saved.name.clone());
 }
@@ -94,9 +114,12 @@ pub fn save_preset(settings: &mut EqSettings, name: &str) -> bool {
 	}
 	let entry = SavedEqPreset {
 		name: name.to_string(),
-		bass: settings.bass,
-		mid: settings.mid,
-		treble: settings.treble,
+		bands: settings.bands,
+		preamp_db: settings.preamp_db,
+		preamp_enabled: settings.preamp_enabled,
+		bass: 0,
+		mid: 0,
+		treble: 0,
 	};
 	if let Some(at) = settings.saved.iter().position(|p| p.name == name) {
 		settings.saved[at] = entry;
@@ -228,11 +251,11 @@ fn key_step(code: i32) -> Option<i32> {
 	}
 }
 
-fn slider(dialog: &Dialog, sizer: &BoxSizer, label: &str, value: i8) -> Slider {
+fn slider(dialog: &Dialog, sizer: &BoxSizer, label: &str, min: i8, max: i8, value: i8) -> Slider {
 	let text = StaticText::builder(dialog).with_label(label).build();
 	let slider = Slider::builder(dialog)
-		.with_min_value(i32::from(-eq::MAX_DB))
-		.with_max_value(i32::from(eq::MAX_DB))
+		.with_min_value(i32::from(min))
+		.with_max_value(i32::from(max))
 		.build();
 	slider.set_value(i32::from(value));
 	sizer.add(
@@ -291,24 +314,38 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.build();
 	sizer.add(&delete, 0, SizerFlag::All, 5);
 
-	let bass = slider(&dialog, &sizer, s::BASS, current.bass);
-	let mid = slider(&dialog, &sizer, s::MID, current.mid);
-	let treble = slider(&dialog, &sizer, s::TREBLE, current.treble);
+	let columns = BoxSizer::builder(Orientation::Horizontal).build();
+	let left = BoxSizer::builder(Orientation::Vertical).build();
+	let right = BoxSizer::builder(Orientation::Vertical).build();
+	let labels = ["60 Hz (dB)", "170 Hz (dB)", "310 Hz (dB)", "600 Hz (dB)", "1 kHz (dB)", "3 kHz (dB)", "6 kHz (dB)", "12 kHz (dB)", "14 kHz (dB)", "16 kHz (dB)"];
+	let mut bands = Vec::with_capacity(10);
+	for (i, label) in labels.into_iter().enumerate() {
+		let host = if i < 5 { &left } else { &right };
+		bands.push(slider(&dialog, host, label, -eq::MAX_DB, eq::MAX_DB, current.bands[i]));
+	}
+	columns.add_sizer(&left, 1, SizerFlag::Expand | SizerFlag::All, 4);
+	columns.add_sizer(&right, 1, SizerFlag::Expand | SizerFlag::All, 4);
+	sizer.add_sizer(&columns, 1, SizerFlag::Expand | SizerFlag::All, 5);
+	let preamp_enabled = CheckBox::builder(&dialog).with_label(s::PREAMP_ENABLED).build();
+	preamp_enabled.set_value(current.preamp_enabled);
+	sizer.add(&preamp_enabled, 0, SizerFlag::All, 5);
+	let preamp = slider(&dialog, &sizer, s::PREAMP_DB, -eq::MAX_PREAMP_DB, eq::MAX_PREAMP_DB, current.preamp_db);
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
 		.with_label(s::CLOSE)
 		.build();
 	sizer.add(&close, 0, SizerFlag::All, 5);
 	dialog.set_sizer(sizer, true);
-	dialog.set_size(Size::new(420, 560));
+	dialog.set_size(Size::new(680, 700));
 
 	// Moving the sliders to follow a preset must not read back as a hand move.
 	let programmatic = Rc::new(Cell::new(false));
+	let band_sliders = bands.clone();
 	// Refilling the choice after a save or delete is not a user choice.
 	let rebuilding = Rc::new(Cell::new(false));
 	{
-		let (a, programmatic, rebuilding) =
-			(app.clone(), programmatic.clone(), rebuilding.clone());
+		let (a, programmatic, rebuilding, bands) =
+			(app.clone(), programmatic.clone(), rebuilding.clone(), band_sliders);
 		preset.on_selection_changed(move |_| {
 			if rebuilding.get() {
 				return;
@@ -323,9 +360,11 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				return;
 			}
 			programmatic.set(true);
-			bass.set_value(i32::from(eq.bass));
-			mid.set_value(i32::from(eq.mid));
-			treble.set_value(i32::from(eq.treble));
+			for (slider, value) in bands.iter().zip(eq.bands) {
+				slider.set_value(i32::from(value));
+			}
+			preamp.set_value(i32::from(eq.preamp_db));
+			preamp_enabled.set_value(eq.preamp_enabled);
 			programmatic.set(false);
 			enabled.set_value(eq.enabled);
 			name.set_value(eq.saved_name.as_deref().unwrap_or(""));
@@ -378,7 +417,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		});
 	}
 
-	for (slider, band) in [(bass, Band::Bass), (mid, Band::Mid), (treble, Band::Treble)] {
+	for (band, slider) in bands.into_iter().enumerate() {
 		let (a, programmatic) = (app.clone(), programmatic.clone());
 		slider.on_slider(move |e| {
 			if programmatic.get() {
@@ -419,6 +458,45 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			a.borrow_mut().set_eq(eq);
 		});
 	}
+	{
+		let (a, programmatic) = (app.clone(), programmatic.clone());
+		preamp.on_slider(move |e| {
+			if programmatic.get() { return; }
+			let mut eq = a.borrow().settings.eq.clone();
+			set_preamp(&mut eq, e.get_value());
+			preamp_enabled.set_value(true);
+			enabled.set_value(eq.enabled);
+			a.borrow_mut().set_eq(eq);
+		});
+		let a = app.clone();
+		preamp.bind_internal(EventType::KEY_DOWN, move |e: Event| {
+			let Some(code) = e.get_key_code() else { return e.skip(true) };
+			if e.control_down() || e.alt_down() || e.shift_down() { return e.skip(true) }
+			let value = match code {
+				WXK_HOME => -i32::from(eq::MAX_PREAMP_DB),
+				WXK_END => i32::from(eq::MAX_PREAMP_DB),
+				WXK_PAGEUP => preamp.get_value() + 1,
+				WXK_PAGEDOWN => preamp.get_value() - 1,
+				c => match key_step(c) { Some(step) => preamp.get_value() + step, None => return e.skip(true) },
+			};
+			e.skip(false);
+			preamp.set_value(value);
+			let mut eq = a.borrow().settings.eq.clone();
+			set_preamp(&mut eq, value);
+			preamp_enabled.set_value(true);
+			enabled.set_value(eq.enabled);
+			a.borrow_mut().set_eq(eq);
+		});
+	}
+	{
+		let a = app.clone();
+		preamp_enabled.on_toggled(move |_| {
+			let mut eq = a.borrow().settings.eq.clone();
+			eq.preamp_enabled = preamp_enabled.get_value();
+			eq.custom_preamp_enabled = eq.preamp_enabled;
+			a.borrow_mut().set_eq(eq);
+		});
+	}
 
 	{
 		let a = app.clone();
@@ -443,20 +521,18 @@ mod tests {
 		let mut eq = EqSettings {
 			enabled: true,
 			preset: EqPreset::BassBoost,
-			bass: 6,
-			mid: 0,
-			treble: 0,
+			bands: EqPreset::BassBoost.bands().unwrap(),
 			..EqSettings::default()
 		};
-		set_band(&mut eq, Band::Mid, 4);
+		set_band(&mut eq, 4, 4);
 		assert_eq!(eq.preset, EqPreset::Custom, "a hand move is Custom");
-		assert_eq!((eq.bass, eq.mid, eq.treble), (6, 4, 0));
-		set_band(&mut eq, Band::Treble, 99);
-		assert_eq!(eq.treble, eq::MAX_DB, "clamped");
-		set_band(&mut eq, Band::Bass, -99);
-		assert_eq!(eq.bass, -eq::MAX_DB);
+		assert_eq!(eq.bands[0..5], [6, 6, 6, 3, 4]);
+		set_band(&mut eq, 9, 99);
+		assert_eq!(eq.bands[9], eq::MAX_DB, "clamped");
+		set_band(&mut eq, 0, -99);
+		assert_eq!(eq.bands[0], -eq::MAX_DB);
 		apply_preset(&mut eq, EqPreset::Warm);
-		assert_eq!((eq.bass, eq.mid, eq.treble), (3, 1, -2));
+		assert_eq!(eq.bands, EqPreset::Warm.bands().unwrap());
 		assert_eq!(eq.preset, EqPreset::Warm);
 	}
 
@@ -465,33 +541,34 @@ mod tests {
 		// Brandon's bug: tune by hand, try Loudness, come back to
 		// Custom — the hand-tuned set was gone.
 		let mut eq = EqSettings::default();
-		set_band(&mut eq, Band::Bass, 4);
-		set_band(&mut eq, Band::Treble, -2);
+		set_band(&mut eq, 0, 4);
+		set_band(&mut eq, 9, -2);
 		apply_preset(&mut eq, EqPreset::Loudness);
-		assert_eq!((eq.bass, eq.mid, eq.treble), (8, -2, 6));
+		assert_eq!(eq.bands, EqPreset::Loudness.bands().unwrap());
 		apply_preset(&mut eq, EqPreset::Custom);
-		assert_eq!((eq.bass, eq.mid, eq.treble), (4, 0, -2), "restored");
+		assert_eq!(eq.bands[0], 4);
+		assert_eq!(eq.bands[9], -2, "restored");
 	}
 
 	#[test]
 	fn saved_presets_round_trip() {
 		let mut eq = EqSettings::default();
-		set_band(&mut eq, Band::Mid, 5);
+		set_band(&mut eq, 4, 5);
 		assert!(!save_preset(&mut eq, "  "), "no empty names");
 		assert!(save_preset(&mut eq, "Headphones"));
 		assert_eq!(eq.saved.len(), 1);
 		assert_eq!(selection_index(&eq), PRESETS.len());
 		apply_preset(&mut eq, EqPreset::Flat);
-		assert_eq!(selection_index(&eq), 0);
+		assert_eq!(selection_index(&eq), PRESETS.iter().position(|p| *p == EqPreset::Flat).unwrap());
 		let saved = eq.saved[0].clone();
 		apply_saved(&mut eq, &saved);
-		assert_eq!((eq.bass, eq.mid, eq.treble), (0, 5, 0));
+		assert_eq!(eq.bands[4], 5);
 		assert_eq!(eq.saved_name.as_deref(), Some("Headphones"));
 		// Saving again under the same name updates in place.
-		set_band(&mut eq, Band::Bass, 2);
+		set_band(&mut eq, 0, 2);
 		assert!(save_preset(&mut eq, "Headphones"));
 		assert_eq!(eq.saved.len(), 1);
-		assert_eq!(eq.saved[0].bass, 2);
+		assert_eq!(eq.saved[0].bands[0], 2);
 		assert!(delete_saved(&mut eq, "Headphones"));
 		assert!(eq.saved.is_empty());
 		assert!(!delete_saved(&mut eq, "Headphones"));
@@ -503,9 +580,12 @@ mod tests {
 		apply_preset(&mut settings.eq, EqPreset::Warm);
 		settings.eq.saved.push(SavedEqPreset {
 			name: "Quiet".into(),
-			bass: 1,
-			mid: 2,
-			treble: 3,
+			bands: [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
+			preamp_db: 0,
+			preamp_enabled: false,
+			bass: 0,
+			mid: 0,
+			treble: 0,
 		});
 		settings.station_overrides.entry("st".into()).or_default().eq = own;
 		settings
@@ -513,9 +593,9 @@ mod tests {
 
 	#[test]
 	fn a_station_plays_through_its_own_equalizer() {
-		let bands = |e: &EqSettings| (e.enabled, e.preset, e.bass, e.mid, e.treble);
+		let bands = |e: &EqSettings| (e.enabled, e.preset, e.bands);
 		// Global: as the Equalizer dialog has it, and for any other station.
-		let global = (true, EqPreset::Warm, 3, 1, -2);
+		let global = (true, EqPreset::Warm, EqPreset::Warm.bands().unwrap());
 		let settings = with_station_eq(None);
 		assert_eq!(bands(&for_station(&settings, "st")), global);
 		// Global off stays off for a Global station, on for its own preset.
@@ -527,7 +607,7 @@ mod tests {
 		let settings = with_station_eq(Some(StationEq::Preset(EqPreset::Loudness)));
 		assert_eq!(
 			bands(&for_station(&settings, "st")),
-			(true, EqPreset::Loudness, 8, -2, 6)
+			(true, EqPreset::Loudness, EqPreset::Loudness.bands().unwrap())
 		);
 		assert_eq!(bands(&for_station(&settings, "other")), global);
 		assert_eq!(settings.eq.preset, EqPreset::Warm, "global left alone");
@@ -536,7 +616,7 @@ mod tests {
 		let settings = with_station_eq(Some(StationEq::Saved("Quiet".into())));
 		assert_eq!(
 			bands(&for_station(&settings, "st")),
-			(true, EqPreset::Custom, 1, 2, 3)
+			(true, EqPreset::Custom, [1, 1, 1, 2, 2, 2, 3, 3, 3, 3])
 		);
 		let settings = with_station_eq(Some(StationEq::Saved("Gone".into())));
 		assert_eq!(bands(&for_station(&settings, "st")), global);
@@ -579,13 +659,27 @@ mod tests {
 		assert!(!eq.enabled, "a chosen preset leaves Enabled alone");
 		let saved = SavedEqPreset {
 			name: "X".into(),
-			bass: 1,
-			mid: 2,
-			treble: 3,
+			bands: [0; 10],
+			preamp_db: 0,
+			preamp_enabled: false,
+			bass: 0,
+			mid: 0,
+			treble: 0,
 		};
 		apply_saved(&mut eq, &saved);
 		assert!(!eq.enabled, "a saved preset leaves Enabled alone");
-		set_band(&mut eq, Band::Bass, 3);
+		set_band(&mut eq, 0, 3);
 		assert!(eq.enabled, "a hand move is heard at once");
+	}
+
+	#[test]
+	fn built_in_preset_keeps_the_preamp_switch_independent() {
+		let mut eq = EqSettings {
+			preamp_enabled: true,
+			..EqSettings::default()
+		};
+	apply_preset(&mut eq, EqPreset::Techno);
+	assert!(eq.preamp_enabled);
+	assert_eq!(eq.preamp_db, EqPreset::Techno.preamp_db());
 	}
 }

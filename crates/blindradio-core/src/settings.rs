@@ -17,6 +17,22 @@ pub enum EqPreset {
 	TrebleBoost,
 	BassAndTreble,
 	Loudness,
+	Classical,
+	Club,
+	Dance,
+	FullBass,
+	FullBassTreble,
+	FullTreble,
+	LargeHall,
+	Live,
+	Party,
+	Pop,
+	Reggae,
+	Rock,
+	Ska,
+	Soft,
+	SoftRock,
+	Techno,
 	Voice,
 	Warm,
 	Clarity,
@@ -29,8 +45,18 @@ pub enum EqPreset {
 #[serde(default)]
 pub struct SavedEqPreset {
 	pub name: String,
+	#[serde(default)]
+	pub bands: [i8; 10],
+	#[serde(default)]
+	pub preamp_db: i8,
+	#[serde(default)]
+	pub preamp_enabled: bool,
+	// Read old three-band presets and migrate them in Settings::load.
+	#[serde(default, skip_serializing)]
 	pub bass: i8,
+	#[serde(default, skip_serializing)]
 	pub mid: i8,
+	#[serde(default, skip_serializing)]
 	pub treble: i8,
 }
 
@@ -39,14 +65,33 @@ pub struct SavedEqPreset {
 pub struct EqSettings {
 	pub enabled: bool,
 	pub preset: EqPreset,
+	#[serde(default)]
+	pub bands: [i8; 10],
+	#[serde(default)]
+	pub custom_bands: [i8; 10],
+	#[serde(default)]
+	pub preamp_db: i8,
+	#[serde(default)]
+	pub preamp_enabled: bool,
+	#[serde(default)]
+	pub custom_preamp_db: i8,
+	#[serde(default)]
+	pub custom_preamp_enabled: bool,
+	// Read old three-band settings and migrate them in Settings::load.
+	#[serde(default, skip_serializing)]
 	pub bass: i8,
+	#[serde(default, skip_serializing)]
 	pub mid: i8,
+	#[serde(default, skip_serializing)]
 	pub treble: i8,
 	/// The Custom preset's own bands. Named presets overwrite
 	/// bass/mid/treble, so the hand-tuned set lives here and choosing
 	/// Custom again restores it.
+	#[serde(default, skip_serializing)]
 	pub custom_bass: i8,
+	#[serde(default, skip_serializing)]
 	pub custom_mid: i8,
+	#[serde(default, skip_serializing)]
 	pub custom_treble: i8,
 	/// The saved preset the current bands came from, when one is in use.
 	pub saved_name: Option<String>,
@@ -244,6 +289,8 @@ pub struct StationSettings {
 	/// whenever the station starts.
 	pub volume: Option<f32>,
 	pub eq: Option<StationEq>,
+	/// Metadata timing correction in seconds; None trusts the stream.
+	pub metadata_offset_seconds: Option<i8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -349,20 +396,40 @@ impl Settings {
 	pub fn load(dir: &Path) -> Settings {
 		let mut s: Settings = store::load(&dir.join(store::SETTINGS_FILE));
 		s.volume = s.volume.clamp(0.0, 1.0);
-		for band in [
-			&mut s.eq.bass,
-			&mut s.eq.mid,
-			&mut s.eq.treble,
-			&mut s.eq.custom_bass,
-			&mut s.eq.custom_mid,
-			&mut s.eq.custom_treble,
-		] {
-			*band = (*band).clamp(-MAX_DB, MAX_DB);
+		let old_bands = |bass, mid, treble| [bass, bass, bass, mid, mid, mid, treble, treble, treble, treble];
+		if s.eq.bands.iter().all(|&b| b == 0) {
+			s.eq.bands = old_bands(s.eq.bass, s.eq.mid, s.eq.treble);
+		}
+		if s.eq.custom_bands.iter().all(|&b| b == 0) {
+			s.eq.custom_bands = old_bands(s.eq.custom_bass, s.eq.custom_mid, s.eq.custom_treble);
 		}
 		for p in &mut s.eq.saved {
-			for band in [&mut p.bass, &mut p.mid, &mut p.treble] {
+			if p.bands.iter().all(|&b| b == 0) {
+				p.bands = old_bands(p.bass, p.mid, p.treble);
+			}
+		}
+		for band in [
+			&mut s.eq.preamp_db,
+			&mut s.eq.custom_preamp_db,
+		] {
+			*band = (*band).clamp(-crate::eq::MAX_PREAMP_DB, crate::eq::MAX_PREAMP_DB);
+		}
+		for band in s.eq.bands.iter_mut().chain(s.eq.custom_bands.iter_mut()) {
+			*band = (*band).clamp(-MAX_DB, MAX_DB);
+		}
+		s.eq.bass = 0;
+		s.eq.mid = 0;
+		s.eq.treble = 0;
+		s.eq.custom_bass = 0;
+		s.eq.custom_mid = 0;
+		s.eq.custom_treble = 0;
+		for p in &mut s.eq.saved {
+			for band in p.bands.iter_mut() {
 				*band = (*band).clamp(-MAX_DB, MAX_DB);
 			}
+			p.bass = 0;
+			p.mid = 0;
+			p.treble = 0;
 		}
 		s.buffers = s.buffers.clamped();
 		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
@@ -379,8 +446,18 @@ impl Settings {
 			if let Some(v) = o.volume {
 				o.volume = Some(v.clamp(0.0, 1.0));
 			}
+			if let Some(offset) = o.metadata_offset_seconds {
+				o.metadata_offset_seconds = Some(offset.clamp(-30, 30));
+			}
 		}
 		s
+	}
+
+	/// Metadata timing correction for a station; None means use the stream's timing.
+	pub fn metadata_offset_for(&self, station_id: &str) -> Option<i8> {
+		self.station_overrides
+			.get(station_id)
+			.and_then(|o| o.metadata_offset_seconds)
 	}
 
 	/// The encoded ring budget in bytes, when the ring is enabled:
@@ -453,21 +530,7 @@ mod tests {
 		assert!(s.fm_sound, "the FM sound is on by default");
 		assert_eq!(s.audio_device, None);
 		assert_eq!(s.volume, 0.8);
-		assert_eq!(
-			s.eq,
-			EqSettings {
-				enabled: false,
-				preset: EqPreset::Flat,
-				bass: 0,
-				mid: 0,
-				treble: 0,
-				custom_bass: 0,
-				custom_mid: 0,
-				custom_treble: 0,
-				saved_name: None,
-				saved: Vec::new()
-			}
-		);
+		assert_eq!(s.eq, EqSettings::default());
 		assert!(s.hotkeys.is_empty());
 		assert_eq!(s.last_station, None);
 		assert_eq!(s.main_list, None);
@@ -502,7 +565,7 @@ mod tests {
 		)
 		.unwrap();
 		let eq = Settings::load(d.path()).eq;
-		assert_eq!((eq.bass, eq.mid, eq.treble), (12, -12, 5));
+		assert_eq!(eq.bands, [16, 16, 16, -16, -16, -16, 5, 5, 5, 5]);
 	}
 
 	#[test]
@@ -521,14 +584,18 @@ mod tests {
 				scrobble: None,
 				volume: Some(0.4),
 				eq: Some(StationEq::Saved("Quiet".into())),
+				metadata_offset_seconds: Some(18),
 			},
 		);
 		let json = serde_json::to_string(&s).unwrap();
 		let back: Settings = serde_json::from_str(&json).unwrap();
 		assert_eq!(back.station_overrides["st:1"].eq, s.station_overrides["st:1"].eq);
+		assert_eq!(back.station_overrides["st:1"].metadata_offset_seconds, Some(18));
 		let old: StationSettings = serde_json::from_str(r#"{"volume":0.5}"#).unwrap();
 		assert_eq!(old.eq, None, "a settings file from before it means global");
 		assert_eq!(s.volume_for("st:1"), 0.4);
+		assert_eq!(s.metadata_offset_for("st:1"), Some(18));
+		assert_eq!(s.metadata_offset_for("st:2"), None);
 		assert_eq!(s.volume_for("st:2"), s.volume);
 		assert_eq!(s.timeshift_minutes_for("st:1"), 5);
 		assert!(s.recognition_enabled_for("st:1"));
@@ -549,19 +616,28 @@ mod tests {
 		s.eq = EqSettings {
 			enabled: true,
 			preset: EqPreset::BassBoost,
-			bass: 3,
-			mid: -2,
-			treble: 1,
-			custom_bass: 5,
-			custom_mid: 5,
-			custom_treble: 5,
+			bands: [3, 3, 3, -2, -2, -2, 1, 1, 1, 1],
+			custom_bands: [5; 10],
 			saved_name: Some("Mine".into()),
 			saved: vec![crate::settings::SavedEqPreset {
 				name: "Mine".into(),
-				bass: 5,
-				mid: 5,
-				treble: 5,
+				bands: [5; 10],
+				preamp_db: 3,
+				preamp_enabled: true,
+				bass: 0,
+				mid: 0,
+				treble: 0,
 			}],
+			preamp_db: 2,
+			preamp_enabled: true,
+			custom_preamp_db: 4,
+			custom_preamp_enabled: false,
+			bass: 0,
+			mid: 0,
+			treble: 0,
+			custom_bass: 0,
+			custom_mid: 0,
+			custom_treble: 0,
 		};
 		s.hotkeys.insert("play".into(), "Ctrl+P".into());
 		s.main_list = Some("col:1".into());

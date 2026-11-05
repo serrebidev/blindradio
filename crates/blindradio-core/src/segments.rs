@@ -64,19 +64,27 @@ pub struct Marks(VecDeque<Mark>);
 
 impl Marks {
 	pub fn add(&mut self, title: &str, now_ms: u64, start_ms: u64) {
+		self.add_adjusted(title, now_ms, now_ms, start_ms);
+	}
+
+	pub fn add_adjusted(&mut self, title: &str, received_ms: u64, mark_ms: u64, start_ms: u64) {
 		let title = title.trim();
 		if title.is_empty() || self.0.back().is_some_and(|m| m.title == title) {
 			return;
 		}
+		let first = mark_ms == received_ms
+			&& self.0.is_empty()
+			&& received_ms.saturating_sub(start_ms) <= FIRST_TITLE_MS;
+		let at = if first { start_ms } else { mark_ms.max(start_ms) };
+		let index = self.0.partition_point(|m| m.ms <= at);
+		self.0.insert(index, Mark {
+			ms: at,
+			title: title.to_owned(),
+		});
 		// Only the mark the buffer's oldest audio falls under is still needed.
 		while self.0.get(1).is_some_and(|m| m.ms <= start_ms) {
 			self.0.pop_front();
 		}
-		let first = self.0.is_empty() && now_ms.saturating_sub(start_ms) <= FIRST_TITLE_MS;
-		self.0.push_back(Mark {
-			ms: if first { start_ms } else { now_ms },
-			title: title.to_owned(),
-		});
 	}
 
 	pub fn title_at(&self, ms: u64) -> Option<&str> {
@@ -324,6 +332,16 @@ mod tests {
 		assert_eq!(m.title_at(199), Some("One"));
 		assert_eq!(m.title_at(200), Some("Two"));
 		assert_eq!(m.title_at(999), Some("Two"));
+	}
+
+	#[test]
+	fn adjusted_metadata_sets_delayed_segment_boundary() {
+		let mut marks = Marks::default();
+		marks.add_adjusted("News", 10_000, 28_000, 0);
+		assert!(marks.segments(0, 20_000).is_empty());
+		assert_eq!(marks.segments(0, 30_000), [seg("News", 28_000, 30_000)]);
+		assert_eq!(marks.title_at(27_999), None);
+		assert_eq!(marks.title_at(28_000), Some("News"));
 	}
 
 	#[test]

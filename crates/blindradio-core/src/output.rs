@@ -889,9 +889,7 @@ mod tests {
 		mixer.handle(MixerCmd::Eq(EqSettings {
 			enabled: true,
 			preset: crate::settings::EqPreset::BassBoost,
-			bass: 6,
-			mid: 0,
-			treble: 0,
+			bands: crate::settings::EqPreset::BassBoost.bands().unwrap(),
 			..EqSettings::default()
 		}));
 		// Past the EQ's own 25 ms wet fade.
@@ -1320,9 +1318,7 @@ mod tests {
 		let eq = EqSettings {
 			enabled: true,
 			preset: crate::settings::EqPreset::Custom,
-			bass: 6,
-			mid: 0,
-			treble: 0,
+			bands: [6, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 			..EqSettings::default()
 		};
 		m.handle(MixerCmd::Eq(eq.clone()));
@@ -1356,9 +1352,7 @@ mod tests {
 		m.handle(MixerCmd::Eq(EqSettings {
 			enabled: true,
 			preset: crate::settings::EqPreset::Loudness,
-			bass: 8,
-			mid: -2,
-			treble: 6,
+			bands: crate::settings::EqPreset::Loudness.bands().unwrap(),
 			..EqSettings::default()
 		}));
 		m.handle(MixerCmd::Tune);
@@ -1389,9 +1383,7 @@ mod tests {
 		m.handle(MixerCmd::Eq(EqSettings {
 			enabled: true,
 			preset: crate::settings::EqPreset::Custom,
-			bass: 12,
-			mid: 12,
-			treble: 12,
+			bands: [12; 10],
 			..EqSettings::default()
 		}));
 		m.handle(MixerCmd::SetActive {

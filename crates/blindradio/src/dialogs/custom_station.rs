@@ -222,6 +222,12 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			.map(|m| m.to_string())
 			.unwrap_or_default(),
 	);
+	let metadata_offset = field(
+		&dialog,
+		&sizer,
+		s::ST_METADATA_OFFSET,
+		&current.metadata_offset_seconds.map(|n| n.to_string()).unwrap_or_default(),
+	);
 	let recog = choice(
 		&dialog,
 		&sizer,
@@ -300,6 +306,13 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			} else {
 				typed
 			};
+			let metadata_offset_seconds = match blank_none(&metadata_offset.get_value()) {
+				None => None,
+				Some(value) => match value.parse::<i8>() {
+					Ok(value) if (-30..=30).contains(&value) => Some(value),
+					_ => return a.borrow_mut().say(s::ST_METADATA_OFFSET_INVALID),
+				},
+			};
 			let entry = StationSettings {
 				timeshift_minutes: blank_none(&minutes.get_value())
 					.and_then(|t| t.parse().ok()),
@@ -309,6 +322,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				// remembers from playing it.
 				volume: current.volume,
 				eq: equalizer::station_eq(&eq, eq_mode.get_selection(), eq_preset.get_selection()),
+				metadata_offset_seconds,
 			};
 			{
 				let mut app = a.borrow_mut();

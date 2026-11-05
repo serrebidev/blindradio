@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use crossbeam_channel::{Receiver, Sender};
 use parking_lot::Mutex;
@@ -103,6 +103,7 @@ pub enum TunerEvent {
 	Title {
 		station_id: String,
 		title: Option<String>,
+		at: SystemTime,
 	},
 	/// The playing stream's format became known (codec, bitrate, rate).
 	Format {
@@ -253,6 +254,16 @@ struct Pending {
 	warm: bool,
 }
 
+struct PendingTitle {
+	station_id: String,
+	title: Option<String>,
+	received_ms: u64,
+	received_at: Instant,
+	mark_ms: u64,
+	start_ms: Option<u64>,
+	due_at: Instant,
+}
+
 /// How long a song must play before it is scrobbled.
 const SCROBBLE_MIN: Duration = Duration::from_secs(60);
 /// Recognition attempts on one station are at most this frequent.
@@ -298,6 +309,7 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	record_at: Option<u64>,
 	/// Where each title landed in the buffer: the segment bookmarks.
 	marks: Marks,
+	pending_titles: Vec<PendingTitle>,
 	/// The playing station's current song title and when it started.
 	song: Option<(String, Instant)>,
 	last_recog: Option<Instant>,
@@ -336,6 +348,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			record_after: None,
 			record_at: None,
 			marks: Marks::default(),
+			pending_titles: Vec::new(),
 			song: None,
 			last_recog: None,
 			recog_in_flight: false,
@@ -347,6 +360,19 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// Gives the tuner the live settings, enabling time-shift buffers,
 	/// recording, recognition and scrobbling for the playing station.
 	pub fn set_settings(&mut self, settings: Arc<Mutex<Settings>>) {
+		let snapshot = settings.lock().clone();
+		for pending in &mut self.pending_titles {
+			let offset = snapshot
+				.metadata_offset_for(&pending.station_id)
+				.unwrap_or(0);
+			let offset_ms = i64::from(offset) * 1000;
+			pending.mark_ms = if offset_ms >= 0 {
+				pending.received_ms.saturating_add(offset_ms as u64)
+			} else {
+				pending.received_ms.saturating_sub(offset_ms.unsigned_abs())
+			};
+			pending.due_at = pending.received_at + Duration::from_secs(offset.max(0) as u64);
+		}
 		self.settings = Some(settings);
 	}
 
@@ -390,6 +416,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.detach_taps();
 		self.silence();
 		self.open.clear();
+		self.pending_titles.clear();
 		self.playing = None;
 		self.deferred = None;
 		self.pending = None;
@@ -400,6 +427,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		while let Ok((serial, event)) = self.stream_rx.try_recv() {
 			self.stream_event(serial, event, now);
 		}
+		self.flush_pending_titles(now);
 
 		while let Ok((station_id, song)) = self.recog_rx.try_recv() {
 			self.recog_in_flight = false;
@@ -415,6 +443,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					self.emit(TunerEvent::Title {
 						station_id: station_id.clone(),
 						title: Some(display.clone()),
+						at: SystemTime::now(),
 					});
 					self.song = Some((display.clone(), now));
 					let announce = self
@@ -490,6 +519,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	fn tune(&mut self, target: &Station, warm: Vec<Station>, repeat: bool, now: Instant) {
 		if self.playing.as_ref().is_some_and(|p| p.id != target.id) {
+			self.pending_titles.clear();
 			// The old station's recording ends and its taps come off.
 			self.detach_taps();
 		}
@@ -507,11 +537,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 					// one still filling waits like a cold start.
 					ring.trim_to_ms(crate::ring::start_ms());
 					self.activate(target, ring, now, true);
-					self.mark_title(title.as_deref());
-					self.emit(TunerEvent::Title {
-						station_id: target.id.clone(),
-						title: title.clone(),
-					});
+					self.receive_title(&target.id, title.clone(), now);
 					if reconnecting {
 						self.emit(TunerEvent::Reconnecting {
 							station_id: target.id.clone(),
@@ -762,6 +788,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.factory.set_taps(&station.id, self.current_taps());
 		// The two modes keep different timelines: old marks mean nothing here.
 		self.marks = Marks::default();
+		self.pending_titles.clear();
 		let title = self.open.iter().find(|o| o.station.id == station.id);
 		let title = title.and_then(|o| o.title.clone());
 		self.mark_title(title.as_deref());
@@ -793,6 +820,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.record_at = None;
 		self.record_after = None;
 		self.marks = Marks::default();
+		self.pending_titles.clear();
 		self.song = None;
 	}
 
@@ -836,6 +864,114 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	fn mark_title(&mut self, title: Option<&str>) {
 		if let (Some(title), Some((start, now, _))) = (title, self.timeline()) {
 			self.marks.add(title, now, start);
+		}
+	}
+
+	fn receive_title(&mut self, station_id: &str, title: Option<String>, now: Instant) {
+		let offset = self
+			.settings
+			.as_ref()
+			.and_then(|s| s.lock().metadata_offset_for(station_id))
+			.unwrap_or(0);
+		let offset_ms = i64::from(offset) * 1000;
+		let timeline = self.timeline();
+		let live_ms = timeline.map_or(0, |(_, live, _)| live);
+		let mark_ms = if offset_ms >= 0 {
+			live_ms.saturating_add(offset_ms as u64)
+		} else {
+			live_ms.saturating_sub(offset_ms.unsigned_abs())
+		};
+		if offset > 0 && (timeline.is_some_and(|(_, _, playhead)| mark_ms > playhead) || timeline.is_none()) {
+			self.pending_titles.push(PendingTitle {
+				station_id: station_id.to_owned(),
+				title,
+				received_ms: live_ms,
+				received_at: now,
+				mark_ms,
+				start_ms: timeline.map(|(start, _, _)| start),
+				due_at: now + Duration::from_secs(offset as u64),
+			});
+		} else {
+			let late = if timeline.is_none() && offset < 0 {
+				Duration::from_secs(offset.unsigned_abs() as u64)
+			} else {
+				Duration::ZERO
+			};
+			self.apply_title(
+				station_id,
+				title,
+				now,
+				timeline.map(|(start, _, playhead)| (start, live_ms, mark_ms, playhead)),
+				late,
+			);
+		}
+	}
+
+	fn flush_pending_titles(&mut self, now: Instant) {
+		let timeline = self.timeline();
+		self.pending_titles.sort_by_key(|p| p.due_at);
+		while self.pending_titles.first().is_some_and(|p| {
+			now >= p.due_at && timeline.is_none_or(|(_, _, playhead)| p.mark_ms <= playhead)
+		}) {
+			let pending = self.pending_titles.remove(0);
+			if self.playing.as_ref().is_some_and(|p| p.id == pending.station_id) {
+				let (coords, late) = match timeline {
+					Some((_, _, playhead)) => (
+						pending.start_ms.map(|start| (start, pending.received_ms, pending.mark_ms, playhead)),
+						Duration::ZERO,
+					),
+					None => (None, now.duration_since(pending.due_at)),
+				};
+				self.apply_title(
+					&pending.station_id,
+					pending.title,
+					now,
+					coords,
+					late,
+				);
+			}
+		}
+	}
+
+	fn apply_title(
+		&mut self,
+		station_id: &str,
+		title: Option<String>,
+		now: Instant,
+		timeline: Option<(u64, u64, u64, u64)>,
+		fallback_late: Duration,
+	) {
+		let late = timeline.map_or(fallback_late, |(_, _, mark_ms, playhead_ms)| Duration::from_millis(playhead_ms.saturating_sub(mark_ms)));
+		let (event_at, event_instant) = if let Some((start_ms, received_ms, mark_ms, _)) = timeline {
+			self.marks.add_adjusted(
+				title.as_deref().unwrap_or_default(),
+				received_ms,
+				mark_ms,
+				start_ms,
+			);
+			(
+				SystemTime::now().checked_sub(late).unwrap_or(SystemTime::now()),
+				now.checked_sub(late).unwrap_or(now),
+			)
+		} else {
+			(
+				SystemTime::now().checked_sub(fallback_late).unwrap_or(SystemTime::now()),
+				now.checked_sub(fallback_late).unwrap_or(now),
+			)
+		};
+		if self.song.as_ref().map(|(t, _)| t) != title.as_ref() {
+			if let Some(prev) = self.song.take() {
+				self.scrobble_previous(&prev, event_instant);
+			}
+			self.song = title.clone().map(|t| (t, event_instant));
+		}
+		self.emit(TunerEvent::Title {
+			station_id: station_id.to_owned(),
+			title: title.clone(),
+			at: event_at,
+		});
+		if let Some(title) = self.settle.title(title, now) {
+			self.emit(TunerEvent::Announce(title));
 		}
 	}
 
@@ -1362,20 +1498,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			StreamEvent::Title(title) => {
 				self.open[i].title = title.clone();
 				if playing {
-					self.mark_title(title.as_deref());
-					if self.song.as_ref().map(|(t, _)| t) != title.as_ref() {
-						if let Some(prev) = self.song.take() {
-							self.scrobble_previous(&prev, now);
-						}
-						self.song = title.clone().map(|t| (t, now));
-					}
-					self.emit(TunerEvent::Title {
-						station_id,
-						title: title.clone(),
-					});
-					if let Some(title) = self.settle.title(title, now) {
-						self.emit(TunerEvent::Announce(title));
-					}
+					self.receive_title(&station_id, title, now);
 				}
 			}
 			StreamEvent::Failed(reason) => {

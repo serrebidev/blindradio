@@ -603,20 +603,14 @@ fn events_from_warm_stations_not_forwarded() {
 	f.tuner.poll(f.t0 + ms(30), &[]);
 	let got = f.drain_events();
 	assert!(
-		got.contains(&TunerEvent::Title {
-			station_id: "s4".into(),
-			title: Some("P".into()),
-		}),
+		got.iter().any(|e| matches!(e, TunerEvent::Title { station_id, title, .. } if station_id == "s4" && title.as_deref() == Some("P"))),
 		"{got:?}"
 	);
 	// Swapping to the warm neighbour emits its kept title at once.
 	f.tuner.focus(&list, 5, f.t0 + ms(1000));
 	let got = f.drain_events();
 	assert!(
-		got.contains(&TunerEvent::Title {
-			station_id: "s5".into(),
-			title: Some("W".into()),
-		}),
+		got.iter().any(|e| matches!(e, TunerEvent::Title { station_id, title, .. } if station_id == "s5" && title.as_deref() == Some("W"))),
 		"{got:?}"
 	);
 	// Station 5 said Reconnecting while warm; the swap passes it on.
@@ -654,10 +648,7 @@ fn title_announced_after_focus_rests() {
 	f.fake.emit(4, StreamEvent::Title(Some("Song A".into())));
 	f.tuner.poll(f.t0 + ms(10), &[]);
 	let got = f.drain_events();
-	assert!(got.contains(&TunerEvent::Title {
-		station_id: "s4".into(),
-		title: Some("Song A".into()),
-	}));
+	assert!(got.iter().any(|e| matches!(e, TunerEvent::Title { station_id, title, .. } if station_id == "s4" && title.as_deref() == Some("Song A"))));
 	assert!(!got.iter().any(|e| matches!(e, TunerEvent::Announce(_))));
 	f.tuner.poll(f.t0 + ms(1500), &[]);
 	let got = f.drain_events();
@@ -673,6 +664,26 @@ fn title_announced_after_focus_rests() {
 		got.contains(&TunerEvent::Announce("Song B".into())),
 		"{got:?}"
 	);
+}
+
+#[test]
+fn station_metadata_offset_delays_title_display_without_timeshift() {
+	let mut f = fixture();
+	let list = stations(7);
+	let mut settings = blindradio_core::settings::Settings::default();
+	settings.timeshift.enabled = false;
+	settings
+		.station_overrides
+		.entry("s4".into())
+		.or_default()
+		.metadata_offset_seconds = Some(1);
+	f.tuner.set_settings(Arc::new(Mutex::new(settings)));
+	f.tuner.play(&list[4], f.t0);
+	f.fake.emit(4, StreamEvent::Title(Some("News".into())));
+	f.tuner.poll(f.t0 + ms(10), &[]);
+	assert!(!f.drain_events().iter().any(|e| matches!(e, TunerEvent::Title { .. })));
+	f.tuner.poll(f.t0 + ms(1010), &[]);
+	assert!(f.drain_events().iter().any(|e| matches!(e, TunerEvent::Title { title: Some(title), .. } if title == "News")));
 }
 
 #[test]

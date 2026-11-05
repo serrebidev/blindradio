@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 use blindradio_core::history::SessionHistory;
 use blindradio_core::library::{Collection, Folder, Home, Library};
@@ -980,7 +980,7 @@ impl App {
 				}
 			}
 			// A title queued for a station focus already left must not overwrite the playing one.
-			TunerEvent::Title { station_id, title } => {
+			TunerEvent::Title { station_id, title, at } => {
 				let Some(name) = self.playing_name(&station_id) else {
 					return;
 				};
@@ -990,7 +990,7 @@ impl App {
 					None => self.now_playing(Some(&name)),
 				}
 				self.history.station_changed(&station_id);
-				self.history.title(title.as_deref(), SystemTime::now());
+				self.history.title(title.as_deref(), at);
 				// Song-split recording rides the same event at the live
 				// edge: the tuner closes the finished song's file and
 				// opens the new one when the mode is on; off, this does

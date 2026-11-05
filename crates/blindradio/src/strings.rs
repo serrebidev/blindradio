@@ -265,9 +265,8 @@ pub const COPY: &str = "&Copy";
 pub const EQUALIZER_TITLE: &str = "Equalizer";
 pub const EQUALIZER_OWN_TITLE: &str = "Equalizer, global. This station has its own";
 pub const PRESET: &str = "&Preset";
-pub const BASS: &str = "&Bass (dB)";
-pub const MID: &str = "&Mid (dB)";
-pub const TREBLE: &str = "&Treble (dB)";
+pub const PREAMP_DB: &str = "Preamp (dB)";
+pub const PREAMP_ENABLED: &str = "Enable preamp";
 pub const ENABLED: &str = "&Enabled";
 pub const PRESET_NAME: &str = "&Name for a saved preset";
 pub const SAVE_PRESET: &str = "&Save Preset";
@@ -400,6 +399,8 @@ pub const ST_RECOG: &str = "Song &Recognition";
 pub const ST_SCROB: &str = "Scro&bbling";
 pub const ST_EQ: &str = "&Equalizer";
 pub const ST_EQ_PRESET: &str = "Equalizer Pre&set";
+pub const ST_METADATA_OFFSET: &str = "Metadata offset, seconds (blank = Default; positive = early, negative = late)";
+pub const ST_METADATA_OFFSET_INVALID: &str = "Enter a whole number from -30 to 30, or leave blank for Default.";
 
 // Global hotkeys.
 pub const GLOBAL_HOTKEYS: &str = "&Global Hotkeys…";
