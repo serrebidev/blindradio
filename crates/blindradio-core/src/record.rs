@@ -31,8 +31,65 @@ pub struct Recorder {
 	paused: bool,
 }
 
+/// An `Original` recording's file. Bytes arrive on network chunk
+/// boundaries, which land mid-frame: everything before the first whole
+/// frame is held back and dropped, so the file starts where a player
+/// can start. A stream whose frames never sync (a container caught
+/// before its format was known) is written whole past the cap.
+struct Passthrough {
+	file: BufWriter<File>,
+	started: bool,
+	head: Vec<u8>,
+}
+
+/// Before this many unsynced bytes, a part-frame prefix is still
+/// plausible; past it, the bytes are not MPEG audio or ADTS at all.
+const HEAD_CAP: usize = 8192;
+
+/// Offset of the first MPEG-audio or ADTS frame sync: both begin with
+/// eleven set bits.
+fn sync_offset(bytes: &[u8]) -> Option<usize> {
+	bytes
+		.windows(2)
+		.position(|w| w[0] == 0xFF && w[1] & 0xE0 == 0xE0)
+}
+
+impl Passthrough {
+	fn write(&mut self, bytes: &[u8]) -> Result<()> {
+		if self.started {
+			self.file.write_all(bytes)?;
+			return Ok(());
+		}
+		self.head.extend_from_slice(bytes);
+		match sync_offset(&self.head) {
+			Some(at) => {
+				self.head.drain(..at);
+				let head = std::mem::take(&mut self.head);
+				self.file.write_all(&head)?;
+				self.started = true;
+			}
+			None if self.head.len() > HEAD_CAP => {
+				let head = std::mem::take(&mut self.head);
+				self.file.write_all(&head)?;
+				self.started = true;
+			}
+			None => {}
+		}
+		Ok(())
+	}
+
+	fn finish(&mut self) -> Result<()> {
+		if !self.head.is_empty() {
+			let head = std::mem::take(&mut self.head);
+			self.file.write_all(&head)?;
+		}
+		self.file.flush()?;
+		Ok(())
+	}
+}
+
 enum Kind {
-	Passthrough(BufWriter<File>),
+	Passthrough(Passthrough),
 	/// Option so `stop` can take the writer and finalize it.
 	Wav(Option<hound::WavWriter<BufWriter<File>>>),
 	Mp3 {
@@ -261,7 +318,11 @@ impl Recorder {
 				let path = make(source_ext);
 				let file = BufWriter::new(File::create(&path)?);
 				Ok(Recorder {
-					kind: Kind::Passthrough(file),
+					kind: Kind::Passthrough(Passthrough {
+						file,
+						started: false,
+						head: Vec::new(),
+					}),
 					path,
 					paused: false,
 				})
@@ -345,9 +406,52 @@ impl Recorder {
 		if self.paused {
 			return Ok(());
 		}
-		if let Kind::Passthrough(file) = &mut self.kind {
-			file.write_all(bytes)?;
+		if let Kind::Passthrough(pass) = &mut self.kind {
+			pass.write(bytes)?;
 		}
+		Ok(())
+	}
+
+	/// Names an `Original` recording for the stream's real format,
+	/// once decoding has reported it: a recording started before the
+	/// first packet (a scheduled one, above all) was named from the
+	/// station's address, which may say nothing — an AAC stream at an
+	/// extensionless address was being saved as `.mp3`, and players
+	/// believe the name. Renames the file, never copies it.
+	pub(crate) fn align_source_ext(&mut self, ext: &str) -> Result<()> {
+		let Kind::Passthrough(pass) = &mut self.kind else {
+			return Ok(());
+		};
+		if self.path.extension().is_some_and(|e| e == ext) {
+			return Ok(());
+		}
+		pass.finish()?;
+		let old = std::mem::take(&mut self.path);
+		// Consuming the writer closes the file, which the rename needs.
+		let pass_file = std::mem::replace(
+			&mut pass.file,
+			BufWriter::new(std::fs::OpenOptions::new().append(true).open(&old)?),
+		);
+		drop(pass_file.into_inner().map_err(|e| e.into_error())?);
+		let mut path = old.with_extension(ext);
+		let mut n = 1;
+		while path.exists() {
+			n += 1;
+			let stem = old.file_stem().unwrap_or_default().to_string_lossy();
+			path = old.with_file_name(format!("{stem} {n}.{ext}"));
+		}
+		if let Err(e) = std::fs::rename(&old, &path) {
+			// Keep recording under the old name rather than lose it.
+			pass.file = BufWriter::new(
+				std::fs::OpenOptions::new().append(true).open(&old)?,
+			);
+			self.path = old;
+			return Err(e.into());
+		}
+		pass.file = BufWriter::new(
+			std::fs::OpenOptions::new().append(true).open(&path)?,
+		);
+		self.path = path;
 		Ok(())
 	}
 
@@ -389,7 +493,7 @@ impl Recorder {
 
 	pub fn stop(mut self) -> Result<PathBuf> {
 		match &mut self.kind {
-			Kind::Passthrough(file) => file.flush()?,
+			Kind::Passthrough(pass) => pass.finish()?,
 			Kind::Wav(w) => {
 				if let Some(w) = w.take() {
 					w.finalize().map_err(|e| CoreError::Output(e.to_string()))?;
@@ -527,6 +631,30 @@ mod tests {
 		r.write_pcm(&[0.0; 4]).unwrap(); // ignored by passthrough
 		let path = r.stop().unwrap();
 		assert_eq!(std::fs::read(&path).unwrap(), b"hello");
+	}
+
+	#[test]
+	fn passthrough_starts_at_the_first_whole_frame() {
+		let d = tempfile::tempdir().unwrap();
+		let mut r = Recorder::start(d.path(), "Test FM", &settings(RecordFormat::Original), 44100, "aac").unwrap();
+		// A network chunk boundary lands mid-frame: the part-frame goes.
+		r.write_bytes(&[0xB1, 0x28, 0x5B]).unwrap();
+		r.write_bytes(&[0xFF, 0xF1, 0x50, 0x80]).unwrap();
+		let path = r.stop().unwrap();
+		assert_eq!(std::fs::read(&path).unwrap(), [0xFF, 0xF1, 0x50, 0x80]);
+	}
+
+	#[test]
+	fn passthrough_takes_the_real_format_name_when_it_arrives_late() {
+		let d = tempfile::tempdir().unwrap();
+		let mut r = Recorder::start(d.path(), "Test FM", &settings(RecordFormat::Original), 44100, "mp3").unwrap();
+		let wrong = r.path().to_path_buf();
+		r.write_bytes(&[0xFF, 0xF1, 0x50, 0x80]).unwrap();
+		r.align_source_ext("aac").unwrap();
+		let path = r.stop().unwrap();
+		assert!(path.to_string_lossy().ends_with(".aac"), "{path:?}");
+		assert!(!wrong.exists(), "the misnamed file is renamed, not copied");
+		assert_eq!(std::fs::read(&path).unwrap(), [0xFF, 0xF1, 0x50, 0x80]);
 	}
 
 	#[test]

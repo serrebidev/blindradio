@@ -271,6 +271,37 @@ const RECOG_GAP: Duration = Duration::from_secs(45);
 /// Seconds of captured audio sent to the recognition service.
 const RECOG_SAMPLE_SECONDS: f32 = 12.0;
 
+/// The file suffix an `Original` recording takes: the decoded codec
+/// when it is known (an AAC stream at an extensionless address is
+/// still AAC), else the address's own suffix with any query stripped,
+/// else MP3. Only self-synchronizing formats ever reach a passthrough
+/// file (the rest record as WAV), so the codec list is short.
+fn recording_source_ext(codec: Option<&str>, url: &str) -> String {
+	match codec {
+		Some("AAC") => return "aac".into(),
+		Some("MP3") => return "mp3".into(),
+		Some("MP2") => return "mp2".into(),
+		_ => {}
+	}
+	let last = url
+		.split(['?', '#'])
+		.next()
+		.unwrap_or(url)
+		.rsplit('/')
+		.next()
+		.unwrap_or_default();
+	last.rsplit('.')
+		.next()
+		.filter(|e| {
+			matches!(
+				e.to_ascii_lowercase().as_str(),
+				"mp3" | "aac" | "mp2" | "ogg" | "flac" | "m4a"
+			)
+		})
+		.unwrap_or("mp3")
+		.to_string()
+}
+
 pub struct Tuner<F: StreamFactory, S: Sink> {
 	factory: F,
 	sink: S,
@@ -1228,18 +1259,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.as_deref()
 			.map(PathBuf::from)
 			.unwrap_or_else(crate::record::default_dir);
-		let ext = station
-			.url
-			.rsplit('.')
-			.next()
-			.filter(|e| {
-				matches!(
-					e.to_ascii_lowercase().as_str(),
-					"mp3" | "aac" | "ogg" | "flac" | "m4a"
-				)
-			})
-			.unwrap_or("mp3")
-			.to_string();
+		let codec = self.open_format(&station.id).map(|f| f.codec.as_str());
+		let ext = recording_source_ext(codec, &station.url);
 		Some((dir, ext, settings))
 	}
 
@@ -1530,6 +1551,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			StreamEvent::Format(format) => {
 				self.open[i].format = Some(format.clone());
 				if playing {
+					// A recording started before this report (a scheduled
+					// one) was named from the address: correct it now.
+					if let Some(slot) = &self.record_slot
+						&& matches!(format.codec.as_str(), "AAC" | "MP3" | "MP2")
+						&& let Some(rec) = slot.lock().as_mut()
+					{
+						let ext = recording_source_ext(Some(&format.codec), "");
+						let _ = rec.align_source_ext(&ext);
+					}
 					self.emit(TunerEvent::Format { station_id, format });
 					self.sync_shift_mode();
 				}
@@ -1582,6 +1612,18 @@ mod recording_tests {
 	struct NoSink;
 	impl Sink for NoSink {
 		fn send(&self, _: MixerCmd) {}
+	}
+
+	#[test]
+	fn a_recording_is_named_for_the_stream_not_its_address() {
+		// The reported case: an AAC stream at an address with no suffix.
+		assert_eq!(recording_source_ext(Some("AAC"), "https://ice.example/ClassicFMHD?hdauth=x"), "aac");
+		assert_eq!(recording_source_ext(Some("MP3"), "https://ice.example/live.aac"), "mp3");
+		assert_eq!(recording_source_ext(Some("MP2"), "https://ice.example/live"), "mp2");
+		// Not yet decoded: the address names it, query and all.
+		assert_eq!(recording_source_ext(None, "https://ice.example/live.aac?token=1"), "aac");
+		assert_eq!(recording_source_ext(None, "https://ice.example/ClassicFMHD?hdauth=x"), "mp3");
+		assert_eq!(recording_source_ext(Some("Vorbis"), "https://ice.example/live.ogg"), "ogg");
 	}
 
 	#[test]

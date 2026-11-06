@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.69
+
+- Recordings in Original stream format are now named for what the stream really is, and start at a whole frame. An AAC station at an address with no file suffix, such as Classic FM, was saved as an .mp3 file holding AAC audio, which Foobar2000 and most other players refuse; it is now saved as .aac, likewise .mp2 where that fits. A recording started before the format is known, such as a scheduled one, is renamed as soon as it is. This covers whole recordings, each-song files and written segments alike.
+
 ## 0.2.68
 
 - YouTube and Twitch live streams now play. Paste the link into Open URL, Add Custom Station or Detect Audio Stream on Page and BlindRadio plays only the audio. The first time, it downloads yt-dlp and, for YouTube, Deno, and says so while it does; both then keep themselves up to date. Saved stations keep the link, so a new stream address is found each time. A channel that is not on the air says Not live. Twitch ads play like the rest of the stream.

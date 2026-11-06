@@ -354,7 +354,9 @@ recognized, which can be well after it began. A blank title marks nothing, so th
 stays with the title before it.
 
 Original stream format keeps the compressed MPEG audio or ADTS AAC bytes, including
-when recording from the buffer. Header-dependent formats such as Ogg and FLAC use WAV
+when recording from the buffer. The file is named for the stream's real format — .mp3,
+.aac or .mp2, never guessed from the station's address — and starts at a whole frame.
+Header-dependent formats such as Ogg and FLAC use WAV
 so recordings remain playable after seeking or splitting into separate songs.
 
 Recording, Record Each Song to Its Own File is a recording mode for stations that name
