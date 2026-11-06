@@ -11,7 +11,9 @@ minisign = "0.10.0"
 # Unused here: keeps wxdragon's features the same as the app's. ship-shape alone asks for
 # fewer, that build shares target/debug's CMake folder with the app's, and the features it
 # turns off stay off in the CMake cache: the app stops linking (wxd_PrintData_* unresolved).
-wxdragon = "*"
+# The feature list mirrors the app's exactly, including default-features = false (wx-asserts
+# off — see the app manifest).
+wxdragon = { version = "*", default-features = false, features = ["wx-printing", "wx-tiff", "wx-jpeg", "wx-tango-icons", "wx-extra-image-formats", "wx-regex", "appindicator"] }
 
 [dev-dependencies]
 # The check the updater itself makes on a download.

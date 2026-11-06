@@ -15,6 +15,10 @@ taken from this file by the release workflow.
 - BBC Persian TV joins the BBC network in Browse, as 128k audio.
 - Long HLS playlists are now read whole. One past 64 KB used to be cut off, and its last address failed.
 
+## 0.2.70
+
+- No more "debugging check" dialogs. The interface library was being built with its developer consistency checks switched on, so an internal check a shipped build is supposed to skip could stop the app with a dialog. It is now built the way release builds are meant to be, with those checks compiled out — the same fix as the other apps.
+
 ## 0.2.67
 
 - The Equalizer's sliders no longer switch anything on: moving a band or the Preamp changes the value only, and Enabled and Enable Preamp stay exactly as you left them — the same rule presets already followed. Check the boxes yourself when you want to hear the change.

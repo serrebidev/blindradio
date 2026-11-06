@@ -7,7 +7,16 @@ version.workspace = true
 [dependencies]
 blindradio-core = { path = "../blindradio-core" }
 # crates.io (AllenDang upstream): trypsynth/wxDragon main is behind it (0.9.21, wxWidgets 3.3.3) and wx-utils needs 0.9.22+.
-wxdragon = "*"
+# default-features = false for exactly one reason: wxdragon's
+# defaults include wx-asserts, which builds wxWidgets with
+# its internal consistency checks live — every failed check
+# becomes a modal "debugging check" dialog for the end user,
+# even in release builds (the class removed in
+# Accessible-IPTV-Client-Rust v0.4.19). Release wx builds
+# compile those checks out, as wxPython ships. Every other
+# default is re-enabled explicitly, so the ONLY build change
+# is the asserts.
+wxdragon = { version = "*", default-features = false, features = ["wx-printing", "wx-tiff", "wx-jpeg", "wx-tango-icons", "wx-extra-image-formats", "wx-regex", "appindicator"] }
 wx-utils = { git = "https://github.com/trypsynth/wx-utils", features = ["shortcuts", "global-hotkeys"] }
 crossbeam-channel = "*"
 parking_lot = "*"
