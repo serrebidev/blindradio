@@ -4289,6 +4289,12 @@
         "info": "Reading service"
       },
       {
+        "slug": "darwin",
+        "name": "Darwin",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/8RPHAAC.aac",
+        "info": "8RPH, reading service"
+      },
+      {
         "slug": "geelong",
         "name": "Geelong",
         "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3GPHAAC.aac",
@@ -4311,6 +4317,12 @@
         "name": "Shepparton",
         "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/3SPHAAC.aac",
         "info": "Reading service"
+      },
+      {
+        "slug": "sydney",
+        "name": "Sydney",
+        "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/2RPHAAC.aac",
+        "info": "2RPH, reading service"
       }
     ]
   },
@@ -4341,19 +4353,6 @@
     ]
   },
   {
-    "name": "AMI Audio",
-    "slug": "ami-audio",
-    "listed": true,
-    "stations": [
-      {
-        "slug": "ami-audio",
-        "name": "AMI Audio",
-        "url": "https://ice23.securenetsystems.net/AMIAUDIO",
-        "info": "Accessible Media Inc., Canada"
-      }
-    ]
-  },
-  {
     "name": "RNIB Connect Radio",
     "slug": "rnib-connect-radio",
     "listed": true,
@@ -4376,6 +4375,73 @@
         "name": "Double Tap Live",
         "url": "https://s2.radio.co/s1eb3875b8/listen",
         "info": "Blind tech talk, 24/7"
+      }
+    ]
+  },
+  {
+    "name": "The Global Voice",
+    "slug": "the-global-voice",
+    "stations": [
+      {
+        "slug": "global-voice",
+        "name": "The Global Voice",
+        "url": "https://streaming.live365.com/a14636",
+        "info": "Via Live365"
+      },
+      {
+        "slug": "global-voice-server",
+        "name": "The Global Voice (own server)",
+        "url": "https://theglobalvoice.info:8443/broadband",
+        "info": "Direct from the station's server"
+      }
+    ]
+  },
+  {
+    "name": "Radio Udaan",
+    "slug": "radio-udaan",
+    "stations": [
+      {
+        "slug": "udaan",
+        "name": "Radio Udaan",
+        "url": "https://stream.radioudaan.com/listen/radio_udaan/radio.mp3",
+        "info": "India, run by visually impaired presenters"
+      },
+      {
+        "slug": "udaan-96",
+        "name": "Radio Udaan 96k",
+        "url": "https://stream.radioudaan.com/listen/radio_udaan/radio96.mp3",
+        "info": "MP3 96k, lower bandwidth"
+      }
+    ]
+  },
+  {
+    "name": "Treehouse Radio",
+    "slug": "treehouse-radio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "treehouse-radio",
+        "name": "Treehouse Radio",
+        "url": "https://securestreams6.autopo.st:2338/live",
+        "info": "UK internet radio from the blind community"
+      }
+    ]
+  },
+  {
+    "name": "Dodge Radio",
+    "slug": "dodge-radio",
+    "stations": [
+      {
+        "slug": "dodge-radio",
+        "name": "Dodge Radio",
+        "url": "http://server.dodgeradio.net/stream",
+        "info": "UK internet radio, variety"
+      },
+      {
+        "slug": "dodge-radio-christmas",
+        "name": "Dodge Radio Christmas",
+        "url": "http://server.dodgeradio.net/christmas",
+        "info": "Seasonal channel"
       }
     ]
   },

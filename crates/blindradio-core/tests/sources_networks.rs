@@ -46,9 +46,12 @@ fn networks_parse_and_order() {
 			"Vision Australia Radio",
 			"NFBRN",
 			"WRBH",
-			"AMI Audio",
 			"RNIB Connect Radio",
 			"Double Tap Live",
+			"The Global Voice",
+			"Radio Udaan",
+			"Treehouse Radio",
+			"Dodge Radio",
 			"Virgin Radio UK",
 			"talkSPORT",
 			"Times Radio",
@@ -257,6 +260,10 @@ fn new_networks_are_complete() {
 		("espn-radio", 1),
 		("al-jazeera-english", 1),
 		("nhk-world-radio", 1),
+		("vision-australia-radio", 9),
+		("the-global-voice", 2),
+		("radio-udaan", 2),
+		("dodge-radio", 2),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");
@@ -282,7 +289,15 @@ fn new_networks_are_complete() {
 #[test]
 fn named_single_station_services_are_listed() {
 	let roots = children("net");
-	for slug in ["kexp", "wfuv", "gold", "xltrax", "times-radio", "linn-radio"] {
+	for slug in [
+		"kexp",
+		"wfuv",
+		"gold",
+		"xltrax",
+		"times-radio",
+		"linn-radio",
+		"treehouse-radio",
+	] {
 		assert!(
 			roots
 				.iter()

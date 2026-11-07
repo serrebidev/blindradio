@@ -114,7 +114,9 @@ Browser offers By Genre, By Country, By Language, By State and Top Stations. A l
 Networks carries English-language broadcasters and internet networks, among them BBC, NPR,
 CBC, ABC Australia, RTÉ, RNZ, KCRW, WNYC, 181.fm, .977, Big R Radio, 1.FM, Capital, Heart,
 Smooth, LBC, Virgin Radio UK, Triple M, NZME, SABC, K-LOVE, Pacifica, Nightride FM, Power Hitz,
-WHFF, Radio Paradise, NTS, WFMU, and services for blind listeners. To ask for a non-English network, open an issue on GitHub.
+WHFF, Radio Paradise, NTS, WFMU, and services for blind listeners: ACB Media, Mushroom FM,
+Vision Australia Radio, The Global Voice, Radio Udaan, Treehouse Radio, Dodge Radio,
+RNIB Connect Radio, NFBRN, WRBH and Double Tap Live. To ask for a non-English network, open an issue on GitHub.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for
