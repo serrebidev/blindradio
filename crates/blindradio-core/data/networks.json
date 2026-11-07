@@ -4353,6 +4353,19 @@
     ]
   },
   {
+    "name": "AMI Audio",
+    "slug": "ami-audio",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "ami-audio",
+        "name": "AMI Audio",
+        "url": "https://radio.securenetsystems.net/cirruscontent/AMIAUDIO",
+        "info": "Accessible Media Inc., Canada"
+      }
+    ]
+  },
+  {
     "name": "RNIB Connect Radio",
     "slug": "rnib-connect-radio",
     "listed": true,
@@ -4442,6 +4455,19 @@
         "name": "Dodge Radio Christmas",
         "url": "http://server.dodgeradio.net/christmas",
         "info": "Seasonal channel"
+      }
+    ]
+  },
+  {
+    "name": "2020 The Beacon",
+    "slug": "2020-the-beacon",
+    "listed": true,
+    "stations": [
+      {
+        "slug": "beacon",
+        "name": "2020 The Beacon",
+        "url": "http://azura12.instainternet.com/listen/2020_the_beacon/radio.mp3",
+        "info": "Shining a light on you"
       }
     ]
   },

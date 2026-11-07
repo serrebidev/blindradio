@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.72
+
+- 2020 The Beacon joins the built-in Networks, with the other stations for blind listeners.
+- AMI Audio is back: AMI moved the stream to a new address (the old one 0.2.71 removed really was dead), and the entry now points at the working one.
+
 ## 0.2.71
 
 - The built-in Networks now cover the blindness stations properly. The Global Voice, Radio Udaan, Treehouse Radio and Dodge Radio (with its Christmas channel) are new, Vision Australia Radio gains Sydney (2RPH) and Darwin (8RPH) alongside its seven existing cities, and they join ACB Media, Mushroom FM, RNIB Connect Radio, NFBRN, WRBH and Double Tap Live. AMI Audio is gone: its streaming host has discontinued the stream address, so the entry no longer played anything.

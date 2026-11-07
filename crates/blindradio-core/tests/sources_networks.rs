@@ -46,12 +46,14 @@ fn networks_parse_and_order() {
 			"Vision Australia Radio",
 			"NFBRN",
 			"WRBH",
+			"AMI Audio",
 			"RNIB Connect Radio",
 			"Double Tap Live",
 			"The Global Voice",
 			"Radio Udaan",
 			"Treehouse Radio",
 			"Dodge Radio",
+			"2020 The Beacon",
 			"Virgin Radio UK",
 			"talkSPORT",
 			"Times Radio",
@@ -264,6 +266,7 @@ fn new_networks_are_complete() {
 		("the-global-voice", 2),
 		("radio-udaan", 2),
 		("dodge-radio", 2),
+		("2020-the-beacon", 1),
 	] {
 		let nodes = children(&format!("net/{slug}"));
 		assert_eq!(nodes.len(), count, "{slug}");
@@ -297,6 +300,7 @@ fn named_single_station_services_are_listed() {
 		"times-radio",
 		"linn-radio",
 		"treehouse-radio",
+		"2020-the-beacon",
 	] {
 		assert!(
 			roots
