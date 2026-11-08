@@ -28,6 +28,11 @@ use crate::timeshift::{ShiftBuffer, ShiftStatus};
 /// taps takes effect on a running stream at once.
 #[derive(Clone, Default)]
 pub struct Taps {
+	/// A background recording's slot, keyed separately from `record`:
+	/// a station can be playing and recording-in-background at once
+	/// (or recorded while another station plays), and the two slots
+	/// must never overwrite each other in this shared entry.
+	pub bg_record: Option<Arc<Mutex<Option<Recorder>>>>,
 	/// Full time-shift buffer (minutes deep).
 	pub shift: Option<Arc<ShiftBuffer>>,
 	/// Short capture buffer feeding song recognition.
@@ -705,6 +710,13 @@ async fn pump(
 			{
 				let _ = rec.write_bytes(&bytes);
 			}
+			// A background recording of this station takes the same
+			// bytes from its own slot; it is never shifted.
+			if let Some(slot) = &t.bg_record
+				&& let Some(rec) = slot.lock().as_mut()
+			{
+				let _ = rec.write_bytes(&bytes);
+			}
 			if let Some(rt) = &t.ring {
 				rt.push(&bytes);
 			}
@@ -855,6 +867,11 @@ fn decode(
 		// listener is time-shifted; yield then.
 		if let Some(slot) = &t.record
 			&& !shifted(&t.shift_status)
+			&& let Some(rec) = slot.lock().as_mut()
+		{
+			let _ = rec.write_pcm(&out);
+		}
+		if let Some(slot) = &t.bg_record
 			&& let Some(rec) = slot.lock().as_mut()
 		{
 			let _ = rec.write_pcm(&out);

@@ -224,8 +224,11 @@ pub fn record_songs() -> String {
 pub fn rec_change_title() -> String {
 	patois::t("Recording in Progress")
 }
-pub fn rec_change_ask() -> String {
-	patois::t("A recording is in progress. Changing stations stops the recording; what has been recorded so far is saved. Change stations anyway?")
+pub fn rec_restart_ask() -> String {
+	patois::t("This station is recording in the background. Playing it restarts its stream and ends the recording; what has been recorded so far is saved. Play it anyway?")
+}
+pub fn rec_stream_lost() -> String {
+	patois::t("The recorded station's stream was lost; the recording ended and was saved")
 }
 pub fn rec_close_ask() -> String {
 	patois::t("A recording is in progress. Closing BlindRadio stops the recording; what has been recorded so far is saved. Close anyway?")
@@ -763,7 +766,7 @@ pub fn schedule_started_silent() -> String {
 }
 /// Suffix after the station name of a silent recording.
 pub fn schedule_quiet_tail() -> String {
-	patois::t(" — playback muted")
+	patois::t(" — in the background")
 }
 pub fn record_silently() -> String {
 	patois::t("Record silently (mute playback)")

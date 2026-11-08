@@ -327,9 +327,11 @@ show's name. Times on its older rows can be an hour out across a clock change.
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
 folder, in the format Settings chooses. While a recording is in progress, the window title
 ends with the word Recording and Record in the Recording menu is checked. Closing the app ends a recording too, so closing (or Exit)
-asks first the same way; hiding to the tray keeps recording and never asks. Changing stations ends a recording, so the app asks first:
-a confirmation names what happens — the recording stops, what is recorded so far is
-saved — and only your Yes changes the station. The Recording menu holds it all: Record,
+asks first the same way; hiding to the tray keeps recording and never asks. Changing stations does not end a recording:
+it keeps recording in the background on its own stream while you listen to something
+else, and stopping playback leaves it running too — Ctrl+R (or the schedule's end) is
+what stops it. The one exception: pressing Enter on the very station that is recording
+in the background restarts its stream, so the app asks first there. The Recording menu holds it all: Record,
 Pause Recording, Record Each Song to Its Own File, Write Buffer, the segment writes,
 Scheduled Recordings and Open Record Folder, which opens the recordings folder.
 Recording, Write Buffer writes the whole time-shift buffer — everything the station has
@@ -377,18 +379,18 @@ information arrives when the station sends it — so a second either side is nor
 
 Recording, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
 a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage the list;
-an entry can be switched off without deleting it. When the time comes the app tunes to
-the station and records, and stops when the duration is up; a recording already running
-by hand is never interrupted, and a Once entry switches itself off after it has run.
+an entry can be switched off without deleting it. When the time comes the entry records
+on its own background stream — playback is never tuned to it — and stops when the
+duration is up; a recording already running by hand is never interrupted, and a Once
+entry switches itself off after it has run.
 Start times are your local time. The start of a recording is announced, and so is the
 saved file when it ends.
 
-Each recording entry has a Record Silently box, on by default: a silent recording mutes
-playback for its whole run, so the app never talks over whatever else you are doing or
-listening to, and the level comes back when the recording ends. Uncheck it to hear the
-station while it records. Note that a silent recording still tunes the app to its
-station, so listening to another station inside BlindRadio at the same time is not
-possible either way; what the box controls is whether you hear it.
+Each recording entry has a Record Silently box, on by default. Since a scheduled
+recording never takes over playback, silent now simply names the default way it runs:
+in the background, unheard, whatever station you are listening to. Unticking it no
+longer changes what you hear — the entry records in the background either way; the box
+stays on the form for entries saved earlier.
 
 The form's station list is your playlists, favourites, favourite folders and recent
 stations, in name order. A new entry opens on the station your last schedule used, or

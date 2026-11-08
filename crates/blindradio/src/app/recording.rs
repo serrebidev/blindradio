@@ -159,21 +159,9 @@ impl App {
 		);
 	}
 
-	/// Mute for a silent scheduled recording, remembering the level to
-	/// restore. The saved volume stays untouched: the mixer mutes
-	/// alone, so the station keeps its remembered volume and a
-	/// schedule's end puts the level back where it was.
-	fn begin_silent(&mut self) {
-		self.sched_muted_from = Some(self.volume());
-		self.mixer(MixerCmd::Volume(0.0));
-	}
-
-	/// Undo begin_silent: the level from before the recording.
-	fn end_silent(&mut self) {
-		if let Some(points) = self.sched_muted_from.take() {
-			self.mixer(MixerCmd::Volume(points as f32 / 100.0));
-		}
-	}
+	/// Scheduled recordings run on their own background stream, so
+	/// nothing was ever muted and nothing needs restoring at the end.
+	pub(super) fn end_silent(&mut self) {}
 
 	/// Once a second from poll(): start due scheduled recordings and
 	/// stop them at their end. Nothing fires while a dialog is open; an
@@ -250,11 +238,13 @@ impl App {
 				continue;
 			}
 			let name = entry.station.name.clone();
-			self.play(entry.station.clone());
-			match self.tuner.start_recording(None) {
+			// Start the recording on its own background stream from
+			// the outset: playback stays wherever the listener is,
+			// silent or not. A silent entry also mutes nothing —
+			// there is nothing of it to hear.
+			match self.tuner.start_background_recording(&entry.station) {
 				Ok(_) => {
 					if entry.silent {
-						self.begin_silent();
 						self.say(&format!("{}{name}{}", s::schedule_started_silent(), s::schedule_quiet_tail()));
 					} else {
 						self.say(&format!("{}{name}", s::schedule_started()));

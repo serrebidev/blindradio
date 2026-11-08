@@ -422,9 +422,6 @@ pub struct App {
 	sched_fired: std::collections::HashSet<(String, u64)>,
 	/// The scheduled recording on air now: (entry id, occurrence).
 	sched_active: Option<(String, u64)>,
-	/// The volume to restore when a silent scheduled recording ends;
-	/// None when the active one is audible or nothing is recording.
-	sched_muted_from: Option<i32>,
 	last_sched_poll: Instant,
 	/// Taken and stopped on shutdown, while the frame it ticks on still exists.
 	pub timer: Option<Timer<Frame>>,
@@ -525,7 +522,6 @@ impl App {
 			update_due: None,
 			sched_fired: std::collections::HashSet::new(),
 			sched_active: None,
-			sched_muted_from: None,
 			last_sched_poll: Instant::now(),
 			timer: Some(timer),
 			engine,
@@ -610,20 +606,25 @@ impl App {
 	}
 
 	/// Dial tuning: a user-driven focus move in a station list.
-	/// Moving to another station ends any recording in progress:
-	/// play_now finishes it, and a tuner focus change drops the
-	/// recorder with the old station's taps. Ask first (Brandon's
-	/// rule), so an arrow key or a stray Enter cannot kill a
-	/// recording by accident. No recording, or the same station
-	/// again, never asks.
+	/// Changing stations never ends a recording any more (Brandon's
+	/// order, 2026-11-08): the tuner detaches it onto its own stream
+	/// and it keeps recording in the background. The one case that
+	/// still asks is replaying the recording's own station with
+	/// Enter: an explicit play restarts that station's stream, and
+	/// the fresh start would cut the recording it feeds — the
+	/// recording keeps the restart's audio only if it is the stream
+	/// being restarted, which it is not once detached.
 	fn may_change_station(&self, next: &Station) -> bool {
-		if !self.tuner.is_recording() {
-			return true;
+		if self.tuner.recording_is_background()
+			&& self
+				.tuner
+				.recording_station_id()
+				.as_deref()
+				== Some(next.id.as_str())
+		{
+			return confirm(&self.win.frame, s::rec_restart_ask(), &s::rec_change_title());
 		}
-		if self.tuner.playing().is_some_and(|p| p.id == next.id) {
-			return true;
-		}
-		confirm(&self.win.frame, s::rec_change_ask(), &s::rec_change_title())
+		true
 	}
 
 	pub fn tune(&mut self, stations: &[Station], index: usize) {
@@ -1046,6 +1047,25 @@ impl App {
 			}
 			// The status line's per-second tick picks the format up.
 			TunerEvent::Format { .. } => {}
+			// A background recording's stream died: the tuner ended
+			// it and saved the file. If it was a scheduled one, the
+			// schedule's own end path has nothing left to stop.
+			TunerEvent::RecordingFailed { station_id } => {
+				if self.sched_active.is_some()
+					&& self
+						.sched_active
+						.as_ref()
+						.is_some_and(|(id, _)| {
+							self.settings
+								.schedules
+								.iter()
+								.any(|e| &e.id == id && e.station.id == station_id)
+						}) {
+					self.end_silent();
+					self.sched_active = None;
+				}
+				self.say(&s::rec_stream_lost());
+			}
 			// Spec: measure and log warm and cold latency in debug builds.
 			TunerEvent::Latency {
 				station_id,
@@ -1124,7 +1144,18 @@ impl App {
 		if !self.may_change_station(&station) {
 			return;
 		}
-		self.finish_recording();
+		// Explicitly replaying the station being recorded ends that
+		// recording first (its stream restarts under it); any other
+		// station leaves it running in the background.
+		if self
+			.tuner
+			.recording_station_id()
+			.as_deref()
+			== Some(station.id.as_str())
+			&& self.tuner.is_recording()
+		{
+			self.finish_recording();
+		}
 		self.dial = false;
 		self.song = None;
 		self.shift_song = None;
@@ -1161,7 +1192,11 @@ impl App {
 	}
 
 	fn stop(&mut self, announce: bool) {
-		self.finish_recording();
+		// Stopping playback ends a recording of the playing station;
+		// a detached background recording is not playback's to end.
+		if !self.tuner.recording_is_background() {
+			self.finish_recording();
+		}
 		if let Some(playing) = self.tuner.playing() {
 			self.remembered = Some(playing.clone());
 		}

@@ -127,6 +127,11 @@ pub enum TunerEvent {
 		ms: u32,
 		warm: bool,
 	},
+	/// A background recording's own stream failed for good: the
+	/// recording ended and its file was saved.
+	RecordingFailed {
+		station_id: String,
+	},
 }
 
 pub trait StreamFactory {
@@ -146,6 +151,12 @@ pub trait StreamFactory {
 	fn set_taps(&mut self, _station_id: &str, _taps: Taps) {}
 
 	fn clear_taps(&mut self, _station_id: &str) {}
+
+	/// The taps currently registered for a station, so a caller can
+	/// merge one field in instead of replacing the whole entry.
+	fn taps(&self, _station_id: &str) -> Taps {
+		Taps::default()
+	}
 
 	/// The rate streams decode to.
 	fn rate(&self) -> u32 {
@@ -208,6 +219,10 @@ impl StreamFactory for LiveFactory {
 		self.0.taps.lock().remove(station_id);
 	}
 
+	fn taps(&self, station_id: &str) -> Taps {
+		crate::stream::taps_for(&self.0.taps, station_id)
+	}
+
 	fn rate(&self) -> u32 {
 		self.0.out_rate
 	}
@@ -236,6 +251,18 @@ struct Open {
 	format: Option<crate::decode::StreamFormat>,
 	/// Said `Reconnecting` and has not said `Reconnected` since.
 	reconnecting: bool,
+	_guard: Box<dyn Send>,
+}
+
+/// A recording that outlived its station's turn at playback: the
+/// station's stream, opened independently of the tuner's open list,
+/// plus where its titles land — a background stream's titles drive
+/// song splits and never reach the listener.
+struct BgRecord {
+	station_id: String,
+	slot: Arc<Mutex<Option<Recorder>>>,
+	titles: Receiver<(u64, StreamEvent)>,
+	serial: u64,
 	_guard: Box<dyn Send>,
 }
 
@@ -332,6 +359,16 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	ring_tap: Option<Arc<crate::stream::RingTap>>,
 	capture: Option<Arc<ShiftBuffer>>,
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// The recording detached from playback by a station change: its
+	/// stream stays open and keeps feeding the recorder while the
+	/// listener hears another station. The stream is kept alive by
+	/// the slot's task, not by an `Open` entry, so warm-close and
+	/// focus moves never drop it.
+	bg_record: Option<BgRecord>,
+	/// The station a paused background recording belongs to, kept so
+	/// resuming can reopen its stream after the pause closed it.
+	detached_station: Option<Station>,
+	record_detached_paused: bool,
 	/// Song-split recording: the song the current file is recording,
 	/// so a title event for the same song does not split it again.
 	record_song: Option<String>,
@@ -375,6 +412,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			ring_tap: None,
 			capture: None,
 			record_slot: None,
+			bg_record: None,
+			detached_station: None,
+			record_detached_paused: false,
 			record_song: None,
 			record_after: None,
 			record_at: None,
@@ -446,6 +486,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	pub fn stop(&mut self) {
+		// Stopping playback leaves a background recording running:
+		// it was detached from playback on purpose. Only an explicit
+		// stop_recording (or shutdown, which drops the tuner) ends it.
 		self.detach_taps();
 		self.silence();
 		self.open.clear();
@@ -457,6 +500,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	pub fn poll(&mut self, now: Instant, rendered: &[(u64, Instant)]) {
 		self.record_buffered();
+		if let Some(station_id) = self.poll_bg() {
+			self.emit(TunerEvent::RecordingFailed { station_id });
+		}
 		while let Ok((serial, event)) = self.stream_rx.try_recv() {
 			self.stream_event(serial, event, now);
 		}
@@ -553,7 +599,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	fn tune(&mut self, target: &Station, warm: Vec<Station>, repeat: bool, now: Instant) {
 		if self.playing.as_ref().is_some_and(|p| p.id != target.id) {
 			self.pending_titles.clear();
-			// The old station's recording ends and its taps come off.
+			// A recording in progress does not end here: it detaches
+			// onto its own stream and keeps recording in the
+			// background while this station plays.
+			self.detach_recording();
 			self.detach_taps();
 		}
 		self.settle.focused(now);
@@ -680,8 +729,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let rate = self.factory.rate();
 		let minutes = settings.timeshift_minutes_for(&station.id);
 		let ring_bytes = settings.timeshift_ring_bytes();
-		let slot = Arc::new(Mutex::new(None));
-		self.record_slot = Some(slot);
+		// A background recording's slot is borrowed, not owned: the
+		// playing station never replaces it (detach_taps preserved it
+		// for exactly this), so a fresh attach reuses it.
+		if self.record_slot.is_none() {
+			self.record_slot = Some(Arc::new(Mutex::new(None)));
+		}
 		if settings.recognition_enabled_for(&station.id) {
 			let capture = Arc::new(ShiftBuffer::with_seconds(rate, 90));
 			self.capture = Some(capture);
@@ -776,6 +829,9 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			},
 			capture: self.capture.clone(),
 			record: self.record_slot.clone(),
+			// A background recording of this station keeps its field
+			// when playback taps are (re)registered for it.
+			bg_record: self.bg_slot(),
 			ring: self.ring_tap.clone(),
 			// Both modes: the stream's live taps must yield while the
 			// listener is time-shifted, because the mixer is tapping
@@ -827,17 +883,168 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.mark_title(title.as_deref());
 	}
 
-	/// Stops any recording and unregisters the taps of the station they
-	/// belonged to.
+	/// Moves a running recording off the playing station onto its own
+	/// stream, so playback can change stations without ending it. The
+	/// recorder keeps its slot — start/stop, pause and song splits keep
+	/// working unchanged — and a fresh stream of the same station feeds
+	/// it, opened outside the open list so nothing in playback
+	/// management can close it. A paused recording needs no stream: it
+	/// writes nothing, and its slot waits where it is.
+	fn detach_recording(&mut self) {
+		let Some(slot) = self.record_slot.clone() else {
+			return;
+		};
+		if self.bg_record.is_some() || self.record_detached_paused {
+			return;
+		}
+		if slot.lock().is_none() {
+			return;
+		}
+		let Some(station) = self.playing.clone() else {
+			return;
+		};
+		// Even a paused recording detaches: its station is remembered
+		// so a later resume reopens the stream (see set_recording_paused).
+		self.detached_station = Some(station.clone());
+		if slot.lock().as_ref().is_some_and(|rec| rec.is_paused()) {
+			self.record_detached_paused = true;
+			return;
+		}
+		self.detach_recording_for(Some(station));
+	}
+
+	/// Opens the background stream for a detached recording of
+	/// `station` and points the station's taps at the recorder's slot.
+	fn detach_recording_for(&mut self, station: Option<Station>) {
+		let Some(station) = station else {
+			return;
+		};
+		let Some(slot) = self.record_slot.clone() else {
+			return;
+		};
+		if self.bg_record.is_some() || slot.lock().is_none() {
+			return;
+		}
+		self.detached_station = Some(station.clone());
+		self.next_id += 1;
+		let serial = self.next_id;
+		let tx = self.stream_tx.clone();
+		let (titles_tx, titles_rx) = crossbeam_channel::unbounded();
+		let (_, guard) = self.factory.start(
+			&station,
+			Box::new(move |event| {
+				// Title and Format go to the background drain, for
+				// splits and the file's format name; a failure goes
+				// there too, so the drain can end the recording with
+				// its file saved. The shared channel copies are
+				// ignored in stream_event (this serial is not open).
+				if matches!(
+					event,
+					StreamEvent::Title(_) | StreamEvent::Format(_) | StreamEvent::Failed(_)
+				) {
+					let _ = titles_tx.send((serial, event.clone()));
+				}
+				let _ = tx.send((serial, event));
+			}),
+		);
+		// Merge into any existing entry: the same station may be
+		// playing, with playback taps of its own in this map.
+		let mut entry = self.factory.taps(&station.id);
+		entry.bg_record = Some(slot.clone());
+		self.factory.set_taps(&station.id, entry);
+		self.bg_record = Some(BgRecord {
+			station_id: station.id.clone(),
+			slot,
+			titles: titles_rx,
+			serial,
+			_guard: guard,
+		});
+	}
+
+	/// Drains a background recording's stream events: its titles split
+	/// its files in song-split mode, its format report names an
+	/// Original file correctly, and a failed background stream ends
+	/// the recording with its file saved — the app hears about that
+	/// one, through the returned station id.
+	fn poll_bg(&mut self) -> Option<String> {
+		let (station_id, events) = {
+			let bg = self.bg_record.as_ref()?;
+			let mut events = Vec::new();
+			while let Ok((serial, event)) = bg.titles.try_recv() {
+				if serial == bg.serial {
+					events.push(event);
+				}
+			}
+			(bg.station_id.clone(), events)
+		};
+		let mut failed = false;
+		for event in events {
+			match event {
+				StreamEvent::Title(Some(song)) => {
+					let _ = self.split_recording(&song);
+				}
+				StreamEvent::Title(None) => {}
+				StreamEvent::Format(format) => {
+					if matches!(format.codec.as_str(), "AAC" | "MP3" | "MP2")
+						&& let Some(bg) = &self.bg_record
+					{
+						let mut guard = bg.slot.lock();
+						if let Some(rec) = guard.as_mut() {
+							let ext = recording_source_ext(Some(&format.codec), "");
+							let _ = rec.align_source_ext(&ext);
+						}
+					}
+				}
+				StreamEvent::Failed(_) => failed = true,
+				_ => {}
+			}
+		}
+		if failed && self.bg_record.is_some() {
+			let _ = self.stop_recording();
+			return Some(station_id);
+		}
+		None
+	}
+
+	/// Unregisters the taps of the station they belonged to. A
+	/// recording survives: a detached one keeps its own stream; one
+	/// still on the playing station's taps is stopped only when those
+	/// taps are torn down for good (stop, a new output rate, app
+	/// shutdown) — station changes detach it first, in tune().
 	fn detach_taps(&mut self) {
 		self.record_buffered();
-		if let Some(slot) = &self.record_slot
+		// Stop the recorder only when the taps being torn down are
+		// the recording's own AND no background stream feeds it. In
+		// tune() the recorder is detached first, so by the time the
+		// old station's taps come off, bg_record is set and this is
+		// false; a plain stop()/set_rate teardown has no background
+		// stream and stops it, as before.
+		let own_taps = self.bg_record.is_none()
+			&& !self.record_detached_paused
+			&& match (&self.tap_station, self.recording_station_id()) {
+				(Some(tap), Some(rec)) => tap == &rec,
+				_ => true,
+			};
+		if own_taps
+			&& let Some(slot) = &self.record_slot
 			&& let Some(rec) = slot.lock().take()
 		{
 			let _ = rec.stop();
 		}
 		if let Some(id) = self.tap_station.take() {
-			self.factory.clear_taps(&id);
+			// A background recording of this same station keeps its
+			// own field in the entry: strip only the playback fields.
+			if self.bg_record.as_ref().is_some_and(|bg| bg.station_id == id) {
+				let mut entry = self.factory.taps(&id);
+				entry.shift = None;
+				entry.capture = None;
+				entry.record = None;
+				entry.ring = None;
+				entry.shift_status = None;
+				self.factory.set_taps(&id, entry);
+			} else {
+				self.factory.clear_taps(&id);
+			}
 		}
 		if let Some(feed) = self.ring_feed.take() {
 			feed.stop();
@@ -848,10 +1055,12 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.ring_tap = None;
 		self.shift = None;
 		self.capture = None;
-		self.record_slot = None;
-		self.record_song = None;
-		self.record_at = None;
-		self.record_after = None;
+		if own_taps {
+			self.record_slot = None;
+			self.record_song = None;
+			self.record_at = None;
+			self.record_after = None;
+		}
 		self.marks = Marks::default();
 		self.pending_titles.clear();
 		self.song = None;
@@ -1198,6 +1407,46 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.is_some_and(|slot| slot.lock().is_some())
 	}
 
+	/// True while the active recording is a detached background one.
+	pub fn recording_is_background(&self) -> bool {
+		(self.bg_record.is_some() || self.record_detached_paused) && self.is_recording()
+	}
+
+	/// The detached recording's stream slot, while one runs in the
+	/// background.
+	pub fn bg_slot(&self) -> Option<Arc<Mutex<Option<Recorder>>>> {
+		self.bg_record.as_ref().map(|bg| bg.slot.clone())
+	}
+
+	/// The station the active recording belongs to: the detached one
+	/// while it runs in the background, the playing one otherwise.
+	pub fn recording_station(&self) -> Option<Station> {
+		if !self.is_recording() {
+			return None;
+		}
+		if self.bg_record.is_some() || self.record_detached_paused {
+			return self.detached_station.clone();
+		}
+		self.playing.clone()
+	}
+
+	/// The station the active recording belongs to, playing or detached.
+	pub fn recording_station_id(&self) -> Option<String> {
+		if !self.is_recording() {
+			return None;
+		}
+		if let Some(bg) = &self.bg_record {
+			return Some(bg.station_id.clone());
+		}
+		if self.record_detached_paused {
+			return self.detached_station.as_ref().map(|s| s.id.clone());
+		}
+		if self.tap_station.is_some() {
+			return self.tap_station.clone();
+		}
+		self.playing.as_ref().map(|p| p.id.clone())
+	}
+
 	/// Original recordings follow the playhead in both buffer modes.
 	/// Polling here keeps recording independent of replay decoder read-ahead.
 	fn record_buffered(&mut self) {
@@ -1242,7 +1491,27 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// Where a recording goes, its source extension, and the settings
 	/// snapshot: everything starting or splitting one needs.
 	fn recording_plan(&self) -> Option<(PathBuf, String, crate::settings::Settings)> {
-		let station = self.playing.as_ref()?;
+		self.recording_plan_for(self.playing.as_ref().map(|p| p.id.clone()))
+	}
+
+	/// The plan for a recording of `station_id` — the playing station
+	/// for a fresh recording, the detached one for a background split
+	/// or a scheduled start (where the station is given, not played).
+	fn recording_plan_for(
+		&self,
+		station_id: Option<String>,
+	) -> Option<(PathBuf, String, crate::settings::Settings)> {
+		let station_id = station_id?;
+		let station = if self.playing.as_ref().is_some_and(|p| p.id == station_id) {
+			self.playing.clone()?
+		} else {
+			// A scheduled start names its station before any detach
+			// exists: the caller sets it first (start_background_recording
+			// does), so reaching here without it means no station.
+			self.detached_station
+				.clone()
+				.filter(|s| s.id == station_id)?
+		};
 		let mut settings = self.settings.as_ref()?.lock().clone();
 		// Containers needing opening headers cannot form valid buffered or
 		// song-split source files; keep every part of this recording as WAV.
@@ -1262,6 +1531,49 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let codec = self.open_format(&station.id).map(|f| f.codec.as_str());
 		let ext = recording_source_ext(codec, &station.url);
 		Some((dir, ext, settings))
+	}
+
+	/// Starts recording a station on its own background stream,
+	/// leaving playback wherever it is. For scheduled recordings:
+	/// they never needed the listener's station, only their own.
+	/// The recorder is built exactly as a playing-station recording
+	/// is, minus the playhead — a background recording is live-edge
+	/// only, so Original takes the stream's bytes and song splits
+	/// ride the stream's own titles.
+	pub fn start_background_recording(&mut self, station: &Station) -> Result<PathBuf> {
+		if self.is_recording() {
+			return Err(CoreError::Output("Already recording".into()));
+		}
+		if self.settings.is_none() {
+			return Err(CoreError::Output("Recording is unavailable".into()));
+		}
+		// The playing station's slot, borrowed for the recorder; the
+		// detached stream is registered right after and feeds it.
+		if self.record_slot.is_none() {
+			self.record_slot = Some(Arc::new(Mutex::new(None)));
+		}
+		self.detached_station = Some(station.clone());
+		let (dir, ext, settings) = self
+			.recording_plan_for(Some(station.id.clone()))
+			.ok_or_else(|| CoreError::Output("Recording is unavailable".into()))?;
+		let rec = Recorder::start(
+			&dir,
+			&station.name,
+			&settings.recording,
+			self.factory.rate(),
+			&ext,
+		)?;
+		let path = rec.path().to_path_buf();
+		let slot = self.record_slot.clone().unwrap();
+		*slot.lock() = Some(rec);
+		self.record_song = None;
+		self.detach_recording_for(Some(station.clone()));
+		if self.bg_record.is_none() {
+			// The stream could not open: leave nothing half-started.
+			let _ = self.stop_recording();
+			return Err(CoreError::Output("Recording is unavailable".into()));
+		}
+		Ok(path)
 	}
 
 	/// Starts recording the playing station; returns the file path.
@@ -1338,11 +1650,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			return None;
 		}
 		self.record_buffered();
-		let (dir, ext, settings) = self.recording_plan()?;
+		let (dir, ext, settings) = self.recording_plan_for(self.recording_station_id())?;
 		if !settings.recording.split_songs {
 			return None;
 		}
-		let station = self.playing.clone()?;
+		let station = self.recording_station()?;
 		let slot = self.record_slot.clone()?;
 		let paused = slot.lock().as_ref().is_some_and(|rec| rec.is_paused());
 		let old = slot.lock().take()?;
@@ -1372,31 +1684,66 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		}
 	}
 
-	/// Stops the recording, returning its file path.
+	/// Stops the recording, returning its file path. A background
+	/// recording's stream closes with it.
 	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
 		self.record_buffered();
 		self.record_song = None;
 		self.record_at = None;
+		if let Some(bg) = self.bg_record.take() {
+			// Clear only the background field: the same station may
+			// be playing, with playback taps of its own in the entry.
+			let mut entry = self.factory.taps(&bg.station_id);
+			entry.bg_record = None;
+			if entry.record.is_none()
+				&& entry.shift.is_none()
+				&& entry.capture.is_none()
+				&& entry.ring.is_none()
+			{
+				self.factory.clear_taps(&bg.station_id);
+			} else {
+				self.factory.set_taps(&bg.station_id, entry);
+			}
+			drop(bg);
+		}
+		self.detached_station = None;
+		self.record_detached_paused = false;
 		let slot = self.record_slot.clone()?;
 		slot.lock().take().map(|rec| rec.stop())
 	}
 
 	/// Pauses or resumes the active recording; false when none is running.
 	/// A paused recording drops the audio written to it, so the file
-	/// holds only the spans the user let through.
+	/// holds only the spans the user let through. Pausing a background
+	/// recording closes its stream — a paused recorder writes nothing,
+	/// and an open connection left feeding nothing is waste; resuming
+	/// reopens it (a short gap, as with any reconnect).
 	pub fn set_recording_paused(&mut self, paused: bool) -> bool {
 		self.record_buffered();
-		let Some(slot) = &self.record_slot else {
+		let Some(slot) = self.record_slot.clone() else {
 			return false;
 		};
 		let mut guard = slot.lock();
-		match guard.as_mut() {
+		let ok = match guard.as_mut() {
 			Some(rec) => {
 				rec.set_paused(paused);
 				true
 			}
 			None => false,
+		};
+		drop(guard);
+		if ok && paused && let Some(bg) = self.bg_record.take() {
+			let mut entry = self.factory.taps(&bg.station_id);
+			entry.bg_record = None;
+			self.factory.set_taps(&bg.station_id, entry);
+			self.record_detached_paused = true;
+			drop(bg);
 		}
+		if ok && !paused && self.bg_record.is_none() && self.record_detached_paused {
+			self.record_detached_paused = false;
+			self.detach_recording_for(self.detached_station.clone());
+		}
+		ok
 	}
 
 	pub fn recording_paused(&self) -> bool {
@@ -1512,6 +1859,11 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	}
 
 	fn stream_event(&mut self, serial: u64, event: StreamEvent, now: Instant) {
+		// A background recording's stream is not in the open list; its
+		// events were already routed to the background drain.
+		if self.bg_record.as_ref().is_some_and(|bg| bg.serial == serial) {
+			return;
+		}
 		let Some(i) = self.open.iter().position(|o| o.serial == serial) else {
 			return;
 		};
@@ -1612,6 +1964,158 @@ mod recording_tests {
 	struct NoSink;
 	impl Sink for NoSink {
 		fn send(&self, _: MixerCmd) {}
+	}
+
+	/// A factory that hands out inert streams and counts them, so a
+	/// test can prove a background recording opened its own stream.
+	struct CountingFactory {
+		started: Arc<std::sync::atomic::AtomicUsize>,
+		taps: Arc<Mutex<HashMap<String, Taps>>>,
+	}
+	impl StreamFactory for CountingFactory {
+		fn start(
+			&self,
+			_: &Station,
+			_: Box<dyn Fn(StreamEvent) + Send + Sync>,
+		) -> (Arc<PcmRing>, Box<dyn Send>) {
+			self.started.fetch_add(1, Ordering::SeqCst);
+			(Arc::new(PcmRing::new(1000, 1.0)), Box::new(()))
+		}
+		fn set_taps(&mut self, station_id: &str, taps: Taps) {
+			self.taps.lock().insert(station_id.to_string(), taps);
+		}
+		fn clear_taps(&mut self, station_id: &str) {
+			self.taps.lock().remove(station_id);
+		}
+		fn taps(&self, station_id: &str) -> Taps {
+			self.taps
+				.lock()
+				.get(station_id)
+				.cloned()
+				.unwrap_or_default()
+		}
+		fn rate(&self) -> u32 {
+			1000
+		}
+	}
+
+	fn test_station(id: &str) -> Station {
+		Station {
+			id: id.into(),
+			name: format!("Station {id}"),
+			url: format!("http://test/{id}.mp3"),
+			source: crate::station::Source::Custom,
+			info: None,
+			details: Default::default(),
+		}
+	}
+
+	fn bg_tuner(dir: &std::path::Path) -> (Tuner<CountingFactory, NoSink>, Arc<std::sync::atomic::AtomicUsize>, Arc<Mutex<HashMap<String, Taps>>>) {
+		let mut settings = Settings::default();
+		settings.recording.dir = Some(dir.to_string_lossy().into_owned());
+		settings.recording.format = crate::settings::RecordFormat::Wav;
+		let started = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+		let taps = Arc::new(Mutex::new(HashMap::new()));
+		let factory = CountingFactory {
+			started: started.clone(),
+			taps: taps.clone(),
+		};
+		let (tx, _) = crossbeam_channel::unbounded();
+		let mut tuner = Tuner::new(factory, NoSink, tx);
+		tuner.set_settings(Arc::new(Mutex::new(settings)));
+		(tuner, started, taps)
+	}
+
+	#[test]
+	fn a_recording_detaches_and_keeps_recording_across_station_changes() {
+		let dir = tempfile::tempdir().unwrap();
+		let (mut tuner, started, taps) = bg_tuner(dir.path());
+		let a = test_station("a");
+		let b = test_station("b");
+		tuner.playing = Some(a.clone());
+		tuner.attach_taps(&a);
+		tuner.start_recording(None).unwrap();
+		// Feed the recorder the way the streams do: through the tap
+		// map — the playback field before the change, the background
+		// field after it.
+		let feed = |taps: &Arc<Mutex<HashMap<String, Taps>>>| {
+			let t = taps.lock().get("a").cloned().unwrap_or_default();
+			let slot = t.record.as_ref().or(t.bg_record.as_ref()).unwrap();
+			{
+				let mut guard = slot.lock();
+				let rec = guard.as_mut().unwrap();
+				rec.write_pcm(&vec![0.25; 2000]).unwrap();
+			}
+		};
+		feed(&taps);
+
+		// Change stations: the recording detaches onto its own stream.
+		tuner.tune(&b, Vec::new(), false, Instant::now());
+		assert!(tuner.is_recording(), "still recording after the change");
+		assert!(tuner.recording_is_background());
+		assert_eq!(tuner.recording_station_id().as_deref(), Some("a"));
+		assert_eq!(started.load(Ordering::SeqCst), 2, "playback's cold start plus the background stream");
+		assert!(taps.lock().get("a").is_some_and(|t| t.bg_record.is_some()), "a's background taps feed the recorder");
+		// The background stream feeds the same recorder through a's taps.
+		{
+			let t = taps.lock().get("a").cloned().unwrap_or_default();
+			let slot = t.bg_record.clone().unwrap();
+			assert!(
+				std::sync::Arc::ptr_eq(&slot, tuner.bg_slot().as_ref().unwrap()),
+				"the entry's background slot is the tuner's"
+			);
+			let mut guard = slot.lock();
+			let rec = guard.as_mut().unwrap();
+			rec.write_pcm(&vec![0.25; 2000]).unwrap();
+		}
+
+
+		// Another change keeps it; stopping ends it and closes the stream.
+		let c = test_station("c");
+		tuner.tune(&c, Vec::new(), false, Instant::now());
+		assert!(tuner.is_recording());
+		let path = tuner.stop_recording().unwrap().unwrap();
+		assert!(!tuner.is_recording());
+		assert!(taps.lock().get("a").is_none_or(|t| t.bg_record.is_none()), "background taps cleared on stop");
+		let reader = hound::WavReader::open(&path).unwrap();
+		// hound counts frames per channel: 2000 stereo values = 1000
+		// frames per feed, two feeds = 2000 frames.
+		assert_eq!(reader.duration(), 2000, "audio from before and after the change");
+	}
+
+	#[test]
+	fn a_scheduled_recording_starts_in_the_background_without_playing() {
+		let dir = tempfile::tempdir().unwrap();
+		let (mut tuner, started, _taps) = bg_tuner(dir.path());
+		let a = test_station("a");
+		let b = test_station("b");
+		tuner.playing = Some(b.clone());
+		tuner.attach_taps(&b);
+		let path = tuner.start_background_recording(&a).unwrap();
+		assert!(tuner.is_recording());
+		assert!(tuner.recording_is_background());
+		assert_eq!(tuner.recording_station_id().as_deref(), Some("a"));
+		assert_eq!(tuner.playing.as_ref().map(|p| p.id.as_str()), Some("b"), "playback untouched");
+		assert_eq!(started.load(Ordering::SeqCst), 1);
+		// Playback stopping does not end it.
+		tuner.stop();
+		assert!(tuner.is_recording(), "a scheduled recording survives playback stop");
+		let done = tuner.stop_recording().unwrap().unwrap();
+		assert_eq!(done, path);
+	}
+
+	#[test]
+	fn a_paused_background_recording_resumes_on_a_fresh_stream() {
+		let dir = tempfile::tempdir().unwrap();
+		let (mut tuner, started, _taps) = bg_tuner(dir.path());
+		let a = test_station("a");
+		tuner.start_background_recording(&a).unwrap();
+		assert_eq!(started.load(Ordering::SeqCst), 1);
+		assert!(tuner.set_recording_paused(true));
+		assert!(tuner.recording_is_background(), "paused still counts as background");
+		assert!(tuner.set_recording_paused(false));
+		assert_eq!(started.load(Ordering::SeqCst), 2, "resume reopened the stream");
+		assert!(tuner.is_recording());
 	}
 
 	#[test]
