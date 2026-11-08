@@ -14,6 +14,9 @@ fn commit_hash() -> String {
 }
 
 fn main() {
+	// Translations: compile po/*.po into locale/ for patois::embed_domain!.
+	patois_build::compile_translations("po", "locale");
+
 	println!("cargo:rerun-if-changed=build.rs");
 	println!("cargo:rerun-if-changed=../../doc/readme.md");
 	println!("cargo:rerun-if-changed=../../CHANGELOG.md");

@@ -409,7 +409,7 @@ impl View {
 	fn delete(&self, app: &Rc<RefCell<App>>, i: usize) {
 		let target = self.model.borrow().delete_target(i);
 		match target {
-			Delete::NotOwn => app.borrow_mut().say(s::ONLY_OWN),
+			Delete::NotOwn => app.borrow_mut().say(&s::only_own()),
 			Delete::Remove {
 				collection,
 				station,
@@ -428,9 +428,9 @@ impl View {
 				// confirmed, with what goes with it named.
 				let question = {
 					let m = self.model.borrow();
-					context_menu::delete_question(m.label(i), m.stations_under(i).len())
+					context_menu::delete_question(&m.label(i), m.stations_under(i).len())
 				};
-				if !confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
+				if !confirm(&self.tree, &question, &plain(&s::delete_item())) {
 					return;
 				}
 				{
@@ -482,7 +482,7 @@ impl View {
 		};
 		let Some(key) = key else { return };
 		let mut a = app.borrow_mut();
-		a.say(&format!("{}{name}", s::ADDING));
+		a.say(&format!("{}{name}", s::adding()));
 		let sources = a.sources.clone();
 		let sort = self.sort.get();
 		let (v, window) = (self.clone(), window.clone());
@@ -499,14 +499,14 @@ impl View {
 						};
 						let count = folder.all_stations().len();
 						if count == 0 {
-							return app.say(s::NOTHING_TO_ADD);
+							return app.say(&s::nothing_to_add());
 						}
 						let dest = dest(&mut app.library);
 						app.add_folder_to(&dest, folder, count >= ADD_CAP);
 					}
 					Err(e) => {
 						eprintln!("browse add {name}: {e}");
-						app.say(s::NOT_SAVED);
+						app.say(&s::not_saved());
 					}
 				}
 				if window.is_open() {
@@ -586,7 +586,7 @@ impl View {
 						items.push(context_menu::Item::Export);
 					}
 					if items.is_empty() {
-						return app.borrow_mut().say(text);
+						return app.borrow_mut().say(&text);
 					}
 					items
 				}
@@ -611,7 +611,7 @@ impl View {
 			}
 			(None, Some((id, _)), Choice::NewFolder) => {
 				if let Some(name) =
-					prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE)
+					prompt_text(&self.tree, s::folder_name(), &s::new_folder_title())
 				{
 					let mut a = app.borrow_mut();
 					if a.library
@@ -625,7 +625,7 @@ impl View {
 			(None, None, Choice::NewFolder) => {
 				if let Some((id, parent)) = &new_folder_in
 					&& let Some(name) =
-						prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE)
+						prompt_text(&self.tree, s::folder_name(), &s::new_folder_title())
 				{
 					let mut a = app.borrow_mut();
 					if a.library
@@ -639,7 +639,7 @@ impl View {
 			(None, None, Choice::Rename) => {
 				if let Some((id, path)) = &local_folder
 					&& let Some(name) =
-						prompt_text(&self.tree, s::FOLDER_NAME, &plain(s::RENAME_ITEM))
+						prompt_text(&self.tree, s::folder_name(), &plain(&s::rename_item()))
 				{
 					let mut a = app.borrow_mut();
 					let renamed = a
@@ -719,14 +719,14 @@ impl View {
 						}
 						Err(e) => {
 							eprintln!("browse export {name}: {e}");
-							a.say(s::NOT_SAVED);
+							a.say(&s::not_saved());
 						}
 					},
 				);
 			}
 			(None, Some((id, _)), Choice::Rename) => {
 				if let Some(name) =
-					prompt_text(&self.tree, s::COLLECTION_NAME, &plain(s::RENAME_ITEM))
+					prompt_text(&self.tree, s::collection_name(), &plain(&s::rename_item()))
 				{
 					let mut a = app.borrow_mut();
 					if a.library.rename_collection(&id, &name).is_ok() {
@@ -747,7 +747,7 @@ impl View {
 			(None, None, Choice::NewCollection) => {
 				// Made when the stations arrive: a folder that fails leaves no empty one.
 				if let Some(name) =
-					prompt_text(&self.tree, s::COLLECTION_NAME, s::NEW_COLLECTION_TITLE)
+					prompt_text(&self.tree, s::collection_name(), &s::new_collection_title())
 				{
 					self.add_folder(app, token, f, move |lib| StationDest::Collection {
 						id: lib.create_collection(&name),
@@ -785,9 +785,9 @@ impl View {
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::BROWSE_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::browse_title()).build();
 	// The label first: wxMSW names the choice after it.
-	let sort_label = StaticText::builder(&dialog).with_label(s::SORT).build();
+	let sort_label = StaticText::builder(&dialog).with_label(&s::sort()).build();
 	// Full path: `Choice` here is the context menu's enum.
 	let sort_choice = wxdragon::widgets::choice::Choice::builder(&dialog).build();
 	for f in SortField::ALL {
@@ -799,13 +799,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.position(|f| *f == sort0.field)
 		.unwrap_or(0);
 	sort_choice.set_selection(at as u32);
-	let reverse = CheckBox::builder(&dialog).with_label(s::REVERSE).build();
+	let reverse = CheckBox::builder(&dialog).with_label(&s::reverse()).build();
 	reverse.set_value(sort0.reverse);
 	let sort_row = BoxSizer::builder(Orientation::Horizontal).build();
 	sort_row.add(&sort_choice, 1, SizerFlag::Expand | SizerFlag::Right, 5);
 	sort_row.add(&reverse, 0, SizerFlag::All, 0);
 	// The label first: wxMSW names the tree after it.
-	let label = StaticText::builder(&dialog).with_label(s::STATIONS).build();
+	let label = StaticText::builder(&dialog).with_label(&s::stations()).build();
 	let tree = TreeCtrl::builder(&dialog)
 		.with_style(
 			TreeCtrlStyle::HasButtons
@@ -816,7 +816,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(

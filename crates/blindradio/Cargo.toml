@@ -4,6 +4,10 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+# Translations via patois: this crate's strings are extracted to po/blindradio.pot.
+[package.metadata.patois]
+translatable = true
+
 [dependencies]
 blindradio-core = { path = "../blindradio-core" }
 # crates.io (AllenDang upstream): trypsynth/wxDragon main is behind it (0.9.21, wxWidgets 3.3.3) and wx-utils needs 0.9.22+.
@@ -25,6 +29,9 @@ serde_json = "*"
 live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }
 flate2 = "*"
 ship-shape = "0.5.0"
+# Translations (gettext via patois). Pinned to the 0.3 line like ship-shape:
+# its API changed across minors (0.3 dropped the t! macros).
+patois = { version = "0.3", features = ["wx"] }
 
 [target.'cfg(not(windows))'.dependencies]
 # Global hotkeys on macOS and X11; Windows uses wx-utils.
@@ -45,7 +52,9 @@ windows = { version = "*", features = [
 [build-dependencies]
 embed-manifest = "*"
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
+patois-build = "0.1"
 
 [dev-dependencies]
 tokio = { version = "*", features = ["rt-multi-thread", "time"] }
 uiautomation = "0.25.1"
+patois-build = "0.1"

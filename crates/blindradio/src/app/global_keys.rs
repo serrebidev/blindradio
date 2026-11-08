@@ -46,7 +46,7 @@ impl App {
 		let playing = self.tuner.playing().map(|st| st.id.clone());
 		let Some(i) = hotkeys::next_favorite(&self.library.favorites, playing.as_deref(), forward)
 		else {
-			return self.say(s::NO_FAVORITES);
+			return self.say(&s::no_favorites());
 		};
 		let station = self.library.favorites[i].clone();
 		self.play(station);
@@ -72,9 +72,9 @@ impl App {
 	pub(super) fn toggle_eq(&mut self) {
 		let mut eq = self.settings.eq.clone();
 		eq.enabled = !eq.enabled;
-		let text = if eq.enabled { s::EQ_ON } else { s::EQ_OFF };
+		let text = if eq.enabled { s::eq_on() } else { s::eq_off() };
 		self.set_eq(eq);
-		let own = if self.playing_has_own_eq() { s::EQ_OWN } else { "" };
+		let own = if self.playing_has_own_eq() { s::eq_own() } else { String::new() };
 		self.say(&format!("{text}{own}"));
 	}
 }

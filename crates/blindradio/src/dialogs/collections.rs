@@ -32,8 +32,8 @@ pub fn ordered(lib: &Library) -> Vec<&Collection> {
 }
 
 /// Custom Stations cannot be renamed or deleted.
-pub fn cannot_change(id: &str) -> Option<&'static str> {
-	(id == CUSTOM).then_some(s::CUSTOM_FIXED)
+pub fn cannot_change(id: &str) -> Option<String> {
+	(id == CUSTOM).then(s::custom_fixed)
 }
 
 /// What Add All to Collection offers: every other collection.
@@ -370,7 +370,7 @@ impl View {
 	}
 
 	fn new_collection(&self, app: &Rc<RefCell<App>>) {
-		let Some(name) = prompt_text(&self.tree, s::COLLECTION_NAME, s::NEW_COLLECTION_TITLE)
+		let Some(name) = prompt_text(&self.tree, s::collection_name(), &s::new_collection_title())
 		else {
 			return;
 		};
@@ -384,7 +384,7 @@ impl View {
 	}
 
 	fn new_folder(&self, app: &Rc<RefCell<App>>, at: &At) {
-		let Some(name) = prompt_text(&self.tree, s::FOLDER_NAME, s::NEW_FOLDER_TITLE) else {
+		let Some(name) = prompt_text(&self.tree, s::folder_name(), &s::new_folder_title()) else {
 			return;
 		};
 		let parent = at.path.clone();
@@ -406,7 +406,7 @@ impl View {
 
 	fn rename(&self, app: &Rc<RefCell<App>>, row: Row, at: &At) {
 		if matches!(row, Row::Folder(_)) {
-			let Some(name) = prompt_text(&self.tree, s::FOLDER_NAME, &plain(s::RENAME_ITEM))
+			let Some(name) = prompt_text(&self.tree, s::folder_name(), &plain(&s::rename_item()))
 			else {
 				return;
 			};
@@ -423,9 +423,9 @@ impl View {
 			return self.refresh(app, Some(Focus::Folder(at.id.clone(), at.path.clone())));
 		}
 		if let Some(text) = cannot_change(&at.id) {
-			return app.borrow_mut().say(text);
+			return app.borrow_mut().say(&text);
 		}
-		let Some(name) = prompt_text(&self.tree, s::COLLECTION_NAME, &plain(s::RENAME_ITEM)) else {
+		let Some(name) = prompt_text(&self.tree, s::collection_name(), &plain(&s::rename_item())) else {
 			return;
 		};
 		{
@@ -439,8 +439,8 @@ impl View {
 
 	fn delete(&self, app: &Rc<RefCell<App>>, row: Row, at: &At) {
 		if matches!(row, Row::Folder(_)) {
-			let question = format!("{}{}?", s::DELETE_PREFIX, at.name);
-			if !confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
+			let question = format!("{}{}?", s::delete_prefix(), at.name);
+			if !confirm(&self.tree, &question, &plain(&s::delete_item())) {
 				return;
 			}
 			let parent: Vec<usize> = at.path[..at.path.len().saturating_sub(1)].to_vec();
@@ -458,10 +458,10 @@ impl View {
 			return self.refresh(app, Some(Focus::Folder(at.id.clone(), parent)));
 		}
 		if let Some(text) = cannot_change(&at.id) {
-			return app.borrow_mut().say(text);
+			return app.borrow_mut().say(&text);
 		}
-		let question = format!("{}{}?", s::DELETE_PREFIX, at.collection_name);
-		if !confirm(&self.tree, &question, &plain(s::DELETE_ITEM)) {
+		let question = format!("{}{}?", s::delete_prefix(), at.collection_name);
+		if !confirm(&self.tree, &question, &plain(&s::delete_item())) {
 			return;
 		}
 		{
@@ -547,7 +547,7 @@ impl View {
 
 	fn move_collection(&self, app: &Rc<RefCell<App>>, at: &At, up: bool) {
 		if let Some(text) = cannot_change(&at.id) {
-			return app.borrow_mut().say(text);
+			return app.borrow_mut().say(&text);
 		}
 		{
 			let mut a = app.borrow_mut();
@@ -601,9 +601,9 @@ impl View {
 			_ => &at.collection_name,
 		};
 		let file = FileDialog::builder(&self.tree)
-			.with_message(s::EXPORT)
-			.with_default_file(&format!("{}{}", file_name, s::M3U_EXTENSION))
-			.with_wildcard(s::PLAYLISTS_FILTER)
+			.with_message(&s::export())
+			.with_default_file(&format!("{}{}", file_name, s::m3u_extension()))
+			.with_wildcard(&s::playlists_filter())
 			.with_style(FileDialogStyle::Save | FileDialogStyle::OverwritePrompt)
 			.build();
 		if file.show_modal() != ID_OK {
@@ -620,10 +620,10 @@ impl View {
 		match import::export_m3u_tree(&stations, &folders, Path::new(&path)) {
 			Ok(()) => app
 				.borrow_mut()
-				.say(&format!("{}{}", s::EXPORTED, count)),
+				.say(&format!("{}{}", s::exported(), count)),
 			Err(e) => {
 				eprintln!("export: {e}");
-				app.borrow_mut().say(s::NOT_SAVED);
+				app.borrow_mut().say(&s::not_saved());
 			}
 		}
 	}
@@ -659,7 +659,7 @@ impl View {
 				Ok(items) => items,
 				Err(text) => {
 					drop(lib);
-					return app.borrow_mut().say(text);
+					return app.borrow_mut().say(&text);
 				}
 			}
 		};
@@ -786,10 +786,10 @@ impl View {
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::COLLECTIONS_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::collections_title()).build();
 	// The label first: wxMSW names the tree after it.
 	let label = StaticText::builder(&dialog)
-		.with_label(s::COLLECTIONS_LIST)
+		.with_label(&s::collections_list())
 		.build();
 	let tree_ctrl = TreeCtrl::builder(&dialog)
 		.with_style(
@@ -800,20 +800,20 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		)
 		.build();
 	let new = Button::builder(&dialog)
-		.with_label(s::NEW_COLLECTION_BUTTON)
+		.with_label(&s::new_collection_button())
 		.build();
-	let new_folder = Button::builder(&dialog).with_label(s::NEW_FOLDER).build();
-	let rename = Button::builder(&dialog).with_label(s::RENAME_ITEM).build();
-	let delete = Button::builder(&dialog).with_label(s::DELETE_ITEM).build();
+	let new_folder = Button::builder(&dialog).with_label(&s::new_folder()).build();
+	let rename = Button::builder(&dialog).with_label(&s::rename_item()).build();
+	let delete = Button::builder(&dialog).with_label(&s::delete_item()).build();
 	let remove = Button::builder(&dialog)
-		.with_label(s::REMOVE_STATION)
+		.with_label(&s::remove_station())
 		.build();
-	let up = Button::builder(&dialog).with_label(s::MOVE_UP).build();
-	let down = Button::builder(&dialog).with_label(s::MOVE_DOWN).build();
-	let export = Button::builder(&dialog).with_label(s::EXPORT).build();
+	let up = Button::builder(&dialog).with_label(&s::move_up()).build();
+	let down = Button::builder(&dialog).with_label(&s::move_down()).build();
+	let export = Button::builder(&dialog).with_label(&s::export()).build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let edit = BoxSizer::builder(Orientation::Horizontal).build();
 	for b in [&new, &new_folder, &rename, &delete, &remove, &close] {
@@ -1085,8 +1085,8 @@ fn bind(view: &Rc<View>, app: &Rc<RefCell<App>>, dialog: Dialog, _token: &Window
 pub fn import(app: &Rc<RefCell<App>>, as_collection: bool) {
 	let parent = app.borrow().win.frame;
 	let file = FileDialog::builder(&parent)
-		.with_message(s::IMPORT_TITLE)
-		.with_wildcard(s::PLAYLISTS_FILTER)
+		.with_message(&s::import_title())
+		.with_wildcard(&s::playlists_filter())
 		.with_style(FileDialogStyle::Open | FileDialogStyle::FileMustExist)
 		.build();
 	if file.show_modal() != ID_OK {
@@ -1115,7 +1115,7 @@ pub fn import(app: &Rc<RefCell<App>>, as_collection: bool) {
 			}
 			Err(e) => {
 				eprintln!("import: {e}");
-				s::NOT_SAVED.to_string()
+				s::not_saved().to_string()
 			}
 		}
 	};

@@ -67,21 +67,21 @@ pub fn build() -> MainWindow {
 	let (status_strip, strip_pad) = (None, 0);
 	#[cfg(not(windows))]
 	let status_bar = frame_status_bar(&frame);
-	status_bar.set_status_text(s::STOPPED, 0);
+	status_bar.set_status_text(&s::stopped(), 0);
 	let panel = Panel::builder(&frame).build();
 	// wxMSW names a control after the label created just before it.
-	let filter_label = StaticText::builder(&panel).with_label(s::FILTER).build();
+	let filter_label = StaticText::builder(&panel).with_label(&s::filter()).build();
 	let filter = TextCtrl::builder(&panel).build();
-	let stations = DialTree::new(&panel, s::STATIONS);
-	let now_playing = StaticText::builder(&panel).with_label(s::STOPPED).build();
-	let play = Button::builder(&panel).with_label(s::PLAY).build();
-	let stop = Button::builder(&panel).with_label(s::STOP).build();
-	let mute = Button::builder(&panel).with_label(s::MUTE).build();
+	let stations = DialTree::new(&panel, &s::stations());
+	let now_playing = StaticText::builder(&panel).with_label(&s::stopped()).build();
+	let play = Button::builder(&panel).with_label(&s::play()).build();
+	let stop = Button::builder(&panel).with_label(&s::stop()).build();
+	let mute = Button::builder(&panel).with_label(&s::mute()).build();
 	let favorite = Button::builder(&panel)
-		.with_label(&menus::plain(menus::favorite_label(false)))
+		.with_label(&menus::plain(&menus::favorite_label(false)))
 		.build();
 	// wxMSW names a control after the label created just before it.
-	let volume_label = StaticText::builder(&panel).with_label(s::VOLUME).build();
+	let volume_label = StaticText::builder(&panel).with_label(&s::volume()).build();
 	let volume = Slider::builder(&panel)
 		.with_min_value(0)
 		.with_max_value(100)
@@ -154,17 +154,17 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 		}
 		Action::Help => {
 			if !help::open(&help::guide(), "readme.html") {
-				app.borrow_mut().say(s::NO_BROWSER);
+				app.borrow_mut().say(&s::no_browser());
 			}
 		}
 		Action::ViewChangelog => {
 			if !help::open(&help::changelog(), "changelog.html") {
-				app.borrow_mut().say(s::NO_BROWSER);
+				app.borrow_mut().say(&s::no_browser());
 			}
 		}
 		Action::GitHubPage => {
 			if !help::open_website() {
-				app.borrow_mut().say(s::NO_BROWSER);
+				app.borrow_mut().say(&s::no_browser());
 			}
 		}
 		Action::OpenSearch => {
@@ -214,14 +214,14 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 					let frame = app.borrow().win.frame;
 					dialogs::add_to_collection::choose(app, &frame, &st);
 				}
-				None => app.borrow_mut().say(s::NO_STATION_HERE),
+				None => app.borrow_mut().say(&s::no_station_here()),
 			}
 		}
 		Action::OpenUrl => {
 			// Quick playback or a test: the URL plays as a throwaway
 			// station and is not added anywhere (Recent still lists it).
 			let frame = app.borrow().win.frame;
-			if let Some(link) = prompt_text(&frame, s::STREAM_URL, s::OPEN_URL_TITLE) {
+			if let Some(link) = prompt_text(&frame, s::stream_url(), &s::open_url_title()) {
 				let link = dialogs::custom_station::clean_url(&link);
 				if dialogs::custom_station::is_stream_url(&link) {
 					app.borrow_mut().play(Station {
@@ -233,7 +233,7 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 						details: Default::default(),
 					});
 				} else {
-					app.borrow_mut().say(s::NOT_A_STREAM_URL);
+					app.borrow_mut().say(&s::not_a_stream_url());
 				}
 			}
 		}
@@ -285,7 +285,7 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 						dispatch(app, next);
 					}
 				}
-				None => app.borrow_mut().say(s::NO_STATION_HERE),
+				None => app.borrow_mut().say(&s::no_station_here()),
 			}
 		}
 		Action::StationInfo => {
@@ -296,7 +296,7 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 						dispatch(app, next);
 					}
 				}
-				None => app.borrow_mut().say(s::NO_STATION_HERE),
+				None => app.borrow_mut().say(&s::no_station_here()),
 			}
 		}
 		a => app.borrow_mut().run(a),
@@ -493,7 +493,7 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 		// Action::Exit asks first itself, and by the time it reaches
 		// here the tuner is stopped and this stays quiet.
 		if a.borrow().tuner.is_recording()
-			&& !confirm(&a.borrow().win.frame, s::REC_CLOSE_ASK, s::REC_CHANGE_TITLE)
+			&& !confirm(&a.borrow().win.frame, s::rec_close_ask(), &s::rec_change_title())
 		{
 			e.veto();
 			e.skip(false);

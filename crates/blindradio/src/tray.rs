@@ -63,11 +63,11 @@ fn fill(app: &App, ids: &mut Vec<(Id, TrayItem)>) -> Menu {
 			menu.append_separator();
 		}
 		let label = match &item {
-			TrayItem::PlayPause => if playing { s::PAUSE } else { s::PLAY }.to_string(),
-			TrayItem::Stop => s::STOP.to_string(),
+			TrayItem::PlayPause => if playing { s::pause() } else { s::play() }.to_string(),
+			TrayItem::Stop => s::stop().to_string(),
 			TrayItem::Favorite(i) => app.library.favorites[*i].name.replace('&', "&&"),
-			TrayItem::Show => s::SHOW_WINDOW.to_string(),
-			TrayItem::Exit => s::EXIT.to_string(),
+			TrayItem::Show => s::show_window().to_string(),
+			TrayItem::Exit => s::exit().to_string(),
 		};
 		let id = ID_HIGHEST + 9000 + ids.len() as Id;
 		ids.push((id, item));

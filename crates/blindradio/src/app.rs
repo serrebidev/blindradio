@@ -116,8 +116,8 @@ pub fn is_shifted(behind: f32) -> bool {
 }
 
 /// What a mute toggle says: the state it left playback in.
-pub fn mute_message(muted: bool) -> &'static str {
-	if muted { s::MUTED } else { s::UNMUTED }
+pub fn mute_message(muted: bool) -> String {
+	if muted { s::muted() } else { s::unmuted() }
 }
 
 /// A station landed on in a list: Play/Pause after a stop plays it, not last session's station.
@@ -155,7 +155,7 @@ fn playlist_export_data(
 ) -> Option<(String, Vec<Station>, Vec<Folder>)> {
 	match action {
 		Action::ExportFavorites => Some((
-			menus::plain(s::FAVORITES).trim_end_matches('…').to_string(),
+			menus::plain(&s::favorites()).trim_end_matches('…').to_string(),
 			lib.favorites.clone(),
 			lib.fav_folders.clone(),
 		)),
@@ -163,7 +163,7 @@ fn playlist_export_data(
 			if *action == Action::ExportAllPlaylists || main_list == Some(ALL_LISTS) =>
 		{
 			Some((
-				s::EXPORT_ALL_NAME.to_string(),
+				s::export_all_name().to_string(),
 				Vec::new(),
 				lib.collections
 					.iter()
@@ -279,8 +279,8 @@ pub fn writable(dir: &std::path::Path) -> bool {
 }
 
 /// `Settings not saved`, said once and only when the folder cannot be written.
-pub fn readonly_message(readonly: bool, said: bool) -> Option<&'static str> {
-	(readonly && !said).then_some(s::NOT_SAVED)
+pub fn readonly_message(readonly: bool, said: bool) -> Option<String> {
+	(readonly && !said).then(s::not_saved)
 }
 
 /// A station on the clipboard, and where a cut station comes from
@@ -423,7 +423,7 @@ impl App {
 			Some((name, stations, folders)) => {
 				crate::context_menu::export_playlist(app, &parent, &name, &stations, &folders)
 			}
-			None => app.borrow_mut().say(s::NOTHING_TO_PLAY),
+			None => app.borrow_mut().say(&s::nothing_to_play()),
 		}
 	}
 
@@ -541,7 +541,7 @@ impl App {
 		}
 		if let Some(text) = readonly_message(self.readonly, self.readonly_said) {
 			self.readonly_said = true;
-			self.say(text);
+			self.say(&text);
 		}
 		self.refresh();
 	}
@@ -600,7 +600,7 @@ impl App {
 		if self.tuner.playing().is_some_and(|p| p.id == next.id) {
 			return true;
 		}
-		confirm(&self.win.frame, s::REC_CHANGE_ASK, s::REC_CHANGE_TITLE)
+		confirm(&self.win.frame, s::rec_change_ask(), &s::rec_change_title())
 	}
 
 	pub fn tune(&mut self, stations: &[Station], index: usize) {
@@ -630,7 +630,7 @@ impl App {
 		match a {
 			Action::Play => match self.station_here() {
 				Some(st) => self.play(st),
-				None => self.say(s::NOTHING_TO_PLAY),
+				None => self.say(&s::nothing_to_play()),
 			},
 			Action::PlayPause => {
 				// With a time-shift buffer, pause holds the stream instead of
@@ -641,7 +641,7 @@ impl App {
 					let paused = status.paused.load(std::sync::atomic::Ordering::Relaxed);
 					self.tuner.shift_pause(!paused);
 					if self.settings.announce_status {
-						self.say(if paused { s::RESUMED } else { s::PAUSED });
+						self.say((if paused { s::resumed() } else { s::paused() }).as_str());
 					}
 					return;
 				}
@@ -652,7 +652,7 @@ impl App {
 				) {
 					PlayPause::Stop => self.stop(true),
 					PlayPause::Play(st) => self.play(st),
-					PlayPause::Nothing => self.say(s::NOTHING_TO_PLAY),
+					PlayPause::Nothing => self.say(&s::nothing_to_play()),
 				}
 			}
 			Action::Stop => self.stop(true),
@@ -667,20 +667,20 @@ impl App {
 					// playhead's in the buffer, the live one at the edge.
 					let song = self.heard_song_at(self.behind());
 					match self.tuner.start_recording(song.as_deref()) {
-						Ok(_) => self.say(s::REC_STARTED),
+						Ok(_) => self.say(&s::rec_started()),
 						Err(e) => self.say(&e.to_string()),
 					}
 				}
 			}
 			Action::RecordPause => {
 				if !self.tuner.is_recording() {
-					self.say(s::NOT_RECORDING);
+					self.say(&s::not_recording());
 				} else if self.tuner.recording_paused() {
 					self.tuner.set_recording_paused(false);
-					self.say(s::REC_RESUMED);
+					self.say(&s::rec_resumed());
 				} else {
 					self.tuner.set_recording_paused(true);
-					self.say(s::REC_PAUSED);
+					self.say(&s::rec_paused());
 				}
 			}
 			Action::RecordSongs => {
@@ -688,7 +688,7 @@ impl App {
 				let on = self.settings.recording.split_songs;
 				self.save_settings();
 				self.refresh_menus();
-				self.say(if on { s::REC_SONGS_ON } else { s::REC_SONGS_OFF });
+				self.say((if on { s::rec_songs_on() } else { s::rec_songs_off() }).as_str());
 			}
 			Action::SaveBuffer => self.save_buffer(),
 			Action::WriteCurrentSegment => self.write_segment(blindradio_core::segments::Which::Current),
@@ -704,7 +704,7 @@ impl App {
 			Action::GoLive => {
 				self.tuner.shift_live();
 				if self.settings.announce_status && self.tuner.shift().is_some() {
-					self.say(s::LIVE);
+					self.say(&s::live());
 				}
 			}
 			Action::Mute => {
@@ -712,7 +712,7 @@ impl App {
 				self.mixer(MixerCmd::Mute(self.settings.muted));
 				self.save_settings();
 				// The toggle says what it did, like every other action.
-				self.say(mute_message(self.settings.muted));
+				self.say(&mute_message(self.settings.muted));
 			}
 			Action::VolumeUp => self.set_volume(self.volume() + VOLUME_STEP),
 			Action::VolumeDown => self.set_volume(self.volume() - VOLUME_STEP),
@@ -720,18 +720,17 @@ impl App {
 			Action::ToggleFavorite => match self.station_here() {
 				Some(st) => {
 					let added = self.library.toggle_favorite(&st);
-					self.say(if added {
-						s::ADDED_TO_FAVORITES
-					} else {
-						s::REMOVED_FROM_FAVORITES
-					});
+					self.say(
+						(if added { s::added_to_favorites() } else { s::removed_from_favorites() })
+							.as_str(),
+					);
 					self.save_library();
 				}
-				None => self.say(s::NO_STATION_HERE),
+				None => self.say(&s::no_station_here()),
 			},
 			Action::PlayFavorite(i) => match self.library.favorites.get(i).cloned() {
 				Some(st) => self.play(st),
-				None => self.say(&format!("{}{}", s::NO_FAVORITE, i + 1)),
+				None => self.say(&format!("{}{}", s::no_favorite(), i + 1)),
 			},
 			Action::Sleep(minutes) => {
 				let text = self.sleep.set(minutes, Instant::now());
@@ -750,8 +749,9 @@ impl App {
 						self.refresh_menus();
 					}
 					Err(_) => {
-						let name = device.as_deref().unwrap_or(s::DEFAULT_DEVICE);
-						self.say(&format!("{}{name}", s::FAILED));
+						let default = s::default_device();
+					let name = device.as_deref().unwrap_or(&default);
+						self.say(&format!("{}{name}", s::failed()));
 					}
 				}
 			}
@@ -762,7 +762,7 @@ impl App {
 				// destroys: ask first. What is recorded so far is
 				// saved either way (the shutdown stops the tuner).
 				if self.tuner.is_recording()
-					&& !confirm(&self.win.frame, s::REC_CLOSE_ASK, s::REC_CHANGE_TITLE)
+					&& !confirm(&self.win.frame, s::rec_close_ask(), &s::rec_change_title())
 				{
 					return;
 				}
@@ -800,11 +800,11 @@ impl App {
 			Action::CopyUrl => self.copy_url(),
 			Action::CopyStation => match self.focused_station() {
 				Some(st) => self.copy_station(&st, false),
-				None => self.say(s::NOTHING_TO_COPY),
+				None => self.say(&s::nothing_to_copy()),
 			},
 			Action::CutStation => match self.focused_station() {
 				Some(st) => self.copy_station(&st, true),
-				None => self.say(s::NOTHING_TO_CUT),
+				None => self.say(&s::nothing_to_cut()),
 			},
 			Action::PasteStation => {
 				// Paste lands where the user is standing: the open
@@ -821,7 +821,7 @@ impl App {
 								.map(|c| c.id.clone())
 							{
 								Some(id) => self.paste_into(PasteDest::Collection(id, Vec::new())),
-								None => self.say(s::NOWHERE_TO_PASTE),
+								None => self.say(&s::nowhere_to_paste()),
 							}
 						}
 					}
@@ -879,7 +879,7 @@ impl App {
 		// Already stopped: the timer ends without a word.
 		if self.sleep.due(now) && self.tuner.playing().is_some() {
 			self.stop(false);
-			self.say(s::SLEEP_STOPPING);
+			self.say(&s::sleep_stopping());
 		}
 		if now.duration_since(self.last_sched_poll) >= Duration::from_secs(1) {
 			self.last_sched_poll = now;
@@ -890,8 +890,8 @@ impl App {
 			let event = self.output.borrow_mut().poll_devices(&output_devices);
 			let changed = event.is_some();
 			match event {
-				Some(DeviceEvent::Lost) => self.say(s::DEVICE_LOST),
-				Some(DeviceEvent::Back(name)) => self.say(&format!("{}{name}", s::USING)),
+				Some(DeviceEvent::Lost) => self.say(&s::device_lost()),
+				Some(DeviceEvent::Back(name)) => self.say(&format!("{}{name}", s::using())),
 				None => {}
 			}
 			// The Audio Device check mark follows what is there now.
@@ -1007,8 +1007,8 @@ impl App {
 				}
 			}
 			TunerEvent::Announce(song) => self.say_kind(Kind::Title, &song),
-			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, s::RECONNECTING),
-			TunerEvent::Reconnected { .. } => self.say_kind(Kind::Info, s::RECONNECTED),
+			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, &s::reconnecting()),
+			TunerEvent::Reconnected { .. } => self.say_kind(Kind::Info, &s::reconnected()),
 			TunerEvent::Failed {
 				station_id, name, ..
 			} => {
@@ -1019,7 +1019,7 @@ impl App {
 					.and_then(|p| p.details.unavailable.as_deref())
 					.map(|why| format!(" - {why}"))
 					.unwrap_or_default();
-				self.say_kind(Kind::Failure, &format!("{}{name}{why}", s::FAILED));
+				self.say_kind(Kind::Failure, &format!("{}{name}{why}", s::failed()));
 			}
 			// The status line's per-second tick picks the format up.
 			TunerEvent::Format { .. } => {}
@@ -1077,20 +1077,19 @@ impl App {
 	/// recording the move itself.
 	fn played_step(&mut self, delta: i32) {
 		let Some(at) = self.played_at else {
-			self.say(if delta < 0 {
-				s::NO_EARLIER_STATION
-			} else {
-				s::NO_LATER_STATION
-			});
+			self.say(
+				(if delta < 0 { s::no_earlier_station() } else { s::no_later_station() })
+					.as_str(),
+			);
 			return;
 		};
 		let next = at as i32 + delta;
 		if next < 0 {
-			self.say(s::NO_EARLIER_STATION);
+			self.say(&s::no_earlier_station());
 			return;
 		}
 		if next as usize >= self.played.len() {
-			self.say(s::NO_LATER_STATION);
+			self.say(&s::no_later_station());
 			return;
 		}
 		self.played_at = Some(next as usize);
@@ -1149,7 +1148,7 @@ impl App {
 		self.playing_since = None;
 		self.now_playing(None);
 		if announce && self.settings.announce_status {
-			self.say(s::STOPPED);
+			self.say(&s::stopped());
 		}
 	}
 
@@ -1187,9 +1186,9 @@ impl App {
 
 	fn say_behind(&mut self, behind: f32) {
 		if behind >= 1.0 {
-			self.say(&format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+			self.say(&format!("{}{}", fmt_dur(behind), s::behind_live()));
 		} else {
-			self.say(s::LIVE);
+			self.say(&s::live());
 		}
 	}
 
@@ -1213,7 +1212,7 @@ impl App {
 				}
 				Err(e) => {
 					eprintln!("starter: {e}");
-					app.say(s::STARTER_NOT_LOADED);
+					app.say(&s::starter_not_loaded());
 				}
 			},
 		);
@@ -1264,7 +1263,7 @@ impl App {
 		self.settings_due = None;
 		if let Err(e) = self.settings.save(&self.data) {
 			eprintln!("settings: {e}");
-			self.say(s::NOT_SAVED);
+			self.say(&s::not_saved());
 		}
 		self.tuner
 			.set_settings(Arc::new(parking_lot::Mutex::new(self.settings.clone())));
@@ -1357,7 +1356,7 @@ impl App {
 	pub fn save_library(&mut self) {
 		if let Err(e) = self.library.save(&self.data) {
 			eprintln!("library: {e}");
-			self.say(s::NOT_SAVED);
+			self.say(&s::not_saved());
 		}
 	}
 }

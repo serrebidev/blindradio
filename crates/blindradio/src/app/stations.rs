@@ -17,7 +17,7 @@ impl App {
 			return;
 		};
 		let added = self.library.toggle_in_collection(id, station);
-		let prefix = if added { s::ADDED_TO } else { s::REMOVED_FROM };
+		let prefix = if added { s::added_to() } else { s::removed_from() };
 		self.say(&format!("{prefix}{name}"));
 		self.save_library();
 		self.refresh_dial();
@@ -75,7 +75,7 @@ impl App {
 			from_favorites,
 			from_path,
 		});
-		let prefix = if cut { s::CUT_SAID } else { s::COPIED_STATION };
+		let prefix = if cut { s::cut_said() } else { s::copied_station() };
 		self.say(&format!("{prefix}{}", station.name));
 	}
 
@@ -84,18 +84,18 @@ impl App {
 	/// collection moves it there.
 	pub fn paste_into(&mut self, dest: PasteDest) {
 		let Some(clip) = self.station_clip.clone() else {
-			return self.say(s::NOTHING_TO_PASTE);
+			return self.say(&s::nothing_to_paste());
 		};
 		let st = &clip.station;
 		let (held, dest_name) = match &dest {
 			PasteDest::Collection(id, path) => {
 				let Some(c) = self.library.collections.iter().find(|c| &c.id == id) else {
-					return self.say(s::NOWHERE_TO_PASTE);
+					return self.say(&s::nowhere_to_paste());
 				};
 				// The destination list itself must exist before
 				// anything is taken out of anywhere for a cut.
 				let Some(list) = c.stations_at(path) else {
-					return self.say(s::NOWHERE_TO_PASTE);
+					return self.say(&s::nowhere_to_paste());
 				};
 				(
 					list.iter().any(|x| x.id == st.id),
@@ -107,11 +107,11 @@ impl App {
 			}
 			PasteDest::Favorites(path) => {
 				let Some(list) = self.library.fav_stations_at(path) else {
-					return self.say(s::NOWHERE_TO_PASTE);
+					return self.say(&s::nowhere_to_paste());
 				};
 				(
 					list.iter().any(|x| x.id == st.id),
-					s::FAVORITES_LIST.to_string(),
+					s::favorites_list().to_string(),
 				)
 			}
 		};
@@ -126,7 +126,7 @@ impl App {
 				PasteDest::Favorites(path) => clip.from_favorites && clip.from_path == *path,
 			};
 		if held && (!clip.cut || same_home) {
-			return self.say(&format!("{}{}{}", st.name, s::IS_ALREADY_IN, dest_name));
+			return self.say(&format!("{}{}{}", st.name, s::is_already_in(), dest_name));
 		}
 		if clip.cut {
 			// Out of the list it was taken from, specifically: the
@@ -165,13 +165,13 @@ impl App {
 					.is_some(),
 			};
 		if !landed {
-			return self.say(s::NOWHERE_TO_PASTE);
+			return self.say(&s::nowhere_to_paste());
 		}
 		self.say(&format!(
 			"{}{}{}{}",
-			s::PASTED,
+			s::pasted(),
 			st.name,
-			s::INTO,
+			s::into(),
 			dest_name
 		));
 		self.save_library();
@@ -187,7 +187,7 @@ impl App {
 				Some(dest) => dest,
 				None => match dial_collection(&self.library, self.settings.main_list.as_deref()) {
 					Some(c) => PasteDest::Collection(c.id.clone(), Vec::new()),
-					None => return self.say(s::NOWHERE_TO_PASTE),
+					None => return self.say(&s::nowhere_to_paste()),
 				},
 			};
 		self.paste_into(dest);
@@ -207,7 +207,7 @@ impl App {
 	/// Into a favorites folder; says so when it lands.
 	pub fn add_favorite_to(&mut self, path: &[usize], station: &Station) {
 		if self.library.add_favorite_to(path, station) {
-			self.say(s::ADDED_TO_FAVORITES);
+			self.say(&s::added_to_favorites());
 			self.save_library();
 		}
 	}
@@ -225,7 +225,7 @@ impl App {
 			return;
 		};
 		if self.library.add_to_collection_folder(id, path, station) {
-			self.say(&format!("{}{name}", s::ADDED_TO));
+			self.say(&format!("{}{name}", s::added_to()));
 			self.save_library();
 			self.refresh_dial();
 		}
@@ -235,7 +235,7 @@ impl App {
 	/// stations arrived, and when `capped` left some of the folder behind.
 	pub fn add_folder_to(&mut self, dest: &StationDest, folder: Folder, capped: bool) {
 		let Some(n) = self.library.add_folder_to(dest, folder) else {
-			return self.say(s::NOT_SAVED);
+			return self.say(&s::not_saved());
 		};
 		let name = self
 			.library
@@ -244,8 +244,8 @@ impl App {
 			.find(|(_, d)| d == dest)
 			.map(|(label, _)| label)
 			.unwrap_or_default();
-		let tail = if capped { s::STOPPED_THERE } else { "" };
-		self.say(&format!("{}{n}{}{name}{tail}", s::ADDED, s::TO));
+		let tail = if capped { s::stopped_there() } else { String::new() };
+		self.say(&format!("{}{n}{}{name}{tail}", s::added(), s::to()));
 		self.save_library();
 		self.refresh_dial();
 	}
@@ -259,7 +259,7 @@ impl App {
 		{
 			self.library.toggle_in_collection(&id, station);
 		}
-		self.say(&format!("{}{name}", s::ADDED_TO));
+		self.say(&format!("{}{name}", s::added_to()));
 		self.save_library();
 		self.refresh_dial();
 	}
@@ -293,7 +293,7 @@ impl App {
 			.map(|c| c.name.clone())
 			.unwrap_or_default();
 		self.save_library();
-		self.say(&format!("{}{n}{}{name}", s::ADDED, s::TO));
+		self.say(&format!("{}{n}{}{name}", s::added(), s::to()));
 	}
 
 	/// Copy Stream URL: the focused station's URL, read back from the clipboard.
@@ -301,9 +301,9 @@ impl App {
 		match self.station_here() {
 			Some(st) => {
 				let ok = clipboard::copy(&st.url);
-				self.say(clipboard::message(ok));
+				self.say(&clipboard::message(ok));
 			}
-			None => self.say(s::NOTHING_TO_COPY),
+			None => self.say(&s::nothing_to_copy()),
 		}
 	}
 }

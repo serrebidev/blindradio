@@ -371,12 +371,12 @@ impl DialTree {
 	/// Rename on a folder row, or on a collection row in the All Lists view.
 	fn rename_folder(&self, app: &Rc<RefCell<App>>, home: &FolderHome) {
 		let label = if home.1.is_empty() {
-			s::COLLECTION_NAME
+			s::collection_name()
 		} else {
-			s::FOLDER_NAME
+			s::folder_name()
 		};
 		let Some(name) = modal(app, || {
-			prompt_text(&self.list, label, &plain(s::RENAME_ITEM))
+			prompt_text(&self.list, label, &plain(&s::rename_item()))
 		}) else {
 			return;
 		};
@@ -404,7 +404,7 @@ impl DialTree {
 				.sum::<usize>();
 		let question = context_menu::delete_question(&name, count);
 		if !modal(app, || {
-			confirm(&self.list, &question, &plain(s::DELETE_ITEM))
+			confirm(&self.list, &question, &plain(&s::delete_item()))
 		}) {
 			return;
 		}
@@ -426,7 +426,7 @@ impl DialTree {
 		};
 		let question = context_menu::delete_question(&station.name, 0);
 		modal(app, || {
-			confirm(&self.list, &question, &plain(s::DELETE_ITEM))
+			confirm(&self.list, &question, &plain(&s::delete_item()))
 		})
 	}
 
@@ -561,7 +561,7 @@ impl DialTree {
 								_ => {}
 							}
 						}
-						None => a.borrow_mut().say(s::NOTHING_TO_DO),
+						None => a.borrow_mut().say(&s::nothing_to_do()),
 					}
 					return;
 				}
@@ -599,7 +599,7 @@ impl DialTree {
 						Some(choice) => context_menu::apply(&a, &me.list, &st, choice),
 						None => {}
 					},
-					(Err(text), _) => a.borrow_mut().say(text),
+					(Err(text), _) => a.borrow_mut().say(&text),
 					(Ok(_), None) => {}
 				}
 			});

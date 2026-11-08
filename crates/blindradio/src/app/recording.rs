@@ -11,7 +11,7 @@ impl App {
 	pub(super) fn finish_recording(&mut self) {
 		if self.tuner.is_recording() {
 			match self.tuner.stop_recording() {
-				Some(Ok(path)) => self.say(&format!("{}{}", s::REC_SAVED, path.display())),
+				Some(Ok(path)) => self.say(&format!("{}{}", s::rec_saved(), path.display())),
 				Some(Err(e)) => self.say(&e.to_string()),
 				None => {}
 			}
@@ -36,7 +36,7 @@ impl App {
 			return self.say(&e.to_string());
 		}
 		if !wxdragon::prelude::launch_default_application(&dir.to_string_lossy()) {
-			self.say(s::NO_RECORD_FOLDER);
+			self.say(&s::no_record_folder());
 		}
 	}
 
@@ -46,13 +46,13 @@ impl App {
 	pub fn save_buffer(&mut self) {
 		use blindradio_core::record::WavSave;
 		let Some(station) = self.tuner.playing().cloned() else {
-			return self.say(s::NO_BUFFER);
+			return self.say(&s::no_buffer());
 		};
 		let Some((buffer, _)) = self.tuner.shift() else {
-			return self.say(s::NO_BUFFER);
+			return self.say(&s::no_buffer());
 		};
 		if buffer.buffered_seconds() < 1.0 {
-			return self.say(s::NO_BUFFER);
+			return self.say(&s::no_buffer());
 		}
 		let dir = self.record_dir();
 		let mut save = match WavSave::create(&dir, &station.name, buffer.rate()) {
@@ -74,7 +74,7 @@ impl App {
 			at += (n / 2) as u64;
 		}
 		match save.finish() {
-			Ok(path) => self.say(&format!("{}{}", s::BUFFER_SAVED, path.display())),
+			Ok(path) => self.say(&format!("{}{}", s::buffer_saved(), path.display())),
 			Err(e) => self.say(&e.to_string()),
 		}
 	}
@@ -92,14 +92,14 @@ impl App {
 				let mut text = segment.title;
 				if self.settings.announce_status {
 					let behind = fmt_dur(behind as f32 / 1000.0);
-					text = format!("{text} - {behind}{}", s::BEHIND_LIVE);
+					text = format!("{text} - {behind}{}", s::behind_live());
 				}
 				self.say(&text);
 			}
 			Jump::Live => self.run(Action::GoLive),
-			Jump::Nowhere if self.tuner.segments().is_empty() => self.say(s::NO_SEGMENTS),
-			Jump::Nowhere if forward => self.say(s::NO_NEXT_SEGMENT),
-			Jump::Nowhere => self.say(s::NO_PREVIOUS_SEGMENT),
+			Jump::Nowhere if self.tuner.segments().is_empty() => self.say(&s::no_segments()),
+			Jump::Nowhere if forward => self.say(&s::no_next_segment()),
+			Jump::Nowhere => self.say(&s::no_previous_segment()),
 		}
 	}
 
@@ -107,14 +107,16 @@ impl App {
 	/// since the choice follows the playhead.
 	pub(super) fn write_segment(&mut self, which: Which) {
 		let Some(segment) = self.tuner.segment(which) else {
-			return self.say(match which {
-				_ if self.tuner.segments().is_empty() => s::NO_SEGMENTS,
-				Which::Previous => s::NO_PREVIOUS_SEGMENT,
-				Which::Next => s::NO_NEXT_SEGMENT,
-				Which::Current => s::NO_SEGMENTS,
-			});
+			return self.say(
+				&(match which {
+					_ if self.tuner.segments().is_empty() => s::no_segments(),
+					Which::Previous => s::no_previous_segment(),
+					Which::Next => s::no_next_segment(),
+					Which::Current => s::no_segments(),
+				}),
+			);
 		};
-		self.say(&format!("{}{}", s::WRITING_SEGMENT, segment.title));
+		self.say(&format!("{}{}", s::writing_segment(), segment.title));
 		self.write_segments(vec![segment]);
 	}
 
@@ -122,9 +124,9 @@ impl App {
 	pub(super) fn write_all_segments(&mut self) {
 		let segments = self.tuner.segments();
 		if segments.is_empty() {
-			return self.say(s::NO_SEGMENTS);
+			return self.say(&s::no_segments());
 		}
-		self.say(&format!("{}{}{}", s::WRITING_SEGMENT, segments.len(), s::SEGMENTS));
+		self.say(&format!("{}{}{}", s::writing_segment(), segments.len(), s::segments()));
 		self.write_segments(segments);
 	}
 
@@ -132,7 +134,7 @@ impl App {
 	/// window may stall under a screen reader.
 	fn write_segments(&mut self, segments: Vec<Segment>) {
 		let Some(writer) = self.tuner.segment_writer() else {
-			return self.say(s::NO_SEGMENTS);
+			return self.say(&s::no_segments());
 		};
 		let dir = writer.dir().to_path_buf();
 		self.bridge.spawn(
@@ -144,12 +146,12 @@ impl App {
 					.and_then(|written| written)
 			},
 			move |app: &mut App, written| match written.as_deref() {
-				Ok([path]) => app.say(&format!("{}{}", s::SEGMENT_SAVED, path.display())),
+				Ok([path]) => app.say(&format!("{}{}", s::segment_saved(), path.display())),
 				Ok(paths) => app.say(&format!(
 					"{}{}{}{}",
 					paths.len(),
-					s::SEGMENTS,
-					s::SEGMENTS_SAVED,
+					s::segments(),
+					s::segments_saved(),
 					dir.display()
 				)),
 				Err(e) => app.say(e),
@@ -177,7 +179,7 @@ impl App {
 				if self.tuner.is_recording() {
 					match self.tuner.stop_recording() {
 						Some(Ok(path)) => {
-							self.say(&format!("{}{}", s::SCHEDULE_SAVED, path.display()))
+							self.say(&format!("{}{}", s::schedule_saved(), path.display()))
 						}
 						Some(Err(e)) => self.say(&e.to_string()),
 						None => {}
@@ -207,7 +209,7 @@ impl App {
 					continue;
 				}
 				self.sched_fired.insert((entry.id.clone(), occ));
-				self.say(&format!("{}{}", s::ALARM_STARTED, entry.station.name));
+				self.say(&format!("{}{}", s::alarm_started(), entry.station.name));
 				self.play(entry.station.clone());
 				if entry.repeat == Repeat::Once
 					&& let Some(e) = self.settings.schedules.iter_mut().find(|e| e.id == entry.id)
@@ -227,14 +229,14 @@ impl App {
 			}
 			self.sched_fired.insert((entry.id.clone(), occ));
 			if self.tuner.is_recording() {
-				self.say(s::SCHEDULE_SKIPPED);
+				self.say(&s::schedule_skipped());
 				continue;
 			}
 			let name = entry.station.name.clone();
 			self.play(entry.station.clone());
 			match self.tuner.start_recording(None) {
 				Ok(_) => {
-					self.say(&format!("{}{name}", s::SCHEDULE_STARTED));
+					self.say(&format!("{}{name}", s::schedule_started()));
 					self.sched_active = Some((entry.id.clone(), occ));
 				}
 				Err(e) => self.say(&e.to_string()),

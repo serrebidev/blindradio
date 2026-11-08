@@ -21,8 +21,8 @@ pub fn copy(text: &str) -> bool {
 }
 
 /// What Copy Stream URL says for the clipboard's answer.
-pub fn message(ok: bool) -> &'static str {
-	if ok { s::COPIED } else { s::COPY_FAILED }
+pub fn message(ok: bool) -> String {
+	if ok { s::copied() } else { s::copy_failed() }
 }
 
 #[cfg(test)]

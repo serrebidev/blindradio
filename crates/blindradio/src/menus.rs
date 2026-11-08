@@ -11,163 +11,163 @@ use crate::strings as s;
 pub enum Entry {
 	/// Label, shortcut (`""` for none), action. The shortcut is the
 	/// action's effective chord, so a remapped key shows here.
-	Item(&'static str, String, Action),
+	Item(String, String, Action),
 	/// The Audio Device submenu: `Default`, then every output device.
 	Devices,
-	Sub(&'static str, Vec<Entry>),
+	Sub(String, Vec<Entry>),
 	Separator,
 }
 
-pub fn menus(settings: &Settings) -> Vec<(&'static str, Vec<Entry>)> {
+pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 	use Action as A;
 	use Entry::{Item, Separator, Sub};
 	let keys = |action: &A| crate::keys::menu_chord(settings, action);
-	let mut sleep: Vec<Entry> = s::SLEEP_ITEMS
+	let mut sleep: Vec<Entry> = s::sleep_items()
 		.iter()
 		.zip(SLEEP_MINUTES)
 		.map(|(label, minutes)| {
 			let action = A::Sleep(minutes);
-			Item(label, keys(&action), action)
+			Item(label.clone(), keys(&action), action)
 		})
 		.collect();
-	sleep.push(Item(s::SLEEP_OFF, keys(&A::SleepOff), A::SleepOff));
+	sleep.push(Item(s::sleep_off(), keys(&A::SleepOff), A::SleepOff));
 	vec![
 		(
-			s::MENU_FILE,
+			s::menu_file(),
 			vec![
-				Item(s::OPEN_URL, keys(&A::OpenUrl), A::OpenUrl),
-				Item(s::DETECT_STREAMS, keys(&A::DetectStreams), A::DetectStreams),
-				Item(s::IMPORT, keys(&A::Import), A::Import),
+				Item(s::open_url(), keys(&A::OpenUrl), A::OpenUrl),
+				Item(s::detect_streams(), keys(&A::DetectStreams), A::DetectStreams),
+				Item(s::import(), keys(&A::Import), A::Import),
 				Item(
-					s::IMPORT_AS_COLLECTION,
+					s::import_as_collection(),
 					keys(&A::ImportAsCollection),
 					A::ImportAsCollection,
 				),
 				Separator,
 				Item(
-					s::EXPORT_CURRENT_LIST,
+					s::export_current_list(),
 					keys(&A::ExportCurrentList),
 					A::ExportCurrentList,
 				),
 				Item(
-					s::EXPORT_ALL_PLAYLISTS,
+					s::export_all_playlists(),
 					keys(&A::ExportAllPlaylists),
 					A::ExportAllPlaylists,
 				),
 				Item(
-					s::EXPORT_FAVORITES,
+					s::export_favorites(),
 					keys(&A::ExportFavorites),
 					A::ExportFavorites,
 				),
 				Separator,
 				Item(
-					s::FEATURE_SETTINGS,
+					s::feature_settings(),
 					keys(&A::FeatureSettings),
 					A::FeatureSettings,
 				),
-				Item(s::GLOBAL_HOTKEYS, keys(&A::GlobalHotkeys), A::GlobalHotkeys),
+				Item(s::global_hotkeys(), keys(&A::GlobalHotkeys), A::GlobalHotkeys),
 				Item(
-					s::KEYBOARD_SHORTCUTS,
+					s::keyboard_shortcuts(),
 					keys(&A::KeyboardShortcuts),
 					A::KeyboardShortcuts,
 				),
 				Separator,
-				Item(s::EXIT, keys(&A::Exit), A::Exit),
+				Item(s::exit(), keys(&A::Exit), A::Exit),
 			],
 		),
 		(
-			s::MENU_STATIONS,
+			s::menu_stations(),
 			vec![
-				Item(s::SEARCH, keys(&A::OpenSearch), A::OpenSearch),
-				Item(s::BROWSE, keys(&A::OpenBrowse), A::OpenBrowse),
-				Item(s::FAVORITES, keys(&A::OpenFavorites), A::OpenFavorites),
-				Item(s::RECENT, keys(&A::OpenRecent), A::OpenRecent),
-				Item(s::COLLECTIONS, keys(&A::OpenCollections), A::OpenCollections),
+				Item(s::search(), keys(&A::OpenSearch), A::OpenSearch),
+				Item(s::browse(), keys(&A::OpenBrowse), A::OpenBrowse),
+				Item(s::favorites(), keys(&A::OpenFavorites), A::OpenFavorites),
+				Item(s::recent(), keys(&A::OpenRecent), A::OpenRecent),
+				Item(s::collections(), keys(&A::OpenCollections), A::OpenCollections),
 				Separator,
-				Item(s::PREVIOUS_STATION, keys(&A::PreviousStation), A::PreviousStation),
-				Item(s::NEXT_STATION, keys(&A::NextStation), A::NextStation),
+				Item(s::previous_station(), keys(&A::PreviousStation), A::PreviousStation),
+				Item(s::next_station(), keys(&A::NextStation), A::NextStation),
 				Item(
-					s::MOVE_TO_PLAYING_STATION,
+					s::move_to_playing_station(),
 					keys(&A::MoveToPlayingStation),
 					A::MoveToPlayingStation,
 				),
 				Separator,
-				Item(s::ADD_CUSTOM, keys(&A::NewCustomStation), A::NewCustomStation),
-				Item(s::COPY_URL, keys(&A::CopyUrl), A::CopyUrl),
+				Item(s::add_custom(), keys(&A::NewCustomStation), A::NewCustomStation),
+				Item(s::copy_url(), keys(&A::CopyUrl), A::CopyUrl),
 				Item(favorite_label(false), keys(&A::ToggleFavorite), A::ToggleFavorite),
-				Item(s::ADD_TO_COLLECTION, keys(&A::AddToCollection), A::AddToCollection),
+				Item(s::add_to_collection(), keys(&A::AddToCollection), A::AddToCollection),
 				Separator,
-				Item(s::GET_STARTER, keys(&A::GetStarter), A::GetStarter),
+				Item(s::get_starter(), keys(&A::GetStarter), A::GetStarter),
 			],
 		),
 		(
-			s::MENU_PLAYBACK,
+			s::menu_playback(),
 			vec![
-				Item(s::PLAY_PAUSE, keys(&A::PlayPause), A::PlayPause),
-				Item(s::STOP_MENU, keys(&A::Stop), A::Stop),
+				Item(s::play_pause(), keys(&A::PlayPause), A::PlayPause),
+				Item(s::stop_menu(), keys(&A::Stop), A::Stop),
 				Separator,
-				Item(s::SKIP_BACK, keys(&A::SeekBack), A::SeekBack),
-				Item(s::SKIP_FORWARD, keys(&A::SeekForward), A::SeekForward),
-				Item(s::JUMP_START, keys(&A::SeekStart), A::SeekStart),
-				Item(s::GO_LIVE, keys(&A::GoLive), A::GoLive),
-				Item(s::PREVIOUS_SEGMENT, keys(&A::PreviousSegment), A::PreviousSegment),
-				Item(s::NEXT_SEGMENT, keys(&A::NextSegment), A::NextSegment),
+				Item(s::skip_back(), keys(&A::SeekBack), A::SeekBack),
+				Item(s::skip_forward(), keys(&A::SeekForward), A::SeekForward),
+				Item(s::jump_start(), keys(&A::SeekStart), A::SeekStart),
+				Item(s::go_live(), keys(&A::GoLive), A::GoLive),
+				Item(s::previous_segment(), keys(&A::PreviousSegment), A::PreviousSegment),
+				Item(s::next_segment(), keys(&A::NextSegment), A::NextSegment),
 				Separator,
-				Item(s::MUTE_MENU, keys(&A::Mute), A::Mute),
-				Item(s::VOLUME_UP, keys(&A::VolumeUp), A::VolumeUp),
-				Item(s::VOLUME_DOWN, keys(&A::VolumeDown), A::VolumeDown),
+				Item(s::mute_menu(), keys(&A::Mute), A::Mute),
+				Item(s::volume_up(), keys(&A::VolumeUp), A::VolumeUp),
+				Item(s::volume_down(), keys(&A::VolumeDown), A::VolumeDown),
 				Separator,
-				Item(s::SONG_HISTORY, keys(&A::SongHistory), A::SongHistory),
-				Sub(s::SLEEP_TIMER, sleep),
-				Item(s::EQUALIZER, keys(&A::Equalizer), A::Equalizer),
+				Item(s::song_history(), keys(&A::SongHistory), A::SongHistory),
+				Sub(s::sleep_timer(), sleep),
+				Item(s::equalizer(), keys(&A::Equalizer), A::Equalizer),
 				Entry::Devices,
 			],
 		),
 		(
-			s::MENU_RECORDING,
+			s::menu_recording(),
 			vec![
-				Item(s::RECORD, keys(&A::Record), A::Record),
-				Item(s::RECORD_PAUSE, keys(&A::RecordPause), A::RecordPause),
-				Item(s::RECORD_SONGS, keys(&A::RecordSongs), A::RecordSongs),
+				Item(s::record(), keys(&A::Record), A::Record),
+				Item(s::record_pause(), keys(&A::RecordPause), A::RecordPause),
+				Item(s::record_songs(), keys(&A::RecordSongs), A::RecordSongs),
 				Separator,
-				Item(s::SAVE_BUFFER, keys(&A::SaveBuffer), A::SaveBuffer),
+				Item(s::save_buffer(), keys(&A::SaveBuffer), A::SaveBuffer),
 				Item(
-					s::WRITE_CURRENT_SEGMENT,
+					s::write_current_segment(),
 					keys(&A::WriteCurrentSegment),
 					A::WriteCurrentSegment,
 				),
 				Item(
-					s::WRITE_PREVIOUS_SEGMENT,
+					s::write_previous_segment(),
 					keys(&A::WritePreviousSegment),
 					A::WritePreviousSegment,
 				),
-				Item(s::WRITE_NEXT_SEGMENT, keys(&A::WriteNextSegment), A::WriteNextSegment),
-				Item(s::WRITE_ALL_SEGMENTS, keys(&A::WriteAllSegments), A::WriteAllSegments),
+				Item(s::write_next_segment(), keys(&A::WriteNextSegment), A::WriteNextSegment),
+				Item(s::write_all_segments(), keys(&A::WriteAllSegments), A::WriteAllSegments),
 				Separator,
-				Item(s::SCHEDULED_RECORDINGS, keys(&A::ScheduledRecordings), A::ScheduledRecordings),
-				Item(s::OPEN_RECORD_FOLDER, keys(&A::OpenRecordFolder), A::OpenRecordFolder),
+				Item(s::scheduled_recordings(), keys(&A::ScheduledRecordings), A::ScheduledRecordings),
+				Item(s::open_record_folder(), keys(&A::OpenRecordFolder), A::OpenRecordFolder),
 			],
 		),
 		(
-			s::MENU_HELP,
+			s::menu_help(),
 			vec![
-				Item(s::USER_GUIDE, keys(&A::Help), A::Help),
-				Item(s::VIEW_CHANGELOG, keys(&A::ViewChangelog), A::ViewChangelog),
-				Item(s::GITHUB_PAGE, keys(&A::GitHubPage), A::GitHubPage),
+				Item(s::user_guide(), keys(&A::Help), A::Help),
+				Item(s::view_changelog(), keys(&A::ViewChangelog), A::ViewChangelog),
+				Item(s::github_page(), keys(&A::GitHubPage), A::GitHubPage),
 				Separator,
-				Item(s::CHECK_UPDATES, keys(&A::CheckForUpdates), A::CheckForUpdates),
-				Item(s::ABOUT, keys(&A::About), A::About),
+				Item(s::check_updates(), keys(&A::CheckForUpdates), A::CheckForUpdates),
+				Item(s::about(), keys(&A::About), A::About),
 			],
 		),
 	]
 }
 
 /// The menu item's label; the main window button drops the `&` (`plain`).
-pub fn favorite_label(is_favorite: bool) -> &'static str {
+pub fn favorite_label(is_favorite: bool) -> String {
 	if is_favorite {
-		s::REMOVE_FROM_FAVORITES
+		s::remove_from_favorites()
 	} else {
-		s::ADD_TO_FAVORITES
+		s::add_to_favorites()
 	}
 }
 
@@ -208,7 +208,7 @@ pub fn build(frame: &Frame, settings: &Settings, devices: &[String]) -> MenuIds 
 	};
 	let mut bar = MenuBar::builder();
 	for (title, entries) in menus(settings) {
-		bar = bar.append(fill(&mut ids, &entries, settings, devices), title);
+		bar = bar.append(fill(&mut ids, &entries, settings, devices), &title);
 	}
 	frame.set_menu_bar(bar.build());
 	ids
@@ -253,7 +253,7 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 					.as_ref()
 					.filter(|d| devices.contains(d));
 				let default = ids.add(Action::SetDevice(None));
-				sub.append(default, s::DEFAULT_DEVICE, "", ItemKind::Radio);
+				sub.append(default, &s::default_device(), "", ItemKind::Radio);
 				for name in devices {
 					let id = ids.add(Action::SetDevice(Some(name.clone())));
 					let item = sub.append(id, &name.replace('&', "&&"), "", ItemKind::Radio);
@@ -263,7 +263,7 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 						item.check(true);
 					}
 				}
-				menu.append_submenu(sub, s::AUDIO_DEVICE, "");
+				menu.append_submenu(sub, &s::audio_device(), "");
 			}
 			Entry::Sub(label, sub) => {
 				let sub = fill(ids, sub, settings, devices);
@@ -404,7 +404,7 @@ mod tests {
 		let titles: Vec<_> = menus(&Settings::default()).into_iter().map(|(t, _)| t).collect();
 		assert_eq!(
 			titles,
-			["&File", "&Stations", "&Playback", "&Recording", "&Help"]
+			["&File", "&Stations", "&Playback", "&Recording", "&Help"].map(String::from)
 		);
 	}
 
@@ -412,15 +412,15 @@ mod tests {
 	fn favorite_label_flips() {
 		assert_eq!(favorite_label(false), "&Add to Favorites");
 		assert_eq!(favorite_label(true), "Re&move from Favorites");
-		assert_eq!(plain(favorite_label(false)), "Add to Favorites");
-		assert_eq!(plain(favorite_label(true)), "Remove from Favorites");
+		assert_eq!(plain(&favorite_label(false)), "Add to Favorites");
+		assert_eq!(plain(&favorite_label(true)), "Remove from Favorites");
 	}
 
 	/// One menu's entries, by title.
 	fn menu(title: &str) -> Vec<Entry> {
 		menus(&Settings::default())
 			.into_iter()
-			.find(|(t, _)| *t == title)
+			.find(|(t, _)| t == title)
 			.map(|(_, entries)| entries)
 			.unwrap_or_else(|| panic!("{title} missing"))
 	}
@@ -431,7 +431,7 @@ mod tests {
 			.iter()
 			.filter_map(|e| match e {
 				Entry::Item(l, ..) | Entry::Sub(l, _) => Some(plain(l)),
-				Entry::Devices => Some(plain(crate::strings::AUDIO_DEVICE)),
+				Entry::Devices => Some(plain(&crate::strings::audio_device())),
 				Entry::Separator => None,
 			})
 			.collect()
@@ -439,7 +439,7 @@ mod tests {
 
 	#[test]
 	fn recording_and_station_items_live_where_they_belong() {
-		let recording = labels(&menu(s::MENU_RECORDING));
+		let recording = labels(&menu(s::menu_recording()));
 		for want in [
 			"Record",
 			"Pause Recording",
@@ -449,7 +449,7 @@ mod tests {
 		] {
 			assert!(recording.iter().any(|l| l == want), "{want}");
 		}
-		let stations = labels(&menu(s::MENU_STATIONS));
+		let stations = labels(&menu(s::menu_stations()));
 		for want in [
 			"Previous Station",
 			"Next Station",
@@ -459,7 +459,7 @@ mod tests {
 		] {
 			assert!(stations.iter().any(|l| l == want), "{want}");
 		}
-		let playback = labels(&menu(s::MENU_PLAYBACK));
+		let playback = labels(&menu(s::menu_playback()));
 		for gone in [
 			"Record",
 			"Pause Recording",
@@ -481,7 +481,7 @@ mod tests {
 
 	#[test]
 	fn file_exports_route_to_their_scopes() {
-		let entries = menu(s::MENU_FILE);
+		let entries = menu(s::menu_file());
 		for action in [
 			Action::ExportCurrentList,
 			Action::ExportAllPlaylists,
@@ -497,10 +497,10 @@ mod tests {
 
 	#[test]
 	fn file_menu_has_no_checks() {
-		let file = menu(s::MENU_FILE);
+		let file = menu(s::menu_file());
 		// The audio device submenu lives in Playback now, not File.
 		assert!(!file.iter().any(|e| matches!(e, Entry::Devices)));
-		let playback = menu(s::MENU_PLAYBACK);
+		let playback = menu(s::menu_playback());
 		assert!(playback.iter().any(|e| matches!(e, Entry::Devices)));
 		let labels: Vec<String> = file
 			.iter()
@@ -527,8 +527,8 @@ mod tests {
 			let mut seen = Vec::new();
 			for e in entries {
 				let label = match e {
-					Entry::Item(l, ..) | Entry::Sub(l, _) => *l,
-					Entry::Devices => crate::strings::AUDIO_DEVICE,
+					Entry::Item(l, ..) | Entry::Sub(l, _) => l.clone(),
+					Entry::Devices => crate::strings::audio_device(),
 					Entry::Separator => continue,
 				};
 				let letter = label

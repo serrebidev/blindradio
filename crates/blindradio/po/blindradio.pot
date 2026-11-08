@@ -1,0 +1,1107 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the blindradio package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: blindradio 0.2.72\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-07 17:22-0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Failed: "
+msgstr ""
+
+msgid "Connection lost. Reconnecting."
+msgstr ""
+
+msgid "Reconnected"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Nothing to play"
+msgstr ""
+
+msgid "The playing station is in no list"
+msgstr ""
+
+msgid "Nothing playing"
+msgstr ""
+
+msgid "No station here"
+msgstr ""
+
+msgid "No favorite "
+msgstr ""
+
+msgid "Added to favorites"
+msgstr ""
+
+msgid "Removed from favorites"
+msgstr ""
+
+msgid "Sleep timer: stopping"
+msgstr ""
+
+msgid "Device lost. Using default."
+msgstr ""
+
+msgid "Using "
+msgstr ""
+
+msgid "Default"
+msgstr ""
+
+msgid "Not saved"
+msgstr ""
+
+msgid "Starter stations not loaded"
+msgstr ""
+
+msgid "Screen-reader-first internet radio."
+msgstr ""
+
+msgid "Play"
+msgstr ""
+
+msgid "Pause"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Mute"
+msgstr ""
+
+msgid "Unmute"
+msgstr ""
+
+msgid "&Volume"
+msgstr ""
+
+msgid "&File"
+msgstr ""
+
+msgid "&Stations"
+msgstr ""
+
+msgid "&Playback"
+msgstr ""
+
+msgid "&Recording"
+msgstr ""
+
+msgid "&Help"
+msgstr ""
+
+msgid "&Announce Song Titles"
+msgstr ""
+
+msgid "Announce &Connection Status"
+msgstr ""
+
+msgid "Announce Ac&tions"
+msgstr ""
+
+msgid "C&lose Lists When Playing"
+msgstr ""
+
+msgid "Play Last Station at &Startup"
+msgstr ""
+
+msgid "Audio De&vice"
+msgstr ""
+
+msgid "E&xit"
+msgstr ""
+
+msgid "&Search…"
+msgstr ""
+
+msgid "&Browse…"
+msgstr ""
+
+msgid "&Favorites…"
+msgstr ""
+
+msgid "&Recently Played…"
+msgstr ""
+
+msgid "&Collections…"
+msgstr ""
+
+msgid "Add Cus&tom Station…"
+msgstr ""
+
+msgid "Export &Current Playlist…"
+msgstr ""
+
+msgid "Export &All Playlists…"
+msgstr ""
+
+msgid "Export Fa&vorites…"
+msgstr ""
+
+msgid "All Playlists"
+msgstr ""
+
+msgid "&Move to Playing Station"
+msgstr ""
+
+msgid "&Import Playlist…"
+msgstr ""
+
+msgid "Import Playlist as Coll&ection…"
+msgstr ""
+
+msgid "Copy Stream &URL"
+msgstr ""
+
+msgid "&Get SerrebiRadio Stations"
+msgstr ""
+
+msgid "&Play/Pause"
+msgstr ""
+
+msgid "&Stop"
+msgstr ""
+
+msgid "&Record"
+msgstr ""
+
+msgid "Skip &Back"
+msgstr ""
+
+msgid "Skip F&orward"
+msgstr ""
+
+msgid "&Jump to Start of Buffer"
+msgstr ""
+
+msgid "Go to &Live"
+msgstr ""
+
+msgid "Prev&ious Station"
+msgstr ""
+
+msgid "&Next Station"
+msgstr ""
+
+msgid "No earlier station"
+msgstr ""
+
+msgid "Filter"
+msgstr ""
+
+msgid "no matching stations"
+msgstr ""
+
+msgid "matching stations"
+msgstr ""
+
+msgid "No later station"
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Resumed"
+msgstr ""
+
+msgid "Live"
+msgstr ""
+
+msgid "P&ause Recording"
+msgstr ""
+
+msgid "Record Each Song to Its Own &File"
+msgstr ""
+
+msgid "Recording in Progress"
+msgstr ""
+
+msgid "A recording is in progress. Changing stations stops the recording; what has been recorded so far is saved. Change stations anyway?"
+msgstr ""
+
+msgid "A recording is in progress. Closing BlindRadio stops the recording; what has been recorded so far is saved. Close anyway?"
+msgstr ""
+
+msgid "Recording"
+msgstr ""
+
+msgid "Record each song to its own file on"
+msgstr ""
+
+msgid "Record each song to its own file off"
+msgstr ""
+
+msgid "&Write Buffer…"
+msgstr ""
+
+msgid "Scheduled Recordin&gs…"
+msgstr ""
+
+msgid "&Open Record Folder"
+msgstr ""
+
+msgid "Could not open the record folder"
+msgstr ""
+
+msgid "No buffer to save"
+msgstr ""
+
+msgid "Buffer saved to "
+msgstr ""
+
+msgid "P&revious Segment"
+msgstr ""
+
+msgid "&Next Segment"
+msgstr ""
+
+msgid "Write &Current Segment"
+msgstr ""
+
+msgid "Write Pre&vious Segment"
+msgstr ""
+
+msgid "Write &Next Segment"
+msgstr ""
+
+msgid "Write A&ll Segments"
+msgstr ""
+
+msgid "No segments"
+msgstr ""
+
+msgid "No previous segment"
+msgstr ""
+
+msgid "No next segment"
+msgstr ""
+
+msgid "Writing "
+msgstr ""
+
+msgid " segments"
+msgstr ""
+
+msgid "Segment saved to "
+msgstr ""
+
+msgid " saved to "
+msgstr ""
+
+msgid "Recording started"
+msgstr ""
+
+msgid "Recording paused"
+msgstr ""
+
+msgid "Recording resumed"
+msgstr ""
+
+msgid "Not recording"
+msgstr ""
+
+msgid "Recording saved to "
+msgstr ""
+
+msgid " behind live"
+msgstr ""
+
+msgid " played"
+msgstr ""
+
+msgid " - Paused"
+msgstr ""
+
+msgid " - Live"
+msgstr ""
+
+msgid " - Recording"
+msgstr ""
+
+msgid " - Recording paused"
+msgstr ""
+
+msgid "Muted"
+msgstr ""
+
+msgid "Unmuted"
+msgstr ""
+
+msgid "&Mute"
+msgstr ""
+
+msgid "Volume &Up"
+msgstr ""
+
+msgid "Volume &Down"
+msgstr ""
+
+msgid "&Add to Favorites"
+msgstr ""
+
+msgid "Re&move from Favorites"
+msgstr ""
+
+msgid "Add to Co&llection…"
+msgstr ""
+
+msgid "Song &History…"
+msgstr ""
+
+msgid "Sleep &Timer"
+msgstr ""
+
+msgid "&15 Minutes"
+msgstr ""
+
+msgid "&30 Minutes"
+msgstr ""
+
+msgid "&45 Minutes"
+msgstr ""
+
+msgid "1 &Hour"
+msgstr ""
+
+msgid "&90 Minutes"
+msgstr ""
+
+msgid "&2 Hours"
+msgstr ""
+
+msgid "&Off"
+msgstr ""
+
+msgid "&Equalizer…"
+msgstr ""
+
+msgid "User &Guide"
+msgstr ""
+
+msgid "View &Changelog"
+msgstr ""
+
+msgid "Go to BlindRadio Git&Hub Page"
+msgstr ""
+
+msgid "Could not open the browser"
+msgstr ""
+
+msgid "Check for &Updates"
+msgstr ""
+
+msgid "&About BlindRadio"
+msgstr ""
+
+msgid "Stations"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Info"
+msgstr ""
+
+msgid "Directory"
+msgstr ""
+
+msgid "Nothing to do here"
+msgstr ""
+
+msgid "&Play"
+msgstr ""
+
+msgid "Add to &Collection"
+msgstr ""
+
+msgid "&New Collection…"
+msgstr ""
+
+msgid "Add to Favorites &Folder"
+msgstr ""
+
+msgid "Add to Collection F&older"
+msgstr ""
+
+msgid "Move to &Folder"
+msgstr ""
+
+msgid "New &Folder…"
+msgstr ""
+
+msgid "New Folder"
+msgstr ""
+
+msgid "Folder name"
+msgstr ""
+
+msgid "New Collection"
+msgstr ""
+
+msgid "Collection name"
+msgstr ""
+
+msgid "&Delete Custom Station"
+msgstr ""
+
+msgid "&Rename"
+msgstr ""
+
+msgid "&Delete"
+msgstr ""
+
+msgid "Added to "
+msgstr ""
+
+msgid "Removed from "
+msgstr ""
+
+msgid "Adding "
+msgstr ""
+
+msgid "Nothing to add"
+msgstr ""
+
+msgid ", stopped there"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Genre"
+msgstr ""
+
+msgid "Country"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "&Search"
+msgstr ""
+
+msgid "Results"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Searching"
+msgstr ""
+
+msgid "No results"
+msgstr ""
+
+msgid "Any"
+msgstr ""
+
+msgid "Browse"
+msgstr ""
+
+msgid "Collections"
+msgstr ""
+
+msgid "Loading"
+msgstr ""
+
+msgid "Load More"
+msgstr ""
+
+msgid "Sort"
+msgstr ""
+
+msgid "&Reverse"
+msgstr ""
+
+msgid "Only your own stations can be deleted."
+msgstr ""
+
+msgid "Delete "
+msgstr ""
+
+msgid "Favorites"
+msgstr ""
+
+msgid "Recently Played"
+msgstr ""
+
+msgid "Recently played"
+msgstr ""
+
+msgid "&Remove"
+msgstr ""
+
+msgid "Move &Up"
+msgstr ""
+
+msgid "Move &Down"
+msgstr ""
+
+msgid "&Export…"
+msgstr ""
+
+msgid "Exported "
+msgstr ""
+
+msgid "Favorites.m3u"
+msgstr ""
+
+msgid "Name Automatically"
+msgstr ""
+
+msgid "Looking up the name"
+msgstr ""
+
+msgid "No name found"
+msgstr ""
+
+msgid "Start buffer, in milliseconds:"
+msgstr ""
+
+msgid "Refill limit after dropouts, in seconds:"
+msgstr ""
+
+msgid "HLS segments behind live:"
+msgstr ""
+
+msgid " slider"
+msgstr ""
+
+msgid "Playlists (*.m3u;*.m3u8;*.m3u_plus;*.pls)|*.m3u;*.m3u8;*.m3u_plus;*.pls"
+msgstr ""
+
+msgid "Add Custom Station"
+msgstr ""
+
+msgid "Stream &URL"
+msgstr ""
+
+msgid "Add to"
+msgstr ""
+
+msgid "Not a stream URL"
+msgstr ""
+
+msgid "Added "
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "&New"
+msgstr ""
+
+msgid "Remove &Station"
+msgstr ""
+
+msgid "Add &All to Collection"
+msgstr ""
+
+msgid "Custom Stations cannot be changed"
+msgstr ""
+
+msgid " to "
+msgstr ""
+
+msgid ".m3u"
+msgstr ""
+
+msgid "Import Playlist"
+msgstr ""
+
+msgid "Copied"
+msgstr ""
+
+msgid "Copy failed"
+msgstr ""
+
+msgid "Nothing to copy"
+msgstr ""
+
+msgid "Nothing to cut"
+msgstr ""
+
+msgid "Song History"
+msgstr ""
+
+msgid "Songs"
+msgstr ""
+
+msgid "Song"
+msgstr ""
+
+msgid "Played"
+msgstr ""
+
+msgid "&Copy"
+msgstr ""
+
+msgid "Equalizer"
+msgstr ""
+
+msgid "Equalizer, global. This station has its own"
+msgstr ""
+
+msgid "&Preset"
+msgstr ""
+
+msgid "Preamp (dB)"
+msgstr ""
+
+msgid "Enable preamp"
+msgstr ""
+
+msgid "&Enabled"
+msgstr ""
+
+msgid "&Name for a saved preset"
+msgstr ""
+
+msgid "&Save Preset"
+msgstr ""
+
+msgid "De&lete Preset"
+msgstr ""
+
+msgid "Scheduled Recordings"
+msgstr ""
+
+msgid "Scheduled recordings"
+msgstr ""
+
+msgid "&Add…"
+msgstr ""
+
+msgid "&Edit…"
+msgstr ""
+
+msgid "Station"
+msgstr ""
+
+msgid "Kind"
+msgstr ""
+
+msgid "Alarm"
+msgstr ""
+
+msgid "Alarm: "
+msgstr ""
+
+msgid "Start (YYYY-MM-DD HH:MM, local)"
+msgstr ""
+
+msgid "Duration (minutes)"
+msgstr ""
+
+msgid "Repeat"
+msgstr ""
+
+msgid "Use YYYY-MM-DD HH:MM for the start"
+msgstr ""
+
+msgid "Duration must be 1 to 1440 minutes"
+msgstr ""
+
+msgid "Scheduled recording started: "
+msgstr ""
+
+msgid "Scheduled recording saved to "
+msgstr ""
+
+msgid "Scheduled recording skipped: already recording"
+msgstr ""
+
+msgid "No scheduled recordings"
+msgstr ""
+
+msgid "&Settings…"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Playback"
+msgstr ""
+
+msgid "Sources"
+msgstr ""
+
+msgid "&Directories, Space turns on or off"
+msgstr ""
+
+msgid "&Networks, Space turns on or off"
+msgstr ""
+
+msgid "on"
+msgstr ""
+
+msgid "off"
+msgstr ""
+
+msgid "All Directories On"
+msgstr ""
+
+msgid "All Directories Off"
+msgstr ""
+
+msgid "All Networks On"
+msgstr ""
+
+msgid "All Networks Off"
+msgstr ""
+
+msgid "Startup L&ist"
+msgstr ""
+
+msgid "System Default"
+msgstr ""
+
+msgid "Default Stations"
+msgstr ""
+
+msgid "Check for &Updates automatically"
+msgstr ""
+
+msgid "&Report plays to Radio Browser"
+msgstr ""
+
+msgid "&Open URL…"
+msgstr ""
+
+msgid "Open URL"
+msgstr ""
+
+msgid "&Detect Audio Stream on Page…"
+msgstr ""
+
+msgid "Detect Audio Stream on Page"
+msgstr ""
+
+msgid "Page &URL"
+msgstr ""
+
+msgid "&Detect"
+msgstr ""
+
+msgid "&Streams"
+msgstr ""
+
+msgid "Looking for streams"
+msgstr ""
+
+msgid "No audio streams found on this page"
+msgstr ""
+
+msgid " found"
+msgstr ""
+
+msgid "Station &Info…"
+msgstr ""
+
+msgid "Station Info"
+msgstr ""
+
+msgid "&Details"
+msgstr ""
+
+msgid "Location"
+msgstr ""
+
+msgid "Slogan"
+msgstr ""
+
+msgid "Call sign"
+msgstr ""
+
+msgid "Codec"
+msgstr ""
+
+msgid "Bitrate"
+msgstr ""
+
+msgid "Sample rate"
+msgstr ""
+
+msgid "Channels"
+msgstr ""
+
+msgid "Homepage"
+msgstr ""
+
+msgid "Stream URL"
+msgstr ""
+
+msgid "Known while the station plays"
+msgstr ""
+
+msgid "&Copy Station"
+msgstr ""
+
+msgid "Cu&t Station"
+msgstr ""
+
+msgid "&Paste Station"
+msgstr ""
+
+msgid "Copied "
+msgstr ""
+
+msgid "Cut "
+msgstr ""
+
+msgid "Pasted "
+msgstr ""
+
+msgid " into "
+msgstr ""
+
+msgid " is already in "
+msgstr ""
+
+msgid "Nothing to paste"
+msgstr ""
+
+msgid "Nowhere to paste here"
+msgstr ""
+
+msgid "&Edit Station…"
+msgstr ""
+
+msgid "Edit Station"
+msgstr ""
+
+msgid "Saved "
+msgstr ""
+
+msgid "Play a station as I mo&ve to it"
+msgstr ""
+
+msgid "&Expand all directories in the main window"
+msgstr ""
+
+msgid "&FM sound between stations"
+msgstr ""
+
+msgid "&Hide to the system tray when closed"
+msgstr ""
+
+msgid "Ma&ximize the window at startup"
+msgstr ""
+
+msgid "&Time-Shift Playback"
+msgstr ""
+
+msgid "&Buffer Minutes"
+msgstr ""
+
+msgid "Encoded Rin&g Buffer (DVBViewer-style, optional)"
+msgstr ""
+
+msgid "Ring Si&ze (MB, 0 is the 200 MB default)"
+msgstr ""
+
+msgid "&Seek Step (Seconds)"
+msgstr ""
+
+msgid "Recording &Format"
+msgstr ""
+
+msgid "MP3 &Bitrate (kbps)"
+msgstr ""
+
+msgid "MP3 &VBR"
+msgstr ""
+
+msgid "Recordings F&older (blank is the default)"
+msgstr ""
+
+msgid "Original stream format"
+msgstr ""
+
+msgid "WAV"
+msgstr ""
+
+msgid "MP3"
+msgstr ""
+
+msgid "FLAC"
+msgstr ""
+
+msgid "&Recognize Songs Without Metadata"
+msgstr ""
+
+msgid "Recognition &Service"
+msgstr ""
+
+msgid "AudD &Token"
+msgstr ""
+
+msgid "Only when the stream gives no t&itle"
+msgstr ""
+
+msgid "&Announce Recognized Songs"
+msgstr ""
+
+msgid "Song recognition is on, but no AudD token is set, so nothing will be recognized. Add a token in Settings."
+msgstr ""
+
+msgid "Stream metadata only"
+msgstr ""
+
+msgid "AudD"
+msgstr ""
+
+msgid "S&crobble Listened Songs"
+msgstr ""
+
+msgid "ListenBrainz T&oken"
+msgstr ""
+
+msgid "last.fm API &Key"
+msgstr ""
+
+msgid "&last.fm Secret"
+msgstr ""
+
+msgid "last.fm Session K&ey"
+msgstr ""
+
+msgid "last.fm &Base URL (blank is last.fm)"
+msgstr ""
+
+msgid "Use Global"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Buffer &Minutes (blank is global)"
+msgstr ""
+
+msgid "Song &Recognition"
+msgstr ""
+
+msgid "Scro&bbling"
+msgstr ""
+
+msgid "&Equalizer"
+msgstr ""
+
+msgid "Equalizer Pre&set"
+msgstr ""
+
+msgid "Metadata offset, seconds (blank = Default; positive = early, negative = late)"
+msgstr ""
+
+msgid "Enter a whole number from -30 to 30, or leave blank for Default."
+msgstr ""
+
+msgid "&Global Hotkeys…"
+msgstr ""
+
+msgid "Global"
+msgstr ""
+
+msgid "&Keyboard Shortcuts…"
+msgstr ""
+
+msgid "App"
+msgstr ""
+
+msgid "Play Favorite"
+msgstr ""
+
+msgid " (alternate key)"
+msgstr ""
+
+msgid "Focus the Volume Slider"
+msgstr ""
+
+msgid "Close Dialog"
+msgstr ""
+
+msgid "Play/Pause"
+msgstr ""
+
+msgid "Volume Up"
+msgstr ""
+
+msgid "Volume Down"
+msgstr ""
+
+msgid "Next Favorite"
+msgstr ""
+
+msgid "Previous Favorite"
+msgstr ""
+
+msgid "Announce Now Playing"
+msgstr ""
+
+msgid "Hide or Show BlindRadio"
+msgstr ""
+
+msgid "Equalizer On or Off"
+msgstr ""
+
+msgid "Record"
+msgstr ""
+
+msgid "Skip Back"
+msgstr ""
+
+msgid "Skip Forward"
+msgstr ""
+
+msgid "Go to Live"
+msgstr ""
+
+msgid "Hotkey taken: "
+msgstr ""
+
+msgid "Hotkeys unavailable"
+msgstr ""
+
+msgid "Equalizer on"
+msgstr ""
+
+msgid "Equalizer off"
+msgstr ""
+
+msgid ". This station has its own"
+msgstr ""
+
+msgid "No favorites"
+msgstr ""
+
+msgid "&Show BlindRadio"
+msgstr ""
+
+msgid "About BlindRadio"
+msgstr ""
+
+msgid "&Licenses…"
+msgstr ""

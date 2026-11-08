@@ -270,15 +270,15 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	// This dialog sets the global equalizer, which the playing station may not be using.
 	let title = if app.borrow().playing_has_own_eq() {
-		s::EQUALIZER_OWN_TITLE
+		s::equalizer_own_title()
 	} else {
-		s::EQUALIZER_TITLE
+		s::equalizer_title()
 	};
-	let dialog = Dialog::builder(&frame, title).build();
+	let dialog = Dialog::builder(&frame, &title).build();
 	let current = app.borrow().settings.eq.clone();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 
-	let preset_label = StaticText::builder(&dialog).with_label(s::PRESET).build();
+	let preset_label = StaticText::builder(&dialog).with_label(&s::preset()).build();
 	let preset = Choice::builder(&dialog).build();
 	fill_presets(&preset, &current);
 	sizer.add(
@@ -289,12 +289,12 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	);
 	sizer.add(&preset, 0, SizerFlag::Expand | SizerFlag::All, 5);
 
-	let enabled = CheckBox::builder(&dialog).with_label(s::ENABLED).build();
+	let enabled = CheckBox::builder(&dialog).with_label(&s::enabled()).build();
 	enabled.set_value(current.enabled);
 	sizer.add(&enabled, 0, SizerFlag::All, 5);
 
 	let name_label = StaticText::builder(&dialog)
-		.with_label(s::PRESET_NAME)
+		.with_label(&s::preset_name())
 		.build();
 	let name = TextCtrl::builder(&dialog).build();
 	name.set_value(current.saved_name.as_deref().unwrap_or(""));
@@ -305,10 +305,10 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		5,
 	);
 	sizer.add(&name, 0, SizerFlag::Expand | SizerFlag::All, 5);
-	let save = Button::builder(&dialog).with_label(s::SAVE_PRESET).build();
+	let save = Button::builder(&dialog).with_label(&s::save_preset()).build();
 	sizer.add(&save, 0, SizerFlag::All, 5);
 	let delete = Button::builder(&dialog)
-		.with_label(s::DELETE_PRESET)
+		.with_label(&s::delete_preset())
 		.build();
 	sizer.add(&delete, 0, SizerFlag::All, 5);
 
@@ -324,13 +324,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	columns.add_sizer(&left, 1, SizerFlag::Expand | SizerFlag::All, 4);
 	columns.add_sizer(&right, 1, SizerFlag::Expand | SizerFlag::All, 4);
 	sizer.add_sizer(&columns, 1, SizerFlag::Expand | SizerFlag::All, 5);
-	let preamp_enabled = CheckBox::builder(&dialog).with_label(s::PREAMP_ENABLED).build();
+	let preamp_enabled = CheckBox::builder(&dialog).with_label(&s::preamp_enabled()).build();
 	preamp_enabled.set_value(current.preamp_enabled);
 	sizer.add(&preamp_enabled, 0, SizerFlag::All, 5);
-	let preamp = slider(&dialog, &sizer, s::PREAMP_DB, -eq::MAX_PREAMP_DB, eq::MAX_PREAMP_DB, current.preamp_db);
+	let preamp = slider(&dialog, &sizer, &s::preamp_db(), -eq::MAX_PREAMP_DB, eq::MAX_PREAMP_DB, current.preamp_db);
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	sizer.add(&close, 0, SizerFlag::All, 5);
 	dialog.set_sizer(sizer, true);

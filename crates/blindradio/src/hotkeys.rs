@@ -62,21 +62,21 @@ impl HotkeyAction {
 		}
 	}
 
-	pub fn label(self) -> &'static str {
+	pub fn label(self) -> String {
 		match self {
-			HotkeyAction::PlayPause => s::HK_PLAY_PAUSE,
-			HotkeyAction::Stop => s::HK_STOP,
-			HotkeyAction::VolumeUp => s::HK_VOLUME_UP,
-			HotkeyAction::VolumeDown => s::HK_VOLUME_DOWN,
-			HotkeyAction::NextFavorite => s::HK_NEXT_FAVORITE,
-			HotkeyAction::PreviousFavorite => s::HK_PREVIOUS_FAVORITE,
-			HotkeyAction::AnnounceNowPlaying => s::HK_ANNOUNCE,
-			HotkeyAction::ToggleWindow => s::HK_TOGGLE_WINDOW,
-			HotkeyAction::ToggleEq => s::HK_TOGGLE_EQ,
-			HotkeyAction::Record => s::HK_RECORD,
-			HotkeyAction::SeekBack => s::HK_SEEK_BACK,
-			HotkeyAction::SeekForward => s::HK_SEEK_FORWARD,
-			HotkeyAction::GoLive => s::HK_GO_LIVE,
+			HotkeyAction::PlayPause => s::hk_play_pause(),
+			HotkeyAction::Stop => s::hk_stop(),
+			HotkeyAction::VolumeUp => s::hk_volume_up(),
+			HotkeyAction::VolumeDown => s::hk_volume_down(),
+			HotkeyAction::NextFavorite => s::hk_next_favorite(),
+			HotkeyAction::PreviousFavorite => s::hk_previous_favorite(),
+			HotkeyAction::AnnounceNowPlaying => s::hk_announce(),
+			HotkeyAction::ToggleWindow => s::hk_toggle_window(),
+			HotkeyAction::ToggleEq => s::hk_toggle_eq(),
+			HotkeyAction::Record => s::hk_record(),
+			HotkeyAction::SeekBack => s::hk_seek_back(),
+			HotkeyAction::SeekForward => s::hk_seek_forward(),
+			HotkeyAction::GoLive => s::hk_go_live(),
 		}
 	}
 
@@ -121,9 +121,9 @@ pub fn report(taken: &[String], unavailable: bool) -> Option<String> {
 		return None;
 	}
 	if unavailable {
-		return Some(s::HOTKEYS_UNAVAILABLE.to_string());
+		return Some(s::hotkeys_unavailable().to_string());
 	}
-	Some(format!("{}{}", s::HOTKEY_TAKEN, taken.join(", ")))
+	Some(format!("{}{}", s::hotkey_taken(), taken.join(", ")))
 }
 
 /// The favorite `forward` steps from what plays, wrapping round. From nothing playing,
@@ -148,7 +148,7 @@ pub fn now_playing_text(song: Option<&str>, station: Option<&str>) -> String {
 	match (song, station) {
 		(Some(song), Some(station)) => format!("{song} - {station}"),
 		(_, Some(station)) => station.to_string(),
-		_ => s::STOPPED.to_string(),
+		_ => s::stopped().to_string(),
 	}
 }
 
@@ -282,7 +282,7 @@ impl wx_utils::shortcuts::ShortcutModel for Model {
 	type Action = HotkeyAction;
 
 	fn tabs(&self) -> Vec<String> {
-		vec![s::TAB_GLOBAL.to_string()]
+		vec![s::tab_global().to_string()]
 	}
 
 	fn tab_scope(&self, _tab: usize) -> wx_utils::shortcuts::TabScope {

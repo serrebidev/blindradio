@@ -120,7 +120,7 @@ impl App {
 			return;
 		};
 		if !self.reveal_station(&station) {
-			return self.say(s::PLAYING_NOT_LISTED);
+			return self.say(&s::playing_not_listed());
 		}
 		if !self.win.stations.list.has_focus() {
 			self.win.stations.list.set_focus();
@@ -153,14 +153,14 @@ impl App {
 			.map(|(i, _)| i)
 			.collect();
 		self.win.message.set_label(&if hits.is_empty() {
-			format!("{}: {} - {}", s::FILTER, self.dial_filter, s::NO_MATCHES)
+			format!("{}: {} - {}", s::filter(), self.dial_filter, s::no_matches())
 		} else {
 			format!(
 				"{}: {} - {} {}",
-				s::FILTER,
+				s::filter(),
 				self.dial_filter,
 				hits.len(),
-				s::MATCHES
+				s::matches()
 			)
 		});
 		self.refresh_dial();

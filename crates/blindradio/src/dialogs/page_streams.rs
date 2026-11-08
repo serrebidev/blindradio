@@ -17,22 +17,22 @@ use crate::strings as s;
 /// `1 stream found`, `2 streams found`.
 fn count_said(n: usize) -> String {
 	let word = if n == 1 { "stream" } else { "streams" };
-	format!("{n} {word}{}", s::STREAMS_SUFFIX)
+	format!("{n} {word}{}", s::streams_suffix())
 }
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::DETECT_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::detect_title()).build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	// Each label is created just before the control it names.
-	let url_label = StaticText::builder(&dialog).with_label(s::PAGE_URL).build();
+	let url_label = StaticText::builder(&dialog).with_label(&s::page_url()).build();
 	let url = TextCtrl::builder(&dialog).build();
-	let detect = Button::builder(&dialog).with_label(s::DETECT_BUTTON).build();
+	let detect = Button::builder(&dialog).with_label(&s::detect_button()).build();
 	detect.set_default();
-	let streams = StationList::new(&dialog, s::STREAMS_FOUND);
+	let streams = StationList::new(&dialog, &s::streams_found());
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let top = SizerFlag::Left | SizerFlag::Right | SizerFlag::Top;
 	sizer.add(&url_label, 0, top, 5);
@@ -56,7 +56,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		generation.set(generation.get() + 1);
 		let (mine, generation, list) = (generation.get(), generation.clone(), list.clone());
 		let mut app = a.borrow_mut();
-		app.say(s::DETECTING);
+		app.say(&s::detecting());
 		app.bridge.spawn(
 			tok.clone(),
 			async move {
@@ -76,7 +76,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				let count = found.len();
 				list.set_stations(found, 0);
 				if count == 0 {
-					return app.say(s::NO_STREAMS);
+					return app.say(&s::no_streams());
 				}
 				list.list.set_focus();
 				list.land(app);

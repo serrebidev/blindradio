@@ -439,6 +439,11 @@ Collections themselves are renamed in the Collections window (Rename button, or 
 the context menu). The time-shift options are on the Playback tab, the recording options on
 the Recording tab, and the recognition and scrobbling options on the Songs tab.
 
+The Language choice on the General tab picks the language of the whole interface,
+including the standard dialog buttons. System Default follows your computer's language.
+Only languages somebody has translated are listed, next to English; a change applies to
+windows opened after it, and everything is in the new language the next time the app starts.
+
 ## Recognizing a song when a station sends no title
 
 BlindRadio does not use Shazam. It uses AudD, and only when you turn it on: open
@@ -553,3 +558,14 @@ These work while BlindRadio is in the background, and File, Global Hotkeys rebin
 | Ctrl+Alt+Shift+E | Equalizer on or off |
 
 A chord another program already holds is named once at startup as `Hotkey taken: <chord>`.
+
+## Translating BlindRadio
+
+BlindRadio's interface text lives in one template, `crates/blindradio/po/blindradio.pot`
+in the source repository. To translate it, open the template in Poedit or any gettext
+editor, translate, and save the result as `crates/blindradio/po/<language>.po` — for
+example `de.po` or `pt_BR.po` — then send it in as a pull request. The next release
+carries the new language in its Language choice; no other steps are needed. When the
+app's text changes, the template is regenerated with
+`cargo run -p blindradio --example gen_pot`, and existing translations are updated
+against it with `msgmerge --update --backup=none --no-fuzzy-matching`.

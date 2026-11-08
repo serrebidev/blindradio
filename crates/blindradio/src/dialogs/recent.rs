@@ -14,14 +14,14 @@ use crate::strings as s;
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::RECENT_TITLE).build();
-	let list = StationList::new(&dialog, s::RECENT_LIST);
+	let dialog = Dialog::builder(&frame, &s::recent_title()).build();
+	let list = StationList::new(&dialog, &s::recent_list());
 	let favorite = Button::builder(&dialog)
-		.with_label(s::ADD_TO_FAVORITES)
+		.with_label(&s::add_to_favorites())
 		.build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let buttons = BoxSizer::builder(Orientation::Horizontal).build();
 	buttons.add(&favorite, 0, SizerFlag::All, 5);
@@ -45,7 +45,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	// The button names what it will do to the focused station.
 	let update: Rc<dyn Fn()> = Rc::new({
 		let (a, me) = (app.clone(), list.clone());
-		move || favorite.set_label(favorite_label_of(&a.borrow(), &me))
+		move || favorite.set_label(&favorite_label_of(&a.borrow(), &me))
 	});
 	update();
 	{

@@ -9,7 +9,7 @@ impl App {
 	pub(super) fn now_playing(&self, text: Option<&str>) {
 		let text = text.unwrap_or("");
 		*self.status_base.borrow_mut() = text.to_string();
-		*self.status_line.borrow_mut() = if text.is_empty() { s::STOPPED } else { text }.to_string();
+		*self.status_line.borrow_mut() = if text.is_empty() { s::stopped() } else { text.to_string() };
 		self.line_due.set(Some(Instant::now() + LINE_REST));
 	}
 
@@ -43,14 +43,15 @@ impl App {
 		// in progress the word Recording rides at the end, so Alt+Tab
 		// and the taskbar say it too. Nothing else goes up here.
 		let title = if self.tuner.is_recording() {
-			format!("{} - {}", title, s::TITLE_RECORDING)
+			format!("{} - {}", title, s::title_recording())
 		} else {
 			title
 		};
 		if self.win.frame.get_title() != title {
 			self.win.frame.set_title(&title);
 		}
-		let plain = if text.is_empty() { s::STOPPED } else { text };
+		let stopped = s::stopped();
+		let plain = if text.is_empty() { &stopped } else { text };
 		*self.status_line.borrow_mut() = plain.to_string();
 		let line = escape(plain);
 		if self.win.now_playing.get_label() != line {
@@ -160,24 +161,24 @@ impl App {
 			parts.push(format!(
 				"{}{}",
 				fmt_dur(since.elapsed().as_secs_f32()),
-				s::PLAYED_FOR
+				s::played_for()
 			));
 		}
 		if behind >= 1.0 {
-			parts.push(format!("{}{}", fmt_dur(behind), s::BEHIND_LIVE));
+			parts.push(format!("{}{}", fmt_dur(behind), s::behind_live()));
 		}
 		if paused {
-			parts.push(s::STATUS_PAUSED.trim_start_matches(" - ").to_string());
+			parts.push(s::status_paused().trim_start_matches(" - ").to_string());
 		}
 		if behind < 1.0 && !paused {
-			parts.push(s::STATUS_LIVE.trim_start_matches(" - ").to_string());
+			parts.push(s::status_live().trim_start_matches(" - ").to_string());
 		}
 		if self.tuner.is_recording() {
 			parts.push(
 				if self.tuner.recording_paused() {
-					s::STATUS_REC_PAUSED
+					s::status_rec_paused()
 				} else {
-					s::STATUS_RECORDING
+					s::status_recording()
 				}
 				.trim_start_matches(" - ")
 				.to_string(),
@@ -214,29 +215,21 @@ impl App {
 			.tuner
 			.shift()
 			.is_some_and(|(_, st)| st.paused.load(std::sync::atomic::Ordering::Relaxed));
-		set_label(
-			win.play,
-			if playing && !shift_paused { s::PAUSE } else { s::PLAY },
-		);
-		set_label(
-			win.mute,
-			if self.settings.muted {
-				s::UNMUTE
-			} else {
-				s::MUTE
-			},
-		);
+		let play_label = if playing && !shift_paused { s::pause() } else { s::play() };
+		set_label(win.play, &play_label);
+		let mute_label = if self.settings.muted { s::unmute() } else { s::mute() };
+		set_label(win.mute, &mute_label);
 		let favorite = self
 			.station_here()
 			.is_some_and(|st| self.library.is_favorite(&st.id));
 		let label = menus::favorite_label(favorite);
-		if set_label(win.favorite, &menus::plain(label))
+		if set_label(win.favorite, &menus::plain(&label))
 			&& let Some(bar) = win.frame.get_menu_bar()
 		{
 			set_menu_item_label(
 				&bar,
 				self.menus.favorite,
-				label,
+				&label,
 				&crate::keys::menu_chord(&self.settings, &Action::ToggleFavorite),
 			);
 		}

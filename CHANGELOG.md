@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.73
+
+- BlindRadio can now be translated. The whole interface runs through patois (gettext): the text lives in one template, `po/blindradio.pot`, translations are plain .po files anyone can edit in Poedit, and compiled catalogs ride inside the app. Settings gains a Language choice on the General tab — System Default follows your computer, and any translated language is listed by its own name; the standard dialog buttons follow too. English is the only finished language today; translations are welcome as pull requests.
+- AMI Audio's address is corrected. The address 0.2.72 pointed at was the station's web player page, not a stream, so it could never play; the entry now uses the station's actual stream address, which is live again.
+
 ## 0.2.72
 
 - 2020 The Beacon joins the built-in Networks, with the other stations for blind listeners.

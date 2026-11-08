@@ -26,23 +26,23 @@ pub fn lines(station: &Station, live: Option<&StreamFormat>) -> String {
 		.map(|k| format!("{k} kbps"));
 	let rate = live.filter(|f| f.sample_rate > 0).map(StreamFormat::rate_label);
 	let channels = live.and_then(StreamFormat::channels_label);
-	let waiting = || live.is_none().then(|| s::INFO_WHILE_PLAYING.to_string());
+	let waiting = || live.is_none().then(|| s::info_while_playing().to_string());
 	[
-		(s::INFO_NAME, Some(station.name.clone())),
-		(s::COLUMN_INFO, station.info.clone()),
-		(s::INFO_SLOGAN, details.slogan.clone()),
-		(s::INFO_CALL_SIGN, details.call_sign.clone()),
-		(s::INFO_GENRE, details.genre.clone()),
-		(s::INFO_COUNTRY, details.country.clone()),
-		(s::INFO_LOCATION, details.location.clone()),
-		(s::INFO_LANGUAGE, details.language.clone()),
-		(s::INFO_CODEC, codec),
-		(s::INFO_BITRATE, bitrate),
-		(s::INFO_SAMPLE_RATE, rate.or_else(waiting)),
-		(s::INFO_CHANNELS, channels.or_else(waiting)),
-		(s::COLUMN_DIRECTORY, Some(station.source.label().to_string())),
-		(s::INFO_HOMEPAGE, details.homepage.clone()),
-		(s::INFO_STREAM_URL, Some(station.url.clone())),
+		(s::info_name(), Some(station.name.clone())),
+		(s::column_info(), station.info.clone()),
+		(s::info_slogan(), details.slogan.clone()),
+		(s::info_call_sign(), details.call_sign.clone()),
+		(s::info_genre(), details.genre.clone()),
+		(s::info_country(), details.country.clone()),
+		(s::info_location(), details.location.clone()),
+		(s::info_language(), details.language.clone()),
+		(s::info_codec(), codec),
+		(s::info_bitrate(), bitrate),
+		(s::info_sample_rate(), rate.or_else(waiting)),
+		(s::info_channels(), channels.or_else(waiting)),
+		(s::column_directory(), Some(station.source.label().to_string())),
+		(s::info_homepage(), details.homepage.clone()),
+		(s::info_stream_url(), Some(station.url.clone())),
 	]
 	.into_iter()
 	.filter_map(|(label, value)| value.map(|v| format!("{label}: {v}")))
@@ -60,9 +60,9 @@ pub fn show(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 			.and_then(|_| a.tuner.format().cloned());
 		(a.win.frame, live)
 	};
-	let dialog = Dialog::builder(&frame, s::STATION_INFO_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::station_info_title()).build();
 	let label = StaticText::builder(&dialog)
-		.with_label(s::STATION_INFO_LABEL)
+		.with_label(&s::station_info_label())
 		.build();
 	let text = TextCtrl::builder(&dialog)
 		.with_style(TextCtrlStyle::MultiLine | TextCtrlStyle::ReadOnly)
@@ -70,7 +70,7 @@ pub fn show(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	text.set_value(&lines(station, live.as_ref()));
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(&label, 0, SizerFlag::Left | SizerFlag::Right | SizerFlag::Top, 5);

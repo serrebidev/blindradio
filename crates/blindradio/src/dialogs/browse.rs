@@ -160,7 +160,7 @@ impl BrowseModel {
 			let i = m.add(None, Kind::from_node(node));
 			m.roots.push(i);
 		}
-		m.collections = m.add(None, Kind::local(COLLECTIONS, s::COLLECTIONS_FOLDER));
+		m.collections = m.add(None, Kind::local(COLLECTIONS, &s::collections_folder()));
 		let custom = lib
 			.collections
 			.iter()
@@ -345,12 +345,12 @@ impl BrowseModel {
 		self.children(self.items[i].parent)
 	}
 
-	pub fn label(&self, i: usize) -> &str {
+	pub fn label(&self, i: usize) -> String {
 		match &self.items[i].kind {
-			Kind::Folder { name, .. } => name,
-			Kind::Station(st) => &st.name,
-			Kind::LoadMore { loading: false, .. } => s::LOAD_MORE,
-			Kind::LoadMore { loading: true, .. } | Kind::Loading => s::LOADING,
+			Kind::Folder { name, .. } => name.clone(),
+			Kind::Station(st) => st.name.clone(),
+			Kind::LoadMore { loading: false, .. } => s::load_more(),
+			Kind::LoadMore { loading: true, .. } | Kind::Loading => s::loading(),
 		}
 	}
 
@@ -538,7 +538,7 @@ impl BrowseModel {
 		let root = self.root_of(i);
 		self.failed
 			.insert(root)
-			.then(|| format!("{}{}", s::FAILED, self.label(root)))
+			.then(|| format!("{}{}", s::failed(), self.label(root)))
 	}
 
 	/// `p` takes the place of the first new item, so focus on it lands there.
@@ -759,7 +759,8 @@ impl BrowseModel {
 	pub fn jump(&self, c: char) -> Option<usize> {
 		let f = self.focus?;
 		let level = self.level(f);
-		let names: Vec<&str> = level.iter().map(|&i| self.label(i)).collect();
+		let names: Vec<String> = level.iter().map(|&i| self.label(i)).collect();
+		let names: Vec<&str> = names.iter().map(String::as_str).collect();
 		let from = level.iter().position(|&i| i == f);
 		letter_jump(&names, from, c)
 			.map(|k| level[k])

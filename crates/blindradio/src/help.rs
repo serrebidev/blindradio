@@ -52,21 +52,21 @@ pub fn open(html: &str, name: &str) -> bool {
 
 /// About BlindRadio, with the licences one button away.
 pub fn about(frame: &Frame) {
-	let dialog = Dialog::builder(frame, s::ABOUT_TITLE).build();
+	let dialog = Dialog::builder(frame, &s::about_title()).build();
 	let body = format!(
 		"{} {}\n{}\n{}",
 		s::APP_NAME,
 		env!("CARGO_PKG_VERSION"),
-		s::ABOUT_DESCRIPTION,
+		s::about_description(),
 		s::WEBSITE
 	);
 	let text = StaticText::builder(&dialog).with_label(&body).build();
 	let button = Button::builder(&dialog)
-		.with_label(s::LICENSES_BUTTON)
+		.with_label(&s::licenses_button())
 		.build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	dialog.set_escape_id(ID_CANCEL);
 	let buttons = BoxSizer::builder(Orientation::Horizontal).build();

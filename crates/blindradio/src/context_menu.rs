@@ -99,7 +99,7 @@ pub fn items_for(
 	target: &Target,
 	lib: &Library,
 	has_clip: bool,
-) -> Result<Vec<Item>, &'static str> {
+) -> Result<Vec<Item>, String> {
 	match target {
 		Target::Station(st) => {
 			let mut items = vec![
@@ -158,7 +158,7 @@ pub fn items_for(
 			items.push(Item::Export);
 			Ok(items)
 		}
-		Target::Other => Err(s::NOTHING_TO_DO),
+		Target::Other => Err(s::nothing_to_do()),
 	}
 }
 
@@ -236,23 +236,23 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 	for item in items {
 		match item {
 			Item::Play => {
-				menu.append(add(Choice::Play), s::PLAY_ITEM, "", ItemKind::Normal);
+				menu.append(add(Choice::Play), &s::play_item(), "", ItemKind::Normal);
 			}
 			Item::Favorite(is) => {
 				menu.append(
 					add(Choice::Favorite),
-					favorite_label(*is),
+					&favorite_label(*is),
 					"",
 					ItemKind::Normal,
 				);
 			}
 			Item::CopyUrl => {
-				menu.append(add(Choice::CopyUrl), s::COPY_URL, "", ItemKind::Normal);
+				menu.append(add(Choice::CopyUrl), &s::copy_url(), "", ItemKind::Normal);
 			}
 			Item::CopyStation => {
 				menu.append(
 					add(Choice::CopyStation),
-					s::COPY_STATION_ITEM,
+					&s::copy_station_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -260,7 +260,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::CutStation => {
 				menu.append(
 					add(Choice::CutStation),
-					s::CUT_STATION_ITEM,
+					&s::cut_station_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -268,7 +268,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::PasteStation => {
 				menu.append(
 					add(Choice::PasteStation),
-					s::PASTE_STATION_ITEM,
+					&s::paste_station_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -276,7 +276,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::EditStation => {
 				menu.append(
 					add(Choice::EditStation),
-					s::EDIT_STATION_ITEM,
+					&s::edit_station_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -284,18 +284,18 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::StationInfo => {
 				menu.append(
 					add(Choice::StationInfo),
-					s::STATION_INFO_ITEM,
+					&s::station_info_item(),
 					"",
 					ItemKind::Normal,
 				);
 			}
 			Item::Export => {
-				menu.append(add(Choice::Export), s::EXPORT, "", ItemKind::Normal);
+				menu.append(add(Choice::Export), &s::export(), "", ItemKind::Normal);
 			}
 			Item::NewFolder => {
 				menu.append(
 					add(Choice::NewFolder),
-					s::NEW_FOLDER,
+					&s::new_folder(),
 					"",
 					ItemKind::Normal,
 				);
@@ -320,11 +320,11 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				}
 				sub.append(
 					add(Choice::NewCollection),
-					s::NEW_COLLECTION,
+					&s::new_collection(),
 					"",
 					ItemKind::Normal,
 				);
-				menu.append_submenu(sub, s::ADD_TO_COLLECTION_SUB, "");
+				menu.append_submenu(sub, &s::add_to_collection_sub(), "");
 			}
 			Item::Collections(collections) => {
 				for (id, name, holds) in collections {
@@ -345,7 +345,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 			Item::NewCollection => {
 				menu.append(
 					add(Choice::NewCollection),
-					s::NEW_COLLECTION,
+					&s::new_collection(),
 					"",
 					ItemKind::Normal,
 				);
@@ -361,7 +361,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 						ItemKind::Normal,
 					);
 				}
-				menu.append_submenu(sub, s::ADD_ALL_SUB, "");
+				menu.append_submenu(sub, &s::add_all_sub(), "");
 			}
 			Item::AddFolderTo(collections) => {
 				let sub = Menu::builder().build();
@@ -379,11 +379,11 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				}
 				sub.append(
 					add(Choice::NewCollection),
-					s::NEW_COLLECTION,
+					&s::new_collection(),
 					"",
 					ItemKind::Normal,
 				);
-				menu.append_submenu(sub, s::ADD_TO_COLLECTION_SUB, "");
+				menu.append_submenu(sub, &s::add_to_collection_sub(), "");
 			}
 			Item::AddToFavoriteFolder(folders) => {
 				let sub = Menu::builder().build();
@@ -396,7 +396,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 						ItemKind::Normal,
 					);
 				}
-				menu.append_submenu(sub, s::ADD_TO_FAV_FOLDER, "");
+				menu.append_submenu(sub, &s::add_to_fav_folder(), "");
 			}
 			Item::AddToCollectionFolder(folders) => {
 				let sub = Menu::builder().build();
@@ -409,7 +409,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 						ItemKind::Normal,
 					);
 				}
-				menu.append_submenu(sub, s::ADD_TO_COLLECTION_FOLDER, "");
+				menu.append_submenu(sub, &s::add_to_collection_folder(), "");
 			}
 			Item::MoveToFolder(folders) => {
 				let sub = Menu::builder().build();
@@ -422,21 +422,21 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 						ItemKind::Normal,
 					);
 				}
-				menu.append_submenu(sub, s::MOVE_TO_FOLDER, "");
+				menu.append_submenu(sub, &s::move_to_folder(), "");
 			}
 			Item::DeleteCustom => {
 				menu.append(
 					add(Choice::DeleteCustom),
-					s::DELETE_CUSTOM,
+					&s::delete_custom(),
 					"",
 					ItemKind::Normal,
 				);
 			}
 			Item::Rename => {
-				menu.append(add(Choice::Rename), s::RENAME_ITEM, "", ItemKind::Normal);
+				menu.append(add(Choice::Rename), &s::rename_item(), "", ItemKind::Normal);
 			}
 			Item::Delete => {
-				menu.append(add(Choice::Delete), s::DELETE_ITEM, "", ItemKind::Normal);
+				menu.append(add(Choice::Delete), &s::delete_item(), "", ItemKind::Normal);
 			}
 		}
 	}
@@ -492,9 +492,9 @@ pub fn export_dialog(
 	folders: &[Folder],
 ) -> Option<String> {
 	let file = FileDialog::builder(parent)
-		.with_message(s::EXPORT)
-		.with_default_file(&format!("{}{}", name, s::M3U_EXTENSION))
-		.with_wildcard(s::PLAYLISTS_FILTER)
+		.with_message(&s::export())
+		.with_default_file(&format!("{}{}", name, s::m3u_extension()))
+		.with_wildcard(&s::playlists_filter())
 		.with_style(FileDialogStyle::Save | FileDialogStyle::OverwritePrompt)
 		.build();
 	if file.show_modal() != ID_OK {
@@ -507,10 +507,10 @@ pub fn export_dialog(
 			.map(|f| f.all_stations().len())
 			.sum::<usize>();
 	Some(match import::export_m3u_tree(stations, folders, std::path::Path::new(&path)) {
-		Ok(()) => format!("{}{}", s::EXPORTED, count),
+		Ok(()) => format!("{}{}", s::exported(), count),
 		Err(e) => {
 			eprintln!("export: {e}");
-			s::NOT_SAVED.to_owned()
+			s::not_saved().to_owned()
 		}
 	})
 }
@@ -518,9 +518,9 @@ pub fn export_dialog(
 /// Asked before a folder or a collection goes: names what goes with it.
 pub fn delete_question(name: &str, count: usize) -> String {
 	if count > 0 {
-		format!("{}{name} and its {count} stations?", s::DELETE_PREFIX)
+		format!("{}{name} and its {count} stations?", s::delete_prefix())
 	} else {
-		format!("{}{name}?", s::DELETE_PREFIX)
+		format!("{}{name}?", s::delete_prefix())
 	}
 }
 
@@ -538,7 +538,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		Choice::Toggle(id) => return app.borrow_mut().toggle_in_collection(&id, station),
 		Choice::NewCollection => {
 			// Modal: outside the borrow.
-			if let Some(name) = prompt_text(parent, s::COLLECTION_NAME, s::NEW_COLLECTION_TITLE) {
+			if let Some(name) = prompt_text(parent, s::collection_name(), &s::new_collection_title()) {
 				app.borrow_mut().add_to_new_collection(&name, station);
 			}
 			return;

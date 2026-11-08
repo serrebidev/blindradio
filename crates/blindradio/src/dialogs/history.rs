@@ -33,7 +33,7 @@ fn fill(
 	heading.set_label(history::heading(kind));
 	list.delete_all_items();
 	if columns(kind) == 2 && !played.replace(true) {
-		list.insert_column(1, s::COLUMN_PLAYED, ListColumnFormat::Left, 120);
+		list.insert_column(1, &s::column_played(), ListColumnFormat::Left, 120);
 	}
 	let now = SystemTime::now();
 	// A week of songs is thousands of rows.
@@ -59,27 +59,27 @@ fn copy_focused(app: &Rc<RefCell<App>>, list: &ListCtrl, items: &Rc<RefCell<Vec<
 		return;
 	};
 	let ok = clipboard::copy(&item.title);
-	app.borrow_mut().say(clipboard::message(ok));
+	app.borrow_mut().say(&clipboard::message(ok));
 }
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let Some(station) = app.borrow().tuner.playing().cloned() else {
-		app.borrow_mut().say(s::NOTHING_PLAYING);
+		app.borrow_mut().say(&s::nothing_playing());
 		return None;
 	};
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::SONG_HISTORY_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::song_history_title()).build();
 	let heading = StaticText::builder(&dialog).with_label("").build();
 	// The label first: wxMSW names the list after it.
-	let label = StaticText::builder(&dialog).with_label(s::SONGS).build();
+	let label = StaticText::builder(&dialog).with_label(&s::songs()).build();
 	let list = ListCtrl::builder(&dialog)
 		.with_style(ListCtrlStyle::Report | ListCtrlStyle::SingleSel)
 		.build();
-	list.insert_column(0, s::COLUMN_SONG, ListColumnFormat::Left, 360);
-	let copy = Button::builder(&dialog).with_label(s::COPY).build();
+	list.insert_column(0, &s::column_song(), ListColumnFormat::Left, 360);
+	let copy = Button::builder(&dialog).with_label(&s::copy()).build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let buttons = BoxSizer::builder(Orientation::Horizontal).build();
 	buttons.add(&copy, 0, SizerFlag::All, 5);

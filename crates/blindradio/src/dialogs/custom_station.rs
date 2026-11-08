@@ -47,18 +47,18 @@ fn name_button(
 	token: &WindowToken,
 ) {
 	let button = Button::builder(dialog)
-		.with_label(s::NAME_AUTOMATICALLY)
+		.with_label(&s::name_automatically())
 		.build();
 	sizer.add(&button, 0, SizerFlag::All, 5);
 	let (a, token) = (app.clone(), token.clone());
 	button.on_click(move |_| {
 		let link = url.get_value();
 		if !is_stream_url(&link) {
-			return a.borrow_mut().say(s::NOT_A_STREAM_URL);
+			return a.borrow_mut().say(&s::not_a_stream_url());
 		}
 		let link = clean_url(&link);
 		let mut app = a.borrow_mut();
-		app.say(s::LOOKING_UP_NAME);
+		app.say(&s::looking_up_name());
 		app.bridge.spawn(
 			token.clone(),
 			app.station_name_lookup(link),
@@ -67,7 +67,7 @@ fn name_button(
 					name.set_value(&found);
 					app.say(&found);
 				}
-				None => app.say(s::NO_NAME_FOUND),
+				None => app.say(&s::no_name_found()),
 			},
 		);
 	});
@@ -76,18 +76,18 @@ fn name_button(
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	let token = WindowToken::new();
-	let dialog = Dialog::builder(&frame, s::ADD_CUSTOM_TITLE).build();
-	let name_label = StaticText::builder(&dialog).with_label(s::NAME).build();
+	let dialog = Dialog::builder(&frame, &s::add_custom_title()).build();
+	let name_label = StaticText::builder(&dialog).with_label(&s::name()).build();
 	let name = TextCtrl::builder(&dialog).build();
 	let url_label = StaticText::builder(&dialog)
-		.with_label(s::STREAM_URL)
+		.with_label(&s::stream_url())
 		.build();
 	let url = TextCtrl::builder(&dialog).build();
 	// Where the new station goes: a collection or favorites folder, not
 	// always Custom Stations (the ask behind the picker).
 	let dests: Vec<(String, StationDest)> = app.borrow().library.destinations();
 	let dest_label = StaticText::builder(&dialog)
-		.with_label(s::DESTINATION)
+		.with_label(&s::destination())
 		.build();
 	let dest = Choice::builder(&dialog).build();
 	for (label, _) in &dests {
@@ -115,11 +115,11 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	// A bad URL must keep the window open, so OK is not a stock button.
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
-		.with_label(s::OK)
+		.with_label(&s::ok())
 		.build();
 	let cancel = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CANCEL)
+		.with_label(&s::cancel())
 		.build();
 	dialog.set_affirmative_id(OK_ID);
 	dialog.set_escape_id(ID_CANCEL);
@@ -132,7 +132,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		ok.on_click(move |_| {
 			let link = url.get_value();
 			if !is_stream_url(&link) {
-				return a.borrow_mut().say(s::NOT_A_STREAM_URL);
+				return a.borrow_mut().say(&s::not_a_stream_url());
 			}
 			let link = clean_url(&link);
 			let typed = name.get_value().trim().to_string();
@@ -158,7 +158,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				station
 			};
 			crate::speech::focus_returning();
-			a.borrow_mut().say(&format!("{}{}", s::ADDED, station.name));
+			a.borrow_mut().say(&format!("{}{}", s::added(), station.name));
 			d.end_modal(ID_OK);
 		});
 	}
@@ -183,18 +183,18 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		.get(&station.id)
 		.cloned()
 		.unwrap_or_default();
-	let dialog = Dialog::builder(&frame, s::EDIT_STATION_TITLE).build();
-	let name_label = StaticText::builder(&dialog).with_label(s::NAME).build();
+	let dialog = Dialog::builder(&frame, &s::edit_station_title()).build();
+	let name_label = StaticText::builder(&dialog).with_label(&s::name()).build();
 	let name = TextCtrl::builder(&dialog).build();
 	name.set_value(&station.name);
 	// The text after the name in the lists ("Station - Country, AAC+ 47k").
 	let info_label = StaticText::builder(&dialog)
-		.with_label(s::COLUMN_INFO)
+		.with_label(&s::column_info())
 		.build();
 	let info = TextCtrl::builder(&dialog).build();
 	info.set_value(station.info.as_deref().unwrap_or_default());
 	let url_label = StaticText::builder(&dialog)
-		.with_label(s::STREAM_URL)
+		.with_label(&s::stream_url())
 		.build();
 	let url = TextCtrl::builder(&dialog).build();
 	url.set_value(&station.url);
@@ -216,7 +216,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let minutes = field(
 		&dialog,
 		&sizer,
-		s::ST_TS_MINUTES,
+		&s::st_ts_minutes(),
 		&current
 			.timeshift_minutes
 			.map(|m| m.to_string())
@@ -225,21 +225,22 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let metadata_offset = field(
 		&dialog,
 		&sizer,
-		s::ST_METADATA_OFFSET,
+		&s::st_metadata_offset(),
 		&current.metadata_offset_seconds.map(|n| n.to_string()).unwrap_or_default(),
 	);
+	let (global, on, off) = (s::use_global(), s::on(), s::off());
 	let recog = choice(
 		&dialog,
 		&sizer,
-		s::ST_RECOG,
-		&[s::USE_GLOBAL, s::ON, s::OFF],
+		&s::st_recog(),
+		&[&global, &on, &off],
 		tri(current.recognition),
 	);
 	let scrob = choice(
 		&dialog,
 		&sizer,
-		s::ST_SCROB,
-		&[s::USE_GLOBAL, s::ON, s::OFF],
+		&s::st_scrob(),
+		&[&global, &on, &off],
 		tri(current.scrobble),
 	);
 	let eq = app.borrow().settings.eq.clone();
@@ -247,14 +248,14 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	let eq_mode = choice(
 		&dialog,
 		&sizer,
-		s::ST_EQ,
-		&[s::USE_GLOBAL, s::ON, s::OFF],
+		&s::st_eq(),
+		&[&global, &on, &off],
 		eq_at,
 	);
 	let eq_preset = choice(
 		&dialog,
 		&sizer,
-		s::ST_EQ_PRESET,
+		&s::st_eq_preset(),
 		&equalizer::preset_labels(&eq),
 		preset_at,
 	);
@@ -279,11 +280,11 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 	eq_preset.on_selection_changed(move |_| preview());
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
-		.with_label(s::OK)
+		.with_label(&s::ok())
 		.build();
 	let cancel = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CANCEL)
+		.with_label(&s::cancel())
 		.build();
 	dialog.set_affirmative_id(OK_ID);
 	dialog.set_escape_id(ID_CANCEL);
@@ -297,7 +298,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		ok.on_click(move |_| {
 			let link = url.get_value();
 			if !is_stream_url(&link) {
-				return a.borrow_mut().say(s::NOT_A_STREAM_URL);
+				return a.borrow_mut().say(&s::not_a_stream_url());
 			}
 			let link = clean_url(&link);
 			let typed = name.get_value().trim().to_string();
@@ -310,7 +311,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				None => None,
 				Some(value) => match value.parse::<i8>() {
 					Ok(value) if (-30..=30).contains(&value) => Some(value),
-					_ => return a.borrow_mut().say(s::ST_METADATA_OFFSET_INVALID),
+					_ => return a.borrow_mut().say(&s::st_metadata_offset_invalid()),
 				},
 			};
 			let entry = StationSettings {
@@ -340,7 +341,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				app.refresh_eq();
 			}
 			crate::speech::focus_returning();
-			a.borrow_mut().say(&format!("{}{}", s::SAVED, typed));
+			a.borrow_mut().say(&format!("{}{}", s::saved(), typed));
 			d.end_modal(ID_OK);
 		});
 	}

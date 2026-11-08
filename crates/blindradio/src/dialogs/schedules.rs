@@ -105,7 +105,7 @@ fn entry_label(e: &ScheduledRecording) -> String {
 		e.station.name,
 		format_local(shown),
 		if e.alarm {
-			s::KIND_ALARM.to_string()
+			s::kind_alarm().to_string()
 		} else {
 			format!("{} min", e.duration_minutes)
 		},
@@ -120,7 +120,7 @@ fn fill(list: &ListBox, app: &App) {
 		list.append(&entry_label(e));
 	}
 	if app.settings.schedules.is_empty() {
-		list.append(s::NO_SCHEDULES);
+		list.append(&s::no_schedules());
 	}
 }
 
@@ -149,17 +149,17 @@ fn station_choices(app: &App) -> Vec<Station> {
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::SCHEDULES_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::schedules_title()).build();
 	let label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULES_LIST)
+		.with_label(&s::schedules_list())
 		.build();
 	let list = ListBox::builder(&dialog).build();
-	let add = Button::builder(&dialog).with_label(s::ADD_BUTTON).build();
-	let edit = Button::builder(&dialog).with_label(s::EDIT_BUTTON).build();
-	let delete = Button::builder(&dialog).with_label(s::DELETE_BUTTON).build();
+	let add = Button::builder(&dialog).with_label(&s::add_button()).build();
+	let edit = Button::builder(&dialog).with_label(&s::edit_button()).build();
+	let delete = Button::builder(&dialog).with_label(&s::delete_button()).build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(&label, 0, SizerFlag::Left | SizerFlag::Right | SizerFlag::Top, 5);
@@ -181,7 +181,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		add.on_click(move |_| {
 			let stations = station_choices(&a.borrow());
 			if stations.is_empty() {
-				return a.borrow_mut().say(s::NOTHING_TO_PLAY);
+				return a.borrow_mut().say(&s::nothing_to_play());
 			}
 			if let Some(entry) = form(&a, &d, None, &stations) {
 				let mut app = a.borrow_mut();
@@ -241,36 +241,36 @@ fn form(
 	stations_in: &[Station],
 ) -> Option<ScheduledRecording> {
 	let stations: Rc<Vec<Station>> = Rc::new(stations_in.to_vec());
-	let dialog = Dialog::builder(parent, s::SCHEDULES_TITLE).build();
+	let dialog = Dialog::builder(parent, &s::schedules_title()).build();
 	let kind_label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULE_KIND)
+		.with_label(&s::schedule_kind())
 		.build();
 	let kind = Choice::builder(&dialog).build();
-	kind.append(s::KIND_RECORDING);
-	kind.append(s::KIND_ALARM);
+	kind.append(&s::kind_recording());
+	kind.append(&s::kind_alarm());
 	let station_label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULE_STATION)
+		.with_label(&s::schedule_station())
 		.build();
 	let station = ListBox::builder(&dialog).build();
 	for st in stations.iter() {
 		station.append(&st.name);
 	}
 	let start_label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULE_START)
+		.with_label(&s::schedule_start())
 		.build();
 	let start = TextCtrl::builder(&dialog).build();
 	let duration_label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULE_DURATION)
+		.with_label(&s::schedule_duration())
 		.build();
 	let duration = TextCtrl::builder(&dialog).build();
 	let repeat_label = StaticText::builder(&dialog)
-		.with_label(s::SCHEDULE_REPEAT)
+		.with_label(&s::schedule_repeat())
 		.build();
 	let repeat = Choice::builder(&dialog).build();
 	for r in [Repeat::Once, Repeat::Daily, Repeat::Weekly] {
 		repeat.append(r.label());
 	}
-	let enabled = CheckBox::builder(&dialog).with_label(s::ENABLED).build();
+	let enabled = CheckBox::builder(&dialog).with_label(&s::enabled()).build();
 
 	let mut entry = match existing {
 		Some(e) => e.clone(),
@@ -317,11 +317,11 @@ fn form(
 	sizer.add(&enabled, 0, SizerFlag::All, 5);
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
-		.with_label(s::OK)
+		.with_label(&s::ok())
 		.build();
 	let cancel = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CANCEL)
+		.with_label(&s::cancel())
 		.build();
 	dialog.set_affirmative_id(OK_ID);
 	dialog.set_escape_id(ID_CANCEL);
@@ -345,13 +345,13 @@ fn form(
 			entry.alarm = kind.get_selection() == Some(1);
 			match parse_local(&start.get_value()) {
 				Some(unix) => entry.start_unix = unix,
-				None => return a.borrow_mut().say(s::BAD_SCHEDULE_TIME),
+				None => return a.borrow_mut().say(&s::bad_schedule_time()),
 			}
 			// An alarm plays; it has no duration to validate.
 			if !entry.alarm {
 				match duration.get_value().trim().parse::<u32>() {
 					Ok(m) if (1..=1440).contains(&m) => entry.duration_minutes = m,
-					_ => return a.borrow_mut().say(s::BAD_SCHEDULE_DURATION),
+					_ => return a.borrow_mut().say(&s::bad_schedule_duration()),
 				}
 			}
 			entry.repeat = match repeat.get_selection() {

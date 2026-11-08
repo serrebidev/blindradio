@@ -28,7 +28,7 @@ impl Fields {
 		}
 		// "Any" rather than a blank first item, which NVDA reads as "blank".
 		for combo in [self.genre, self.country, self.language] {
-			combo.append(s::ANY);
+			combo.append(&s::any());
 		}
 		self.genre.append_items(&refs(&f.genres));
 		self.country.append_items(&refs(&f.countries));
@@ -39,12 +39,12 @@ impl Fields {
 /// An empty box and "Any" are the same: no filter.
 fn filter(value: String) -> Option<String> {
 	let value = value.trim();
-	(!value.is_empty() && value != s::ANY).then(|| value.to_string())
+	(!value.is_empty() && value != s::any()).then(|| value.to_string())
 }
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
-	let dialog = Dialog::builder(&frame, s::SEARCH_TITLE).build();
+	let dialog = Dialog::builder(&frame, &s::search_title()).build();
 	let row = |label: &str, sizer: &BoxSizer| {
 		let text = StaticText::builder(&dialog).with_label(label).build();
 		sizer.add(
@@ -56,26 +56,26 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	};
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	// Each label is created just before the control it names.
-	row(s::NAME, &sizer);
+	row(&s::name(), &sizer);
 	let name = TextCtrl::builder(&dialog).build();
 	sizer.add(&name, 0, SizerFlag::Expand | SizerFlag::All, 5);
-	row(s::GENRE, &sizer);
+	row(&s::genre(), &sizer);
 	let genre = ComboBox::builder(&dialog).build();
 	sizer.add(&genre, 0, SizerFlag::Expand | SizerFlag::All, 5);
-	row(s::COUNTRY, &sizer);
+	row(&s::country(), &sizer);
 	let country = ComboBox::builder(&dialog).build();
 	sizer.add(&country, 0, SizerFlag::Expand | SizerFlag::All, 5);
-	row(s::LANGUAGE, &sizer);
+	row(&s::language(), &sizer);
 	let language = ComboBox::builder(&dialog)
 		.with_style(ComboBoxStyle::ReadOnly)
 		.build();
 	sizer.add(&language, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	let search = Button::builder(&dialog)
-		.with_label(s::SEARCH_BUTTON)
+		.with_label(&s::search_button())
 		.build();
 	search.set_default();
 	sizer.add(&search, 0, SizerFlag::All, 5);
-	let results = StationList::new(&dialog, s::RESULTS);
+	let results = StationList::new(&dialog, &s::results());
 	sizer.add(
 		&results.label,
 		0,
@@ -84,11 +84,11 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	);
 	sizer.add(&results.list, 1, SizerFlag::Expand | SizerFlag::All, 5);
 	let favorite = Button::builder(&dialog)
-		.with_label(s::ADD_TO_FAVORITES)
+		.with_label(&s::add_to_favorites())
 		.build();
 	let close = Button::builder(&dialog)
 		.with_id(ID_CANCEL)
-		.with_label(s::CLOSE)
+		.with_label(&s::close())
 		.build();
 	let buttons = BoxSizer::builder(Orientation::Horizontal).build();
 	buttons.add(&favorite, 0, SizerFlag::All, 5);
@@ -137,7 +137,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		generation.set(generation.get() + 1);
 		let (mine, generation, list) = (generation.get(), generation.clone(), list.clone());
 		let mut app = a.borrow_mut();
-		app.say(s::SEARCHING);
+		app.say(&s::searching());
 		let sources = app.sources.clone();
 		app.bridge.spawn(
 			tok.clone(),
@@ -148,13 +148,13 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 				}
 				if found.is_empty() {
 					list.set_stations(Vec::new(), 0);
-					return app.say(s::NO_RESULTS);
+					return app.say(&s::no_results());
 				}
 				app.clear_message();
 				list.set_stations(found, 0);
 				list.list.set_focus();
 				list.land(app);
-				favorite.set_label(favorite_label_of(app, &list));
+				favorite.set_label(&favorite_label_of(app, &list));
 			},
 		);
 	});
@@ -162,7 +162,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let (a, me) = (app.clone(), results.clone());
 	favorite.on_click(move |_| {
 		dispatch(&a, Action::ToggleFavorite);
-		favorite.set_label(favorite_label_of(&a.borrow(), &me));
+		favorite.set_label(&favorite_label_of(&a.borrow(), &me));
 	});
 	results.bind(
 		app,
@@ -170,7 +170,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			close: Some(dialog),
 			on_focus: Some(Rc::new({
 				let (a, me) = (app.clone(), results.clone());
-				move |_| favorite.set_label(favorite_label_of(&a.borrow(), &me))
+				move |_| favorite.set_label(&favorite_label_of(&a.borrow(), &me))
 			})),
 			..Hooks::default()
 		},
@@ -187,7 +187,7 @@ mod tests {
 
 	#[test]
 	fn any_is_no_filter() {
-		assert_eq!(filter(s::ANY.into()), None);
+		assert_eq!(filter(s::any().into()), None);
 		assert_eq!(filter("  ".into()), None);
 		assert_eq!(filter(" Jazz ".into()), Some("Jazz".into()));
 	}

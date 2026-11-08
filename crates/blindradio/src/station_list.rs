@@ -43,7 +43,7 @@ pub struct Hooks {
 }
 
 /// Add to Favorites or Remove from Favorites for the station focused in `list`.
-pub fn favorite_label_of(app: &App, list: &StationList) -> &'static str {
+pub fn favorite_label_of(app: &App, list: &StationList) -> String {
 	let focused = list.current().and_then(|i| list.stations().get(i).cloned());
 	menus::favorite_label(focused.is_some_and(|st| app.library.is_favorite(&st.id)))
 }
@@ -65,14 +65,14 @@ impl StationList {
 			.with_style(ListCtrlStyle::Report | ListCtrlStyle::SingleSel)
 			.build();
 		for (i, (heading, width)) in [
-			(s::COLUMN_NAME, 260),
-			(s::COLUMN_INFO, 200),
-			(s::COLUMN_DIRECTORY, 120),
+			(s::column_name(), 260),
+			(s::column_info(), 200),
+			(s::column_directory(), 120),
 		]
 		.into_iter()
 		.enumerate()
 		{
-			list.insert_column(i as i64, heading, ListColumnFormat::Left, width);
+			list.insert_column(i as i64, &heading, ListColumnFormat::Left, width);
 		}
 		StationList {
 			label,
@@ -236,7 +236,7 @@ impl StationList {
 							context_menu::apply(&a, &me.list, &st, choice);
 						}
 					}
-					(Err(text), _) => a.borrow_mut().say(text),
+					(Err(text), _) => a.borrow_mut().say(&text),
 					(Ok(_), None) => {}
 				}
 			});

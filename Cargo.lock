@@ -181,13 +181,15 @@ dependencies = [
  "libloading 0.9.0",
  "live-region 0.3.3 (git+https://github.com/trypsynth/live-region)",
  "parking_lot 0.13.0",
+ "patois 0.3.0",
+ "patois-build",
  "serde_json",
  "ship-shape",
  "shipfitter",
  "tokio",
  "uiautomation",
  "windows",
- "wx-utils 0.5.0",
+ "wx-utils 0.5.1",
  "wxdragon",
 ]
 
@@ -2148,6 +2150,16 @@ dependencies = [
  "miniz_oxide",
  "patois-macros 0.3.0",
  "sys-locale",
+ "wxdragon",
+]
+
+[[package]]
+name = "patois-build"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef4cd306ecd26c771cd5b83cc459ee1e29f916b1359fa0e26693030253e7ea91"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4141,8 +4153,8 @@ dependencies = [
 
 [[package]]
 name = "wx-utils"
-version = "0.5.0"
-source = "git+https://github.com/trypsynth/wx-utils#6372aaa71d5f0f023ae73342d461b8f7fbd53d8c"
+version = "0.5.1"
+source = "git+https://github.com/trypsynth/wx-utils#a223eba16b44f4987c2c8bf9f0483f16e0d3f37e"
 dependencies = [
  "key-chord",
  "live-region 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -2,3 +2,4 @@
 /.worktrees
 
 /.commandcode
+/crates/blindradio/locale/

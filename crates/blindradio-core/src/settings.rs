@@ -335,6 +335,8 @@ pub struct Settings {
 	/// The daily update check runs automatically; off leaves only the
 	/// manual Check for Updates in the Help menu.
 	pub check_updates: bool,
+	/// UI language code (e.g. `de`, `pt_BR`); None follows the system.
+	pub language: Option<String>,
 	/// Tell Radio Browser when one of its stations has played a while.
 	pub report_plays: bool,
 	pub timeshift: TimeshiftSettings,
@@ -378,6 +380,7 @@ impl Default for Settings {
 			main_list: None,
 			last_update_check: None,
 			check_updates: true,
+			language: None,
 			report_plays: true,
 			timeshift: TimeshiftSettings::default(),
 			buffers: BufferSettings::default(),
