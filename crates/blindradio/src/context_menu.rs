@@ -731,7 +731,7 @@ mod tests {
 		);
 		assert_eq!(
 			items_for(&Target::Other, &lib, false),
-			Err("Nothing to do here")
+			Err("Nothing to do here".to_string())
 		);
 	}
 }

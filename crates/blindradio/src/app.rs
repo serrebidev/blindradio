@@ -1518,7 +1518,7 @@ mod tests {
 
 	#[test]
 	fn read_only_data_says_once() {
-		assert_eq!(readonly_message(true, false), Some("Not saved"));
+		assert_eq!(readonly_message(true, false).as_deref(), Some("Not saved"));
 		assert_eq!(readonly_message(true, true), None, "said once");
 		assert_eq!(readonly_message(false, false), None, "writable: no message");
 	}

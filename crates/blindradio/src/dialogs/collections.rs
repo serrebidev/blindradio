@@ -1157,7 +1157,7 @@ mod tests {
 	#[test]
 	fn custom_cannot_change_message() {
 		assert_eq!(
-			cannot_change(CUSTOM),
+			cannot_change(CUSTOM).as_deref(),
 			Some("Custom Stations cannot be changed")
 		);
 		assert_eq!(cannot_change("col:1"), None);

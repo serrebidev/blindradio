@@ -964,7 +964,7 @@ mod tests {
 			.unwrap_or_else(|| panic!("{key}"))
 	}
 
-	fn labels(m: &BrowseModel, parent: usize) -> Vec<&str> {
+	fn labels(m: &BrowseModel, parent: usize) -> Vec<String> {
 		m.children(Some(parent))
 			.iter()
 			.map(|&i| m.label(i))
@@ -1007,10 +1007,10 @@ mod tests {
 	#[test]
 	fn browse_roots() {
 		let m = BrowseModel::new(Memory::default(), &Library::default());
-		let roots: Vec<&str> = m.children(None).iter().map(|&i| m.label(i)).collect();
+		let roots: Vec<String> = m.children(None).iter().map(|&i| m.label(i)).collect();
 		assert_eq!(
 			roots,
-			["Directories", "Networks", "Collections", "Custom Stations"]
+			["Directories", "Networks", "Collections", "Custom Stations"].map(String::from)
 		);
 		assert_eq!(m.focus(), Some(m.children(None)[0]), "opens on the top");
 	}

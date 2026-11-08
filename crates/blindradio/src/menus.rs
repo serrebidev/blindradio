@@ -417,10 +417,10 @@ mod tests {
 	}
 
 	/// One menu's entries, by title.
-	fn menu(title: &str) -> Vec<Entry> {
+	fn menu(title: String) -> Vec<Entry> {
 		menus(&Settings::default())
 			.into_iter()
-			.find(|(t, _)| t == title)
+			.find(|(t, _)| *t == title)
 			.map(|(_, entries)| entries)
 			.unwrap_or_else(|| panic!("{title} missing"))
 	}
