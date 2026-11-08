@@ -827,6 +827,9 @@ pub fn startup_default() -> String {
 pub fn startup_all() -> String {
 	patois::t("All Playlists")
 }
+pub fn startup_favorites() -> String {
+	patois::t("Favorites")
+}
 pub fn check_updates_auto() -> String {
 	patois::t("Check for &Updates automatically")
 }

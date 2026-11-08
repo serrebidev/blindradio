@@ -33,7 +33,11 @@ impl App {
 			.win
 			.stations
 			.selected_home(&self.library, self.settings.main_list.as_deref())?;
-		Some(PasteDest::Collection(id, path))
+		Some(if id == FAVORITES_LIST {
+			PasteDest::Favorites(path)
+		} else {
+			PasteDest::Collection(id, path)
+		})
 	}
 
 	/// The station Ctrl+C and Ctrl+X act on. `selected` outlives a move onto a main tree

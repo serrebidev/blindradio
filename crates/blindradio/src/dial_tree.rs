@@ -158,6 +158,9 @@ impl DialTree {
 			parent()
 		} {
 			Some(Row::Folder { home, .. }) => Some(home),
+			_ if main_list == Some(crate::app::FAVORITES_LIST) => {
+				Some((crate::app::FAVORITES_LIST.to_string(), Vec::new()))
+			}
 			_ => dial_collection(lib, main_list).map(|c| (c.id.clone(), Vec::new())),
 		}
 	}
@@ -381,7 +384,12 @@ impl DialTree {
 			return;
 		};
 		let mut a = app.borrow_mut();
-		if a.library.rename_at(&home.0, &home.1, &name) {
+		let renamed = if home.0 == crate::app::FAVORITES_LIST {
+			a.library.rename_fav_folder(&home.1, &name)
+		} else {
+			a.library.rename_at(&home.0, &home.1, &name)
+		};
+		if renamed {
 			a.save_library();
 			a.refresh_dial();
 		}
@@ -410,7 +418,12 @@ impl DialTree {
 		}
 		let land = self.row_after_delete(home);
 		let mut a = app.borrow_mut();
-		if a.library.remove_at(&home.0, &home.1) {
+		let removed = if home.0 == crate::app::FAVORITES_LIST {
+			a.library.remove_fav_folder(&home.1)
+		} else {
+			a.library.remove_at(&home.0, &home.1)
+		};
+		if removed {
 			a.save_library();
 			*self.landing.borrow_mut() = land;
 			a.refresh_dial();
@@ -548,9 +561,12 @@ impl DialTree {
 								}
 								Some(context_menu::Choice::PasteStation) => {
 									let (id, path) = home;
-									a.borrow_mut().paste_into(
-										crate::app::PasteDest::Collection(id, path),
-									);
+									let dest = if id == crate::app::FAVORITES_LIST {
+										crate::app::PasteDest::Favorites(path)
+									} else {
+										crate::app::PasteDest::Collection(id, path)
+									};
+									a.borrow_mut().paste_into(dest);
 								}
 								Some(context_menu::Choice::Rename) => {
 									me.rename_folder(&a, &home);
@@ -627,6 +643,17 @@ fn folder_export(
 	lib: &Library,
 	(id, path): &FolderHome,
 ) -> Option<(String, Vec<Station>, Vec<Folder>)> {
+	if *id == crate::app::FAVORITES_LIST {
+		if path.is_empty() {
+			return Some((
+				s::favorites_list(),
+				lib.favorites.clone(),
+				lib.fav_folders.clone(),
+			));
+		}
+		let f = lib.fav_folder_at(path)?;
+		return Some((f.name.clone(), f.stations.clone(), f.folders.clone()));
+	}
 	let c = lib.collections.iter().find(|c| c.id == *id)?;
 	if path.is_empty() {
 		return Some((c.name.clone(), c.stations.clone(), c.folders.clone()));

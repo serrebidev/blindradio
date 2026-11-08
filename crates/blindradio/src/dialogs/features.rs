@@ -285,7 +285,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	let current = app.borrow().settings.clone();
 	// The startup list choices: the default stations, every playlist merged,
-	// or any one collection (an imported playlist is a collection).
+	// the favorites, or any one collection (an imported playlist is a collection).
 	let mut collections: Vec<(String, String)> = app
 		.borrow()
 		.library
@@ -308,18 +308,24 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		current.close_lists_when_playing,
 	);
 	let play_last = check(&panel, &sizer, &s::play_last(), current.play_last_at_startup);
-	let (startup_default, startup_all) = (s::startup_default(), s::startup_all());
+	let (startup_default, startup_all, startup_favorites) = (
+		s::startup_default(),
+		s::startup_all(),
+		s::startup_favorites(),
+	);
 	let startup_items: Vec<&str> = std::iter::once(startup_default.as_str())
 		.chain(std::iter::once(startup_all.as_str()))
+		.chain(std::iter::once(startup_favorites.as_str()))
 		.chain(collections.iter().map(|(_, name)| name.as_str()))
 		.collect();
 	let startup_at = match current.main_list.as_deref() {
 		Some(crate::app::ALL_LISTS) => 1,
+		Some(crate::app::FAVORITES_LIST) => 2,
 		_ => current
 			.main_list
 			.as_ref()
 			.and_then(|id| collections.iter().position(|(cid, _)| cid == id))
-			.map(|i| i + 2)
+			.map(|i| i + 3)
 			.unwrap_or(0),
 	};
 	let startup_list = choice(&panel, &sizer, &s::startup_list(), &startup_items, startup_at);
@@ -538,8 +544,9 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.play_last_at_startup = play_last.get_value();
 			st.main_list = match startup_list.get_selection() {
 				Some(1) => Some(crate::app::ALL_LISTS.to_string()),
-				Some(i) if i > 1 => collections
-					.get(i as usize - 2)
+				Some(2) => Some(crate::app::FAVORITES_LIST.to_string()),
+				Some(i) if i > 2 => collections
+					.get(i as usize - 3)
 					.map(|(id, _)| id.clone()),
 				_ => None,
 			};

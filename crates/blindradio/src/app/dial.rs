@@ -213,6 +213,41 @@ impl App {
 	/// own kind on its level, in the library itself. Focus goes with it. Not while the
 	/// Filter box flattens the tree.
 	pub fn move_dial_row(&mut self, up: bool) {
+		// The favorites as the dial list move like the Favorites
+		// window's rows do: stations among their fellows, folders
+		// among their siblings.
+		if let Some(PasteDest::Favorites(path)) = self.tree_home() {
+			let list = self.win.stations.clone();
+			if let Some(index) = list.selected_level_index() {
+				let moved = match self.library.fav_stations_at_mut(&path) {
+					Some(stations) => {
+						let to = if up {
+							index.saturating_sub(1)
+						} else {
+							index + 1
+						};
+						if to < stations.len() && to != index {
+							stations.swap(index, to);
+							true
+						} else {
+							false
+						}
+					}
+					None => false,
+				};
+				if !moved {
+					return;
+				}
+			} else {
+				let Some(path) = self.library.move_fav_folder(&path, up) else {
+					return;
+				};
+				list.land_on_folder((FAVORITES_LIST.to_string(), path));
+			}
+			self.save_library();
+			self.refresh_dial();
+			return;
+		}
 		let Some(PasteDest::Collection(id, path)) = self.tree_home() else {
 			return;
 		};
@@ -244,6 +279,11 @@ impl App {
 		};
 		let was_focused = self.win.stations.current() == Some(index);
 		let removed = match self.tree_home() {
+			Some(PasteDest::Favorites(path)) => self
+				.library
+				.fav_stations_at_mut(&path)
+				.map(|list| list.retain(|x| x.id != st.id))
+				.is_some(),
 			Some(PasteDest::Collection(id, path)) => self
 				.library
 				.collection_mut(&id)
