@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.77
+
+- Scheduled Recordings: the add form could still drop a schedule on OK. The 0.2.75 fix built the entry only once the dialog had closed with the exact OK result, and then re-read the form's fields from the closed dialog; on paths where the close did not travel exactly that way, the entry never formed. The result no longer rides on the close at all: pressing OK hands the built schedule straight to the caller, the form stays open and says why when a field cannot be accepted — including a station it cannot read, which used to fail in silence — and if the dialog closes with OK without the handover having run, the fields are read one last time as a fallback. The OK handler is also bound once now; reopening the form after a bad field no longer stacks another one on top.
+
 ## 0.2.76
 
 - Moondust joins the directories in Browse: the open station dataset from 12moon commons, published under CC0 and read live from its GitHub repo. Stations are filed by country — 227 country lists, the United States alone holding over six thousand stations — each with its primary stream, its genre, country and format on the row. Search covers the largest country lists, or just the country a search is filtered to. Two honest limits: the dataset is young and says itself that its streams have not been checked for playback, so a Moondust station that stays silent may be dead at the source; and stations with no known country are not in this first cut.

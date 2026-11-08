@@ -384,12 +384,15 @@ fn form(
 	add_ok_cancel_footer(sizer, ok, cancel);
 	dialog.set_sizer_and_fit(sizer, true);
 
-	// The fields are harvested after the modal returns, never only inside
-	// the OK click: how the click reached the button (mouse, Space, or
-	// Enter on the default button) decides whether that handler runs at
-	// all, and a harvest that lives only there can close the form with
-	// nothing saved and nothing said. OK still validates in place: a bad
-	// field reopens the form with the typed values kept and says why.
+	// The harvest lives in the OK click, in an out slot, and the modal's
+	// return code decides nothing. The 0.2.75 design built the entry only
+	// after show_modal returned exactly ID_OK and then re-read the
+	// controls; both that and the pre-0.2.75 in-click-only harvest lost
+	// the entry for real users, because the result depended on how the
+	// OK activation travelled through the custom-ID default button in the
+	// StdDialogButtonSizer. Now the click hands the entry over directly,
+	// the loop runs until it has an entry or the user cancels, and a bad
+	// field says why and keeps the form open.
 	macro_rules! read_fields {
 		() => {
 			FormFields {
@@ -402,22 +405,27 @@ fn form(
 			}
 		};
 	}
-	loop {
-		{
-			let (a, d) = (app.clone(), dialog);
-			let (base_c, stations_c) = (base.clone(), stations.clone());
-			ok.on_click(move |_| {
-				// Validation only; the harvest below owns the result.
-				match entry_from_fields(base_c.clone(), &read_fields!(), &stations_c) {
-					Ok(_) => d.end_modal(ID_OK),
-					Err(FormError::NoStation) => {}
-					Err(FormError::BadTime) => a.borrow_mut().say(&s::bad_schedule_time()),
-					Err(FormError::BadDuration) => {
-						a.borrow_mut().say(&s::bad_schedule_duration())
-					}
+	let done: Rc<RefCell<Option<ScheduledRecording>>> = Rc::new(RefCell::new(None));
+	// Bound once, before the loop: wxdragon appends a handler per bind,
+	// so binding inside the re-show loop stacked them.
+	{
+		let (a, d, done_c) = (app.clone(), dialog, done.clone());
+		let (base_c, stations_c) = (base.clone(), stations.clone());
+		ok.on_click(move |_| {
+			match entry_from_fields(base_c.clone(), &read_fields!(), &stations_c) {
+				Ok(entry) => {
+					*done_c.borrow_mut() = Some(entry);
+					d.end_modal(ID_OK);
 				}
-			});
-		}
+				Err(FormError::NoStation) => a.borrow_mut().say(&s::nothing_to_play()),
+				Err(FormError::BadTime) => a.borrow_mut().say(&s::bad_schedule_time()),
+				Err(FormError::BadDuration) => {
+					a.borrow_mut().say(&s::bad_schedule_duration())
+				}
+			}
+		});
+	}
+	loop {
 		if existing.is_some() || fields.station_index.is_some() {
 			station.set_selection(fields.station_index.unwrap_or(0), true);
 		}
@@ -427,9 +435,16 @@ fn form(
 		repeat.set_selection(fields.repeat_index.unwrap_or(0));
 		enabled.set_value(fields.enabled);
 		station.set_focus();
-		if dialog.show_modal() != ID_OK {
+		let code = dialog.show_modal();
+		if let Some(entry) = done.borrow_mut().take() {
+			return Some(entry);
+		}
+		if code != ID_OK {
 			return None;
 		}
+		// The modal ended with OK but the click never stored an entry
+		// (the affirmative-id path): harvest the controls here as the
+		// last line of defence instead of dropping the schedule.
 		fields = read_fields!();
 		match entry_from_fields(base.clone(), &fields, &stations) {
 			Ok(entry) => return Some(entry),
