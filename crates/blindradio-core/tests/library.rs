@@ -16,6 +16,18 @@ fn ids(v: &[Station]) -> Vec<&str> {
 	v.iter().map(|s| s.id.as_str()).collect()
 }
 
+/// The same stream as another source lists it: a different id, the same URL.
+fn st_url(id: &str, url: &str) -> Station {
+	Station {
+		id: id.into(),
+		name: id.into(),
+		url: url.into(),
+		source: Source::RadioBrowser,
+		info: None,
+		details: Default::default(),
+	}
+}
+
 #[test]
 fn edit_replaces_the_info_of_every_copy() {
 	let mut l = Library::default();
@@ -565,4 +577,90 @@ fn custom_stations_file_where_the_picker_says() {
 	let other = st("other");
 	assert!(lib.add_to_collection_folder(&jazz, &[0], &other));
 	assert_eq!(lib.collection_folder_list().len(), 1);
+}
+
+#[test]
+fn favorites_skip_the_same_stream_from_another_source() {
+	use blindradio_core::library::Folder;
+	let mut l = Library::default();
+	// Kaveinthran's report: the same station found in two places (here
+	// Radio Browser and TuneIn) carries two ids, so both copies landed.
+	let rb = st_url("rb:1", "http://x/stream");
+	let tunein = st_url("tunein:9", "http://x/stream");
+	assert!(l.add_favorite_to(&[], &rb));
+	assert!(
+		!l.add_favorite_to(&[], &tunein),
+		"the same stream under another id is already a favorite"
+	);
+	l.fav_folders.push(Folder::new("Music"));
+	assert!(
+		!l.add_favorite_to(&[0], &tunein),
+		"a favorites folder is not a way around it either"
+	);
+	assert_eq!(l.all_favorites().len(), 1);
+	// Toggling the other source's copy takes the favorite out; it
+	// does not file a twin.
+	assert!(!l.toggle_favorite(&tunein));
+	assert!(l.all_favorites().is_empty());
+	// A different stream still adds.
+	assert!(l.toggle_favorite(&st_url("tunein:9", "http://x/other")));
+	assert_eq!(l.all_favorites().len(), 1);
+}
+
+#[test]
+fn collections_skip_the_same_stream_from_another_source() {
+	let mut l = Library::default();
+	let c = l.create_collection("C");
+	let rb = st_url("rb:1", "http://x/stream");
+	let tunein = st_url("tunein:9", "http://x/stream");
+	assert!(l.toggle_in_collection(&c, &rb));
+	assert!(
+		!l.add_to_collection_folder(&c, &[], &tunein),
+		"the collection already holds this stream"
+	);
+	assert_eq!(
+		l.collections
+			.iter()
+			.find(|x| x.id == c)
+			.unwrap()
+			.all_stations()
+			.len(),
+		1
+	);
+	// Toggling the other source's copy removes the held one.
+	assert!(!l.toggle_in_collection(&c, &tunein));
+	assert!(
+		l.collections
+			.iter()
+			.find(|x| x.id == c)
+			.unwrap()
+			.all_stations()
+			.is_empty()
+	);
+	// Add All counts only streams the target does not already hold.
+	let a = l.create_collection("A");
+	let b = l.create_collection("B");
+	l.toggle_in_collection(&a, &tunein);
+	l.toggle_in_collection(&b, &rb);
+	assert_eq!(l.add_all_to_collection(&a, &b), 0);
+}
+
+#[test]
+fn folder_merge_skips_the_same_stream_from_another_source() {
+	use blindradio_core::library::Folder;
+	let mut into = Folder {
+		name: "Genre".into(),
+		stations: vec![st_url("rb:1", "http://x/stream")],
+		folders: Vec::new(),
+	};
+	let from = Folder {
+		name: "Genre".into(),
+		stations: vec![
+			st_url("tunein:9", "http://x/stream"),
+			st_url("tunein:10", "http://x/new"),
+		],
+		folders: Vec::new(),
+	};
+	assert_eq!(into.merge(from), 1, "only the new stream arrives");
+	assert_eq!(into.stations.len(), 2);
 }

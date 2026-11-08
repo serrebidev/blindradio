@@ -33,7 +33,11 @@ impl App {
 			.win
 			.stations
 			.selected_home(&self.library, self.settings.main_list.as_deref())?;
-		Some(PasteDest::Collection(id, path))
+		Some(if id == FAVORITES_LIST {
+			PasteDest::Favorites(path)
+		} else {
+			PasteDest::Collection(id, path)
+		})
 	}
 
 	/// The station Ctrl+C and Ctrl+X act on. `selected` outlives a move onto a main tree
@@ -98,7 +102,7 @@ impl App {
 					return self.say(&s::nowhere_to_paste());
 				};
 				(
-					list.iter().any(|x| x.id == st.id),
+					list.iter().any(|x| x.id == st.id || x.url == st.url),
 					// The list itself, not the collection around it: a playlist
 					// imported into Custom Stations is a folder there.
 					c.folder_at(path)
@@ -110,7 +114,7 @@ impl App {
 					return self.say(&s::nowhere_to_paste());
 				};
 				(
-					list.iter().any(|x| x.id == st.id),
+					list.iter().any(|x| x.id == st.id || x.url == st.url),
 					s::favorites_list().to_string(),
 				)
 			}
@@ -204,11 +208,19 @@ impl App {
 		}
 	}
 
-	/// Into a favorites folder; says so when it lands.
+	/// Into a favorites folder; says so when it lands, and says when
+	/// the stream is already a favorite under another source's listing.
 	pub fn add_favorite_to(&mut self, path: &[usize], station: &Station) {
 		if self.library.add_favorite_to(path, station) {
 			self.say(&s::added_to_favorites());
 			self.save_library();
+		} else if self.library.is_favorite_station(station) {
+			self.say(&format!(
+				"{}{}{}",
+				station.name,
+				s::is_already_in(),
+				s::favorites_list()
+			));
 		}
 	}
 
@@ -228,6 +240,18 @@ impl App {
 			self.say(&format!("{}{name}", s::added_to()));
 			self.save_library();
 			self.refresh_dial();
+		} else if self
+			.library
+			.collections
+			.iter()
+			.find(|c| c.id == id)
+			.is_some_and(|c| c.contains_station(station))
+		{
+			self.say(&format!(
+				"{}{}{name}",
+				station.name,
+				s::is_already_in()
+			));
 		}
 	}
 

@@ -135,10 +135,15 @@ fn landed<T: Clone>(selected: &mut Option<T>, remembered: &mut Option<T>, statio
 /// `col:` + a uuid), so it cannot collide.
 pub const ALL_LISTS: &str = "all-playlists";
 
+/// `main_list` value meaning the favorites: the dial shows the favorites
+/// root and its folders. Never a real collection id either.
+pub const FAVORITES_LIST: &str = "favorites";
+
 pub fn dial_collection<'a>(lib: &'a Library, main_list: Option<&str>) -> Option<&'a Collection> {
-	if main_list == Some(ALL_LISTS) {
+	if main_list == Some(ALL_LISTS) || main_list == Some(FAVORITES_LIST) {
 		// The merged view is no single collection (deleting from it, say,
 		// would be ambiguous), so single-collection work sees nothing.
+		// The favorites are no collection at all.
 		return None;
 	}
 	main_list
@@ -189,6 +194,9 @@ fn playlist_export_data(
 pub fn dial_stations(lib: &Library, main_list: Option<&str>) -> Vec<Station> {
 	if main_list == Some(ALL_LISTS) {
 		return lib.collections.iter().flat_map(|c| c.all_stations()).collect();
+	}
+	if main_list == Some(FAVORITES_LIST) {
+		return lib.all_favorites();
 	}
 	dial_collection(lib, main_list)
 		.map(|c| c.all_stations())
@@ -252,6 +260,14 @@ pub fn dial_tree(
 				kids: level_nodes(&c.stations, &c.folders, &c.id, &[], &mut next),
 			})
 			.collect()
+	} else if main_list == Some(FAVORITES_LIST) {
+		level_nodes(
+			&lib.favorites,
+			&lib.fav_folders,
+			FAVORITES_LIST,
+			&[],
+			&mut next,
+		)
 	} else {
 		dial_collection(lib, main_list)
 			.map(|c| level_nodes(&c.stations, &c.folders, &c.id, &[], &mut next))
@@ -1582,6 +1598,38 @@ mod tests {
 		assert!(
 			matches!(&nodes[1], DialNode::Folder { name, .. } if name == "Alpha"),
 			"the tree's rows follow, after Custom Stations"
+		);
+	}
+
+	#[test]
+	fn favorites_list_shows_the_favorites_with_their_folders() {
+		let mut lib = Library::default();
+		let st = |id: &str, name: &str| Station {
+			id: id.into(),
+			name: name.into(),
+			url: format!("http://x/{id}"),
+			source: blindradio_core::station::Source::RadioBrowser,
+			info: None,
+			details: Default::default(),
+		};
+		assert!(lib.add_favorite_to(&[], &st("rb:root", "Root One")));
+		lib.fav_folders.push(Folder::new("Music"));
+		assert!(lib.add_favorite_to(&[0], &st("rb:deep", "Deep One")));
+		assert!(
+			dial_collection(&lib, Some(FAVORITES_LIST)).is_none(),
+			"the favorites are no single collection"
+		);
+		let stations = dial_stations(&lib, Some(FAVORITES_LIST));
+		let names: Vec<&str> = stations.iter().map(|s| s.name.as_str()).collect();
+		assert_eq!(names, ["Root One", "Deep One"]);
+		let (_, nodes) = dial_tree(&lib, Some(FAVORITES_LIST), "");
+		assert!(matches!(&nodes[0], DialNode::Station(0)));
+		assert!(
+			matches!(&nodes[1], DialNode::Folder { name, home, kids }
+				if name == "Music"
+					&& home == &(FAVORITES_LIST.to_string(), vec![0])
+					&& matches!(&kids[0], DialNode::Station(1))),
+			"the favorites folder is a tree row, homed at the favorites"
 		);
 	}
 

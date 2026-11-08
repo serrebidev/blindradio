@@ -421,7 +421,7 @@ A message after a menu command or a closed dialog waits about half a second, so 
 reader reads the station list first and then the message, rather than cutting it off.
 FM Sound Between Stations, on the Playback tab, is the soft hiss BlindRadio plays while a new station tunes in, like a dial
 crossing the band, so tuning never has dead air; turn it off and the gap is silent. It plays at one fixed level, whatever the volume of the station you are tuning to, and Mute silences it. The Startup List chooses what the main list shows when the app starts: the default
-stations, All Playlists, or one of your collections —
+stations, All Playlists, your Favorites with their folders, or one of your collections —
 an imported playlist is a collection, so your own playlists can be what opens. The main list
 is a tree: All Playlists shows one folder per playlist with its directories inside, in the
 order you give them, and a

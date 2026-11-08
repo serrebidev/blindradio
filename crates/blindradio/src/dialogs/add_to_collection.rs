@@ -16,7 +16,7 @@ pub fn ticks(lib: &Library, station: &Station) -> Vec<(String, String, bool)> {
 		.iter()
 		.filter(|c| c.id != CUSTOM)
 		.map(|c| {
-			let holds = c.stations.iter().any(|x| x.id == station.id);
+			let holds = c.contains_station(station);
 			(c.id.clone(), c.name.clone(), holds)
 		})
 		.collect()

@@ -104,7 +104,7 @@ pub fn items_for(
 		Target::Station(st) => {
 			let mut items = vec![
 				Item::Play,
-				Item::Favorite(lib.is_favorite(&st.id)),
+				Item::Favorite(lib.is_favorite_station(st)),
 				Item::CopyUrl,
 				Item::StationInfo,
 				Item::CopyStation,
@@ -113,7 +113,7 @@ pub fn items_for(
 					lib.collections
 						.iter()
 						.filter(|c| c.id != CUSTOM)
-						.map(|c| (c.id.clone(), c.name.clone(), c.contains_id(&st.id)))
+						.map(|c| (c.id.clone(), c.name.clone(), c.contains_station(st)))
 						.collect(),
 				),
 			];
