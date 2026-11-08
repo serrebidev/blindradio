@@ -29,6 +29,17 @@ pub struct Collection {
 	pub folders: Vec<Folder>,
 }
 
+/// The same stream, whichever source named it: ids follow the source
+/// (`rb:…`, `tunein:…`, `net:…`), so two listings of one stream carry
+/// two ids, and only the URL says they are one station. An empty URL
+/// never matches by URL: it says nothing about the stream.
+/// ponytail: exact URL match — the same stream under http vs https, or
+/// behind a playlist address, counts as another station; address
+/// normalization is the upgrade path.
+fn same_stream(a: &Station, b: &Station) -> bool {
+	a.id == b.id || (!a.url.is_empty() && a.url == b.url)
+}
+
 /// A named folder inside a collection or the favorites: its own stations at
 /// its root, plus nested folders. Order is the user's order everywhere.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -75,7 +86,7 @@ impl Folder {
 	pub fn merge(&mut self, other: Folder) -> usize {
 		let mut added = 0;
 		for s in other.stations {
-			if !self.stations.iter().any(|x| x.id == s.id) {
+			if !self.stations.iter().any(|x| same_stream(x, &s)) {
 				self.stations.push(s);
 				added += 1;
 			}
@@ -94,6 +105,13 @@ impl Folder {
 	pub fn contains_url(&self, url: &str) -> bool {
 		self.stations.iter().any(|s| s.url == url)
 			|| self.folders.iter().any(|f| f.contains_url(url))
+	}
+
+	/// This station, or another source's listing of the same stream,
+	/// anywhere below here.
+	pub fn contains_station(&self, s: &Station) -> bool {
+		self.stations.iter().any(|x| same_stream(x, s))
+			|| self.folders.iter().any(|f| f.contains_station(s))
 	}
 
 	/// Removes the station with this id wherever it sits below here.
@@ -129,6 +147,13 @@ impl Collection {
 	pub fn contains_url(&self, url: &str) -> bool {
 		self.stations.iter().any(|s| s.url == url)
 			|| self.folders.iter().any(|f| f.contains_url(url))
+	}
+
+	/// This station, or another source's listing of the same stream,
+	/// at the root or in any folder.
+	pub fn contains_station(&self, s: &Station) -> bool {
+		self.stations.iter().any(|x| same_stream(x, s))
+			|| self.folders.iter().any(|f| f.contains_station(s))
 	}
 
 	/// The root-level folder with this name (any case), created empty if missing.
@@ -478,6 +503,13 @@ impl Library {
 			|| self.fav_folders.iter().any(|f| f.contains_id(id))
 	}
 
+	/// This station is a favorite, or another source's listing of the
+	/// same stream is: favorites hold a stream once, however it was found.
+	pub fn is_favorite_station(&self, s: &Station) -> bool {
+		self.favorites.iter().any(|x| same_stream(x, s))
+			|| self.fav_folders.iter().any(|f| f.contains_station(s))
+	}
+
 	/// True when the library holds a copy of the station (so it can be edited).
 	pub fn holds_station(&self, id: &str) -> bool {
 		self.is_favorite(id) || self.collections.iter().any(|c| c.contains_id(id))
@@ -568,8 +600,18 @@ impl Library {
 
 	/// True when the station is now a favorite (added at the end of the root).
 	pub fn toggle_favorite(&mut self, s: &Station) -> bool {
-		if self.is_favorite(&s.id) {
-			self.remove_favorite(&s.id);
+		if self.is_favorite_station(s) {
+			// Out by the held copies' own ids: the station being
+			// toggled may be another source's listing of the stream.
+			let held: Vec<String> = self
+				.all_favorites()
+				.iter()
+				.filter(|x| same_stream(x, s))
+				.map(|x| x.id.clone())
+				.collect();
+			for id in held {
+				self.remove_favorite(&id);
+			}
 			false
 		} else {
 			self.favorites.push(s.clone());
@@ -578,9 +620,9 @@ impl Library {
 	}
 
 	/// Adds the station to the favorites folder at `path` (empty is the root).
-	/// False when it is already a favorite anywhere.
+	/// False when its stream is already a favorite anywhere.
 	pub fn add_favorite_to(&mut self, path: &[usize], s: &Station) -> bool {
-		if self.is_favorite(&s.id) {
+		if self.is_favorite_station(s) {
 			return false;
 		}
 		match path.split_first() {
@@ -774,7 +816,7 @@ impl Library {
 		let Some(c) = self.collection_mut(id) else {
 			return false;
 		};
-		if c.contains_id(&s.id) {
+		if c.contains_station(s) {
 			return false;
 		}
 		match c.stations_at_mut(path) {
@@ -893,11 +935,22 @@ impl Library {
 		let Some(c) = self.editable_mut(id) else {
 			return false;
 		};
-		if c.remove_id(&s.id) {
-			false
-		} else {
-			c.stations.push(s.clone());
-			true
+		// Out by the held copy's own id: the station being toggled may
+		// be another source's listing of the same stream.
+		let held = c
+			.all_stations()
+			.iter()
+			.find(|x| same_stream(x, s))
+			.map(|x| x.id.clone());
+		match held {
+			Some(held) => {
+				c.remove_id(&held);
+				false
+			}
+			None => {
+				c.stations.push(s.clone());
+				true
+			}
 		}
 	}
 
@@ -970,7 +1023,7 @@ impl Library {
 		};
 		let mut added = 0;
 		for s in src {
-			if !dst.all_stations().iter().any(|x| x.id == s.id) {
+			if !dst.all_stations().iter().any(|x| same_stream(x, &s)) {
 				dst.stations.push(s);
 				added += 1;
 			}

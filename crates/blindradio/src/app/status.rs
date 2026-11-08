@@ -221,7 +221,7 @@ impl App {
 		set_label(win.mute, &mute_label);
 		let favorite = self
 			.station_here()
-			.is_some_and(|st| self.library.is_favorite(&st.id));
+			.is_some_and(|st| self.library.is_favorite_station(&st));
 		let label = menus::favorite_label(favorite);
 		if set_label(win.favorite, &menus::plain(&label))
 			&& let Some(bar) = win.frame.get_menu_bar()

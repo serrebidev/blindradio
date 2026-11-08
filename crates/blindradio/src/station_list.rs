@@ -45,7 +45,7 @@ pub struct Hooks {
 /// Add to Favorites or Remove from Favorites for the station focused in `list`.
 pub fn favorite_label_of(app: &App, list: &StationList) -> String {
 	let focused = list.current().and_then(|i| list.stations().get(i).cloned());
-	menus::favorite_label(focused.is_some_and(|st| app.library.is_favorite(&st.id)))
+	menus::favorite_label(focused.is_some_and(|st| app.library.is_favorite_station(&st)))
 }
 
 #[derive(Clone)]
