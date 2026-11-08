@@ -293,6 +293,11 @@ pub struct StationSettings {
 	pub metadata_offset_seconds: Option<i8>,
 }
 
+/// Volume ceiling as a fraction: 2.0 is 200%. Past 100% is boost for
+/// quiet stations, VLC-style; the output stage hard-clips, so the
+/// distortion is the listener's choice, never a surprise.
+pub const MAX_VOLUME: f32 = 2.0;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -398,7 +403,7 @@ impl Default for Settings {
 impl Settings {
 	pub fn load(dir: &Path) -> Settings {
 		let mut s: Settings = store::load(&dir.join(store::SETTINGS_FILE));
-		s.volume = s.volume.clamp(0.0, 1.0);
+		s.volume = s.volume.clamp(0.0, MAX_VOLUME);
 		let old_bands = |bass, mid, treble| [bass, bass, bass, mid, mid, mid, treble, treble, treble, treble];
 		if s.eq.bands.iter().all(|&b| b == 0) {
 			s.eq.bands = old_bands(s.eq.bass, s.eq.mid, s.eq.treble);
@@ -447,7 +452,7 @@ impl Settings {
 				o.timeshift_minutes = Some(m.clamp(1, 240));
 			}
 			if let Some(v) = o.volume {
-				o.volume = Some(v.clamp(0.0, 1.0));
+				o.volume = Some(v.clamp(0.0, MAX_VOLUME));
 			}
 			if let Some(offset) = o.metadata_offset_seconds {
 				o.metadata_offset_seconds = Some(offset.clamp(-30, 30));
@@ -524,6 +529,23 @@ mod tests {
 	use super::*;
 
 	#[test]
+	fn boost_volume_survives_load_and_stays_capped() {
+		let d = tempfile::tempdir().unwrap();
+		std::fs::write(
+			d.path().join("settings.json"),
+			r#"{"volume":1.5,"station_overrides":{"st":{"volume":9.0}}}"#,
+		)
+		.unwrap();
+		let s = Settings::load(d.path());
+		assert_eq!(s.volume, 1.5, "a 150% volume loads as set");
+		assert_eq!(
+			s.station_overrides["st"].volume,
+			Some(MAX_VOLUME),
+			"a per-station volume caps at the boost ceiling"
+		);
+	}
+
+	#[test]
 	fn defaults_match_spec() {
 		let s = Settings::default();
 		assert!(s.announce_titles && s.announce_status && s.announce_actions && s.check_updates);
@@ -552,7 +574,7 @@ mod tests {
 		assert_eq!(
 			s,
 			Settings {
-				volume: 1.0,
+				volume: 2.0,
 				..Settings::default()
 			}
 		);

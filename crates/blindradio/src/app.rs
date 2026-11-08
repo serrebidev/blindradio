@@ -39,6 +39,9 @@ mod stations;
 mod status;
 
 const VOLUME_STEP: i32 = 1;
+
+/// Volume ceiling in slider points: 200 is 200%, boost for quiet stations.
+pub const MAX_POINTS: i32 = (blindradio_core::settings::MAX_VOLUME * 100.0) as i32;
 const DEVICE_POLL: Duration = Duration::from_secs(2);
 /// Keys rest this long before the title and now playing line follow them.
 const LINE_REST: Duration = Duration::from_millis(300);
@@ -1223,7 +1226,7 @@ impl App {
 	}
 
 	fn set_volume(&mut self, points: i32) {
-		self.settings.volume = points.clamp(0, 100) as f32 / 100.0;
+		self.settings.volume = points.clamp(0, MAX_POINTS) as f32 / 100.0;
 		self.mixer(MixerCmd::Volume(self.settings.volume));
 		// The level set while a station plays is that station's
 		// remembered volume, applied again when it starts.

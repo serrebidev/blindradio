@@ -24,7 +24,7 @@ station and plays it.
 
 - Letters jump to the next name starting with that letter.
 - Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once. Enter also starts a new time-shift buffer, and so does moving away from a station and back. When a station reconnects by itself, it keeps its buffer.
-- Volume moves in one-percent steps: Volume Up and Down and the slider's arrow keys change it by 1, Page Up and Page Down by 10. Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
+- Volume moves in one-percent steps, from silent to 200%: Volume Up and Down and the slider's arrow keys change it by 1, Page Up and Page Down by 10. Past 100% is boost for quiet stations, amplified like VLC's; loud passages can distort up there. Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
 - Delete removes it from that list.
 - Alt+Up and Alt+Down reorder where the list allows it.
 - The Applications key opens the station's menu.

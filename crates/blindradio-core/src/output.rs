@@ -294,7 +294,7 @@ impl MixerCore {
 				}
 			}
 			MixerCmd::RecordSlot(slot) => self.record_slot = slot,
-			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, 1.0),
+			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, crate::settings::MAX_VOLUME),
 			MixerCmd::Mute(muted) => self.muted = muted,
 			MixerCmd::Eq(s) => {
 				self.eq.set(&s);

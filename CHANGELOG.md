@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.75
+
+- Fixed Scheduled Recordings adding nothing. Setting up a schedule for a station, Mushroom FM included, and pressing OK could close the form with the entry silently dropped: the entry was only ever built inside the OK button's own click handling, and how the click reached the button — mouse, Space, or Enter while OK was the default button — decided whether that handling ran at all. The form now builds the entry from its fields after OK however it was pressed, and a field it cannot accept reopens the form with what you typed still in it and says why, instead of the schedule vanishing without a word.
+- Volume now goes to 200%. Quiet stations can be boosted past full volume, the way VLC allows: the volume slider, Volume Up and Volume Down, and each station's remembered volume all run from silent to 200%, in the same one-percent steps. Past 100% the sound is amplified and can distort on loud passages — that trade is yours to make per station, and a level you set is remembered for that station as before.
+
 ## 0.2.74
 
 - Volume steps are now one percent. Volume Up and Volume Down, the arrow keys on the volume slider, and the other sliders' arrow keys all move by 1 instead of 5, so the whole range from silent to full is reachable one percent at a time and quiet streams no longer jump from medium straight to off. Page Up and Page Down still move by ten for covering ground fast.

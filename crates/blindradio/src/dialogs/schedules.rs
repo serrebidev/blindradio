@@ -81,6 +81,59 @@ pub fn parse_local(text: &str) -> Option<u64> {
 	Some(naive.checked_sub(local_offset())? as u64)
 }
 
+/// What the form's fields say, before it becomes an entry. Kept apart
+/// from the controls so the harvest is testable without a window.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FormFields {
+	pub station_index: Option<u32>,
+	pub alarm: bool,
+	pub start_text: String,
+	pub duration_text: String,
+	pub repeat_index: Option<u32>,
+	pub enabled: bool,
+}
+
+/// Why a harvest failed; the caller says the matching message and keeps
+/// the form open, so a bad field can never silently drop the entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FormError {
+	NoStation,
+	BadTime,
+	BadDuration,
+}
+
+/// Build the entry from the harvested fields, starting from `entry`
+/// (the default for Add, the stored one for Edit).
+pub fn entry_from_fields(
+	mut entry: ScheduledRecording,
+	fields: &FormFields,
+	stations: &[Station],
+) -> Result<ScheduledRecording, FormError> {
+	let Some(st) = fields
+		.station_index
+		.and_then(|i| stations.get(i as usize))
+	else {
+		return Err(FormError::NoStation);
+	};
+	entry.station = st.clone();
+	entry.alarm = fields.alarm;
+	entry.start_unix = parse_local(&fields.start_text).ok_or(FormError::BadTime)?;
+	// An alarm plays; it has no duration to validate.
+	if !entry.alarm {
+		match fields.duration_text.trim().parse::<u32>() {
+			Ok(m) if (1..=1440).contains(&m) => entry.duration_minutes = m,
+			_ => return Err(FormError::BadDuration),
+		}
+	}
+	entry.repeat = match fields.repeat_index {
+		Some(1) => Repeat::Daily,
+		Some(2) => Repeat::Weekly,
+		_ => Repeat::Once,
+	};
+	entry.enabled = fields.enabled;
+	Ok(entry)
+}
+
 /// Unix seconds as "2026-11-02 19:30" in local time.
 pub fn format_local(unix: u64) -> String {
 	let local = unix as i64 + local_offset();
@@ -272,7 +325,7 @@ fn form(
 	}
 	let enabled = CheckBox::builder(&dialog).with_label(&s::enabled()).build();
 
-	let mut entry = match existing {
+	let base = match existing {
 		Some(e) => e.clone(),
 		None => ScheduledRecording {
 			id: format!("sched:{}", update::now()),
@@ -284,20 +337,22 @@ fn form(
 			alarm: false,
 		},
 	};
-	kind.set_selection(if entry.alarm { 1 } else { 0 });
-	if let Some(i) = stations.iter().position(|st| st.id == entry.station.id) {
-		station.set_selection(i as u32, true);
-	} else {
-		station.set_selection(0, true);
-	}
-	start.set_value(&format_local(entry.start_unix));
-	duration.set_value(&entry.duration_minutes.to_string());
-	repeat.set_selection(match entry.repeat {
-		Repeat::Once => 0,
-		Repeat::Daily => 1,
-		Repeat::Weekly => 2,
-	});
-	enabled.set_value(entry.enabled);
+	let entry = base.clone();
+
+	// The harvest's field snapshot, refreshed before every show and read
+	// back after it; pre-filled from the entry so Edit opens populated.
+	let mut fields = FormFields {
+		station_index: stations.iter().position(|st| st.id == entry.station.id).map(|i| i as u32),
+		alarm: entry.alarm,
+		start_text: format_local(entry.start_unix),
+		duration_text: entry.duration_minutes.to_string(),
+		repeat_index: Some(match entry.repeat {
+			Repeat::Once => 0,
+			Repeat::Daily => 1,
+			Repeat::Weekly => 2,
+		}),
+		enabled: entry.enabled,
+	};
 
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	fn row(sizer: &BoxSizer, label: &StaticText, control: &impl WxWidget) {
@@ -329,52 +384,151 @@ fn form(
 	add_ok_cancel_footer(sizer, ok, cancel);
 	dialog.set_sizer_and_fit(sizer, true);
 
-	// OK validates in place: a bad field keeps the form open and says why.
-	let out = Rc::new(RefCell::new(None));
-	{
-		let stations = stations.clone();
-		let (a, d, out) = (app.clone(), dialog, out.clone());
-		ok.on_click(move |_| {
-			let Some(st) = station
-				.get_selection()
-				.and_then(|i| stations.get(i as usize))
-			else {
-				return;
-			};
-			entry.station = st.clone();
-			entry.alarm = kind.get_selection() == Some(1);
-			match parse_local(&start.get_value()) {
-				Some(unix) => entry.start_unix = unix,
-				None => return a.borrow_mut().say(&s::bad_schedule_time()),
+	// The fields are harvested after the modal returns, never only inside
+	// the OK click: how the click reached the button (mouse, Space, or
+	// Enter on the default button) decides whether that handler runs at
+	// all, and a harvest that lives only there can close the form with
+	// nothing saved and nothing said. OK still validates in place: a bad
+	// field reopens the form with the typed values kept and says why.
+	macro_rules! read_fields {
+		() => {
+			FormFields {
+				station_index: station.get_selection(),
+				alarm: kind.get_selection() == Some(1),
+				start_text: start.get_value(),
+				duration_text: duration.get_value(),
+				repeat_index: repeat.get_selection(),
+				enabled: enabled.get_value(),
 			}
-			// An alarm plays; it has no duration to validate.
-			if !entry.alarm {
-				match duration.get_value().trim().parse::<u32>() {
-					Ok(m) if (1..=1440).contains(&m) => entry.duration_minutes = m,
-					_ => return a.borrow_mut().say(&s::bad_schedule_duration()),
-				}
-			}
-			entry.repeat = match repeat.get_selection() {
-				Some(1) => Repeat::Daily,
-				Some(2) => Repeat::Weekly,
-				_ => Repeat::Once,
-			};
-			entry.enabled = enabled.get_value();
-			*out.borrow_mut() = Some(entry.clone());
-			d.end_modal(ID_OK);
-		});
+		};
 	}
-	station.set_focus();
-	if dialog.show_modal() == ID_OK {
-		out.borrow().clone()
-	} else {
-		None
+	loop {
+		{
+			let (a, d) = (app.clone(), dialog);
+			let (base_c, stations_c) = (base.clone(), stations.clone());
+			ok.on_click(move |_| {
+				// Validation only; the harvest below owns the result.
+				match entry_from_fields(base_c.clone(), &read_fields!(), &stations_c) {
+					Ok(_) => d.end_modal(ID_OK),
+					Err(FormError::NoStation) => {}
+					Err(FormError::BadTime) => a.borrow_mut().say(&s::bad_schedule_time()),
+					Err(FormError::BadDuration) => {
+						a.borrow_mut().say(&s::bad_schedule_duration())
+					}
+				}
+			});
+		}
+		if existing.is_some() || fields.station_index.is_some() {
+			station.set_selection(fields.station_index.unwrap_or(0), true);
+		}
+		kind.set_selection(if fields.alarm { 1 } else { 0 });
+		start.set_value(&fields.start_text);
+		duration.set_value(&fields.duration_text);
+		repeat.set_selection(fields.repeat_index.unwrap_or(0));
+		enabled.set_value(fields.enabled);
+		station.set_focus();
+		if dialog.show_modal() != ID_OK {
+			return None;
+		}
+		fields = read_fields!();
+		match entry_from_fields(base.clone(), &fields, &stations) {
+			Ok(entry) => return Some(entry),
+			Err(FormError::NoStation) => {
+				app.borrow_mut().say(&s::nothing_to_play());
+				return None;
+			}
+			Err(FormError::BadTime) => app.borrow_mut().say(&s::bad_schedule_time()),
+			Err(FormError::BadDuration) => {
+				app.borrow_mut().say(&s::bad_schedule_duration())
+			}
+		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{civil_from_days, days_from_civil};
+	use super::{
+		FormError, FormFields, civil_from_days, days_from_civil, entry_from_fields, format_local,
+		parse_local,
+	};
+	use blindradio_core::schedule::{Repeat, ScheduledRecording};
+	use blindradio_core::station::{Source, Station};
+
+	fn station(id: &str, name: &str) -> Station {
+		Station {
+			id: id.into(),
+			name: name.into(),
+			url: format!("http://{id}"),
+			source: Source::Custom,
+			info: None,
+			details: Default::default(),
+		}
+	}
+
+	fn fields() -> FormFields {
+		FormFields {
+			station_index: Some(1),
+			alarm: false,
+			start_text: "2026-11-09 07:30".into(),
+			duration_text: "45".into(),
+			repeat_index: Some(1),
+			enabled: true,
+		}
+	}
+
+	#[test]
+	fn harvest_builds_the_entry_from_the_fields() {
+		let stations = vec![station("a", "A"), station("b", "Mushroom FM")];
+		let base = ScheduledRecording {
+			id: "sched:1".into(),
+			station: stations[0].clone(),
+			..Default::default()
+		};
+		let e = entry_from_fields(base, &fields(), &stations).unwrap();
+		assert_eq!(e.id, "sched:1");
+		assert_eq!(e.station.id, "b");
+		assert_eq!(e.start_unix, parse_local("2026-11-09 07:30").unwrap());
+		assert_eq!(e.duration_minutes, 45);
+		assert_eq!(e.repeat, Repeat::Daily);
+		assert!(e.enabled);
+		assert!(!e.alarm);
+		// The form's own default text round-trips through the harvest.
+		let mut f = fields();
+		f.start_text = format_local(e.start_unix);
+		assert_eq!(entry_from_fields(e.clone(), &f, &stations).unwrap(), e);
+	}
+
+	#[test]
+	fn harvest_rejects_bad_fields_instead_of_dropping_the_entry() {
+		let stations = vec![station("a", "A")];
+		let base = ScheduledRecording::default();
+		let mut f = fields();
+		f.station_index = None;
+		assert_eq!(
+			entry_from_fields(base.clone(), &f, &stations),
+			Err(FormError::NoStation)
+		);
+		f.station_index = Some(9);
+		assert_eq!(
+			entry_from_fields(base.clone(), &f, &stations),
+			Err(FormError::NoStation)
+		);
+		f.station_index = Some(0);
+		f.start_text = "next Friday".into();
+		assert_eq!(
+			entry_from_fields(base.clone(), &f, &stations),
+			Err(FormError::BadTime)
+		);
+		f.start_text = "2026-11-09 07:30".into();
+		f.duration_text = "0".into();
+		assert_eq!(
+			entry_from_fields(base.clone(), &f, &stations),
+			Err(FormError::BadDuration)
+		);
+		// An alarm skips the duration check: it plays, it does not record.
+		f.alarm = true;
+		assert!(entry_from_fields(base, &f, &stations).is_ok());
+	}
 
 	#[test]
 	fn civil_math_round_trips() {

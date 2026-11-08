@@ -84,7 +84,7 @@ pub fn build() -> MainWindow {
 	let volume_label = StaticText::builder(&panel).with_label(&s::volume()).build();
 	let volume = Slider::builder(&panel)
 		.with_min_value(0)
-		.with_max_value(100)
+		.with_max_value(crate::app::MAX_POINTS)
 		.build();
 	let message = StaticText::builder(&panel).with_label("").build();
 
@@ -360,7 +360,7 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 
 	let a = app.clone();
 	win.volume.on_slider(move |e| {
-		dispatch(&a, Action::SetVolume(e.get_value().clamp(0, 100) as u8));
+		dispatch(&a, Action::SetVolume(e.get_value().clamp(0, crate::app::MAX_POINTS) as u8));
 	});
 	let (a, volume) = (app.clone(), win.volume);
 	win.volume.on_key_down(move |e| {
@@ -372,7 +372,7 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 			Some(step) => {
 				// Consumed, or the native trackbar moves it as well (the wrong way).
 				key.event.skip(false);
-				let v = (volume.get_value() + step).clamp(0, 100) as u8;
+				let v = (volume.get_value() + step).clamp(0, crate::app::MAX_POINTS) as u8;
 				dispatch(&a, Action::SetVolume(v));
 			}
 			None => key.event.skip(true),
