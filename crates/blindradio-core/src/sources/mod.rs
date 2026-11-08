@@ -40,6 +40,7 @@ pub mod iheart;
 pub mod internet_radio;
 pub mod iprd;
 pub mod live365;
+pub mod moondust;
 pub mod networks;
 pub mod orb;
 mod played;
@@ -306,6 +307,7 @@ pub struct Endpoints {
 	pub live365: String,
 	pub orb: String,
 	pub directory: String,
+	pub moondust: String,
 	pub recommended: String,
 	pub triton: String,
 	pub live365_api: String,
@@ -330,6 +332,7 @@ impl Default for Endpoints {
 			live365: "https://live365.com".into(),
 			orb: "https://onlineradiobox.com".into(),
 			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
+			moondust: "https://raw.githubusercontent.com/12moon-open/moondust/main".into(),
 			recommended: "https://api.github.com/repos/deroverda/recommended-radio-streams".into(),
 			triton: "https://np.tritondigital.com".into(),
 			live365_api: "https://api.live365.com".into(),
@@ -364,6 +367,7 @@ pub struct Sources {
 	orb: orb::Orb,
 	played: played::Played,
 	directory: directory::Directory,
+	moondust: moondust::Moondust,
 	recommended: directory::Directory,
 	somafm_base: String,
 	disabled: RwLock<BTreeSet<String>>,
@@ -469,6 +473,7 @@ impl Sources {
 			radionet: radionet::RadioNet::new(endpoints.radionet),
 			live365: live365::Live365::new(endpoints.live365),
 			directory: directory::Directory::new(endpoints.directory),
+			moondust: moondust::Moondust::new(endpoints.moondust),
 			recommended: directory::Directory::recommended(endpoints.recommended),
 			somafm_base: endpoints.somafm,
 			disabled: RwLock::default(),
@@ -518,6 +523,7 @@ impl Sources {
 			("orb", "Online Radio Box"),
 			("brdir", "BlindRadio Directory"),
 			("recommended", "Recommended Radio Streams"),
+			("moondust", "Moondust"),
 		]
 		.map(|(id, name)| Node::Folder {
 			id: id.into(),
@@ -549,6 +555,7 @@ impl Sources {
 			"orb" => self.orb.children(&self.client, id).await,
 			"brdir" => self.directory.children(&self.client, id).await,
 			"recommended" => self.recommended.children(&self.client, id).await,
+			"moondust" => self.moondust.children(&self.client, id).await,
 			"net" => Ok(self.enabled(networks::children(id))),
 			_ => Ok(vec![]),
 		}
@@ -633,7 +640,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb, moondust) = tokio::join!(
 			async {
 				if self.on("rb") {
 					bounded(self.rb.search(&self.client, q)).await
@@ -704,6 +711,13 @@ impl Sources {
 					vec![]
 				}
 			},
+			async {
+				if name_given && self.on("moondust") {
+					bounded(self.moondust.search(&self.client, q)).await
+				} else {
+					vec![]
+				}
+			},
 		);
 		let mut seen = HashSet::new();
 		rb.into_iter()
@@ -716,6 +730,7 @@ impl Sources {
 			.chain(radionet)
 			.chain(live365)
 			.chain(orb)
+			.chain(moondust)
 			.chain(networks::search(q).into_iter().filter(|s| {
 				s.id.split(':')
 					.nth(1)

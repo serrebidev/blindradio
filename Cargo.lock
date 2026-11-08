@@ -189,7 +189,7 @@ dependencies = [
  "tokio",
  "uiautomation",
  "windows",
- "wx-utils 0.5.1",
+ "wx-utils 0.5.2",
  "wxdragon",
 ]
 
@@ -4153,8 +4153,8 @@ dependencies = [
 
 [[package]]
 name = "wx-utils"
-version = "0.5.1"
-source = "git+https://github.com/trypsynth/wx-utils#a223eba16b44f4987c2c8bf9f0483f16e0d3f37e"
+version = "0.5.2"
+source = "git+https://github.com/trypsynth/wx-utils#e20e1e0f77aab1fe8ae3e4e990074a79450d2b09"
 dependencies = [
  "key-chord",
  "live-region 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",

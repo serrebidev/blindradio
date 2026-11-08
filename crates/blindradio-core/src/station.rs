@@ -21,6 +21,8 @@ pub enum Source {
 	/// The BlindRadio Directory of submitted stations.
 	Directory,
 	Recommended,
+	/// The Moondust open station dataset (12moon commons, CC0).
+	Moondust,
 	/// A curated network; the string is its display name.
 	Network(String),
 	#[default]
@@ -43,6 +45,7 @@ impl Source {
 			Source::OnlineRadioBox => "Online Radio Box",
 			Source::Directory => "BlindRadio Directory",
 			Source::Recommended => "Recommended Radio Streams",
+			Source::Moondust => "Moondust",
 			Source::Network(name) => name,
 			Source::Custom => "Custom",
 		}
@@ -142,6 +145,7 @@ mod json_form_tests {
 			(Source::Live365, r#""Live365""#),
 			(Source::OnlineRadioBox, r#""OnlineRadioBox""#),
 			(Source::Recommended, r#""Recommended""#),
+			(Source::Moondust, r#""Moondust""#),
 			(Source::Network("BBC".into()), r#"{"Network":"BBC"}"#),
 			(Source::Custom, r#""Custom""#),
 		] {

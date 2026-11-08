@@ -42,6 +42,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		orb: s.base.clone(),
 		directory: s.base.clone(),
 		recommended: s.base.clone(),
+		moondust: s.base.clone(),
 		triton: s.base.clone(),
 		live365_api: s.base.clone(),
 		laut_fm: s.base.clone(),

@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.76
+
+- Moondust joins the directories in Browse: the open station dataset from 12moon commons, published under CC0 and read live from its GitHub repo. Stations are filed by country — 227 country lists, the United States alone holding over six thousand stations — each with its primary stream, its genre, country and format on the row. Search covers the largest country lists, or just the country a search is filtered to. Two honest limits: the dataset is young and says itself that its streams have not been checked for playback, so a Moondust station that stays silent may be dead at the source; and stations with no known country are not in this first cut.
+
 ## 0.2.75
 
 - Fixed Scheduled Recordings adding nothing. Setting up a schedule for a station, Mushroom FM included, and pressing OK could close the form with the entry silently dropped: the entry was only ever built inside the OK button's own click handling, and how the click reached the button — mouse, Space, or Enter while OK was the default button — decided whether that handling ran at all. The form now builds the entry from its fields after OK however it was pressed, and a field it cannot accept reopens the form with what you typed still in it and says why, instead of the schedule vanishing without a word.

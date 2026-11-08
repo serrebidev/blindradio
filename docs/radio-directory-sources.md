@@ -221,6 +221,20 @@ Directories gained browse paths that were already public: TuneIn's `c=music`, `t
 `sports` and `local`, with its `nextStations` links; radio.net's `/stations/tags` and
 `/stations/by-tag`; iHeart's `/api/v2/content/markets` and `marketId`.
 
+## Moondust (added 2026-11-08)
+
+The open station dataset of [12moon commons](https://github.com/12moon-open/moondust),
+CC0, written by a bot and published as one NDJSON file per country under
+`v1/stations/<CC>.ndjson` in the repo, read live from raw.githubusercontent.com.
+One record per station: stable `st_` id, `status` (`active` plays; anything else
+is retired, per the data model in the moonbase repo), tags, languages, homepage,
+and streams with role/codec/bitrate — the primary stream plays, one row per
+record. Browse files stations by country (227 published shards, names from a
+fixed table in `sources/moondust.rs`); big files page at 500 with Load More.
+Search scans the twelve largest country files, or only the filtered country.
+The dataset states its streams are not playback-checked; records with no known
+country (the planned XX shard) are not published yet and not browsed.
+
 ## Not added
 
 - **Bauer (Absolute, KISS, Magic, Hits Radio, Greatest Hits, Planet Rock, Jazz FM)**:

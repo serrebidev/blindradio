@@ -61,7 +61,9 @@ BlacknWhita. Numbers are not spelled out: radio 1 does not find Radio One.
 Ctrl+G opens Browse: Directories, Networks, Collections and Custom Stations. Directories
 holds the BlindRadio Directory, Radio Browser, TuneIn, iHeartRadio, Icecast, SHOUTcast,
 Internet-Radio, IPRD, Recommended Radio Streams,
-Radio.net, Live365 and Online Radio Box. The BlindRadio Directory is the community's own submitted stations,
+Radio.net, Live365, Moondust and Online Radio Box. Moondust is the open station dataset from
+12moon commons (CC0), read live from its GitHub repo and filed by country; its streams are
+published unchecked, so a silent one may be dead at the source. The BlindRadio Directory is the community's own submitted stations,
 kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
 folder (a country or a category), each playlist's groups are its subfolders, and the
 app reads the repository live, so new
