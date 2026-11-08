@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: blindradio 0.2.72\n"
+"Project-Id-Version: blindradio 0.2.77\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-07 17:22-0700\n"
+"POT-Creation-Date: 2026-11-08 11:35-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 msgid "Failed: "
 msgstr ""
@@ -497,6 +498,7 @@ msgstr ""
 msgid "Results"
 msgstr ""
 
+#. TRANSLATORS: Button that closes a window showing text
 msgid "Close"
 msgstr ""
 
@@ -599,9 +601,14 @@ msgstr ""
 msgid "Added "
 msgstr ""
 
+#. TRANSLATORS: OK button in the Set Shortcut dialog that accepts the captured key combination.
+#. TRANSLATORS: OK button that saves the customized shortcuts in the Keyboard Shortcuts dialog.
+#. TRANSLATORS: OK button in the Set Shortcut dialog that accepts the captured key combination.
+#. TRANSLATORS: OK button that saves the customized shortcuts in the Keyboard Shortcuts dialog.
 msgid "OK"
 msgstr ""
 
+#. TRANSLATORS: Label for the cancellation button
 msgid "Cancel"
 msgstr ""
 
@@ -720,6 +727,15 @@ msgid "Duration must be 1 to 1440 minutes"
 msgstr ""
 
 msgid "Scheduled recording started: "
+msgstr ""
+
+msgid "Recording silently: "
+msgstr ""
+
+msgid " — playback muted"
+msgstr ""
+
+msgid "Record silently (mute playback)"
 msgstr ""
 
 msgid "Scheduled recording saved to "
@@ -1104,4 +1120,326 @@ msgid "About BlindRadio"
 msgstr ""
 
 msgid "&Licenses…"
+msgstr ""
+
+msgid "Current version is not a valid semver."
+msgstr ""
+
+msgid "Latest release tag is not a valid semver."
+msgstr ""
+
+msgid "Invalid public key"
+msgstr ""
+
+msgid "Failed to read signature"
+msgstr ""
+
+msgid "Invalid signature"
+msgstr ""
+
+msgid "Failed to create private download directory"
+msgstr ""
+
+msgid "Failed to create file"
+msgstr ""
+
+msgid "Failed to write file"
+msgstr ""
+
+msgid "Failed to read file for verification"
+msgstr ""
+
+msgid "Signature verification failed"
+msgstr ""
+
+msgid "Failed to rename verified file"
+msgstr ""
+
+msgid "Failed to parse release JSON"
+msgstr ""
+
+msgid "Latest release does not include downloadable assets."
+msgstr ""
+
+msgid "Update is available but no matching download asset or signature was found."
+msgstr ""
+
+msgid "Not running from an AppImage; cannot self-update."
+msgstr ""
+
+msgid "Failed to determine exe path"
+msgstr ""
+
+msgid "Failed to get exe directory"
+msgstr ""
+
+msgid "Could not determine a cache directory: neither XDG_CACHE_HOME nor HOME is set"
+msgstr ""
+
+msgid "Failed to create cache directory"
+msgstr ""
+
+msgid "Failed to get current exe path"
+msgstr ""
+
+msgid "Failed to launch update script"
+msgstr ""
+
+msgid "Failed to start installation"
+msgstr ""
+
+msgid "Failed to stage the application"
+msgstr ""
+
+msgid "The update contains a different application."
+msgstr ""
+
+msgid "Could not determine the update log directory."
+msgstr ""
+
+msgid "Failed to launch update helper"
+msgstr ""
+
+msgid "The update helper did not start. See the log:"
+msgstr ""
+
+msgid "The application did not quit within 60 seconds. The current app was kept."
+msgstr ""
+
+msgid "The installation changed while waiting. The current app was kept."
+msgstr ""
+
+msgid "Could not move the current application. The current app was kept."
+msgstr ""
+
+msgid "Could not install the update. The previous version was restored."
+msgstr ""
+
+msgid "Could not restore the previous version. Recover it from:"
+msgstr ""
+
+msgid "macOS could not launch the update. The previous version is preserved at:"
+msgstr ""
+
+msgid "Application update failed"
+msgstr ""
+
+msgid "Log:"
+msgstr ""
+
+msgid "Update cancelled."
+msgstr ""
+
+msgid "Failed to open disk image"
+msgstr ""
+
+msgid "The update has been downloaded and its disk image opened. Quit %s and drag the new version into Applications to finish installing."
+msgstr ""
+
+msgid "Invalid application metadata"
+msgstr ""
+
+msgid "The disk image must contain exactly one matching application."
+msgstr ""
+
+msgid "The update must be signed by the application's developer team"
+msgstr ""
+
+msgid "Invalid application executable."
+msgstr ""
+
+msgid "Invalid application executable"
+msgstr ""
+
+msgid "Application signature verification failed"
+msgstr ""
+
+msgid "Failed to mount disk image"
+msgstr ""
+
+msgid "Failed to unmount disk image"
+msgstr ""
+
+msgid ""
+"Update downloaded to: %s\n"
+"Please install it manually."
+msgstr ""
+
+msgid "Update to %s"
+msgstr ""
+
+msgid "A new version of %s is available. Here's what's new:"
+msgstr ""
+
+#. TRANSLATORS: Label for the confirmation dialog "Yes" button
+msgid "&Yes"
+msgstr ""
+
+#. TRANSLATORS: Label for the confirmation dialog "No" button
+msgid "&No"
+msgstr ""
+
+msgid "No release notes provided."
+msgstr ""
+
+msgid "%s Update"
+msgstr ""
+
+msgid "Downloading update..."
+msgstr ""
+
+msgid "Preparing update..."
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Update Ready"
+msgstr ""
+
+msgid "No updates available."
+msgstr ""
+
+msgid "No updates available. Latest version: %s"
+msgstr ""
+
+msgid "Security verification failed. The update might have been tampered with: %s"
+msgstr ""
+
+msgid "Security Error"
+msgstr ""
+
+msgid "The update server returned HTTP error %s."
+msgstr ""
+
+msgid "Could not reach the update server: %s"
+msgstr ""
+
+#. TRANSLATORS: Duration segment for hours (for example, "1 hour" or "5 hours"). The %d placeholder is replaced with the count.
+msgid "%d hour"
+msgid_plural "%d hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: Duration segment for minutes (for example, "1 minute" or "5 minutes"). The %d placeholder is replaced with the count.
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: Duration segment for seconds (for example, "1 second" or "5 seconds"). The %d placeholder is replaced with the count.
+msgid "%d second"
+msgid_plural "%d seconds"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: Title of the Set Shortcut dialog. The {} placeholder is replaced with the action's display name.
+msgid "Set Shortcut for {}"
+msgstr ""
+
+#. TRANSLATORS: Instruction text in the Set Shortcut dialog. The {} placeholder is replaced with the action's display name.
+msgid "Configure shortcut for {}:"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Command modifier in the shortcut, on macOS.
+msgid "&Cmd"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Option modifier in the shortcut, on macOS.
+msgid "&Option"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Ctrl modifier in the shortcut.
+msgid "&Ctrl"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Alt modifier in the shortcut.
+msgid "&Alt"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Shift modifier in the shortcut.
+msgid "&Shift"
+msgstr ""
+
+#. TRANSLATORS: Checkbox in the Set Shortcut dialog that includes the Windows logo key in a system-wide shortcut.
+msgid "&Win"
+msgstr ""
+
+#. TRANSLATORS: Label next to the key field in the Set Shortcut dialog.
+msgid "&Key:"
+msgstr ""
+
+msgid "Tip: click in the key field and press the key combination you want."
+msgstr ""
+
+#. TRANSLATORS: Placeholder shown in the Set Shortcut dialog before any key combination has been captured
+msgid "Detected: (none)"
+msgstr ""
+
+msgid "Detected: {}"
+msgstr ""
+
+msgid "No key detected"
+msgstr ""
+
+#. TRANSLATORS: Button in the Set Shortcut dialog that clears the captured key combination.
+msgid "&Clear"
+msgstr ""
+
+#. TRANSLATORS: Title of the Keyboard Shortcuts dialog.
+msgid "Customize Keyboard Shortcuts"
+msgstr ""
+
+#. TRANSLATORS: Label above the list of shortcuts for a tab in the Keyboard Shortcuts dialog.
+msgid "&Shortcuts:"
+msgstr ""
+
+#. TRANSLATORS: Button in the Keyboard Shortcuts dialog that opens a prompt to assign a new shortcut to the selected action.
+msgid "&Set Shortcut..."
+msgstr ""
+
+#. TRANSLATORS: Button in the Keyboard Shortcuts dialog that removes the shortcut assigned to the selected action.
+msgid "&Clear Shortcut"
+msgstr ""
+
+#. TRANSLATORS: Button in the Keyboard Shortcuts dialog that restores the selected action's shortcut to its default.
+msgid "&Reset to Default"
+msgstr ""
+
+#. TRANSLATORS: Button in the Keyboard Shortcuts dialog that restores every action's shortcut to its default.
+msgid "Reset &All to Defaults"
+msgstr ""
+
+msgid "A system-wide shortcut needs Ctrl, Alt, or Win, or it would take that key from every other program."
+msgstr ""
+
+#. TRANSLATORS: Title of the dialog refusing a shortcut that can't be used.
+msgid "Shortcut Not Allowed"
+msgstr ""
+
+#. TRANSLATORS: the three {} are, in order: the key chord, the action it's currently assigned to, and the action being (re)assigned to it
+msgid "'{}' is already assigned to '{}'. Reassign it to '{}'?"
+msgstr ""
+
+#. TRANSLATORS: Title of the dialog warning that a shortcut is already taken
+msgid "Shortcut Conflict"
+msgstr ""
+
+#. TRANSLATORS: Confirmation prompt shown when resetting keyboard shortcuts that span more than one tab to their defaults.
+msgid "Reset all shortcuts to their default values?"
+msgstr ""
+
+#. TRANSLATORS: Confirmation prompt shown when resetting the current tab's keyboard shortcuts to their defaults.
+msgid "Reset all shortcuts in this tab to their default values?"
+msgstr ""
+
+#. TRANSLATORS: Title of the confirmation dialog for resetting keyboard shortcuts to their defaults.
+msgid "Reset Shortcuts"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+#. TRANSLATORS: A shortcut in the Customize Keyboard Shortcuts list whose key is not on the keyboard layout in use, so it cannot be pressed. The {} placeholder is replaced with the shortcut, for example "Ctrl+;".
+msgid "{} (not on this keyboard layout)"
 msgstr ""

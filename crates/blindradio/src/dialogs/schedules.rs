@@ -91,6 +91,7 @@ pub struct FormFields {
 	pub duration_text: String,
 	pub repeat_index: Option<u32>,
 	pub enabled: bool,
+	pub silent: bool,
 }
 
 /// Why a harvest failed; the caller says the matching message and keeps
@@ -131,6 +132,7 @@ pub fn entry_from_fields(
 		_ => Repeat::Once,
 	};
 	entry.enabled = fields.enabled;
+	entry.silent = fields.silent;
 	Ok(entry)
 }
 
@@ -159,6 +161,8 @@ fn entry_label(e: &ScheduledRecording) -> String {
 		format_local(shown),
 		if e.alarm {
 			s::kind_alarm().to_string()
+		} else if e.silent {
+			format!("{} min, silent", e.duration_minutes)
 		} else {
 			format!("{} min", e.duration_minutes)
 		},
@@ -195,9 +199,26 @@ fn station_choices(app: &App) -> Vec<Station> {
 			.iter()
 			.flat_map(|f| f.all_stations()),
 	);
+	// Recents join the choices: a station played from Browse or a
+	// network is otherwise unreachable here.
+	out.extend(app.library.recent.iter().cloned());
 	out.sort_by_key(|a| a.name.to_lowercase());
 	out.dedup_by(|a, b| a.id == b.id);
 	out
+}
+
+/// The station a new entry starts on: the one the last schedule
+/// recorded, else the station playing now, else the first choice.
+/// Schedules repeat themselves — the same station gets recorded again
+/// far more often than a new one is picked.
+fn preferred_station(app: &App, stations: &[Station]) -> Option<Station> {
+	if let Some(last) = app.settings.schedules.last() {
+		return Some(last.station.clone());
+	}
+	if let Some(playing) = app.tuner.playing() {
+		return Some(playing.clone());
+	}
+	stations.first().cloned()
 }
 
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
@@ -324,17 +345,22 @@ fn form(
 		repeat.append(r.label());
 	}
 	let enabled = CheckBox::builder(&dialog).with_label(&s::enabled()).build();
+	let silent_box = CheckBox::builder(&dialog)
+		.with_label(&s::record_silently())
+		.build();
 
 	let base = match existing {
 		Some(e) => e.clone(),
 		None => ScheduledRecording {
 			id: format!("sched:{}", update::now()),
-			station: stations[0].clone(),
+			station: preferred_station(&app.borrow(), &stations)
+				.unwrap_or_else(|| stations[0].clone()),
 			start_unix: update::now() + 3600,
 			duration_minutes: 60,
 			repeat: Repeat::Once,
 			enabled: true,
 			alarm: false,
+			silent: true,
 		},
 	};
 	let entry = base.clone();
@@ -342,7 +368,13 @@ fn form(
 	// The harvest's field snapshot, refreshed before every show and read
 	// back after it; pre-filled from the entry so Edit opens populated.
 	let mut fields = FormFields {
-		station_index: stations.iter().position(|st| st.id == entry.station.id).map(|i| i as u32),
+		// Match by stream address too: the same station reached through
+		// favourites and through recents carries different ids, and an
+		// unmatched preselect used to open on no station at all.
+		station_index: stations
+			.iter()
+			.position(|st| st.id == entry.station.id || st.url == entry.station.url)
+			.map(|i| i as u32),
 		alarm: entry.alarm,
 		start_text: format_local(entry.start_unix),
 		duration_text: entry.duration_minutes.to_string(),
@@ -352,6 +384,7 @@ fn form(
 			Repeat::Weekly => 2,
 		}),
 		enabled: entry.enabled,
+		silent: entry.silent,
 	};
 
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
@@ -370,6 +403,7 @@ fn form(
 	row(&sizer, &duration_label, &duration);
 	row(&sizer, &repeat_label, &repeat);
 	sizer.add(&enabled, 0, SizerFlag::All, 5);
+	sizer.add(&silent_box, 0, SizerFlag::All, 5);
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
 		.with_label(&s::ok())
@@ -402,6 +436,7 @@ fn form(
 				duration_text: duration.get_value(),
 				repeat_index: repeat.get_selection(),
 				enabled: enabled.get_value(),
+				silent: silent_box.get_value(),
 			}
 		};
 	}
@@ -426,14 +461,15 @@ fn form(
 		});
 	}
 	loop {
-		if existing.is_some() || fields.station_index.is_some() {
-			station.set_selection(fields.station_index.unwrap_or(0), true);
-		}
+		// Always land on a station: a form that opens with nothing
+		// selected reads as an empty, broken list to a screen reader.
+		station.set_selection(fields.station_index.unwrap_or(0), true);
 		kind.set_selection(if fields.alarm { 1 } else { 0 });
 		start.set_value(&fields.start_text);
 		duration.set_value(&fields.duration_text);
 		repeat.set_selection(fields.repeat_index.unwrap_or(0));
 		enabled.set_value(fields.enabled);
+		silent_box.set_value(fields.silent);
 		station.set_focus();
 		let code = dialog.show_modal();
 		if let Some(entry) = done.borrow_mut().take() {
@@ -488,6 +524,7 @@ mod tests {
 			duration_text: "45".into(),
 			repeat_index: Some(1),
 			enabled: true,
+			silent: true,
 		}
 	}
 
@@ -507,6 +544,10 @@ mod tests {
 		assert_eq!(e.repeat, Repeat::Daily);
 		assert!(e.enabled);
 		assert!(!e.alarm);
+		assert!(e.silent);
+		let mut f2 = fields();
+		f2.silent = false;
+		assert!(!entry_from_fields(e.clone(), &f2, &stations).unwrap().silent);
 		// The form's own default text round-trips through the harvest.
 		let mut f = fields();
 		f.start_text = format_local(e.start_unix);

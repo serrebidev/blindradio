@@ -380,7 +380,19 @@ a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage th
 an entry can be switched off without deleting it. When the time comes the app tunes to
 the station and records, and stops when the duration is up; a recording already running
 by hand is never interrupted, and a Once entry switches itself off after it has run.
-Start times are your local time.
+Start times are your local time. The start of a recording is announced, and so is the
+saved file when it ends.
+
+Each recording entry has a Record Silently box, on by default: a silent recording mutes
+playback for its whole run, so the app never talks over whatever else you are doing or
+listening to, and the level comes back when the recording ends. Uncheck it to hear the
+station while it records. Note that a silent recording still tunes the app to its
+station, so listening to another station inside BlindRadio at the same time is not
+possible either way; what the box controls is whether you hear it.
+
+The form's station list is your playlists, favourites, favourite folders and recent
+stations, in name order. A new entry opens on the station your last schedule used, or
+on the station playing now when there is no earlier schedule.
 
 An entry can be an alarm instead of a recording: set its Kind to Alarm and it just plays
 its station at the start time — wake up to it. Duration does not apply to alarms. An

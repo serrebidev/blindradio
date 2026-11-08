@@ -422,6 +422,9 @@ pub struct App {
 	sched_fired: std::collections::HashSet<(String, u64)>,
 	/// The scheduled recording on air now: (entry id, occurrence).
 	sched_active: Option<(String, u64)>,
+	/// The volume to restore when a silent scheduled recording ends;
+	/// None when the active one is audible or nothing is recording.
+	sched_muted_from: Option<i32>,
 	last_sched_poll: Instant,
 	/// Taken and stopped on shutdown, while the frame it ticks on still exists.
 	pub timer: Option<Timer<Frame>>,
@@ -522,6 +525,7 @@ impl App {
 			update_due: None,
 			sched_fired: std::collections::HashSet::new(),
 			sched_active: None,
+			sched_muted_from: None,
 			last_sched_poll: Instant::now(),
 			timer: Some(timer),
 			engine,

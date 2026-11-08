@@ -42,6 +42,15 @@ pub struct ScheduledRecording {
 	/// duration is ignored.
 	#[serde(default)]
 	pub alarm: bool,
+	/// Record silently: the tuner is muted for the recording instead
+	/// of taking over playback. Older entries omit the field and keep
+	/// the audible behaviour they had.
+	#[serde(default = "default_silent")]
+	pub silent: bool,
+}
+
+fn default_silent() -> bool {
+	true
 }
 
 impl Default for ScheduledRecording {
@@ -61,6 +70,7 @@ impl Default for ScheduledRecording {
 			repeat: Repeat::Once,
 			enabled: true,
 			alarm: false,
+			silent: true,
 		}
 	}
 }
@@ -144,7 +154,22 @@ mod tests {
 			repeat,
 			enabled: true,
 			alarm: false,
+			silent: true,
 		}
+	}
+
+	#[test]
+	fn silent_defaults_to_on_and_round_trips() {
+		// An entry written before the field existed loads as silent:
+		// new recordings stay quiet by default from here on.
+		let json = r#"{"id":"s1","station":{"id":"st","name":"St","url":"http://x","source":"Custom","details":{"genres":[],"languages":[],"tags":[]}},"start_unix":1000,"duration_minutes":30,"repeat":"once","enabled":true,"alarm":false}"#;
+		let e: ScheduledRecording = serde_json::from_str(json).unwrap();
+		assert!(e.silent);
+		let mut loud = entry(1_000, Repeat::Once);
+		loud.silent = false;
+		let back: ScheduledRecording =
+			serde_json::from_str(&serde_json::to_string(&loud).unwrap()).unwrap();
+		assert!(!back.silent);
 	}
 
 	#[test]

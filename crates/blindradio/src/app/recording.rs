@@ -159,6 +159,22 @@ impl App {
 		);
 	}
 
+	/// Mute for a silent scheduled recording, remembering the level to
+	/// restore. The saved volume stays untouched: the mixer mutes
+	/// alone, so the station keeps its remembered volume and a
+	/// schedule's end puts the level back where it was.
+	fn begin_silent(&mut self) {
+		self.sched_muted_from = Some(self.volume());
+		self.mixer(MixerCmd::Volume(0.0));
+	}
+
+	/// Undo begin_silent: the level from before the recording.
+	fn end_silent(&mut self) {
+		if let Some(points) = self.sched_muted_from.take() {
+			self.mixer(MixerCmd::Volume(points as f32 / 100.0));
+		}
+	}
+
 	/// Once a second from poll(): start due scheduled recordings and
 	/// stop them at their end. Nothing fires while a dialog is open; an
 	/// entry whose window is still open fires when the dialog closes.
@@ -185,6 +201,7 @@ impl App {
 						None => {}
 					}
 				}
+				self.end_silent();
 				self.sched_active = None;
 				if let Some(e) = self.settings.schedules.iter_mut().find(|e| e.id == id)
 					&& e.repeat == Repeat::Once
@@ -236,7 +253,12 @@ impl App {
 			self.play(entry.station.clone());
 			match self.tuner.start_recording(None) {
 				Ok(_) => {
-					self.say(&format!("{}{name}", s::schedule_started()));
+					if entry.silent {
+						self.begin_silent();
+						self.say(&format!("{}{name}{}", s::schedule_started_silent(), s::schedule_quiet_tail()));
+					} else {
+						self.say(&format!("{}{name}", s::schedule_started()));
+					}
 					self.sched_active = Some((entry.id.clone(), occ));
 				}
 				Err(e) => self.say(&e.to_string()),

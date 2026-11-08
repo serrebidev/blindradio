@@ -757,6 +757,17 @@ pub fn bad_schedule_duration() -> String {
 pub fn schedule_started() -> String {
 	patois::t("Scheduled recording started: ")
 }
+/// Prefix for a silent recording: `Recording silently: <station> …`.
+pub fn schedule_started_silent() -> String {
+	patois::t("Recording silently: ")
+}
+/// Suffix after the station name of a silent recording.
+pub fn schedule_quiet_tail() -> String {
+	patois::t(" — playback muted")
+}
+pub fn record_silently() -> String {
+	patois::t("Record silently (mute playback)")
+}
 /// Prefix: `Scheduled recording saved to <path>`.
 pub fn schedule_saved() -> String {
 	patois::t("Scheduled recording saved to ")
