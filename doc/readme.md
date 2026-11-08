@@ -24,7 +24,7 @@ station and plays it.
 
 - Letters jump to the next name starting with that letter.
 - Enter plays the focused station — always, even the one already playing: it reconnects, so after editing a station's URL, Enter on it hears the new address at once. Enter also starts a new time-shift buffer, and so does moving away from a station and back. When a station reconnects by itself, it keeps its buffer.
-- Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
+- Volume moves in one-percent steps: Volume Up and Down and the slider's arrow keys change it by 1, Page Up and Page Down by 10. Volume is remembered per station: the level you set while a station plays is the level it starts at next time. A station you have never set a level on uses the current volume.
 - Delete removes it from that list.
 - Alt+Up and Alt+Down reorder where the list allows it.
 - The Applications key opens the station's menu.
@@ -114,7 +114,7 @@ Browser offers By Genre, By Country, By Language, By State and Top Stations. A l
 Networks carries English-language broadcasters and internet networks, among them BBC, NPR,
 CBC, ABC Australia, RTÉ, RNZ, KCRW, WNYC, 181.fm, .977, Big R Radio, 1.FM, Capital, Heart,
 Smooth, LBC, Virgin Radio UK, Triple M, NZME, SABC, K-LOVE, Pacifica, Nightride FM, Power Hitz,
-WHFF, Radio Paradise, NTS, WFMU, and services for blind listeners: ACB Media, Mushroom FM,
+WHFF, Radio Paradise, NTS, WFMU, and Radio Record — a non-English network carried as an exception because it is a single dance network of 92 channels. Services for blind listeners: ACB Media, Mushroom FM,
 Vision Australia Radio, The Global Voice, Radio Udaan, Treehouse Radio, Dodge Radio,
 2020 The Beacon, AMI Audio, RNIB Connect Radio, NFBRN, WRBH and Double Tap Live. To ask for a non-English network, open an issue on GitHub.
 

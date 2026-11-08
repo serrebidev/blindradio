@@ -38,7 +38,7 @@ mod recording;
 mod stations;
 mod status;
 
-const VOLUME_STEP: i32 = 5;
+const VOLUME_STEP: i32 = 1;
 const DEVICE_POLL: Duration = Duration::from_secs(2);
 /// Keys rest this long before the title and now playing line follow them.
 const LINE_REST: Duration = Duration::from_millis(300);

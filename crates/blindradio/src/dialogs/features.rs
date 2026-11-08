@@ -85,7 +85,7 @@ fn slider_field(
 		match delta {
 			Some(delta) => {
 				// Consumed, or the native trackbar moves it as well (the wrong way). The
-				// volume keys step by 5 and page by 10: here, by one step and ten.
+				// volume keys step by 1 and page by 10, so here one `step` and ten.
 				key.event.skip(false);
 				let by = if delta.abs() == 10 { step * 10 } else { step };
 				let moved = slider.get_value() + by * delta.signum();

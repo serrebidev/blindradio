@@ -306,8 +306,8 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 /// Volume slider keys: Up and PageUp raise (a native trackbar lowers on them).
 pub fn volume_step(code: i32) -> Option<i32> {
 	match code {
-		WXK_UP | WXK_RIGHT => Some(5),
-		WXK_DOWN | WXK_LEFT => Some(-5),
+		WXK_UP | WXK_RIGHT => Some(1),
+		WXK_DOWN | WXK_LEFT => Some(-1),
 		WXK_PAGEUP => Some(10),
 		WXK_PAGEDOWN => Some(-10),
 		_ => None,
@@ -519,9 +519,9 @@ mod tests {
 
 	#[test]
 	fn volume_keys_direction() {
-		assert_eq!(volume_step(WXK_UP), Some(5));
+		assert_eq!(volume_step(WXK_UP), Some(1));
 		assert_eq!(volume_step(WXK_PAGEUP), Some(10));
-		assert_eq!(volume_step(WXK_DOWN), Some(-5));
+		assert_eq!(volume_step(WXK_DOWN), Some(-1));
 		assert_eq!(volume_step(WXK_PAGEDOWN), Some(-10));
 		assert_eq!(volume_step(WXK_HOME), None, "Home and End stay native");
 	}

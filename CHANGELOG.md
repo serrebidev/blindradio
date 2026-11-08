@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.74
+
+- Volume steps are now one percent. Volume Up and Volume Down, the arrow keys on the volume slider, and the other sliders' arrow keys all move by 1 instead of 5, so the whole range from silent to full is reachable one percent at a time and quiet streams no longer jump from medium straight to off. Page Up and Page Down still move by ten for covering ground fast.
+- Networks audited against each network's own published channel list. Radio Record joins as a new network with all 92 of its channels that answer — the one non-English network carried, a single dance network from Russia. WNYC gains Q2 Music, its contemporary classical channel, and Minnesota Public Radio gains Celebrate the Maestro. Everything else already matched its network's own list exactly: BBC, SomaFM, 1.FM, 181.fm, NTS, WHFF and the rest were re-checked channel by channel.
+
 ## 0.2.73
 
 - BlindRadio can now be translated. The whole interface runs through patois (gettext): the text lives in one template, `po/blindradio.pot`, translations are plain .po files anyone can edit in Poedit, and compiled catalogs ride inside the app. Settings gains a Language choice on the General tab — System Default follows your computer, and any translated language is listed by its own name; the standard dialog buttons follow too. English is the only finished language today; translations are welcome as pull requests.

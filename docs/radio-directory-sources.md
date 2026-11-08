@@ -275,3 +275,39 @@ Every added URL returned HTTP 200 to a GET request, an audio content type
 used `Blind-Radio/0.2` and closed after reading the sample. This verifies live stream
 delivery at the time checked; it does not guarantee future uptime or exercise playback
 through the desktop app.
+
+## 2026-11-07 networks audit
+
+Every network was compared against its owner's own published list.
+
+- Exact matches, nothing missing: SomaFM (`channels.json`, 51), 1.FM
+  (`api.1cloud.fm/api/channels`, 72 live channels; our 73rd, A List 80s, has left the
+  list but still answers, so it stays), 181.fm (the player bundle's station/mount table,
+  83 — the six bundle Christmas channels beyond the legacy page are the ones already
+  carried), NTS (the mixtapes API's 16 plus the two live channels), WHFF (the AzuraCast
+  API lists 20; "Explore All Stations" is a directory entry, not a station, and stays out).
+- BBC: the station list API names 71 services; the seven not carried are the ones the
+  2026-11-03 audit found geo-blocked (5 Sports Extra 1–3, 6 Indie Forever, Live News,
+  Radio Wales Extra, CBeebies Radio). Unchanged.
+- WNYC: Q2 Music added (`stream.wqxr.org/q2`, ICY name "New Sounds"). The Jonathan
+  Channel has no working direct stream any more: WNYC's own .pls links now 301 to a
+  404 on the rebuilt wnyc.org, and the old StreamGuys/js-stream and tjc.wnyc.org
+  addresses are dead, so it is not carried.
+- Minnesota Public Radio: Celebrate the Maestro added from the YourClassical streams
+  page. Hispanic Heritage on the same page is seasonal and stays out, like Holiday.
+- Radio Record: NEW network. `radiorecord.ru/api/stations/` returns 117 channels with
+  `stream_128` mounts; 92 answered audio at check time and are carried, the rest are
+  mostly artist shows that did not answer — the same rule as the 2026-10-28 audit.
+- Global UK (media-ice.musicradio.com), Big R Radio, 1.FM's host, Power Hitz, Nightride
+  FM, FRISKY, Radio Paradise, RTÉ and SomaFM's ice host expose no public mount listing
+  (no status.xsl), so those were verified against the owners' published channel lists
+  and player tables instead, as before.
+- blindradio.com (the accessibility directory, not this app): audited as a possible
+  directory source. Its genre and country listing pages are behind a JavaScript bot
+  check — plain requests get a 127-byte stub and archive.org captures show the same
+  "please wait while your request is being verified" wall — so no listing can be read
+  without running a browser, and it is not added. Structure, for the record: genres at
+  `/radio-stations-online/<slug>-<id>-0/`, countries at
+  `/online-live-internet-radio-stations/<slug>-<cc>-0/` under eight region pages, and
+  search by POSTing `textfield` to `/web-radio-live/`. If the wall ever comes down it
+  can be scraped like Live365.
