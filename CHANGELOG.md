@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.81
+
+- Volume Up 5% and Volume Down 5% join the Playback menu: they move the level five points per press instead of one, for crossing the 0 to 200% range faster, on Ctrl+Shift+Up and Ctrl+Shift+Down. Like every shortcut they can be rebound or cleared in File, Keyboard Shortcuts. The one-percent keys, the slider's arrow keys and Page Up and Page Down are unchanged, and the fast keys stop at the same silent and 200% ends.
+
 ## 0.2.80
 
 - Updates now come from the project's own Forgejo, git.serrebiradio.com, instead of GitHub. The check in Help, Check for Updates and the daily check both look there, and every download is still verified with minisign before it installs. One manual step: copies up to 0.2.79 still ask GitHub, so they will never be offered this one — install 0.2.80 by hand once, and later releases arrive through the updater again.

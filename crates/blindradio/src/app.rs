@@ -39,6 +39,8 @@ mod stations;
 mod status;
 
 const VOLUME_STEP: i32 = 1;
+/// The 5% volume keys move five points per press.
+const VOLUME_STEP_FAST: i32 = 5;
 
 /// Volume ceiling in slider points: 200 is 200%, boost for quiet stations.
 pub const MAX_POINTS: i32 = (blindradio_core::settings::MAX_VOLUME * 100.0) as i32;
@@ -740,6 +742,8 @@ impl App {
 			}
 			Action::VolumeUp => self.set_volume(self.volume() + VOLUME_STEP),
 			Action::VolumeDown => self.set_volume(self.volume() - VOLUME_STEP),
+			Action::VolumeUp5 => self.set_volume(self.volume() + VOLUME_STEP_FAST),
+			Action::VolumeDown5 => self.set_volume(self.volume() - VOLUME_STEP_FAST),
 			Action::SetVolume(v) => self.set_volume(i32::from(v)),
 			Action::ToggleFavorite => match self.station_here() {
 				Some(st) => {

@@ -355,6 +355,12 @@ pub fn volume_up() -> String {
 pub fn volume_down() -> String {
 	patois::t("Volume &Down")
 }
+pub fn volume_up_5() -> String {
+	patois::t("Volume Up &5%")
+}
+pub fn volume_down_5() -> String {
+	patois::t("Volume Do&wn 5%")
+}
 pub fn add_to_favorites() -> String {
 	patois::t("&Add to Favorites")
 }

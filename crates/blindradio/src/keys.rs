@@ -61,6 +61,8 @@ pub enum KeyAction {
 	Mute,
 	VolumeUp,
 	VolumeDown,
+	VolumeUp5,
+	VolumeDown5,
 	ToggleFavorite,
 	AddToCollection,
 	SongHistory,
@@ -119,7 +121,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 83] = [
+	pub const ALL: [KeyAction; 85] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -151,6 +153,8 @@ impl KeyAction {
 		K::Mute,
 		K::VolumeUp,
 		K::VolumeDown,
+		K::VolumeUp5,
+		K::VolumeDown5,
 		K::ToggleFavorite,
 		K::AddToCollection,
 		K::SongHistory,
@@ -297,6 +301,8 @@ impl KeyAction {
 			K::Mute => "mute",
 			K::VolumeUp => "volume_up",
 			K::VolumeDown => "volume_down",
+			K::VolumeUp5 => "volume_up_5",
+			K::VolumeDown5 => "volume_down_5",
 			K::ToggleFavorite => "toggle_favorite",
 			K::AddToCollection => "add_to_collection",
 			K::SongHistory => "song_history",
@@ -388,6 +394,8 @@ impl KeyAction {
 			K::Mute => plain(&s::mute_menu()),
 			K::VolumeUp => plain(&s::volume_up()),
 			K::VolumeDown => plain(&s::volume_down()),
+			K::VolumeUp5 => plain(&s::volume_up_5()),
+			K::VolumeDown5 => plain(&s::volume_down_5()),
 			K::ToggleFavorite => plain(&s::add_to_favorites()),
 			K::AddToCollection => plain(&s::add_to_collection()),
 			K::SongHistory => plain(&s::song_history()),
@@ -471,6 +479,8 @@ impl KeyAction {
 			K::Mute => "Ctrl+M",
 			K::VolumeUp => "Ctrl+Up",
 			K::VolumeDown => "Ctrl+Down",
+			K::VolumeUp5 => "Ctrl+Shift+Up",
+			K::VolumeDown5 => "Ctrl+Shift+Down",
 			K::ToggleFavorite => "Ctrl+D",
 			K::AddToCollection => "Ctrl+Shift+L",
 			K::SongHistory => "Ctrl+Y",
@@ -540,6 +550,8 @@ impl KeyAction {
 			K::Mute => Action::Mute,
 			K::VolumeUp => Action::VolumeUp,
 			K::VolumeDown => Action::VolumeDown,
+			K::VolumeUp5 => Action::VolumeUp5,
+			K::VolumeDown5 => Action::VolumeDown5,
 			K::ToggleFavorite => Action::ToggleFavorite,
 			K::AddToCollection => Action::AddToCollection,
 			K::SongHistory => Action::SongHistory,
@@ -682,6 +694,8 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::Mute => K::Mute,
 		Action::VolumeUp => K::VolumeUp,
 		Action::VolumeDown => K::VolumeDown,
+		Action::VolumeUp5 => K::VolumeUp5,
+		Action::VolumeDown5 => K::VolumeDown5,
 		Action::ToggleFavorite => K::ToggleFavorite,
 		Action::AddToCollection => K::AddToCollection,
 		Action::SongHistory => K::SongHistory,
@@ -873,6 +887,8 @@ mod tests {
 		);
 		assert_eq!(look(WXK_UP, true, false, false, false), Some(Action::VolumeUp));
 		assert_eq!(look(WXK_DOWN, true, false, false, true), Some(Action::VolumeDown));
+		assert_eq!(look(WXK_UP, true, false, true, false), Some(Action::VolumeUp5));
+		assert_eq!(look(WXK_DOWN, true, false, true, true), Some(Action::VolumeDown5));
 		assert_eq!(look(key('1'), true, false, false, true), Some(Action::Sleep(15)));
 		assert_eq!(look(key('0'), true, false, false, true), Some(Action::SleepOff));
 		assert_eq!(

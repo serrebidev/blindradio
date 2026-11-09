@@ -51,6 +51,8 @@ pub enum Action {
 	Mute,
 	VolumeUp,
 	VolumeDown,
+	VolumeUp5,
+	VolumeDown5,
 	/// 0 to 100.
 	SetVolume(u8),
 	ToggleFavorite,

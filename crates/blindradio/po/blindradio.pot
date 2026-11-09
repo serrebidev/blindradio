@@ -354,6 +354,12 @@ msgstr ""
 msgid "Volume &Down"
 msgstr ""
 
+msgid "Volume Up &5%"
+msgstr ""
+
+msgid "Volume Do&wn 5%"
+msgstr ""
+
 msgid "&Add to Favorites"
 msgstr ""
 
