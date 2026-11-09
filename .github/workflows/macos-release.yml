@@ -1,0 +1,50 @@
+# Generated from release.yml (macos job): the macOS leg only, for the Forgejo Mac runner.
+# Dispatch with release_tag to attach the macOS build to an existing release.
+name: macOS release
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to build macOS for and attach to
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      TAG: ${{ inputs.release_tag }}
+      CARGO_TERM_COLOR: always
+    steps:
+    - name: Apple Silicon only
+      run: test "$(uname -m)" = arm64
+    - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.release_tag }}
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Toolchain the wxDragon build needs
+      run: brew install cmake ninja llvm
+    - name: Build the app and the disk image
+      env:
+        LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
+        MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+        MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+      run: cargo xtask dist-macos
+    - name: Attach to the Forgejo release
+      env:
+        FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+      run: |
+        set -euo pipefail
+        api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+        h="Authorization: token $FORGEJO_TOKEN"
+        release="$(curl -sf -H "$h" "$api/releases/tags/$TAG")"
+        id="$(echo "$release" | jq -r .id)"
+        for file in target/dist/BlindRadio.dmg target/dist/BlindRadio.dmg.minisig; do
+          name="$(basename "$file")"
+          old="$(echo "$release" | jq -r --arg n "$name" '.assets[] | select(.name == $n) | .id')"
+          [ -z "$old" ] || curl -sf -X DELETE -H "$h" "$api/releases/$id/assets/$old"
+          curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
+          echo "Attached $name to $TAG"
+        done
