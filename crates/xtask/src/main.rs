@@ -94,15 +94,15 @@ pub(crate) fn sign_file(path: &Path) -> Result<bool, String> {
 	Ok(true)
 }
 
-/// `cargo xtask update-check [version]`: asks GitHub what a copy running `version` would be
+/// `cargo xtask update-check [version]`: asks Forgejo what a copy running `version` would be
 /// offered, then downloads that asset and verifies it, exactly as the app does.
 fn update_check(args: &[String]) -> Result<(), String> {
 	let current = match args.first() {
 		Some(version) => version.trim_start_matches('v').to_string(),
 		None => package::crate_version(&root(), PKG).map_err(|e| format!("version: {e}"))?,
 	};
-	let config =
-		ship_shape::UpdaterConfig::new("serrebidev/blindradio", APP, APP, public_key()?, &current);
+	let config = ship_shape::UpdaterConfig::new("serrebi/blindradio", APP, APP, public_key()?, &current)
+		.with_api_base_url("https://git.serrebiradio.com/api/v1");
 	let outcome = ship_shape::check_for_updates(&config, ship_shape::UpdateChannel::Stable)
 		.map_err(|e| format!("check: {e}"))?;
 	let update = match outcome {

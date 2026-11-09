@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its GitHub release note,
 taken from this file by the release workflow.
 
+## 0.2.80
+
+- Updates now come from the project's own Forgejo, git.serrebiradio.com, instead of GitHub. The check in Help, Check for Updates and the daily check both look there, and every download is still verified with minisign before it installs. One manual step: copies up to 0.2.79 still ask GitHub, so they will never be offered this one — install 0.2.80 by hand once, and later releases arrive through the updater again.
+
 ## 0.2.79
 
 - Recordings no longer own playback. Start a recording, then change stations freely: the recording moves onto its own stream and keeps recording in the background while you listen to anything else — no confirmation, no interruption, and stopping playback leaves it running. Ctrl+R still starts and stops it, Pause Recording still works (a paused background recording closes its stream and reopens it on resume), and Record Each Song still splits its files on the recorded station's own titles. Scheduled recordings now start in the background from the outset: the app never tunes to the scheduled station at all, silent or not, so the Record Silently box no longer changes what you hear — a scheduled recording is unheard either way, and the announcement says it is recording in the background. If the recorded station's own stream is lost for good, the recording ends with its file saved and the app says so. One case still asks first: pressing Enter on the very station that is recording in the background, because an explicit play restarts that station's stream. Closing the app still ends a recording and still asks first, as before. (Brandon's order, correcting the boundary stated in 0.2.78.)

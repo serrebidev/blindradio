@@ -1,4 +1,4 @@
-//! Updates: ship-shape against this repository's GitHub Releases, verified with minisign.
+//! Updates: ship-shape against this repository's Forgejo releases, verified with minisign.
 //!
 //! The public key below is the one `cargo xtask minisign-key` made; its secret half signs every
 //! release asset and lives in the `MINISIGN_KEY` secret, never in git.
@@ -19,12 +19,13 @@ const DAY: u64 = 24 * 60 * 60;
 pub fn config() -> Arc<UpdaterConfig> {
 	Arc::new(
 		UpdaterConfig::new(
-			"serrebidev/blindradio",
+			"serrebi/blindradio",
 			"BlindRadio",
 			"BlindRadio",
 			PUBLIC_KEY,
 			env!("CARGO_PKG_VERSION"),
 		)
+		.with_api_base_url("https://git.serrebiradio.com/api/v1")
 		.with_commit(env!("BLINDRADIO_COMMIT_HASH"))
 		.with_install_kind(install_kind(store::is_portable())),
 	)
@@ -80,7 +81,8 @@ mod tests {
 	#[test]
 	fn config_names_the_release_assets() {
 		let config = config();
-		assert_eq!(config.github_repo, "serrebidev/blindradio");
+		assert_eq!(config.github_repo, "serrebi/blindradio");
+		assert_eq!(config.api_base_url, "https://git.serrebiradio.com/api/v1");
 		assert_eq!(config.app_name, "BlindRadio");
 		assert_eq!(config.current_version, env!("CARGO_PKG_VERSION"));
 		assert!(!config.minisign_public_key.is_empty());
