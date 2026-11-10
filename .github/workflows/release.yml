@@ -193,7 +193,9 @@ jobs:
   linux:
     name: Linux assets
     needs: prepare
-    runs-on: ubuntu-latest
+    # WSL on the Windows build PC (runner wsl-linux-x64), Ubuntu 24.04 job container:
+    # the owner's rule is Linux builds in WSL. Runs alongside the Windows and macOS legs.
+    runs-on: wsl-linux
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
@@ -201,6 +203,10 @@ jobs:
           ref: ${{ needs.prepare.outputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: false
 
       - name: Install Linux build dependencies
         run: |
