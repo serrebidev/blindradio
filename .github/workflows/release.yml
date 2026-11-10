@@ -128,9 +128,23 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: false
+      # Host runners (macOS, Windows) start every job in a fresh,
+      # randomly named work folder, so rust-cache never matched
+      # there: its cache version hashes the absolute target path
+      # ("No cache found", full rebuilds every run). target/ points
+      # at a fixed folder on the runner instead and builds reuse the
+      # previous run directly. Each runner takes one job at a time.
+      # Owner-approved 2026-11-10 (same fix as BlindRSS-Rust df47812).
+      # ponytail: the folder only grows; delete it on the runner
+      # when disk gets tight (next build is cold once).
+      - name: Persistent target folder (Windows host runner)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = 'C:/forgejo-runner/cargo-target/blindradio/windows'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          if (Test-Path target) { cmd /c rmdir /s /q target }
+          New-Item -ItemType Junction -Path target -Target $dir | Out-Null
 
       - name: Find the VC++ runtime redist
         shell: pwsh
@@ -188,6 +202,14 @@ jobs:
             target/dist/BlindRadio.zip.minisig
             target/dist/BlindRadio_setup.exe
             target/dist/BlindRadio_setup.exe.minisig
+
+      # Drop only the link, never the shared folder behind it,
+      # before the runner deletes the work folder.
+      - name: Unlink persistent target folder (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path target) { (Get-Item target).Delete() }
 
 
   linux:
