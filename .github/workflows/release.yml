@@ -135,6 +135,10 @@ jobs:
       # at a fixed folder on the runner instead and builds reuse the
       # previous run directly. Each runner takes one job at a time.
       # Owner-approved 2026-11-10 (same fix as BlindRSS-Rust df47812).
+      # CARGO_TARGET_DIR is the folder's real path: CMake caches
+      # absolute paths, and the path through the link changes
+      # with every work folder ("CMakeCache.txt directory ... is
+      # different"). The link keeps target/... references working.
       # ponytail: the folder only grows; delete it on the runner
       # when disk gets tight (next build is cold once).
       - name: Persistent target folder (Windows host runner)
@@ -145,6 +149,7 @@ jobs:
           New-Item -ItemType Directory -Force $dir | Out-Null
           if (Test-Path target) { cmd /c rmdir /s /q target }
           New-Item -ItemType Junction -Path target -Target $dir | Out-Null
+          Add-Content -Path $env:GITHUB_ENV -Value "CARGO_TARGET_DIR=$dir"
 
       - name: Find the VC++ runtime redist
         shell: pwsh
