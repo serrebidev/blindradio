@@ -23,66 +23,41 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # The gate and the builds run at the same time; publish needs both. A failed gate
+  # publishes nothing: the tag and the release are made only at the end.
   gate:
     uses: ./.github/workflows/ci.yml
 
-  prepare:
-    name: Bump, tag and draft
-    needs: gate
+  bump:
+    name: Bump the version
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.make.outputs.tag }}
+      branch: ${{ steps.make.outputs.branch }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           token: ${{ secrets.FORGEJO_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Extract the notes and bump the version
+      - name: Bump onto a release branch
         id: make
         env:
           VERSION: ${{ inputs.version }}
-          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
           tag="v$VERSION"
           if git ls-remote --tags origin "$tag" | grep -q .; then
-            # A tag left by an earlier dispatch of this same workflow, with
-            # its release still a draft, means a later leg failed: resume
-            # that release instead of starting over. A published release
-            # under the tag stays refused — never re-release.
-            api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
-            if [ "$(curl -sf -H "Authorization: token $FORGEJO_TOKEN" "$api/releases/tags/$tag" | jq -r .draft)" = "true" ]; then
-              echo "Resuming $tag: tag and unpublished draft already exist."
-              echo "tag=$tag" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
             echo "tag $tag already exists; refusing to re-release" >&2
             exit 1
           fi
           python3 - "$VERSION" <<'PY'
-          import sys
+          import re, sys
           version = sys.argv[1]
-          head = f"## {version}"
-          notes, inside = [], False
-          for line in open("CHANGELOG.md").read().splitlines():
-              if line.startswith("## "):
-                  inside = line.strip() == head
-                  if inside:
-                      continue
-                  if notes:
-                      break
-              if inside:
-                  notes.append(line)
-          notes = "\n".join(notes).strip()
-          if not notes:
-              sys.exit(f"no {head} section in CHANGELOG.md")
-          import os
-          with open(os.path.join(os.environ["RUNNER_TEMP"], "notes.md"), "w") as f:
-              f.write(notes + "\n")
+          if not any(l.strip() == f"## {version}" for l in open("CHANGELOG.md").read().splitlines()):
+              sys.exit(f"no ## {version} section in CHANGELOG.md")
           lines = open("Cargo.toml").read().splitlines(keepends=True)
           for i, line in enumerate(lines):
               if line.startswith('version = "'):
@@ -94,7 +69,6 @@ jobs:
           # The lock's copy of our own version moves with the manifest. Left to cargo, the
           # change makes it resolve our `*` dependencies again and settle on older versions
           # the lock already holds, so what ships is not what the gate tested.
-          import re
           blocks = open("Cargo.lock").read().split("[[package]]\n")
           for i, block in enumerate(blocks):
               # Only workspace members have no source line.
@@ -107,24 +81,22 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.toml Cargo.lock
-          git diff --cached --quiet || git commit -m "chore: release $VERSION"
-          git tag "$tag"
-          git push origin main "$tag"
-          jq -n --arg tag "$tag" --arg name "BlindRadio $VERSION" --rawfile body "$RUNNER_TEMP/notes.md" \
-            '{tag_name: $tag, name: $name, body: $body, draft: true}' |
-            curl -sf -o /dev/null -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: application/json' \
-              -d @- "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # [skip ci]: the gate already tests this, a push-triggered CI would only queue.
+          git diff --cached --quiet || git commit -m "chore: release $VERSION [skip ci]"
+          branch="release/$tag"
+          # A rerun after a failure starts this branch over.
+          git push -f origin "HEAD:refs/heads/$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
   windows:
     name: Windows assets
-    needs: prepare
+    needs: bump
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.bump.outputs.branch }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -219,7 +191,7 @@ jobs:
 
   linux:
     name: Linux assets
-    needs: prepare
+    needs: bump
     # WSL on the Windows build PC (runner wsl-linux-x64), Ubuntu 24.04 job container:
     # the owner's rule is Linux builds in WSL. Runs alongside the Windows and macOS legs.
     runs-on: wsl-linux
@@ -227,7 +199,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.bump.outputs.branch }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -280,7 +252,7 @@ jobs:
 
   macos:
     name: macOS asset
-    needs: prepare
+    needs: bump
     runs-on: macos-latest
     timeout-minutes: 90
     steps:
@@ -289,7 +261,7 @@ jobs:
 
       - uses: actions/checkout@v5
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.bump.outputs.branch }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -314,42 +286,76 @@ jobs:
 
   publish:
     name: Verify and publish
-    needs: [prepare, windows, linux, macos]
+    needs: [gate, bump, windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
       # Collect every platform's signed packages before publishing the release.
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.bump.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.FORGEJO_TOKEN }}
       - uses: https://code.forgejo.org/forgejo/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
-      - name: Every asset and signature present, then publish
+      - name: Every asset and signature present, then tag and publish
         env:
+          VERSION: ${{ inputs.version }}
+          BRANCH: ${{ needs.bump.outputs.branch }}
           FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
-          tag="${{ needs.prepare.outputs.tag }}"
-          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
-          h="Authorization: token $FORGEJO_TOKEN"
-          release="$(curl -sf -H "$h" "$api/releases/tags/$tag")"
-          id="$(echo "$release" | jq -r .id)"
-          for wanted in BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg; do
+          tag="v$VERSION"
+          names="BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg"
+          for wanted in $names; do
             test -f "artifacts/$wanted"
             test -f "artifacts/$wanted.minisig"
           done
+          python3 - "$VERSION" <<'PY'
+          import os, sys
+          head = f"## {sys.argv[1]}"
+          notes, inside = [], False
+          for line in open("CHANGELOG.md").read().splitlines():
+              if line.startswith("## "):
+                  inside = line.strip() == head
+                  if inside:
+                      continue
+                  if notes:
+                      break
+              if inside:
+                  notes.append(line)
+          notes = "\n".join(notes).strip()
+          if not notes:
+              sys.exit(f"no {head} section in CHANGELOG.md")
+          open(os.path.join(os.environ["RUNNER_TEMP"], "notes.md"), "w").write(notes + "\n")
+          PY
+          git tag "$tag"
+          git push origin "$tag"
+          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+          h="Authorization: token $FORGEJO_TOKEN"
+          # Draft first, so the release never shows without its files.
+          id="$(jq -n --arg tag "$tag" --arg name "BlindRadio $VERSION" --rawfile body "$RUNNER_TEMP/notes.md"             '{tag_name: $tag, name: $name, body: $body, draft: true}' |
+            curl -sf -H "$h" -H 'Content-Type: application/json' -d @- "$api/releases" | jq -r .id)"
           for file in artifacts/*; do
             name="$(basename "$file")"
-            old="$(echo "$release" | jq -r --arg n "$name" '.assets[]? | select(.name == $n) | .id')"
-            [ -z "$old" ] || curl -sf -X DELETE -H "$h" "$api/releases/$id/assets/$old"
             curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
           done
           present="$(curl -sf -H "$h" "$api/releases/$id" | jq -r '.assets[].name')"
           echo "$present"
-          for name in BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg; do
+          for name in $names; do
             for wanted in "$name" "$name.minisig"; do
               grep -qx "$wanted" <<<"$present" || { echo "missing: $wanted"; exit 1; }
             done
           done
-          curl -sf -o /dev/null -X PATCH -H "$h" -H 'Content-Type: application/json' \
-            -d '{"draft": false, "prerelease": false}' "$api/releases/$id"
+          curl -sf -o /dev/null -X PATCH -H "$h" -H 'Content-Type: application/json'             -d '{"draft": false, "prerelease": false}' "$api/releases/$id"
           test "$(curl -sf "$api/releases/latest" | jq -r .tag_name)" = "$tag"
+          # Main takes the bump. Pushes during the run: merge them in.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git push origin HEAD:main; then
+            git fetch origin main
+            git merge --no-edit -m "Merge release $VERSION [skip ci]" origin/main
+            git push origin HEAD:main
+          fi
+          git push origin --delete "$BRANCH"

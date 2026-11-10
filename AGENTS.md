@@ -68,7 +68,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 
 ## Release
 - Cloud only, Forgejo (GitHub suspended): `POST git.serrebiradio.com/api/v1/repos/serrebi/blindradio/actions/workflows/release.yml/dispatches` body `{"ref":"main","inputs":{"version":"X"}}`. `## X` in `CHANGELOG.md` on main first. Windows, Linux, macOS legs run at once after `prepare`. Runners: Windows = this PC `desknasbox-windows-x64`, macOS = owner's Mac `mac-mini-arm64`, Linux = WSL on this PC `wsl-linux-x64` (label `wsl-linux`, owner rule: Linux builds in WSL). Starts at boot, no logon: task "Forgejo Runner (WSL)", S4U. Gate, prepare, publish stay on server.
-- Workflow: gate (`ci.yml`), bump + tag + draft, Windows, Linux, macOS, verify, publish. 20-40 min. Same version again resumes unpublished draft. Published = refused.
+- Workflow: gate (`ci.yml`) and bump start together. Bump pushes `release/vX` branch, no tag. Windows, Linux, macOS build off it during gate. Publish needs gate + all three: tags, release, uploads, main takes bump, branch deleted. Failed run = nothing published, rerun starts over. Tag exists = refused.
 - Bump edits own version in `Cargo.lock` too, then `cargo metadata --locked`. Manifest alone = cargo re-resolves `*` deps, drops to older copies in lock, ships what gate never tested.
 - Windows assets Authenticode-unsigned. Minisign on everything.
 - Publish needs 10 files: zip, setup.exe, dmg, AppImage, tar.gz, each with `.minisig`.
