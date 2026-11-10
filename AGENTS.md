@@ -37,6 +37,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - `live.rs` = YouTube, Twitch links: own nightly yt-dlp + Deno in cache dir, process not crate, no FFmpeg. Station saves link, never stream: expires, holds IP. Hook = `net::open_at`. Never warmed, never in `ResolveCache`. `yt-dlp` crate = GPL + FFmpeg.
 - `sources/played.rs` = open song lists, picked from stream URL: Triton, Live365, laut.fm, AzuraCast, BBC, KEXP, Radio Paradise. `Sources::history`: own list first, ORB adds older rows.
 - Live = what ring plays next, not newest audio. Servers burst on connect (WNYC ~15 s). Burst sits in `PcmRing`, stays ahead of listener. `ShiftStatus::live_frame` takes it off: seek, pause, behind-live use that, never `live_edge`.
+- Recording taps: playing station PCM = mixer as-heard tap (`MixerCmd::RecordSlot`), never decoder: decoder runs ahead by ring. Original = `Tuner::record_buffered` paced to playhead, live too. Background stream: ring closed (nobody drains it, else decoder stalls), `play_slot` None so playing station never writes into it.
 - `core/segments.rs` = title bookmarks, jump + write. Marks in ms on tuner timeline: decoded = frame time, ring = session time. Mode switch clears them. Title at playhead = `Tuner::heard_title`, never wall clock.
 
 ## UI traps
@@ -66,17 +67,17 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Directories: `docs/radio-directory-sources.md`. Encoded ring: `docs/encoded-ring-buffer.md`.
 
 ## Release
-- Cloud only: `gh workflow run release.yml -f version=X`. `## X` in `CHANGELOG.md` on main first.
+- Cloud only, Forgejo (GitHub suspended): `POST git.serrebiradio.com/api/v1/repos/serrebi/blindradio/actions/workflows/release.yml/dispatches` body `{"ref":"main","inputs":{"version":"X"}}`. `## X` in `CHANGELOG.md` on main first. Windows, Linux, macOS legs run at once after `prepare`.
 - Workflow: gate (`ci.yml`), bump + tag + draft, Windows, Linux, macOS, verify, publish. 20-40 min. Same version again resumes unpublished draft. Published = refused.
 - Bump edits own version in `Cargo.lock` too, then `cargo metadata --locked`. Manifest alone = cargo re-resolves `*` deps, drops to older copies in lock, ships what gate never tested.
 - Windows assets Authenticode-unsigned. Minisign on everything.
 - Publish needs 10 files: zip, setup.exe, dmg, AppImage, tar.gz, each with `.minisig`.
-- Check after: `cargo xtask update-check <old version>`: asks GitHub, downloads, verifies.
+- Check after: `cargo xtask update-check <old version>`: asks Forgejo, downloads, verifies.
 - Build one OS: `cargo xtask dist-windows` (`BLINDRADIO_UNSIGNED=1` skips signtool), `dist-macos`, `dist-linux` in `tools/linux` container. AppImage launch check passes only as exit 124.
 
 ## Signing key
 - `cargo xtask minisign-key <dir>` writes `minisign.key`, `minisign.pub`. Sign any file: `cargo xtask sign <file>…`.
-- Secret = repo secret `MINISIGN_KEY`, never git. GitHub cannot read it back. Keep key file backed up.
+- Secret = repo secret `MINISIGN_KEY`, never git. Forgejo cannot read it back. Keep key file backed up.
 - Key lost = rotate = installed copies never verify again. Public half: `crates/blindradio/assets/minisign.pub`. Change takes new release.
 
 ## Accepted, not fixable here

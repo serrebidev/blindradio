@@ -325,11 +325,12 @@ show's name. Times on its older rows can be an hour out across a clock change.
 ## Recording
 
 Ctrl+R starts and stops a recording of the playing station; files land in the recordings
-folder, in the format Settings chooses. While a recording is in progress, the window title
+folder, in the format Settings chooses. A recording starts at what you are hearing, never
+the audio the station has sent ahead. While a recording is in progress, the window title
 ends with the word Recording and Record in the Recording menu is checked. Closing the app ends a recording too, so closing (or Exit)
 asks first the same way; hiding to the tray keeps recording and never asks. Changing stations does not end a recording:
 it keeps recording in the background on its own stream while you listen to something
-else, and stopping playback leaves it running too — Ctrl+R (or the schedule's end) is
+else, and only its own station goes into the file, and stopping playback leaves it running too — Ctrl+R (or the schedule's end) is
 what stops it. The one exception: pressing Enter on the very station that is recording
 in the background restarts its stream, so the app asks first there. The Recording menu holds it all: Record,
 Pause Recording, Record Each Song to Its Own File, Write Buffer, the segment writes,

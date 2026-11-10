@@ -44,18 +44,10 @@ pub struct Taps {
 	/// the optional encoded ring: the byte pump pushes every clean
 	/// encoded chunk here.
 	pub ring: Option<Arc<RingTap>>,
-	/// The ring mode's shift status, so the recording taps can yield
-	/// to the playhead-paced writers (mixer and replay feed) while the
-	/// listener is time-shifted.
+	/// The playing station's shift status. Present = a time-shift
+	/// buffer exists, so the Original recording tap yields to the
+	/// tuner's playhead-paced writer.
 	pub shift_status: Option<Arc<ShiftStatus>>,
-}
-
-/// True while the listener is time-shifted (cursor in the buffer or
-/// paused), from the status the mixer keeps current.
-fn shifted(status: &Option<Arc<ShiftStatus>>) -> bool {
-	status.as_ref().is_some_and(|s| {
-		s.cursor.load(Ordering::Relaxed) != u64::MAX || s.paused.load(Ordering::Relaxed)
-	})
 }
 
 /// Feeds the encoded ring from the byte pump. Chunks arrive paced by
@@ -701,11 +693,14 @@ async fn pump(
 		}
 		for bytes in audio.drain(..) {
 			let t = taps_for(taps, station_id);
-			// An Original-format recording taps the clean encoded bytes here.
-			// In ring mode the replay feed paces those bytes to the
-			// playhead while the listener is shifted; yield then.
+			// An Original-format recording taps the clean encoded bytes
+			// here only without a time-shift buffer. With one, the tuner
+			// paces the buffer's bytes to the playhead, live or shifted:
+			// these bytes run ahead of the listener by the playback ring
+			// (a connect burst puts that 15 s ahead).
+			// ponytail: no time-shift = Original records from the network edge; pace through the ring's depth if that case matters.
 			if let Some(slot) = &t.record
-				&& !shifted(&t.shift_status)
+				&& t.shift_status.is_none()
 				&& let Some(rec) = slot.lock().as_mut()
 			{
 				let _ = rec.write_bytes(&bytes);
@@ -863,14 +858,9 @@ fn decode(
 		if let Some(b) = &t.capture {
 			b.push(&out);
 		}
-		// In ring mode the mixer taps the shifted audio while the
-		// listener is time-shifted; yield then.
-		if let Some(slot) = &t.record
-			&& !shifted(&t.shift_status)
-			&& let Some(rec) = slot.lock().as_mut()
-		{
-			let _ = rec.write_pcm(&out);
-		}
+		// The playing station's PCM recording is not written here: the
+		// mixer writes what the listener hears. This audio runs ahead by
+		// the playback ring. A background recording has no listener.
 		if let Some(slot) = &t.bg_record
 			&& let Some(rec) = slot.lock().as_mut()
 		{

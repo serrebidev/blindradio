@@ -131,6 +131,11 @@ impl PcmRing {
 	pub fn clear(&self) {
 		self.buf.lock().clear();
 	}
+
+	#[cfg(test)]
+	pub(crate) fn is_closed(&self) -> bool {
+		self.closed.load(Ordering::Relaxed)
+	}
 }
 
 #[cfg(test)]

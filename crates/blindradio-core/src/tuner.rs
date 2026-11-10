@@ -760,8 +760,28 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			self.attach_decoded_shift(rate, minutes);
 		}
 		self.tap_station = Some(station.id.clone());
-		let taps = self.current_taps();
-		self.factory.set_taps(&station.id, taps);
+		self.sync_play_record();
+	}
+
+	/// The recorder slot playback writes to: none while the recording
+	/// runs in the background. Its own stream feeds it then, and the
+	/// playing station writing too mixed two stations into one file.
+	fn play_slot(&self) -> Option<Arc<Mutex<Option<Recorder>>>> {
+		if self.bg_record.is_some() || self.record_detached_paused {
+			return None;
+		}
+		self.record_slot.clone()
+	}
+
+	/// Gives the playing station's taps and the mixer the slot they
+	/// may write to now: a recording moving into or out of the
+	/// background changes it.
+	fn sync_play_record(&mut self) {
+		let Some(id) = self.tap_station.clone() else {
+			return;
+		};
+		self.factory.set_taps(&id, self.current_taps());
+		self.sink.send(MixerCmd::RecordSlot(self.play_slot()));
 	}
 
 	/// A station's stream format once its decoder has reported it.
@@ -787,8 +807,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			buffer: buffer.clone(),
 			status: status.clone(),
 		});
-		self.sink
-			.send(MixerCmd::RecordSlot(self.record_slot.clone()));
 		self.shift = Some((buffer, status));
 		self.ring_feed = Some(feed);
 		self.ring_paused_at = None;
@@ -799,10 +817,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if let Some(feed) = self.ring_feed.take() {
 			feed.stop();
 		}
-		// The mixer taps the shifted frames in this mode too, so it
-		// holds the record slot just like the ring attach does.
-		self.sink
-			.send(MixerCmd::RecordSlot(self.record_slot.clone()));
 		self.ring_paused_at = None;
 		if minutes == 0 {
 			return;
@@ -828,10 +842,15 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				self.shift.as_ref().map(|(buffer, _)| buffer.clone())
 			},
 			capture: self.capture.clone(),
-			record: self.record_slot.clone(),
+			record: self.play_slot(),
 			// A background recording of this station keeps its field
-			// when playback taps are (re)registered for it.
-			bg_record: self.bg_slot(),
+			// when playback taps are (re)registered for it. Another
+			// station's never lands here: it would record this one.
+			bg_record: self
+				.bg_record
+				.as_ref()
+				.filter(|bg| self.tap_station.as_deref() == Some(bg.station_id.as_str()))
+				.map(|bg| bg.slot.clone()),
 			ring: self.ring_tap.clone(),
 			// Both modes: the stream's live taps must yield while the
 			// listener is time-shifted, because the mixer is tapping
@@ -930,7 +949,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let serial = self.next_id;
 		let tx = self.stream_tx.clone();
 		let (titles_tx, titles_rx) = crossbeam_channel::unbounded();
-		let (_, guard) = self.factory.start(
+		let (ring, guard) = self.factory.start(
 			&station,
 			Box::new(move |event| {
 				// Title and Format go to the background drain, for
@@ -947,6 +966,10 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 				let _ = tx.send((serial, event));
 			}),
 		);
+		// Nobody plays this stream's ring. Closed, its pushes never
+		// wait for room: an open one filled in a second and stalled
+		// the decoder, so the file went choppy and the server dropped us.
+		ring.close();
 		// Merge into any existing entry: the same station may be
 		// playing, with playback taps of its own in this map.
 		let mut entry = self.factory.taps(&station.id);
@@ -959,6 +982,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			serial,
 			_guard: guard,
 		});
+		// Playback stops writing to it.
+		self.sync_play_record();
 	}
 
 	/// Drains a background recording's stream events: its titles split
@@ -1447,31 +1472,37 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.playing.as_ref().map(|p| p.id.clone())
 	}
 
-	/// Original recordings follow the playhead in both buffer modes.
-	/// Polling here keeps recording independent of replay decoder read-ahead.
+	/// Original recordings follow the playhead in both buffer modes,
+	/// live too: the network's bytes run ahead of the listener by the
+	/// playback ring. Polling here keeps recording independent of
+	/// replay decoder read-ahead.
 	fn record_buffered(&mut self) {
 		let Some((buffer, status)) = &self.shift else {
 			return;
 		};
-		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
-		if cursor == u64::MAX {
-			self.record_at = None;
-			return;
-		}
-		let Some(slot) = &self.record_slot else {
+		let Some(slot) = self.play_slot() else {
 			return;
 		};
 		let mut guard = slot.lock();
 		let Some(rec) = guard.as_mut().filter(|rec| rec.is_original()) else {
 			return;
 		};
+		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
 		let (ring, time) = if let Some(feed) = &self.ring_feed {
 			let Some(ring) = &self.encoded_ring else {
 				return;
 			};
-			(ring.as_ref(), feed.cursor_time())
+			let time = if cursor == u64::MAX {
+				// Live: session time now, less what the ring holds unheard.
+				let backlog = status.backlog.load(std::sync::atomic::Ordering::Relaxed);
+				feed.now_ms().saturating_sub(backlog * 1000 / u64::from(buffer.rate()))
+			} else {
+				feed.cursor_time()
+			};
+			(ring.as_ref(), time)
 		} else {
-			(&buffer.encoded, cursor * 1000 / buffer.rate() as u64)
+			let frame = if cursor == u64::MAX { status.live_frame(buffer) } else { cursor };
+			(&buffer.encoded, frame * 1000 / buffer.rate() as u64)
 		};
 		if self.record_at.is_none_or(|last| time < last) {
 			self.record_after = ring.seq_at(time).and_then(|seq| seq.checked_sub(1));
@@ -1708,8 +1739,13 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		}
 		self.detached_station = None;
 		self.record_detached_paused = false;
+		// Playback may write to the slot again, for the next recording.
+		self.sync_play_record();
 		let slot = self.record_slot.clone()?;
-		slot.lock().take().map(|rec| rec.stop())
+		// Out of the lock: the mixer writes under it, and a stop
+		// finishes the file.
+		let rec = slot.lock().take();
+		rec.map(|rec| rec.stop())
 	}
 
 	/// Pauses or resumes the active recording; false when none is running.
@@ -1971,6 +2007,7 @@ mod recording_tests {
 	struct CountingFactory {
 		started: Arc<std::sync::atomic::AtomicUsize>,
 		taps: Arc<Mutex<HashMap<String, Taps>>>,
+		rings: Arc<Mutex<Vec<Arc<PcmRing>>>>,
 	}
 	impl StreamFactory for CountingFactory {
 		fn start(
@@ -1979,7 +2016,9 @@ mod recording_tests {
 			_: Box<dyn Fn(StreamEvent) + Send + Sync>,
 		) -> (Arc<PcmRing>, Box<dyn Send>) {
 			self.started.fetch_add(1, Ordering::SeqCst);
-			(Arc::new(PcmRing::new(1000, 1.0)), Box::new(()))
+			let ring = Arc::new(PcmRing::new(1000, 1.0));
+			self.rings.lock().push(ring.clone());
+			(ring, Box::new(()))
 		}
 		fn set_taps(&mut self, station_id: &str, taps: Taps) {
 			self.taps.lock().insert(station_id.to_string(), taps);
@@ -2025,6 +2064,7 @@ mod recording_tests {
 		let factory = CountingFactory {
 			started: started.clone(),
 			taps: taps.clone(),
+			rings: Arc::new(Mutex::new(Vec::new())),
 		};
 		let (tx, _) = crossbeam_channel::unbounded();
 		let mut tuner = Tuner::new(factory, NoSink, tx);
@@ -2062,6 +2102,18 @@ mod recording_tests {
 		assert_eq!(tuner.recording_station_id().as_deref(), Some("a"));
 		assert_eq!(started.load(Ordering::SeqCst), 2, "playback's cold start plus the background stream");
 		assert!(taps.lock().get("a").is_some_and(|t| t.bg_record.is_some()), "a's background taps feed the recorder");
+		// b plays: none of its taps reach a's recording.
+		{
+			let t = taps.lock().get("b").cloned().unwrap_or_default();
+			assert!(t.record.is_none(), "b must not write into a's recording");
+			assert!(t.bg_record.is_none(), "a's background slot stays off b's taps");
+			assert!(tuner.play_slot().is_none(), "the mixer gets no slot");
+		}
+		// Nobody plays the background stream's ring: closed, it never stalls the decoder.
+		let rings = tuner.factory.rings.lock().clone();
+		// Detach opens the background stream first, then b starts cold.
+		assert!(rings[0].is_closed(), "background ring closed");
+		assert!(!rings[1].is_closed(), "playback ring stays open");
 		// The background stream feeds the same recorder through a's taps.
 		{
 			let t = taps.lock().get("a").cloned().unwrap_or_default();
@@ -2083,6 +2135,10 @@ mod recording_tests {
 		let path = tuner.stop_recording().unwrap().unwrap();
 		assert!(!tuner.is_recording());
 		assert!(taps.lock().get("a").is_none_or(|t| t.bg_record.is_none()), "background taps cleared on stop");
+		assert!(
+			taps.lock().get("c").is_some_and(|t| t.record.is_some()),
+			"the playing station gets the slot back for its next recording"
+		);
 		let reader = hound::WavReader::open(&path).unwrap();
 		// hound counts frames per channel: 2000 stereo values = 1000
 		// frames per feed, two feeds = 2000 frames.
@@ -2192,6 +2248,38 @@ mod recording_tests {
 
 		tuner.detach_taps();
 		assert!(tuner.segments().is_empty(), "a new station starts clean");
+	}
+
+	#[test]
+	fn original_recording_at_live_starts_at_the_playhead_not_the_network_edge() {
+		let dir = tempfile::tempdir().unwrap();
+		let mut settings = Settings::default();
+		settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+		let station = test_station("test");
+		let (tx, _) = crossbeam_channel::unbounded();
+		let mut tuner = Tuner::new(NoStreams, NoSink, tx);
+		tuner.set_settings(Arc::new(Mutex::new(settings)));
+		tuner.playing = Some(station.clone());
+		tuner.attach_taps(&station);
+		let (buffer, status) = tuner.shift().unwrap();
+		assert!(
+			tuner.current_taps().shift_status.is_some(),
+			"the stream's Original tap yields to the paced writer"
+		);
+		for byte in 0..6 {
+			buffer.push_encoded(&[byte]);
+			buffer.push(&vec![0.0; 2000]);
+		}
+		// Live, with a 4 s burst still unheard in the playback ring:
+		// the listener hears second 2.
+		status.backlog.store(4000, Ordering::Relaxed);
+		tuner.start_recording(None).unwrap();
+		tuner.poll(Instant::now(), &[]);
+		status.backlog.store(2000, Ordering::Relaxed);
+		tuner.poll(Instant::now(), &[]);
+		let path = tuner.stop_recording().unwrap().unwrap();
+		// Heard up to second 4: chunks 2 and 3 finished, nothing ahead.
+		assert_eq!(std::fs::read(path).unwrap(), [2, 3], "from the heard chunk, nothing ahead");
 	}
 
 	#[test]

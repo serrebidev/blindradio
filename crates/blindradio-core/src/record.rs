@@ -102,7 +102,16 @@ enum Kind {
 		rate: u32,
 		base: PathBuf,
 		part: u32,
+		/// The finished part being encoded off this thread: PCM is
+		/// written from the audio callback, and a part takes seconds.
+		writing: Option<std::thread::JoinHandle<Result<()>>>,
 	},
+}
+
+/// Samples in one FLAC part, reserved up front so the audio
+/// callback never copies a growing buffer.
+fn flac_part_samples(rate: u32) -> usize {
+	rate as usize * 2 * FLAC_PART_SECONDS as usize
 }
 
 fn to_i16(stereo: &[f32]) -> Vec<i16> {
@@ -373,10 +382,11 @@ impl Recorder {
 				let path = make("flac");
 				Ok(Recorder {
 					kind: Kind::Flac {
-						pcm: Vec::new(),
+						pcm: Vec::with_capacity(flac_part_samples(rate)),
 						rate,
 						base: path.clone(),
 						part: 1,
+						writing: None,
 					},
 					path,
 					paused: false,
@@ -479,11 +489,16 @@ impl Recorder {
 				file.write_all(out)?;
 				Ok(())
 			}
-			Kind::Flac { pcm, rate, base, part } => {
+			Kind::Flac { pcm, rate, base, part, writing } => {
 				pcm.extend(to_i16(stereo));
-				if pcm.len() as u64 >= *rate as u64 * 2 * FLAC_PART_SECONDS {
-					write_flac_part(base, *part, pcm, *rate)?;
-					pcm.clear();
+				if pcm.len() >= flac_part_samples(*rate) {
+					// A part still encoding after 15 min: wait for it.
+					if let Some(prev) = writing.take() {
+						join_part(prev)?;
+					}
+					let done = std::mem::replace(pcm, Vec::with_capacity(flac_part_samples(*rate)));
+					let (path, rate) = (part_path(base, *part), *rate);
+					*writing = Some(std::thread::spawn(move || write_flac(&path, &done, rate)));
 					*part += 1;
 				}
 				Ok(())
@@ -507,7 +522,10 @@ impl Recorder {
 				file.write_all(out)?;
 				file.flush()?;
 			}
-			Kind::Flac { pcm, rate, base, part } => {
+			Kind::Flac { pcm, rate, base, part, writing } => {
+				if let Some(prev) = writing.take() {
+					join_part(prev)?;
+				}
 				if !pcm.is_empty() {
 					write_flac_part(base, *part, pcm, *rate)?;
 				}
@@ -523,6 +541,12 @@ fn part_path(base: &Path, part: u32) -> PathBuf {
 	}
 	let stem = base.file_stem().unwrap_or_default().to_string_lossy();
 	base.with_file_name(format!("{stem} part{part}.flac"))
+}
+
+fn join_part(handle: std::thread::JoinHandle<Result<()>>) -> Result<()> {
+	handle
+		.join()
+		.unwrap_or_else(|_| Err(CoreError::Output("flac part failed".into())))
 }
 
 fn write_flac_part(base: &Path, part: u32, pcm: &[i16], rate: u32) -> Result<()> {

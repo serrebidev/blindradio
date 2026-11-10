@@ -66,9 +66,9 @@ pub enum MixerCmd {
 	ShiftSeekTo(u64),
 	/// Returns to the live edge.
 	ShiftLive,
-	/// The active station's recorder slot, in encoded-ring mode: while
-	/// the listener is time-shifted the mixer taps what they hear into
-	/// it, and the stream-side taps yield.
+	/// The playing station's recorder slot: the mixer writes what the
+	/// listener hears into it, live or time-shifted, so a recording
+	/// starts where the listener is. The decoder runs ahead by the ring.
 	RecordSlot(Option<Arc<Mutex<Option<Recorder>>>>),
 }
 
@@ -130,7 +130,7 @@ pub struct MixerCore {
 	/// Absolute frame the shifted playback reads next; None is live.
 	shift_cursor: Option<u64>,
 	shift_paused: bool,
-	/// Recorder slot for the ring mode's as-heard tap; see RecordSlot.
+	/// Recorder slot for the as-heard tap; see RecordSlot.
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
 }
 
@@ -368,12 +368,11 @@ impl MixerCore {
 				}
 			}
 		}
-		// Ring mode records what the listener hears: while shifted, the
-		// shifted audio (silence while paused, so the file's timeline
-		// matches the listening) goes to the recorder; an Original
-		// recorder ignores PCM, and the stream-side taps yield.
-		if shifted
-			&& let Some(slot) = &self.record_slot
+		// Record what the listener hears: the ring's frames live, the
+		// shifted audio while shifted (silence while paused, so the
+		// file's timeline matches the listening). An Original recorder
+		// ignores PCM. Raw station audio: before fades, EQ and volume.
+		if let Some(slot) = &self.record_slot
 			&& let Some(rec) = slot.lock().as_mut()
 		{
 			let frames = if self.shift_paused { out.len() / 2 } else { got };
@@ -846,6 +845,29 @@ mod tests {
 		let mut out = vec![0.0; frames * 2];
 		mixer.render(&mut out);
 		out
+	}
+
+	#[test]
+	fn live_recording_takes_what_is_heard_not_the_rings_backlog() {
+		// A connect burst sits in the ring ahead of the listener. The
+		// recording holds only the frames played, never the backlog.
+		let dir = tempfile::tempdir().unwrap();
+		let settings = crate::settings::RecordSettings {
+			format: crate::settings::RecordFormat::Wav,
+			..Default::default()
+		};
+		let rec = Recorder::start(dir.path(), "Test", &settings, RATE, "mp3").unwrap();
+		let slot = Arc::new(Mutex::new(Some(rec)));
+		let mut mixer = mixer();
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(const_ring(0.25, 2000)),
+			token: 1,
+		});
+		mixer.handle(MixerCmd::RecordSlot(Some(slot.clone())));
+		render_frames(&mut mixer, 300);
+		let path = slot.lock().take().unwrap().stop().unwrap();
+		let reader = hound::WavReader::open(&path).unwrap();
+		assert_eq!(reader.duration(), 300, "played frames only");
 	}
 
 	#[test]

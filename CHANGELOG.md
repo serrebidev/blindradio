@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.83
+
+- A recording starts at what you are hearing. It used to begin several seconds ahead, with audio the station had already sent but you had not heard yet, even at live. Every format now records exactly what plays, live or in the time-shift buffer.
+- Changing stations while recording no longer damages the recording. The background recording stalled and crackled, and the new station's audio leaked into its file. Now it records its own station only, cleanly, while you listen to another. Scheduled recordings had the same fault and are fixed too.
+
 ## 0.2.82
 
 - Releases build on the self-hosted Forgejo runners and publish signed Windows, Linux and macOS packages to git.serrebiradio.com.
