@@ -35,6 +35,7 @@ pub struct MainWindow {
 	pub status_bar: StatusBar,
 	/// Windows only: the borderless owned window hosting the status
 	/// bar along the frame's bottom edge. None elsewhere.
+	#[cfg_attr(not(windows), allow(dead_code))]
 	pub status_strip: Option<Frame>,
 	pub play: Button,
 	pub stop: Button,
