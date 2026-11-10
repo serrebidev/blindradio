@@ -33,7 +33,8 @@ jobs:
       # there: its cache version hashes the absolute target path
       # ("No cache found", full rebuilds every run). target/ points
       # at a fixed folder on the runner instead and builds reuse the
-      # previous run directly. Each runner takes one job at a time.
+      # previous run directly. Two jobs on one folder take turns:
+      # cargo locks its target folder.
       # Owner-approved 2026-11-10 (same fix as BlindRSS-Rust df47812).
       # CARGO_TARGET_DIR is the folder's real path: CMake caches
       # absolute paths, and the path through the link changes
