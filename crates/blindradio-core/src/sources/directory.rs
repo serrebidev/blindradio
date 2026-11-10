@@ -1,6 +1,6 @@
-//! Directories kept as playlists in a GitHub repo, one `.m3u` file per folder:
+//! Directories kept as playlists in a repository, one `.m3u` file per folder:
 //! the BlindRadio Directory of community submissions, and Recommended Radio
-//! Streams. A repo is read live through the GitHub contents API, so merged
+//! Streams. Repositories are read live through Forgejo or GitHub, so merged
 //! changes show up in Browse without an app update.
 
 use super::Node;
@@ -174,12 +174,13 @@ impl Directory {
 			.map(|s| percent_decode_str(s).decode_utf8_lossy().into_owned())
 			.collect();
 		let url = format!(
-			"{}/contents{}/{}",
+			"{}/{}{}/{}",
 			self.base,
+			if self.root == "brdir" { "raw" } else { "contents" },
 			self.dir,
 			enc(&format!("{stem}.m3u"))
 		);
-		// The raw media type answers with the file itself, not base64 JSON.
+		// Forgejo uses /raw; GitHub uses this media type for file text instead of base64 JSON.
 		let response = client
 			.get(&url)
 			.header("User-Agent", crate::net::user_agent_for(&url))

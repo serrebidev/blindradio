@@ -7,7 +7,7 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends \
 		build-essential cmake ninja-build clang libclang-dev \
 		libgtk-3-dev libasound2-dev libssl-dev pkg-config \
-		curl ca-certificates file xvfb fuse libfuse2 \
+		curl ca-certificates git file xvfb fuse libfuse2 \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal

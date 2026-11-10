@@ -76,7 +76,7 @@ async fn tree_keeps_the_folder_structure() {
 			r#"[{"name":"Public Radio.m3u","type":"file"}]"#,
 		),
 		Route::Static {
-			path: "/contents/Public%20Radio.m3u".into(),
+			path: "/raw/Public%20Radio.m3u".into(),
 			content_type: "text/plain".into(),
 			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",AAA\nhttp://pr.test/1\n#EXTINF:-1 group-title=\"NPR / Local\",BBB\nhttp://pr.test/2\n#EXTINF:-1,CCC\nhttp://pr.test/3\n"
 				.as_bytes()
@@ -108,7 +108,7 @@ async fn tree_up_to_stops_at_the_cap() {
 			r#"[{"name":"Public Radio.m3u","type":"file"}]"#,
 		),
 		Route::Static {
-			path: "/contents/Public%20Radio.m3u".into(),
+			path: "/raw/Public%20Radio.m3u".into(),
 			content_type: "text/plain".into(),
 			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",AAA\nhttp://pr.test/1\n#EXTINF:-1 group-title=\"NPR\",BBB\nhttp://pr.test/2\n#EXTINF:-1,CCC\nhttp://pr.test/3\n"
 				.as_bytes()
@@ -229,7 +229,7 @@ async fn children_dispatch_by_prefix() {
 			r#"[{"name":"UK.m3u","type":"file"},{"name":"Public Radio.m3u","type":"file"},{"name":"README.md","type":"file"},{"name":"extra","type":"dir"}]"#,
 		),
 		Route::Static {
-			path: "/contents/Public%20Radio.m3u".into(),
+			path: "/raw/Public%20Radio.m3u".into(),
 			content_type: "text/plain".into(),
 			body: "#EXTM3U\n#EXTINF:-1 group-title=\"NPR\",WNYC\nhttp://pr.test/1\n"
 				.as_bytes()

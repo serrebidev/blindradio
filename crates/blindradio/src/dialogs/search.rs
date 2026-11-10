@@ -187,7 +187,7 @@ mod tests {
 
 	#[test]
 	fn any_is_no_filter() {
-		assert_eq!(filter(s::any().into()), None);
+		assert_eq!(filter(s::any()), None);
 		assert_eq!(filter("  ".into()), None);
 		assert_eq!(filter(" Jazz ".into()), Some("Jazz".into()));
 	}

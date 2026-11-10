@@ -2010,7 +2010,13 @@ mod recording_tests {
 		}
 	}
 
-	fn bg_tuner(dir: &std::path::Path) -> (Tuner<CountingFactory, NoSink>, Arc<std::sync::atomic::AtomicUsize>, Arc<Mutex<HashMap<String, Taps>>>) {
+	type BackgroundTuner = (
+		Tuner<CountingFactory, NoSink>,
+		Arc<std::sync::atomic::AtomicUsize>,
+		Arc<Mutex<HashMap<String, Taps>>>,
+	);
+
+	fn bg_tuner(dir: &std::path::Path) -> BackgroundTuner {
 		let mut settings = Settings::default();
 		settings.recording.dir = Some(dir.to_string_lossy().into_owned());
 		settings.recording.format = crate::settings::RecordFormat::Wav;

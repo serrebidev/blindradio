@@ -64,7 +64,7 @@ Internet-Radio, IPRD, Recommended Radio Streams,
 Radio.net, Live365, Moondust and Online Radio Box. Moondust is the open station dataset from
 12moon commons (CC0), read live from its GitHub repo and filed by country; its streams are
 published unchecked, so a silent one may be dead at the source. The BlindRadio Directory is the community's own submitted stations,
-kept as playlist files in the BlindRadio-directory repository on GitHub: each file is a
+kept as playlist files in the BlindRadio-directory repository on Forgejo at git.serrebiradio.com: each file is a
 folder (a country or a category), each playlist's groups are its subfolders, and the
 app reads the repository live, so new
 submissions appear in Browse without an app update;

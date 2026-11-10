@@ -331,7 +331,7 @@ impl Default for Endpoints {
 			radionet: "https://prod.radio-api.net".into(),
 			live365: "https://live365.com".into(),
 			orb: "https://onlineradiobox.com".into(),
-			directory: "https://api.github.com/repos/serrebidev/BlindRadio-directory".into(),
+			directory: "https://git.serrebiradio.com/api/v1/repos/serrebi/BlindRadio-directory".into(),
 			moondust: "https://raw.githubusercontent.com/12moon-open/moondust/main".into(),
 			recommended: "https://api.github.com/repos/deroverda/recommended-radio-streams".into(),
 			triton: "https://np.tritondigital.com".into(),

@@ -1,4 +1,4 @@
-name: Release (cloud)
+name: Release (Forgejo)
 
 # The one release path. Dispatch it with a version whose `## <version>` section is already
 # in CHANGELOG.md. The Windows leg is Authenticode-unsigned (no certificate here); every
@@ -37,6 +37,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.FORGEJO_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -44,7 +45,7 @@ jobs:
         id: make
         env:
           VERSION: ${{ inputs.version }}
-          GH_TOKEN: ${{ github.token }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
           tag="v$VERSION"
@@ -53,7 +54,8 @@ jobs:
             # its release still a draft, means a later leg failed: resume
             # that release instead of starting over. A published release
             # under the tag stays refused — never re-release.
-            if [ "$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || echo missing)" = "true" ]; then
+            api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+            if [ "$(curl -sf -H "Authorization: token $FORGEJO_TOKEN" "$api/releases/tags/$tag" | jq -r .draft)" = "true" ]; then
               echo "Resuming $tag: tag and unpublished draft already exist."
               echo "tag=$tag" >> "$GITHUB_OUTPUT"
               exit 0
@@ -105,11 +107,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.toml Cargo.lock
-          git commit -m "chore: release $VERSION"
+          git diff --cached --quiet || git commit -m "chore: release $VERSION"
           git tag "$tag"
           git push origin main "$tag"
-          gh release create "$tag" --draft --title "BlindRadio $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md"
+          jq -n --arg tag "$tag" --arg name "BlindRadio $VERSION" --rawfile body "$RUNNER_TEMP/notes.md" \
+            '{tag_name: $tag, name: $name, body: $body, draft: true}' |
+            curl -sf -o /dev/null -H "Authorization: token $FORGEJO_TOKEN" -H 'Content-Type: application/json' \
+              -d @- "$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY/releases"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
   windows:
@@ -126,7 +130,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-on-failure: true
+          cache-on-failure: false
 
       - name: Find the VC++ runtime redist
         shell: pwsh
@@ -171,17 +175,20 @@ jobs:
       - name: Build the Windows assets
         env:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
           BLINDRADIO_UNSIGNED: "1"
         run: cargo xtask dist-windows
 
-      - name: Upload to the draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release upload "${{ needs.prepare.outputs.tag }}"
-          target/dist/BlindRadio.zip target/dist/BlindRadio.zip.minisig
-          target/dist/BlindRadio_setup.exe target/dist/BlindRadio_setup.exe.minisig
-          --clobber
+      - name: Upload signed packages
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: BlindRadio-windows
+          path: |
+            target/dist/BlindRadio.zip
+            target/dist/BlindRadio.zip.minisig
+            target/dist/BlindRadio_setup.exe
+            target/dist/BlindRadio_setup.exe.minisig
+
 
   linux:
     name: Linux assets
@@ -193,20 +200,29 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.tag }}
 
-      - name: Build in the repo's container and sign
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build clang libclang-dev \
+            libgtk-3-dev libasound2-dev libssl-dev pkg-config \
+            curl ca-certificates file xvfb fuse libfuse2 xauth libegl1 libgl1
+
+      - name: Build in the runner's Ubuntu container and sign
         env:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
         run: |
           set -euo pipefail
-          docker build -t blindradio-build tools/linux
-          docker run --rm -v "$PWD:/work" -v "$PWD/target:/work/target" \
-            -e MINISIGN_KEY blindradio-build sh -c \
-            'cargo build --release -p blindradio && cargo xtask dist-linux && cargo xtask sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz'
+          cargo build --locked --release -p blindradio
+          cargo xtask dist-linux
+          cargo xtask sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz
 
       - name: Check the AppImage starts
         run: |
           set +e
-          sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libegl1 libgl1 > /dev/null
           timeout 15 xvfb-run -a ./target/dist/BlindRadio.AppImage
           code=$?
           if [ $code -ne 124 ]; then
@@ -218,19 +234,21 @@ jobs:
             exit 1
           fi
 
-      - name: Upload to the draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release upload "${{ needs.prepare.outputs.tag }}"
-          target/dist/BlindRadio.AppImage target/dist/BlindRadio.AppImage.minisig
-          target/dist/BlindRadio.tar.gz target/dist/BlindRadio.tar.gz.minisig
-          --clobber
+      - name: Upload signed packages
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: BlindRadio-linux
+          path: |
+            target/dist/BlindRadio.AppImage
+            target/dist/BlindRadio.AppImage.minisig
+            target/dist/BlindRadio.tar.gz
+            target/dist/BlindRadio.tar.gz.minisig
+
 
   macos:
     name: macOS asset
     needs: prepare
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 90
     steps:
       - name: Apple Silicon only
@@ -249,36 +267,56 @@ jobs:
         env:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
         run: cargo xtask dist-macos
 
-      - name: Upload to the draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release upload "${{ needs.prepare.outputs.tag }}"
-          target/dist/BlindRadio.dmg target/dist/BlindRadio.dmg.minisig
-          --clobber
+      - name: Upload signed packages
+        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: BlindRadio-macos
+          path: |
+            target/dist/BlindRadio.dmg
+            target/dist/BlindRadio.dmg.minisig
+
 
   publish:
     name: Verify and publish
     needs: [prepare, windows, linux, macos]
     runs-on: ubuntu-latest
     steps:
-      # gh resolves the repo from the checkout's remote here; without one
-      # `release edit` dies on "not a git repository". GH_REPO pins it too.
+      # Collect every platform's signed packages before publishing the release.
       - uses: actions/checkout@v5
+      - uses: https://code.forgejo.org/forgejo/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
       - name: Every asset and signature present, then publish
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
           tag="${{ needs.prepare.outputs.tag }}"
-          present="$(gh release view "$tag" --json assets --jq '.assets[].name')"
+          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+          h="Authorization: token $FORGEJO_TOKEN"
+          release="$(curl -sf -H "$h" "$api/releases/tags/$tag")"
+          id="$(echo "$release" | jq -r .id)"
+          for wanted in BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg; do
+            test -f "artifacts/$wanted"
+            test -f "artifacts/$wanted.minisig"
+          done
+          for file in artifacts/*; do
+            name="$(basename "$file")"
+            old="$(echo "$release" | jq -r --arg n "$name" '.assets[]? | select(.name == $n) | .id')"
+            [ -z "$old" ] || curl -sf -X DELETE -H "$h" "$api/releases/$id/assets/$old"
+            curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
+          done
+          present="$(curl -sf -H "$h" "$api/releases/$id" | jq -r '.assets[].name')"
           echo "$present"
           for name in BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg; do
             for wanted in "$name" "$name.minisig"; do
               grep -qx "$wanted" <<<"$present" || { echo "missing: $wanted"; exit 1; }
             done
           done
-          gh release edit "$tag" --draft=false --latest
+          curl -sf -o /dev/null -X PATCH -H "$h" -H 'Content-Type: application/json' \
+            -d '{"draft": false, "prerelease": false}' "$api/releases/$id"
+          test "$(curl -sf "$api/releases/latest" | jq -r .tag_name)" = "$tag"

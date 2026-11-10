@@ -4,11 +4,11 @@ resolver = "3"
 
 # zip 9: zip 8 carries RUSTSEC-2026-0367, 0368, 0369 and 0429. Drop when shipfitter takes it.
 [patch.crates-io]
-shipfitter = { git = "https://github.com/serrebidev/shipfitter", branch = "zip-9" }
+shipfitter = { git = "https://git.serrebiradio.com/serrebi/shipfitter", branch = "zip-9" }
 # Forgejo releases: upstream ship-shape only speaks api.github.com. Drop when upstream takes it.
 ship-shape = { git = "https://git.serrebiradio.com/serrebi/ship-shape", rev = "cff6bdb5596676723b3a0890b1b030c8edac0d28" }
 
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.2.81"
+version = "0.2.82"
