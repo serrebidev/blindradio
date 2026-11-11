@@ -133,8 +133,9 @@ own order. Internet-Radio, TuneIn, iHeartRadio and Networks have no ordering.
 
 Ctrl+B lists Favorites as a tree: the root list plus folders you make with New Folder, such as
 News, Music or BBC. Remove, Move Up, Move Down and Export work on stations and folders alike,
-Shift+Up and Shift+Down move the focused station or folder, and a station's context menu moves
-it into another folder. Ctrl+H lists Recently Played.
+Shift+Up and Shift+Down move the focused station or folder. A station's context menu offers
+Play, Copy Stream URL, Station Info, Copy Station, Cut Station, Paste Station and Delete, and
+moves it into another folder. Ctrl+H lists Recently Played.
 On the main window, Alt+1 to Alt+0 play favorites one to ten.
 
 ## Importing

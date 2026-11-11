@@ -1950,6 +1950,26 @@ fn favorites_paste_follows_the_focused_row_and_refreshes() {
 	app.row(&second, "One");
 }
 
+#[test]
+#[ignore = "needs a desktop"]
+fn favorites_context_menu_offers_copy_url_and_station_info() {
+	let library = Library {
+		favorites: vec![station("custom:one", "One")],
+		..Library::default()
+	};
+	let app = App::start("favorites-menu", library);
+	app.press("{ctrl}b");
+	let window = app.find("Favorites", WAIT).expect("Favorites");
+	app.select_row(&window, "One");
+	app.press("{shift}{f10}");
+	app.menu_item("Copy Stream URL");
+	app.invoke(&app.menu_item("Station Info…"));
+	assert!(
+		app.find("Station Info", Duration::from_secs(5)).is_some(),
+		"Station Info opens from Favorites"
+	);
+}
+
 /// Each arrow used to rebuild the hidden main tree, however long it was.
 #[test]
 #[ignore = "needs a desktop"]

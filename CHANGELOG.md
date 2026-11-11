@@ -8,6 +8,7 @@ taken from this file by the release workflow.
 ## 0.2.84
 
 - Recordings in the stream's own format (the default) no longer crackle or stutter. Small bits of audio were written into the file twice, many times a minute, even on one station with no seeking. A 30 second recording held over a second of repeats and thousands of broken frames. It now holds exactly what you heard, once. Rewinding or jumping during a recording still records what you hear after the jump.
+- In Favorites (Ctrl+B), a station's context menu now offers Copy Stream URL and Station Info, like the main window's. They were missing there.
 
 ## 0.2.83
 

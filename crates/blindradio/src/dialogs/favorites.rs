@@ -448,7 +448,14 @@ impl View {
 				let Some(loc) = self.loc(row) else {
 					return;
 				};
-				let mut items = vec![Item::Play, Item::CopyStation, Item::CutStation];
+				// Same order as the main window's station menu.
+				let mut items = vec![
+					Item::Play,
+					Item::CopyUrl,
+					Item::StationInfo,
+					Item::CopyStation,
+					Item::CutStation,
+				];
 				{
 					let lib = app.borrow();
 					if !lib.library.fav_folders.is_empty() {
@@ -480,6 +487,9 @@ impl View {
 						self.refresh(app, None);
 					}
 					Some(Choice::Delete) => self.remove(app, row),
+					Some(choice @ (Choice::CopyUrl | Choice::StationInfo)) => {
+						context_menu::apply(app, &self.tree, &station, choice)
+					}
 					_ => {}
 				}
 			}

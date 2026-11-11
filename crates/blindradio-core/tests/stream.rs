@@ -669,7 +669,9 @@ fn buffered_original_recording(fixture: &str, content_type: &str, want_ext: &str
 		Instant::now(),
 	);
 	let (buffer, _) = tuner.shift().unwrap();
-	let deadline = Instant::now() + Duration::from_secs(5);
+	// A bound, not a target: a shared CI runner under load took over 5 s
+	// (debug FLAC decode, 10 ms sleeps at the timer's 15.6 ms).
+	let deadline = Instant::now() + Duration::from_secs(30);
 	while buffer.live_edge() < OUT_RATE as u64 * 3 {
 		assert!(
 			Instant::now() < deadline,
