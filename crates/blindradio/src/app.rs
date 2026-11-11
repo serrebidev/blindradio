@@ -356,6 +356,8 @@ pub struct App {
 	pub tuner: Tuner<LiveFactory, SharedOutput>,
 	output: Rc<RefCell<Output>>,
 	pub sleep: SleepTimer,
+	#[cfg(windows)]
+	awake: crate::power::Awake,
 	pub history: SessionHistory,
 	/// The station focused in the open list; station lists set it and clear it when they close.
 	pub selected: Option<Station>,
@@ -490,6 +492,8 @@ impl App {
 			settings,
 			library,
 			sleep: SleepTimer::default(),
+			#[cfg(windows)]
+			awake: crate::power::Awake::default(),
 			history: SessionHistory::default(),
 			selected: None,
 			station_clip: None,
@@ -946,6 +950,14 @@ impl App {
 		if self.settings_due.is_some_and(|due| now >= due) {
 			self.save_settings();
 		}
+		#[cfg(windows)]
+		{
+			let playing = self.tuner.playback_active();
+			let recording = self.tuner.is_recording() && !self.tuner.recording_paused();
+			if let Err(e) = self.awake.update(playing, recording) {
+				self.say(&format!("{}{e}", s::power_failed()));
+			}
+		}
 		self.flush_line(now);
 		self.refresh_status_line(now);
 		self.refresh();
@@ -980,6 +992,10 @@ impl App {
 			self.save_settings();
 		}
 		self.tuner.stop();
+		#[cfg(windows)]
+		{
+			self.awake = crate::power::Awake::default();
+		}
 		// `Engine` saves it on drop too, but the app may never drop on exit.
 		let _ = self.engine.ctx.cache.lock().save();
 	}

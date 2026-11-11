@@ -18,6 +18,8 @@ mod main_window;
 mod menus;
 mod nvda;
 #[cfg(windows)]
+mod power;
+#[cfg(windows)]
 mod status_strip;
 mod speech;
 mod station_list;

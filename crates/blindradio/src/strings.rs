@@ -41,6 +41,14 @@ pub fn removed_from_favorites() -> String {
 pub fn sleep_stopping() -> String {
 	patois::t("Sleep timer: stopping")
 }
+#[cfg(windows)]
+pub fn power_reason() -> String {
+	patois::t("Playing or recording radio")
+}
+#[cfg(windows)]
+pub fn power_failed() -> String {
+	patois::t("Could not prevent automatic sleep: ")
+}
 pub fn device_lost() -> String {
 	patois::t("Device lost. Using default.")
 }

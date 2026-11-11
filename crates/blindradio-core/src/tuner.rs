@@ -585,6 +585,14 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		self.playing.as_ref()
 	}
 
+	/// An open playback stream, excluding a paused time-shift position or a failed selection.
+	pub fn playback_active(&self) -> bool {
+		self.playing.as_ref().is_some_and(|station| self.is_open(&station.id))
+			&& !self.shift.as_ref().is_some_and(|(_, status)| {
+				status.paused.load(std::sync::atomic::Ordering::Relaxed)
+			})
+	}
+
 	/// The playing stream's format, once its decoder has reported it.
 	pub fn format(&self) -> Option<&crate::decode::StreamFormat> {
 		self.open_format(&self.playing.as_ref()?.id)
@@ -2075,6 +2083,31 @@ mod recording_tests {
 		let mut tuner = Tuner::new(factory, NoSink, tx);
 		tuner.set_settings(Arc::new(Mutex::new(settings)));
 		(tuner, started, taps)
+	}
+
+	#[test]
+	fn playback_activity_excludes_paused_and_failed_streams() {
+		let dir = tempfile::tempdir().unwrap();
+		let (mut tuner, _, _) = bg_tuner(dir.path());
+		let station = test_station("a");
+		let now = Instant::now();
+		assert!(!tuner.playback_active());
+		tuner.play(&station, now);
+		assert!(tuner.playback_active());
+		let status = Arc::new(ShiftStatus::new());
+		tuner.shift = Some((Arc::new(ShiftBuffer::with_seconds(1000, 1)), status.clone()));
+		status.paused.store(true, Ordering::Relaxed);
+		assert!(!tuner.playback_active(), "a paused stream must allow idle sleep");
+		status.paused.store(false, Ordering::Relaxed);
+		assert!(tuner.playback_active());
+		let serial = tuner.open[0].serial;
+		tuner.stream_event(serial, StreamEvent::Failed("offline".into()), now);
+		assert!(tuner.playing().is_some(), "the failed station remains selected");
+		assert!(!tuner.playback_active(), "a dead stream must allow idle sleep");
+		tuner.play(&station, now);
+		assert!(tuner.playback_active(), "restarting reacquires activity");
+		tuner.stop();
+		assert!(!tuner.playback_active());
 	}
 
 	#[test]

@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.85
+
+- On Windows, active playback and recording now ask the system to stay awake, so automatic idle sleep does not interrupt the radio. The screen can still turn off and Windows can still lock. Background recording keeps the request after playback stops; pausing or stopping both releases it, as does quitting. Portable ZIP and installed copies behave the same. Explicit Sleep, hibernation, and Windows Modern Standby battery limits still apply.
+
 ## 0.2.84
 
 - Recordings in the stream's own format (the default) no longer crackle or stutter. Small bits of audio were written into the file twice, many times a minute, even on one station with no seeking. A 30 second recording held over a second of repeats and thousands of broken frames. It now holds exactly what you heard, once. Rewinding or jumping during a recording still records what you hear after the jump.

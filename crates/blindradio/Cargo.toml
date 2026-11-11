@@ -21,7 +21,8 @@ blindradio-core = { path = "../blindradio-core" }
 # default is re-enabled explicitly, so the ONLY build change
 # is the asserts.
 wxdragon = { version = "*", default-features = false, features = ["wx-printing", "wx-tiff", "wx-jpeg", "wx-tango-icons", "wx-extra-image-formats", "wx-regex", "appindicator"] }
-wx-utils = { git = "https://github.com/trypsynth/wx-utils", features = ["shortcuts", "global-hotkeys"] }
+# Git main needs an unreleased wxDragon Event API; use the latest published pair.
+wx-utils = { version = "*", features = ["shortcuts", "global-hotkeys"] }
 crossbeam-channel = "*"
 parking_lot = "*"
 tokio = { version = "*", features = ["rt"] }
@@ -45,6 +46,8 @@ libloading = "*"
 windows = { version = "*", features = [
 	"Win32_System_Com",
 	"Win32_System_Ole",
+	"Win32_System_Power",
+	"Win32_System_Threading",
 	"Win32_System_Variant",
 	"Win32_UI_WindowsAndMessaging",
 ] }

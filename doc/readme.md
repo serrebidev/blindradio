@@ -408,6 +408,15 @@ within five minutes of the alarm time, it still plays.
 Ctrl+1 to Ctrl+6 sleep after 15, 30, 45, 60, 90 or 120 minutes; Ctrl+0 turns it off. When it is
 due, playback stops.
 
+On Windows, BlindRadio asks the system to stay awake while playing or recording, including
+background recording. The screen can still turn off and Windows can still lock. Pausing or
+stopping both playback and recording restores normal automatic sleep, as does quitting.
+The sleep timer releases playback's request when it stops the radio; an active background
+recording still keeps its own claim. Portable ZIP and installed copies behave the same.
+Choosing Sleep yourself, closing a laptop lid, or hibernating can still interrupt audio.
+Windows Modern Standby can also limit these requests on battery power.
+After you wake Windows, BlindRadio renews the request if playback or recording is still active.
+
 ## Settings
 
 Ctrl+T opens Settings (File menu). It has five tabs: General, Playback, Recording, Songs,
