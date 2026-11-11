@@ -372,9 +372,10 @@ pub struct Tuner<F: StreamFactory, S: Sink> {
 	/// Song-split recording: the song the current file is recording,
 	/// so a title event for the same song does not split it again.
 	record_song: Option<String>,
-	/// Last completed encoded chunk and playhead time written to Original.
+	/// Last completed encoded chunk written to Original, and the
+	/// playhead jump count (`ShiftStatus::seeks`) it was anchored at.
 	record_after: Option<u64>,
-	record_at: Option<u64>,
+	record_seeks: Option<u64>,
 	/// Where each title landed in the buffer: the segment bookmarks.
 	marks: Marks,
 	pending_titles: Vec<PendingTitle>,
@@ -417,7 +418,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			record_detached_paused: false,
 			record_song: None,
 			record_after: None,
-			record_at: None,
+			record_seeks: None,
 			marks: Marks::default(),
 			pending_titles: Vec::new(),
 			song: None,
@@ -1083,7 +1084,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		if own_taps {
 			self.record_slot = None;
 			self.record_song = None;
-			self.record_at = None;
+			self.record_seeks = None;
 			self.record_after = None;
 		}
 		self.marks = Marks::default();
@@ -1279,7 +1280,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	fn seek_to_ms(&mut self, ms: u64) {
 		self.record_buffered();
-		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			self.ring_paused_at = None;
 			let buffer = feed.prime(ms);
@@ -1298,7 +1298,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			let frame = (ms * u64::from(buffer.rate())).div_ceil(1000);
 			// Read back before the mixer's next pass: the next key and the
 			// status line must already see the new position.
-			status.cursor.store(frame, std::sync::atomic::Ordering::Relaxed);
+			// The jump is counted here, with the cursor, not by the mixer.
+			status.jump(frame);
 			self.sink.send(MixerCmd::ShiftSeekTo(frame));
 		}
 	}
@@ -1361,7 +1362,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	pub fn shift_seek(&mut self, seconds: i32) {
 		self.record_buffered();
-		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			let target = (feed.cursor_time() as i64 + seconds as i64 * 1000)
 				.max(feed.ring_start_ms() as i64) as u64;
@@ -1393,7 +1393,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	/// Jumps to the oldest audio the buffer still holds.
 	pub fn shift_start(&mut self) {
 		self.record_buffered();
-		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			self.ring_paused_at = None;
 			let buffer = feed.prime(feed.ring_start_ms());
@@ -1412,7 +1411,6 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 
 	pub fn shift_live(&mut self) {
 		self.record_buffered();
-		self.record_at = None;
 		if let Some(feed) = &self.ring_feed {
 			self.ring_paused_at = None;
 			let buffer = feed.prime_live();
@@ -1487,27 +1485,34 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let Some(rec) = guard.as_mut().filter(|rec| rec.is_original()) else {
 			return;
 		};
-		let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
-		let (ring, time) = if let Some(feed) = &self.ring_feed {
-			let Some(ring) = &self.encoded_ring else {
-				return;
-			};
-			let time = if cursor == u64::MAX {
-				// Live: session time now, less what the ring holds unheard.
-				let backlog = status.backlog.load(std::sync::atomic::Ordering::Relaxed);
-				feed.now_ms().saturating_sub(backlog * 1000 / u64::from(buffer.rate()))
+		// Read against the jump count: one being written is read next poll.
+		let read = status.jumps(|| {
+			let cursor = status.cursor.load(std::sync::atomic::Ordering::Relaxed);
+			if let Some(feed) = &self.ring_feed {
+				let ring = self.encoded_ring.as_ref()?;
+				let time = if cursor == u64::MAX {
+					// Live: session time now, less what the ring holds unheard.
+					let backlog = status.backlog.load(std::sync::atomic::Ordering::Relaxed);
+					feed.now_ms().saturating_sub(backlog * 1000 / u64::from(buffer.rate()))
+				} else {
+					feed.cursor_time()
+				};
+				Some((ring.as_ref(), time))
 			} else {
-				feed.cursor_time()
-			};
-			(ring.as_ref(), time)
-		} else {
-			let frame = if cursor == u64::MAX { status.live_frame(buffer) } else { cursor };
-			(&buffer.encoded, frame * 1000 / buffer.rate() as u64)
+				let frame = if cursor == u64::MAX { status.live_frame(buffer) } else { cursor };
+				Some((&buffer.encoded, frame * 1000 / buffer.rate() as u64))
+			}
+		});
+		let Some((seeks, Some((ring, time)))) = read else {
+			return;
 		};
-		if self.record_at.is_none_or(|last| time < last) {
+		// Anchor at the start and after each jump only. The playhead
+		// steps back a little between mixer passes; anchoring on that
+		// rewrote the chunk just written: stutter and broken frames.
+		if self.record_seeks != Some(seeks) {
 			self.record_after = ring.seq_at(time).and_then(|seq| seq.checked_sub(1));
+			self.record_seeks = Some(seeks);
 		}
-		self.record_at = Some(time);
 		if status.paused.load(std::sync::atomic::Ordering::Relaxed) {
 			return;
 		}
@@ -1664,7 +1669,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let path = rec.path().to_path_buf();
 		*slot.lock() = Some(rec);
 		self.record_song = record_song;
-		self.record_at = None;
+		self.record_seeks = None;
 		self.record_buffered();
 		Ok(path)
 	}
@@ -1720,7 +1725,7 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 	pub fn stop_recording(&mut self) -> Option<Result<PathBuf>> {
 		self.record_buffered();
 		self.record_song = None;
-		self.record_at = None;
+		self.record_seeks = None;
 		if let Some(bg) = self.bg_record.take() {
 			// Clear only the background field: the same station may
 			// be playing, with playback taps of its own in the entry.
@@ -2283,6 +2288,42 @@ mod recording_tests {
 	}
 
 	#[test]
+	fn original_recording_never_repeats_a_chunk_when_the_playhead_jitters_back() {
+		let dir = tempfile::tempdir().unwrap();
+		let mut settings = Settings::default();
+		settings.recording.dir = Some(dir.path().to_string_lossy().into_owned());
+		let station = test_station("test");
+		let (tx, _) = crossbeam_channel::unbounded();
+		let mut tuner = Tuner::new(NoStreams, NoSink, tx);
+		tuner.set_settings(Arc::new(Mutex::new(settings)));
+		tuner.playing = Some(station.clone());
+		tuner.attach_taps(&station);
+		let (buffer, status) = tuner.shift().unwrap();
+		let push = |byte: u8| {
+			buffer.push_encoded(&[byte]);
+			buffer.push(&vec![0.0; 2000]);
+		};
+		push(0);
+		push(1);
+		status.backlog.store(500, Ordering::Relaxed);
+		tuner.start_recording(None).unwrap();
+		// The decoder pushes between mixer passes: the edge grows while
+		// the backlog the mixer last wrote is stale, so the playhead
+		// reads ahead, then falls back when the mixer catches up.
+		push(2);
+		push(3);
+		tuner.poll(Instant::now(), &[]);
+		status.backlog.store(1200, Ordering::Relaxed);
+		tuner.poll(Instant::now(), &[]);
+		status.backlog.store(400, Ordering::Relaxed);
+		tuner.poll(Instant::now(), &[]);
+		push(4);
+		tuner.poll(Instant::now(), &[]);
+		let path = tuner.stop_recording().unwrap().unwrap();
+		assert_eq!(std::fs::read(path).unwrap(), [1, 2, 3], "each chunk once, in order");
+	}
+
+	#[test]
 	fn original_recording_paces_chunks_and_split_pause_and_seek_follow_the_playhead() {
 		for encoded_mode in [false, true] {
 			let dir = tempfile::tempdir().unwrap();
@@ -2335,7 +2376,8 @@ mod recording_tests {
 			tuner.start_recording(None).unwrap();
 			status.cursor.store(2000, Ordering::Relaxed);
 			tuner.poll(Instant::now(), &[]);
-			status.cursor.store(0, Ordering::Relaxed);
+			// The mixer counts the jump as it moves the cursor.
+			status.jump(0);
 			tuner.poll(Instant::now(), &[]);
 			status.cursor.store(1000, Ordering::Relaxed);
 			let third = tuner.stop_recording().unwrap().unwrap();

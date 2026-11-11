@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.84
+
+- Recordings in the stream's own format (the default) no longer crackle or stutter. Small bits of audio were written into the file twice, many times a minute, even on one station with no seeking. A 30 second recording held over a second of repeats and thousands of broken frames. It now holds exactly what you heard, once. Rewinding or jumping during a recording still records what you hear after the jump.
+
 ## 0.2.83
 
 - A recording starts at what you are hearing. It used to begin several seconds ahead, with audio the station had already sent but you had not heard yet, even at live. Every format now records exactly what plays, live or in the time-shift buffer.

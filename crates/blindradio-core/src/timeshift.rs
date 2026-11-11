@@ -138,6 +138,12 @@ pub struct ShiftStatus {
 	/// The replay decoder is still racing to the newest byte, so the window's
 	/// edge is short of the truth and the backlog cannot be taken off it.
 	pub catching_up: AtomicBool,
+	/// Counts playhead jumps (seek, attach, back to live): odd while one
+	/// is being written, see `jump`. The live playhead also steps back a
+	/// little between mixer passes (the edge grows on each decoder push,
+	/// the backlog only per pass). Original recording re-anchors on a
+	/// jump, never on that noise.
+	pub seeks: AtomicU64,
 }
 
 impl ShiftStatus {
@@ -148,7 +154,29 @@ impl ShiftStatus {
 			attached: AtomicBool::new(false),
 			backlog: AtomicU64::new(0),
 			catching_up: AtomicBool::new(false),
+			seeks: AtomicU64::new(0),
 		}
+	}
+
+	/// Moves the playhead as a jump: seqlock, so a reader never pairs
+	/// the new count with the old cursor (see `jumps`).
+	pub fn jump(&self, cursor: u64) {
+		self.seeks.fetch_add(1, Ordering::Relaxed);
+		std::sync::atomic::fence(Ordering::Release);
+		self.cursor.store(cursor, Ordering::Relaxed);
+		self.seeks.fetch_add(1, Ordering::Release);
+	}
+
+	/// Reads `read` against the jump count: `Some((count, value))` when
+	/// no jump was written meanwhile, None while one is (try again).
+	pub fn jumps<T>(&self, read: impl FnOnce() -> T) -> Option<(u64, T)> {
+		let before = self.seeks.load(Ordering::Acquire);
+		if before % 2 == 1 {
+			return None;
+		}
+		let value = read();
+		std::sync::atomic::fence(Ordering::Acquire);
+		(self.seeks.load(Ordering::Relaxed) == before).then_some((before, value))
 	}
 
 	/// The frame live playback stands at: what the ring plays next, not the

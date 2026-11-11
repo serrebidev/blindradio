@@ -233,8 +233,8 @@ impl MixerCore {
 			}
 			MixerCmd::ShiftAttach { buffer, status } => {
 				status.attached.store(true, Ordering::Relaxed);
-				status.cursor.store(u64::MAX, Ordering::Relaxed);
 				status.paused.store(false, Ordering::Relaxed);
+				status.jump(u64::MAX);
 				self.shift = Some((buffer, status));
 				self.shift_cursor = None;
 				self.shift_paused = false;
@@ -263,15 +263,15 @@ impl MixerCore {
 					let target = (base + seconds as i64 * buffer.rate() as i64)
 						.clamp(start as i64, live.max(start) as i64) as u64;
 					self.shift_cursor = if target >= live { None } else { Some(target) };
-					if self.shift_cursor.is_none() {
-						// Live from here on: say so in the status at once.
-						// Render only writes the status while shifted, so a
-						// cursor cleared here would otherwise leave the last
-						// shifted frame standing — the status line and the
-						// announcements would keep quoting a stale "behind
-						// live" while the ring plays live.
-						status.cursor.store(u64::MAX, Ordering::Relaxed);
-					}
+					// Say where the playhead went at once, live or not, as one
+					// jump. Render only writes the status while shifted, so a
+					// cursor cleared here would otherwise leave the last
+					// shifted frame standing — the status line and the
+					// announcements would keep quoting a stale "behind
+					// live" while the ring plays live. And an Original
+					// recording reading the jump before the next render
+					// would anchor at the old spot.
+					status.jump(self.shift_cursor.unwrap_or(u64::MAX));
 				}
 			}
 			MixerCmd::ShiftSeekTo(frame) => {
@@ -289,8 +289,8 @@ impl MixerCore {
 				self.shift_cursor = None;
 				self.shift_paused = false;
 				if let Some((_, status)) = &self.shift {
-					status.cursor.store(u64::MAX, Ordering::Relaxed);
 					status.paused.store(false, Ordering::Relaxed);
+					status.jump(u64::MAX);
 				}
 			}
 			MixerCmd::RecordSlot(slot) => self.record_slot = slot,
