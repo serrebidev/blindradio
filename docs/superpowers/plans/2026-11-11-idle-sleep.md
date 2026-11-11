@@ -25,9 +25,11 @@ Background recording survives playback stop. Paused activity releases its claim.
 - [x] Implement `Awake::update(playing: bool, recording: bool)` with owned Windows request cleanup. Wire module, Windows feature flags, App poll, shutdown, and localized reason/error strings. Exclude paused playback and paused recordings.
 - [x] Add and observe failing tests for paused/failed playback and requests cleared by Windows on sleep; implement `Tuner::playback_active` and user-resume notification handling. Three Windows power tests and the tuner regression now pass.
 - [x] Run focused tests, `cargo test --workspace`, `cargo clippy --workspace --all-targets`, `cargo audit`, and `git diff --check`. Final gate: 565 passed, 71 ignored; Clippy clean with `-D warnings`; only the accepted paste audit warning.
-- [ ] Update CHANGELOG under 0.2.85 and `doc/readme.md`; review complete diff; commit and push main.
-- [ ] Dispatch Forgejo release 0.2.85; monitor gate and all builds; verify ten release assets and `cargo xtask update-check 0.2.84`.
+- [x] Update CHANGELOG under 0.2.85 and `doc/readme.md`; review complete diff; commit and push main.
+- [x] Dispatch Forgejo release 0.2.85; monitor gate and all builds; verify ten release assets and `cargo xtask update-check 0.2.84`.
 
 ## Execution notes
 
 Implemented inline on `fix/idle-sleep`, preserving the existing checkout and build cache. Independent review found the resume lifecycle gap; it was fixed with a native callback that touches only a process-lifetime atomic. Dependency update exposed wx-utils git main requiring an unreleased wxDragon API; switched to the latest published wx-utils through `version = "*"`, retaining both feature flags. Dependency audit reports only the accepted paste maintenance warning.
+
+Forgejo release run 18 completed successfully. All five packages and five signature files were downloaded; minisign verified every package and trusted comment against the shipped public key. The portable executable reports 0.2.85 (c831f53). The release bump changed only workspace package versions, preserving the tested dependencies. `cargo xtask update-check 0.2.84` offered v0.2.85, downloaded its Windows installer, and verified it. Hardware suspend/resume on the reporting machine remains untested.
