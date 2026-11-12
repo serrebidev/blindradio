@@ -27,6 +27,8 @@ jobs:
   # publishes nothing: the tag and the release are made only at the end.
   gate:
     uses: ./.github/workflows/ci.yml
+    with:
+      folder: gate
 
   bump:
     name: Bump the version

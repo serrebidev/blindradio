@@ -9,6 +9,11 @@ on:
   pull_request:
     paths-ignore: ["AGENTS.md", "README.md", "docs/**"]
   workflow_call:
+    inputs:
+      folder:
+        description: Target folder name on the Windows runner
+        type: string
+        default: gate
 
 permissions:
   contents: read
@@ -36,7 +41,7 @@ jobs:
       # previous run directly. Cargo's lock covers only the build:
       # a push run executing its test exes while the release gate
       # relinks them fails both with LNK1104 (0.2.87, runs 286-289).
-      # So the release gate (dispatch) builds in its own folder.
+      # So the release gate (workflow_call) builds in its own folder.
       # Owner-approved 2026-11-10 (same fix as BlindRSS-Rust df47812).
       # CARGO_TARGET_DIR is the folder's real path: CMake caches
       # absolute paths, and the path through the link changes
@@ -48,7 +53,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         env:
-          FOLDER: ${{ github.event_name == 'workflow_dispatch' && 'gate' || 'test' }}
+          FOLDER: ${{ inputs.folder || 'test' }}
         run: |
           $dir = "C:/forgejo-runner/cargo-target/blindradio/$env:FOLDER"
           New-Item -ItemType Directory -Force $dir | Out-Null
