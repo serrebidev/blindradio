@@ -305,7 +305,10 @@ async fn run(
 		}
 		let since = *outage.get_or_insert_with(Instant::now);
 		match reconnect(&url, &ctx, &ring, &shared, since, &mut attempt).await {
-			Some(c) => conn = c,
+			Some(c) => {
+				ring.new_connection();
+				conn = c;
+			}
 			None => return shared.emit(StreamEvent::Failed("Lost".into())),
 		}
 	}

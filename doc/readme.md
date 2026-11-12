@@ -163,6 +163,12 @@ refill limit also apply to the one playing.
 - Start buffer: audio held before a station starts, 0 to 30000 milliseconds. The default is 1000.
 - Refill limit after dropouts: a stream that keeps running dry must refill more each time before
   it sounds again, up to this many seconds, 1 to 120. The default is 15.
+
+BlindRadio also watches how evenly each station's server sends. Some send in fits: a burst, then
+several seconds slower than real time, then a catch-up. For those, BlindRadio learns how far the
+stream has fallen behind. It keeps that much audio in hand when it starts, refills or switches to
+the station, up to the refill limit. Such a station plays through, or pauses once and cleanly
+instead of cutting out again and again. Stations that send evenly start as quickly as before.
 - HLS segments behind live: where a live HLS stream starts, 1 to 10 segments back from the newest.
   The default is 2. At 1 a segment can arrive only just in time, so it can stutter.
 

@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.86
+
+- Stations whose server sends audio unevenly no longer cut out over and over. TopRadio is one: the server sends a burst, then runs slower than real time for several seconds, then catches up. You heard a few seconds of music, then hiss, again and again. BlindRadio now learns how far each stream falls behind and keeps that much audio in hand before it plays, refills, or switches to the station, up to the refill limit. Such a station plays through, or pauses once instead of stuttering. Stations that send evenly are not delayed.
+
 ## 0.2.85
 
 - On Windows, active playback and recording now ask the system to stay awake, so automatic idle sleep does not interrupt the radio. The screen can still turn off and Windows can still lock. Background recording keeps the request after playback stops; pausing or stopping both releases it, as does quitting. Portable ZIP and installed copies behave the same. Explicit Sleep, hibernation, and Windows Modern Standby battery limits still apply.

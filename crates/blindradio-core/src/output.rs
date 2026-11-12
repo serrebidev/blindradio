@@ -95,10 +95,11 @@ pub struct MixerCore {
 	/// Dry-outs in a row on the active ring; grows `cushion_ms`.
 	strikes: u32,
 	/// The most a stream that keeps running dry must refill before it may sound
-	/// again. A server delivering just under its bitrate (TopRadio sends ~2/3 of
-	/// its 192 kbps) stutters every few seconds against a 1 s cushion; a deep
-	/// refill turns that into long plays between clean gaps. Healthy streams
-	/// never run dry, so they never see this.
+	/// again. A server that dips below its bitrate for seconds at a time (TopRadio
+	/// falls up to ~10 s behind, then catches up) stutters against a 1 s cushion; a
+	/// deep refill turns that into long plays between clean gaps. Healthy streams
+	/// never run dry, so they never see this. The ring's measured dip
+	/// (`PcmRing::dip_ms`) sets the refill at once, before the strikes grow it.
 	refill_limit_ms: u32,
 	/// Output rate, for the healthy-play reset window.
 	rate: u32,
@@ -343,7 +344,11 @@ impl MixerCore {
 		}
 		if !shifted && let Some(ring) = &self.active {
 			let level = ring.len_ms();
-			if self.flow == Flow::Buffering && level > 0 && level >= self.cushion_ms {
+			// A server that has dipped below real time gets that much in hand before it
+			// sounds: one clean gap, not a stutter while the strikes catch up.
+			let limit = self.refill_limit_ms.max(self.base_cushion_ms);
+			let cushion = self.cushion_ms.max(ring.dip_ms().min(limit));
+			if self.flow == Flow::Buffering && level > 0 && level >= cushion {
 				self.flow = Flow::Playing;
 				self.sounded = 0;
 			}
@@ -982,6 +987,34 @@ mod tests {
 		let out = render_frames(&mut mixer, 10);
 		assert_eq!(out[0], 0.0, "resumes with a fade-in");
 		assert!(out[19] > 0.0);
+	}
+
+	#[test]
+	fn a_server_that_dipped_refills_past_its_dip() {
+		let mut mixer = mixer();
+		mixer.cushion_ms = 100;
+		mixer.base_cushion_ms = 100;
+		let ring = Arc::new(PcmRing::new(RATE, 3.0));
+		// 400 ms ahead, then nothing for 400 ms: the server fell 400 ms behind its lead.
+		ring.push(&vec![1.0; 400 * 2]);
+		std::thread::sleep(std::time::Duration::from_millis(400));
+		ring.push(&[1.0; 2]);
+		ring.clear();
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring.clone()),
+			token: 1,
+		});
+		ring.push(&vec![1.0; 200 * 2]);
+		assert_eq!(
+			render_frames(&mut mixer, 10),
+			[0.0; 20],
+			"twice the cushion, still short of the dip"
+		);
+		ring.push(&vec![1.0; 400 * 2]);
+		assert!(
+			render_frames(&mut mixer, 10)[19] > 0.0,
+			"plays once the dip is covered"
+		);
 	}
 
 	#[test]

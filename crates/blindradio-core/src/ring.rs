@@ -48,8 +48,27 @@ pub struct PcmRing {
 	// ponytail: mutex shared with audio callback, held microseconds; lock-free ring if underruns show up
 	buf: Mutex<VecDeque<f32>>,
 	closed: AtomicBool,
-	/// When the last push ended, and the longest wait between pushes.
-	lumps: Mutex<(Option<Instant>, u32)>,
+	arrival: Mutex<Arrival>,
+}
+
+/// How audio has been arriving, measured at each push.
+#[derive(Default)]
+struct Arrival {
+	/// When the last push ended.
+	end: Option<Instant>,
+	/// The longest wait between pushes, ms.
+	max_gap: u32,
+	/// First push of this connection; the clock audio is measured against.
+	start: Option<Instant>,
+	/// Time spent waiting for room, which is no delay in the stream.
+	waited: Duration,
+	/// Frames pushed since `start`.
+	frames: u64,
+	/// Most audio ever held ahead of real time, ms.
+	peak: i64,
+	/// Deepest fall below `peak`: what playback must hold in hand to ride out this server's
+	/// slow stretches. Kept across reconnects.
+	dip: u32,
 }
 
 impl PcmRing {
@@ -61,7 +80,7 @@ impl PcmRing {
 			capacity,
 			buf: Mutex::new(VecDeque::with_capacity(capacity)),
 			closed: AtomicBool::new(false),
-			lumps: Mutex::new((None, 0)),
+			arrival: Mutex::new(Arrival::default()),
 		}
 	}
 
@@ -71,14 +90,25 @@ impl PcmRing {
 	/// and a warm neighbour pauses its connection instead of skipping ahead. Once the ring is
 	/// closed, what does not fit is discarded so the producer can finish.
 	pub fn push(&self, stereo: &[f32]) {
-		{
-			let mut lumps = self.lumps.lock();
-			if let Some(end) = lumps.0 {
-				let gap = end.elapsed().as_millis().min(u128::from(u32::MAX)) as u32;
-				lumps.1 = lumps.1.max(gap);
-			}
-		}
+		let now = Instant::now();
 		let mut rest = &stereo[..stereo.len() & !1];
+		{
+			let mut a = self.arrival.lock();
+			if let Some(end) = a.end {
+				let gap = (now - end).as_millis().min(u128::from(u32::MAX)) as u32;
+				a.max_gap = a.max_gap.max(gap);
+			}
+			// Audio ahead of real time, before and after this push. A server that sends a
+			// burst and then dips below its bitrate (TopRadio) shows as a fall from the high.
+			let start = *a.start.get_or_insert(now);
+			let clock = (now - start).saturating_sub(a.waited).as_millis() as i64;
+			let held = |frames: u64| (frames * 1000 / self.rate as u64) as i64 - clock;
+			let fall = a.peak - held(a.frames);
+			a.dip = a.dip.max(fall.clamp(0, i64::from(u32::MAX)) as u32);
+			a.frames += rest.len() as u64 / 2;
+			a.peak = a.peak.max(held(a.frames));
+		}
+		let mut waited = Duration::ZERO;
 		loop {
 			{
 				let mut buf = self.buf.lock();
@@ -89,10 +119,30 @@ impl PcmRing {
 			if rest.is_empty() || self.closed.load(Ordering::Relaxed) {
 				break;
 			}
+			let t = Instant::now();
 			std::thread::sleep(PUSH_WAIT);
+			waited += t.elapsed();
 		}
 		// After the wait for room: a full ring is no gap in the stream.
-		self.lumps.lock().0 = Some(Instant::now());
+		let mut a = self.arrival.lock();
+		a.end = Some(Instant::now());
+		a.waited += waited;
+	}
+
+	/// A new connection feeds this ring: its connect burst and the outage before it are not
+	/// the server's pace. What was learned about its slow stretches stays.
+	pub fn new_connection(&self) {
+		let mut a = self.arrival.lock();
+		*a = Arrival {
+			dip: a.dip,
+			max_gap: a.max_gap,
+			..Arrival::default()
+		};
+	}
+
+	/// The deepest the stream has fallen behind its own best lead, ms; see `Arrival::dip`.
+	pub fn dip_ms(&self) -> u32 {
+		self.arrival.lock().dip
 	}
 
 	/// No one will read this ring again: pushes stop waiting.
@@ -118,10 +168,13 @@ impl PcmRing {
 	}
 
 	/// Drops all but the newest `keep_ms`, or more if this stream arrives in lumps further apart
-	/// than that (HLS segments): trimming below the wait for the next lump only buys a gap, and
-	/// each gap makes the mixer demand a deeper refill.
+	/// than that (HLS segments) or has dipped below real time by more: trimming below either
+	/// only buys a gap, and each gap makes the mixer demand a deeper refill.
 	pub fn trim_to_ms(&self, keep_ms: u32) {
-		let keep_ms = keep_ms.max(self.lumps.lock().1);
+		let keep_ms = {
+			let a = self.arrival.lock();
+			keep_ms.max(a.max_gap).max(a.dip.min(refill_limit_ms()))
+		};
 		let keep = (self.rate as u64 * keep_ms as u64 / 1000) as usize * 2;
 		let mut buf = self.buf.lock();
 		let excess = buf.len().saturating_sub(keep);
@@ -194,6 +247,53 @@ mod tests {
 		let held = r.len_ms();
 		assert!(held >= 400, "held {held} ms, against a 400 ms wait for audio");
 		assert!(held < 1000, "held {held} ms: still trimmed");
+	}
+
+	#[test]
+	fn dip_is_the_fall_behind_real_time() {
+		let r = PcmRing::new(1000, 5.0);
+		// A 2 s burst, then 100 ms of audio every 200 ms: half speed for a second.
+		r.push(&ramp(0, 2000));
+		for k in 0..5 {
+			std::thread::sleep(Duration::from_millis(200));
+			r.push(&ramp(2000 + k * 100, 100));
+		}
+		let dip = r.dip_ms();
+		assert!((500..900).contains(&dip), "dip {dip} ms, against 600");
+		r.trim_to_ms(100);
+		assert!(r.len_ms() >= 500, "a trim keeps the dip in hand");
+	}
+
+	#[test]
+	fn waiting_for_room_is_no_dip() {
+		let r = std::sync::Arc::new(PcmRing::new(100, 1.0));
+		r.push(&ramp(0, 100));
+		let pusher = {
+			let r = r.clone();
+			std::thread::spawn(move || r.push(&ramp(100, 50)))
+		};
+		std::thread::sleep(Duration::from_millis(500));
+		let mut out = vec![0.0; 200];
+		r.pop_into(&mut out);
+		pusher.join().unwrap();
+		r.push(&ramp(150, 1));
+		assert!(r.dip_ms() < 200, "dip {} ms", r.dip_ms());
+	}
+
+	#[test]
+	fn a_new_connection_keeps_the_dip_not_the_outage() {
+		let r = PcmRing::new(1000, 5.0);
+		r.push(&ramp(0, 1000));
+		std::thread::sleep(Duration::from_millis(300));
+		r.push(&ramp(1000, 1));
+		let dip = r.dip_ms();
+		assert!(dip >= 300, "dip {dip} ms");
+		r.new_connection();
+		std::thread::sleep(Duration::from_millis(600));
+		r.push(&ramp(1001, 10));
+		r.push(&ramp(1011, 10));
+		assert!(r.dip_ms() < 600, "the outage is not the server's pace");
+		assert!(r.dip_ms() >= dip, "the dip stays");
 	}
 
 	#[test]
