@@ -33,8 +33,10 @@ jobs:
       # there: its cache version hashes the absolute target path
       # ("No cache found", full rebuilds every run). target/ points
       # at a fixed folder on the runner instead and builds reuse the
-      # previous run directly. Two jobs on one folder take turns:
-      # cargo locks its target folder.
+      # previous run directly. Cargo's lock covers only the build:
+      # a push run executing its test exes while the release gate
+      # relinks them fails both with LNK1104 (0.2.87, runs 286-289).
+      # So the release gate (dispatch) builds in its own folder.
       # Owner-approved 2026-11-10 (same fix as BlindRSS-Rust df47812).
       # CARGO_TARGET_DIR is the folder's real path: CMake caches
       # absolute paths, and the path through the link changes
@@ -45,8 +47,10 @@ jobs:
       - name: Persistent target folder (Windows host runner)
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          FOLDER: ${{ github.event_name == 'workflow_dispatch' && 'gate' || 'test' }}
         run: |
-          $dir = 'C:/forgejo-runner/cargo-target/blindradio/test'
+          $dir = "C:/forgejo-runner/cargo-target/blindradio/$env:FOLDER"
           New-Item -ItemType Directory -Force $dir | Out-Null
           if (Test-Path target) { cmd /c rmdir /s /q target }
           New-Item -ItemType Junction -Path target -Target $dir | Out-Null
