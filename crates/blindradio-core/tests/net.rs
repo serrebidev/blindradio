@@ -341,6 +341,19 @@ fn resolve_cache_round_trip() {
 }
 
 #[test]
+fn a_dip_is_kept() {
+	let dir = tempfile::tempdir().unwrap();
+	let path = dir.path().join("resolve.json");
+	let mut c = ResolveCache::load(&path);
+	c.put_dip("http://a/x", 8000);
+	c.put_dip("http://a/even", 400);
+	c.save().unwrap();
+	let c = ResolveCache::load(&path);
+	assert_eq!(c.dip("http://a/x"), 8000);
+	assert_eq!(c.dip("http://a/even"), 0, "the cushion covers it");
+}
+
+#[test]
 fn resolve_cache_uses_store() {
 	let dir = tempfile::tempdir().unwrap();
 	let path = dir.path().join("resolve.json");

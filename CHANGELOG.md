@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.87
+
+- Stations whose server falls behind for seconds at a time, such as TopRadio, no longer cut out a few minutes into each listen. BlindRadio now remembers how far each station's server has fallen behind, across tunes and restarts, and holds a quarter more than that before the station sounds. On such a station the start takes a few seconds longer, and then it plays through. Before, every listen started with only the server's first burst in hand, so the first deep slow stretch still ran dry and paused 3 to 10 seconds. What is remembered fades a little after each listen of ten minutes or more that never falls as far behind. Stations that send evenly are not delayed.
+
 ## 0.2.86
 
 - Stations whose server sends audio unevenly no longer cut out over and over. TopRadio is one: the server sends a burst, then runs slower than real time for several seconds, then catches up. You heard a few seconds of music, then hiss, again and again. BlindRadio now learns how far each stream falls behind and keeps that much audio in hand before it plays, refills, or switches to the station, up to the refill limit. Such a station plays through, or pauses once instead of stuttering. Stations that send evenly are not delayed.

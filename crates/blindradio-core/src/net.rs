@@ -448,10 +448,12 @@ pub async fn warm_dns(hosts: Vec<String>) {
 	}
 }
 
-/// Remembers where a station URL ended up after redirects and playlists.
+/// Remembers where a station URL ended up after redirects and playlists, and how far behind
+/// real time its server has fallen (`PcmRing::dip_ms`), kept beside it in `dips.json`.
 pub struct ResolveCache {
 	path: PathBuf,
 	map: HashMap<String, String>,
+	dips: HashMap<String, u32>,
 }
 
 impl ResolveCache {
@@ -459,6 +461,21 @@ impl ResolveCache {
 		ResolveCache {
 			path: path.to_owned(),
 			map: store::load(path),
+			dips: store::load(&path.with_file_name(DIPS_FILE)),
+		}
+	}
+
+	/// What the next ring for `url` starts out knowing of its server's dips.
+	pub fn dip(&self, url: &str) -> u32 {
+		self.dips.get(url).copied().unwrap_or(0)
+	}
+
+	/// Dips the start cushion already covers are not worth a line in the file.
+	pub fn put_dip(&mut self, url: &str, ms: u32) {
+		if ms > crate::ring::CUSHION_MS {
+			self.dips.insert(url.to_owned(), ms);
+		} else {
+			self.dips.remove(url);
 		}
 	}
 
@@ -491,9 +508,12 @@ impl ResolveCache {
 	}
 
 	pub fn save(&self) -> Result<()> {
+		store::save(&self.path.with_file_name(DIPS_FILE), &self.dips)?;
 		store::save(&self.path, &self.map)
 	}
 }
+
+const DIPS_FILE: &str = "dips.json";
 
 /// Fetches the body of `url`, all within 8 s.
 pub async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<bytes::Bytes> {

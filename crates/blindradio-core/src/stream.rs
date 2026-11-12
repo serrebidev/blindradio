@@ -110,6 +110,8 @@ const PLAYING_STALL: Duration = Duration::from_secs(15);
 const RING_SECONDS: f32 = 20.0;
 /// Room kept above a Buffer setting that outgrows `RING_SECONDS`.
 const RING_SPARE_SECONDS: f32 = 5.0;
+/// A stream open this long without falling as far behind as remembered lowers the memory.
+const DIP_FADES_AFTER: Duration = Duration::from_secs(600);
 /// End reason of an HLS playlist that finished (`#EXT-X-ENDLIST`).
 const ENDED: &str = "Ended";
 
@@ -139,10 +141,16 @@ pub struct StationStream {
 	pub station: Station,
 	shared: Arc<Shared>,
 	task: AbortHandle,
+	cache: Arc<Mutex<ResolveCache>>,
+	began: Instant,
 }
 
 impl Drop for StationStream {
 	fn drop(&mut self) {
+		let long = self.began.elapsed() >= DIP_FADES_AFTER;
+		self.cache
+			.lock()
+			.put_dip(&self.station.url, self.ring.dip_to_keep(long));
 		self.shared.alive.store(false, Ordering::Relaxed);
 		// A decode thread waiting on a full ring would otherwise wait forever.
 		self.ring.close();
@@ -178,6 +186,7 @@ pub fn start(
 	let wanted = crate::ring::start_ms().max(crate::ring::refill_limit_ms()) as f32 / 1000.0;
 	let seconds = RING_SECONDS.max(wanted + RING_SPARE_SECONDS);
 	let ring = Arc::new(PcmRing::new(ctx.out_rate, seconds));
+	ring.seed_dip(ctx.cache.lock().dip(&station.url));
 	let shared = Arc::new(Shared {
 		on_event,
 		alive: AtomicBool::new(true),
@@ -200,6 +209,8 @@ pub fn start(
 		station: station.clone(),
 		shared,
 		task,
+		cache: ctx.cache.clone(),
+		began: Instant::now(),
 	}
 }
 

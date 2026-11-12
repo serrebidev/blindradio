@@ -99,7 +99,7 @@ pub struct MixerCore {
 	/// falls up to ~10 s behind, then catches up) stutters against a 1 s cushion; a
 	/// deep refill turns that into long plays between clean gaps. Healthy streams
 	/// never run dry, so they never see this. The ring's measured dip
-	/// (`PcmRing::dip_ms`) sets the refill at once, before the strikes grow it.
+	/// (`PcmRing::hold_ms`) sets the refill at once, before the strikes grow it.
 	refill_limit_ms: u32,
 	/// Output rate, for the healthy-play reset window.
 	rate: u32,
@@ -347,7 +347,7 @@ impl MixerCore {
 			// A server that has dipped below real time gets that much in hand before it
 			// sounds: one clean gap, not a stutter while the strikes catch up.
 			let limit = self.refill_limit_ms.max(self.base_cushion_ms);
-			let cushion = self.cushion_ms.max(ring.dip_ms().min(limit));
+			let cushion = self.cushion_ms.max(ring.hold_ms().min(limit));
 			if self.flow == Flow::Buffering && level > 0 && level >= cushion {
 				self.flow = Flow::Playing;
 				self.sounded = 0;

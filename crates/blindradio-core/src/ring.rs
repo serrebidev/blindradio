@@ -49,6 +49,8 @@ pub struct PcmRing {
 	buf: Mutex<VecDeque<f32>>,
 	closed: AtomicBool,
 	arrival: Mutex<Arrival>,
+	/// The dip an earlier ring for this station learned; see `seed_dip`.
+	seed: AtomicU32,
 }
 
 /// How audio has been arriving, measured at each push.
@@ -81,6 +83,7 @@ impl PcmRing {
 			buf: Mutex::new(VecDeque::with_capacity(capacity)),
 			closed: AtomicBool::new(false),
 			arrival: Mutex::new(Arrival::default()),
+			seed: AtomicU32::new(0),
 		}
 	}
 
@@ -140,9 +143,33 @@ impl PcmRing {
 		};
 	}
 
-	/// The deepest the stream has fallen behind its own best lead, ms; see `Arrival::dip`.
+	/// What an earlier ring for this station learned of its dips, so the first slow stretch
+	/// is not met with only the connect burst in hand.
+	pub fn seed_dip(&self, ms: u32) {
+		self.seed.store(ms, Ordering::Relaxed);
+	}
+
+	/// The deepest the stream has fallen behind its own best lead, ms, or the seed if deeper;
+	/// see `Arrival::dip`.
 	pub fn dip_ms(&self) -> u32 {
-		self.arrival.lock().dip
+		self.arrival.lock().dip.max(self.seed.load(Ordering::Relaxed))
+	}
+
+	/// What to remember of this server's dips. After a `long` listen that never fell as deep as
+	/// the seed, an eighth less: one bad evening fades, a server that keeps dipping measures it
+	/// back. A short visit, warm or played, has not seen enough to lower it.
+	pub fn dip_to_keep(&self, long: bool) -> u32 {
+		let seed = self.seed.load(Ordering::Relaxed);
+		let seed = if long { seed - seed / 8 } else { seed };
+		self.arrival.lock().dip.max(seed)
+	}
+
+	/// Audio to hold before this stream sounds: its dip and a quarter more, as the next slow
+	/// stretch can run a little deeper than any so far. Below the start cushion for a server
+	/// that sends evenly, so it costs those nothing.
+	pub fn hold_ms(&self) -> u32 {
+		let dip = self.dip_ms();
+		dip.saturating_add(dip / 4)
 	}
 
 	/// No one will read this ring again: pushes stop waiting.
@@ -171,10 +198,8 @@ impl PcmRing {
 	/// than that (HLS segments) or has dipped below real time by more: trimming below either
 	/// only buys a gap, and each gap makes the mixer demand a deeper refill.
 	pub fn trim_to_ms(&self, keep_ms: u32) {
-		let keep_ms = {
-			let a = self.arrival.lock();
-			keep_ms.max(a.max_gap).max(a.dip.min(refill_limit_ms()))
-		};
+		let max_gap = self.arrival.lock().max_gap;
+		let keep_ms = keep_ms.max(max_gap).max(self.hold_ms().min(refill_limit_ms()));
 		let keep = (self.rate as u64 * keep_ms as u64 / 1000) as usize * 2;
 		let mut buf = self.buf.lock();
 		let excess = buf.len().saturating_sub(keep);
@@ -262,6 +287,15 @@ mod tests {
 		assert!((500..900).contains(&dip), "dip {dip} ms, against 600");
 		r.trim_to_ms(100);
 		assert!(r.len_ms() >= 500, "a trim keeps the dip in hand");
+	}
+
+	#[test]
+	fn a_seed_fades_only_after_a_long_listen() {
+		let r = PcmRing::new(1000, 5.0);
+		r.seed_dip(8000);
+		assert!(r.hold_ms() >= 8000, "the seed is held from the start");
+		assert_eq!(r.dip_to_keep(false), 8000);
+		assert_eq!(r.dip_to_keep(true), 7000);
 	}
 
 	#[test]
