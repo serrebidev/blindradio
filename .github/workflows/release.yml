@@ -366,9 +366,10 @@ jobs:
           git push origin "$tag"
           api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
           h="Authorization: token $FORGEJO_TOKEN"
-          # Draft first, so the release never shows without its files.
+          # Draft first, so the release never shows without its files. Right after the tag push
+          # the create can fail once (0.2.87 run 287, exit 22): retry it, and say why it failed.
           id="$(jq -n --arg tag "$tag" --arg name "BlindRadio $VERSION" --rawfile body "$RUNNER_TEMP/notes.md"             '{tag_name: $tag, name: $name, body: $body, draft: true}' |
-            curl -sf -H "$h" -H 'Content-Type: application/json' -d @- "$api/releases" | jq -r .id)"
+            curl -sSf --retry 3 --retry-all-errors --retry-delay 5 -H "$h" -H 'Content-Type: application/json' -d @- "$api/releases" | jq -r .id)"
           for file in artifacts/*; do
             name="$(basename "$file")"
             curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
