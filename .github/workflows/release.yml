@@ -206,9 +206,21 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: false
+      # Linux builds run on desknasbox's WSL (runner wsl-linux-x64) in a job
+      # container. The runner mounts persistent volumes at
+      # /root/forgejo-runner/cargo-target and cargo's registry and git
+      # caches, so target/ points at a fixed folder there exactly as on
+      # the host runners, and the job image ships the apt packages and
+      # Rust (owner request 2026-11-11: Linux as fast as the other legs).
+      # CARGO_TARGET_DIR is the real path: CMake caches absolute paths.
+      - name: Persistent target folder (Linux WSL runner)
+        shell: bash
+        run: |
+          dir="$HOME/forgejo-runner/cargo-target/blindradio/linux"
+          mkdir -p "$dir"
+          rm -rf target
+          ln -s "$dir" target
+          echo "CARGO_TARGET_DIR=$dir" >> "$GITHUB_ENV"
 
       - name: Install Linux build dependencies
         run: |
@@ -251,6 +263,12 @@ jobs:
             target/dist/BlindRadio.AppImage.minisig
             target/dist/BlindRadio.tar.gz
             target/dist/BlindRadio.tar.gz.minisig
+
+      # Drop only the link, never the shared folder behind it.
+      - name: Unlink persistent target folder (Linux)
+        if: always()
+        shell: bash
+        run: rm -f target
 
 
   macos:
