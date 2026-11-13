@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.91
+
+- BlindRadio no longer refuses to start when no audio device can open. Before, a machine with its sound device unplugged, disabled, or missing entirely got a "The requested audio device is not available" error box and the app closed before its window ever showed. Now the app opens and runs without sound — browsing, timers and recordings all work — and moves playback to a real device by itself as soon as one can open.
+
 ## 0.2.90
 
 - The Linux AppImage now also bundles the notification library, libnotify. The app links it too, and the AppImage catalog's test machine — which has GTK and SDL but no libnotify — still refused to start the app after the TIFF fix in 0.2.89, with a loader error naming libnotify.so.4. It is bundled now, and the release's own AppImage check verifies it is in the package.

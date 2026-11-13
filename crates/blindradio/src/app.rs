@@ -548,6 +548,10 @@ impl App {
 		// Play/Pause right after start plays the station from last time.
 		self.remembered = self.settings.last_station.clone();
 		self.refresh_dial();
+		// No audio device could open: running silent until one appears.
+		if self.output.borrow().silent() {
+			self.say(&s::device_lost());
+		}
 		// Owner rule: the dial plays on the first run or with Play Last Station at Startup;
 		// otherwise it only takes focus and plays on the first arrow.
 		if !self.land_dial(first_run || self.settings.play_last_at_startup) {

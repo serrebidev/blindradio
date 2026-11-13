@@ -268,7 +268,9 @@ codec and bitrate wins over the directory. Station Info has no key until you giv
 
 Playback, Audio Device lists the default device and every output device, with the active
 one checked. If a device disappears the app says `Device lost. Using default.` and keeps playing
-through the default.
+through the default. If no device can open at all — unplugged, disabled, or a machine with no
+sound hardware — the app still opens and runs without sound, and moves playback to a real
+device by itself as soon as one can open.
 
 ## Equalizer
 

@@ -24,6 +24,8 @@ const CROSSFADE_MS: u64 = 25;
 const TAIL_MS: u64 = 5;
 /// Target stream buffer when the device range allows it.
 const BUFFER_MS: u32 = 10;
+/// Rate of the silent renderer used when no audio device can open.
+const SILENT_RATE: u32 = 48_000;
 /// Peak of the hiss between stations: soft, like a dial between stations. Fixed, so not
 /// scaled by the volume, which jumps to each station's remembered level as it is tuned.
 /// Mute still silences it. Same level the hiss had at the default volume, 0.8.
@@ -724,6 +726,53 @@ fn build_stream(
 		.map_err(out_err)
 }
 
+/// No device at all: renders the mixer on a thread at a real-time pace and throws
+/// the sound away, so the app still runs — browsing, timers, recordings (the mixer
+/// still mixes; only the speakers are missing) — and `poll_devices` moves playback
+/// to a real device the moment one can open. Set the returned flag and the thread
+/// ends within one buffer.
+fn start_silent(
+	state: &Arc<Mutex<Callback>>,
+	cmd_rx: &Receiver<MixerCmd>,
+	rendered_tx: &Sender<(u64, Instant)>,
+) -> (Arc<AtomicBool>, std::thread::JoinHandle<()>) {
+	let stop = Arc::new(AtomicBool::new(false));
+	let (state, cmd_rx, rendered_tx, flag) = (
+		state.clone(),
+		cmd_rx.clone(),
+		rendered_tx.clone(),
+		stop.clone(),
+	);
+	let handle = std::thread::spawn(move || {
+		let frames = (SILENT_RATE * BUFFER_MS / 1000) as usize;
+		let period = Duration::from_millis(BUFFER_MS as u64);
+		let mut next = Instant::now();
+		while !flag.load(Ordering::Relaxed) {
+			{
+				let cb = &mut *state.lock();
+				while let Ok(cmd) = cmd_rx.try_recv() {
+					cb.core.handle(cmd);
+				}
+				cb.scratch.clear();
+				cb.scratch.resize(frames * 2, 0.0);
+				let (core, scratch) = (&mut cb.core, &mut cb.scratch);
+				if let Some(token) = core.render(scratch) {
+					let _ = rendered_tx.try_send((token, Instant::now()));
+				}
+			}
+			next += period;
+			let now = Instant::now();
+			if next > now {
+				std::thread::sleep(next - now);
+			} else {
+				// Fell behind (long lock, loaded machine): restart the pace, no burst.
+				next = now;
+			}
+		}
+	});
+	(stop, handle)
+}
+
 /// Device output stream; built, driven and dropped on the UI thread.
 pub struct Output {
 	pub sample_rate: u32,
@@ -737,10 +786,18 @@ pub struct Output {
 	/// Set by the current stream's error callback.
 	errored: Arc<AtomicBool>,
 	rate_changed: Option<u32>,
-	// Dropping the stream stops playback.
-	stream: cpal::Stream,
+	// Dropping the stream stops playback. None while silent (no device could open).
+	stream: Option<cpal::Stream>,
+	/// The silent renderer, while no device is open.
+	silent: Option<(Arc<AtomicBool>, std::thread::JoinHandle<()>)>,
 	// Not Send: Output stays on the thread that built it, so mixer commands come from one thread in order.
 	_ui_thread: PhantomData<Rc<()>>,
+}
+
+impl Drop for Output {
+	fn drop(&mut self) {
+		self.stop_silent();
+	}
 }
 
 impl Output {
@@ -749,7 +806,9 @@ impl Output {
 	}
 
 	/// A `device` not found, or found but failing to open, plays through the default and stays
-	/// the choice; `poll_devices` moves to it once it opens.
+	/// the choice; `poll_devices` moves to it once it opens. No device at all — unplugged,
+	/// disabled, a machine with no sound hardware — starts silent instead of failing, and
+	/// `poll_devices` moves to a real device the moment one can open.
 	pub fn start(device: Option<&str>) -> Result<Output> {
 		let (cmd_tx, cmd_rx) = unbounded();
 		let (rendered_tx, rendered_rx) = unbounded();
@@ -766,23 +825,61 @@ impl Output {
 			stream.play().map_err(out_err)?;
 			Ok((stream, state, sample_rate, active, errored))
 		};
-		let (stream, state, sample_rate, active, errored) = match launch(device) {
-			Err(_) if device.is_some() => launch(None)?,
-			r => r?,
+		let launched = match launch(device) {
+			Err(_) if device.is_some() => launch(None),
+			r => r,
 		};
-		Ok(Output {
-			sample_rate,
-			cmd_tx,
-			rendered_rx,
-			cmd_rx,
-			rendered_tx,
-			state,
-			devices: Devices::new(device, active.as_deref()),
-			errored,
-			rate_changed: None,
-			stream,
-			_ui_thread: PhantomData,
-		})
+		match launched {
+			Ok((stream, state, sample_rate, active, errored)) => Ok(Output {
+				sample_rate,
+				cmd_tx,
+				rendered_rx,
+				cmd_rx,
+				rendered_tx,
+				state,
+				devices: Devices::new(device, active.as_deref()),
+				errored,
+				rate_changed: None,
+				stream: Some(stream),
+				silent: None,
+				_ui_thread: PhantomData,
+			}),
+			Err(_) => {
+				let state = Arc::new(Mutex::new(Callback {
+					core: MixerCore::new(SILENT_RATE),
+					scratch: Vec::new(),
+				}));
+				let silent = start_silent(&state, &cmd_rx, &rendered_tx);
+				Ok(Output {
+					sample_rate: SILENT_RATE,
+					cmd_tx,
+					rendered_rx,
+					cmd_rx,
+					rendered_tx,
+					state,
+					devices: Devices::new(device, None),
+					// Set, so the first polls try to open a real device.
+					errored: Arc::new(AtomicBool::new(true)),
+					rate_changed: None,
+					stream: None,
+					silent: Some(silent),
+					_ui_thread: PhantomData,
+				})
+			}
+		}
+	}
+
+	/// True while no audio device is open and the silent renderer is running.
+	pub fn silent(&self) -> bool {
+		self.stream.is_none()
+	}
+
+	/// Stops the silent renderer, if running; its thread ends within one buffer.
+	fn stop_silent(&mut self) {
+		if let Some((stop, handle)) = self.silent.take() {
+			stop.store(true, Ordering::Relaxed);
+			let _ = handle.join();
+		}
 	}
 
 	/// Moves playback to `device` (`None` = default) without a restart: same mixer, rings and settings.
@@ -807,7 +904,11 @@ impl Output {
 			&errored,
 		)?;
 		// Old one paused first, so two streams never pull from the mixer at once.
-		let _ = self.stream.pause();
+		// While silent there is no stream: the renderer thread keeps pulling until
+		// stop_silent below; the mixer lock serializes the brief overlap.
+		if let Some(old_stream) = &self.stream {
+			let _ = old_stream.pause();
+		}
 		let old = self.sample_rate;
 		// Retimed before the new stream's first callback, so it never renders at the old rate.
 		if rate != old {
@@ -817,14 +918,17 @@ impl Output {
 			if rate != old {
 				self.state.lock().core.set_rate(old);
 			}
-			let _ = self.stream.play();
+			if let Some(old_stream) = &self.stream {
+				let _ = old_stream.play();
+			}
 			return Err(out_err(e));
 		}
+		self.stop_silent();
 		if rate != old {
 			self.sample_rate = rate;
 			self.rate_changed = Some(rate);
 		}
-		self.stream = stream;
+		self.stream = Some(stream);
 		self.errored = errored;
 		Ok(active)
 	}
