@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 
 use shipfitter::package::{AppImage, TarGz};
 
-/// Runs the app with the bundled libraries first. wxWidgets links libjpeg, which a minimal host
-/// may not have; everything else in `ldd` arrives with GTK.
+/// Runs the app with the bundled image libraries first. GTK and glibc come from the host.
 const APP_RUN: &str = r#"#!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
 LD_LIBRARY_PATH="${HERE}/usr/bin${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
@@ -21,10 +20,25 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 	std::fs::create_dir_all(dist).map_err(|e| format!("{}: {e}", dist.display()))?;
 	let icon = root.join("crates/blindradio/assets/blindradio.png");
 	let desktop = root.join("installer/blindradio.desktop");
-	let jpeg = library("libjpeg.so.8")?;
+	// Ubuntu 22.04's TIFF and its codec dependencies are not present on every GTK host.
+	let libraries = [
+		"libtiff.so.5",
+		"libjpeg.so.8",
+		"libwebp.so.7",
+		"libzstd.so.1",
+		"liblzma.so.5",
+		"libjbig.so.0",
+		"libdeflate.so.0",
+		"libz.so.1",
+	]
+	.map(library)
+	.into_iter()
+	.collect::<Result<Vec<_>, _>>()?;
+	let mut binaries = vec![exe.as_path()];
+	binaries.extend(libraries.iter().map(PathBuf::as_path));
 	let appimage = dist.join("BlindRadio.AppImage");
 	let made = AppImage {
-		binaries: &[&exe, &jpeg],
+		binaries: &binaries,
 		desktop_file: &desktop,
 		icon: &icon,
 		app_run: Some(APP_RUN),
@@ -38,7 +52,8 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 	// tarball over the folder the binary already lives in.
 	let tarball = dist.join("BlindRadio.tar.gz");
 	let mut tar = TarGz::create(&tarball).map_err(|e| format!("tar: {e}"))?;
-	tar.file(&exe, "blindradio").map_err(|e| format!("tar: {e}"))?;
+	tar.file(&exe, "blindradio")
+		.map_err(|e| format!("tar: {e}"))?;
 	tar.file(&root.join("LICENSE"), "LICENSE")
 		.map_err(|e| format!("tar: {e}"))?;
 	tar.file(&root.join("doc/readme.md"), "readme.md")

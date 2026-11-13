@@ -5,6 +5,9 @@ keyboard and every message spoken through your screen reader.
 
 ## Getting started
 
+The Linux AppImage requires glibc 2.35 or newer (Ubuntu 22.04 or equivalent) and GTK 3.
+It includes TIFF, JPEG and their image codec libraries; separate codec packages are not needed.
+
 Start BlindRadio: focus lands on the Stations dial, and the first station plays. With the dial
 empty, focus is on Play.
 
@@ -511,7 +514,13 @@ Announce Connection Status only governs playing, buffering and stopped messages.
 
 ## Updates
 
-Once a day, ten seconds after it starts, BlindRadio asks GitHub whether a newer release is
+Copies through 0.2.79 trust the retired signing key. Their updater may offer a newer release
+but reject its signature because the key differs. Download the current installer or portable
+package from https://git.serrebiradio.com/serrebi/blindradio/releases/latest and install it
+manually once. Keep your existing data folder when replacing a portable copy. Later updates
+verify with the new key automatically.
+
+Once a day, ten seconds after it starts, BlindRadio asks Forgejo whether a newer release is
 published and offers it. Help, Check for Updates asks at once and says when there is nothing new.
 The download is verified before it is used; a portable copy updates itself in place and keeps its
 data folder, and an installed copy runs the new installer. BlindRadio restarts by itself.

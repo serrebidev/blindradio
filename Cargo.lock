@@ -181,7 +181,7 @@ dependencies = [
  "libloading 0.9.0",
  "live-region 0.3.3 (git+https://github.com/trypsynth/live-region)",
  "parking_lot 0.13.0",
- "patois 0.3.2",
+ "patois 0.3.3",
  "patois-build",
  "serde_json",
  "ship-shape",
@@ -775,9 +775,9 @@ checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "errno"
-version = "0.3.14"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
+checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
@@ -2142,12 +2142,12 @@ dependencies = [
 
 [[package]]
 name = "patois"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65bc7431eaf0d46219e3142a741439181c9fb97c85e15e52ff99d66728b50c05"
+checksum = "b72128cb4b0781eb385d0d97364376380f852337833a8db1f4ae054d0026aec4"
 dependencies = [
  "inventory",
- "patois-macros 0.3.2",
+ "patois-macros 0.3.3",
  "sys-locale",
  "wxdragon",
 ]
@@ -2175,9 +2175,9 @@ dependencies = [
 
 [[package]]
 name = "patois-macros"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0908224da8a29773f5d9f668a7fd1f8c8476f208ad845db0aac002e8ba3412e"
+checksum = "76e924bc5d3bff22fe4cccc1a7cbc5d15b1ed73443545cf447b4a1a92abc79ef"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2599,9 +2599,9 @@ dependencies = [
 
 [[package]]
 name = "rubato"
-version = "5.0.1"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc1e951b9f5432ec1422f4dcfa5733fc501265902612edf5ef8bd8ecdd960930"
+checksum = "6b4da228e06632d025557f798114057cf27a4c6a71d40024c84d6db82fa5ef4a"
 dependencies = [
  "audioadapter",
  "audioadapter-buffers",
@@ -2722,9 +2722,9 @@ checksum = "eec689c0bc40ff2458a5977b6619cb718087084a18e02a131c599b62d05e1a5f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.16"
+version = "0.103.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4443b1b6d39d7c663139942cc4558262562d2c84123bb6282ef177009ca8b281"
+checksum = "e3a0760a887c14823fca5a1c970b01d47c328c696c0c64829d1df50e8f853fd5"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -3655,9 +3655,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "ureq"
-version = "3.5.1"
+version = "3.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7be76686bdf7198002062423ca0d8cf9b75a27c8e1de804513b97e97b555d9d"
+checksum = "3ac5cecf619ca81f66a96482db09687c9f7465af65f4300a8c30cca05bd5a59d"
 dependencies = [
  "base64",
  "cookie_store",
@@ -4156,7 +4156,7 @@ checksum = "a7d51e4c928c45bd2ad36f334cd0677d5b06a95ff0099a1f4d4358f2a11859c5"
 dependencies = [
  "key-chord",
  "live-region 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "patois 0.3.2",
+ "patois 0.3.3",
  "windows",
  "wxdragon",
 ]

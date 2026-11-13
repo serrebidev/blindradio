@@ -195,9 +195,9 @@ jobs:
   linux:
     name: Linux assets
     needs: bump
-    # WSL on the Windows build PC (runner wsl-linux-x64), Ubuntu 24.04 job container:
+    # WSL on the Windows build PC (runner wsl-linux-x64), Ubuntu 22.04 job container:
     # the owner's rule is Linux builds in WSL. Runs alongside the Windows and macOS legs.
-    runs-on: wsl-linux
+    runs-on: wsl-linux-22.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
@@ -216,7 +216,7 @@ jobs:
       - name: Persistent target folder (Linux WSL runner)
         shell: bash
         run: |
-          dir="$HOME/forgejo-runner/cargo-target/blindradio/linux"
+          dir="$HOME/forgejo-runner/cargo-target/blindradio/linux-22.04"
           mkdir -p "$dir"
           rm -rf target
           ln -s "$dir" target
@@ -227,7 +227,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build clang libclang-dev \
-            libgtk-3-dev libasound2-dev libssl-dev pkg-config \
+            libgtk-3-dev libasound2-dev libssl-dev libtiff-dev pkg-config \
             curl ca-certificates file xvfb fuse libfuse2 xauth libegl1 libgl1
 
       - name: Build in the runner's Ubuntu container and sign
@@ -238,6 +238,7 @@ jobs:
           set -euo pipefail
           cargo build --locked --release -p blindradio
           cargo xtask dist-linux
+          bash tools/linux/check-appimage.sh target/dist/BlindRadio.AppImage
           cargo xtask sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz
 
       - name: Check the AppImage starts

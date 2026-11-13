@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.89
+
+- The Linux AppImage now bundles TIFF and its image codec libraries, fixing startup on systems without them. Linux builds now target glibc 2.35 (Ubuntu 22.04) instead of glibc 2.39 (Ubuntu 24.04).
+- The guide now explains the one-time manual upgrade required for copies through 0.2.79, whose retired signing key cannot verify current releases.
+
 ## 0.2.88
 
 - New Audio Channels setting: Stereo, Mono, Left Channel Only or Right Channel Only. Mono mixes both channels onto both speakers. Left or Right puts that one channel on both speakers, for feeds that carry two programs side by side. Set it for every station in Settings, Playback, or for one station in Edit Station, where you hear each choice as you pick it. Recordings keep the stream's own channels.
