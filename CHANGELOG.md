@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.92
+
+- Fixed the Linux window opening blank. The menus and status bar showed, but the station list, buttons and volume slider never appeared — on Linux the window never got the resize message that makes it lay out its contents, so every control stayed piled in one corner at its smallest size. The window now lays itself out when it is built. Windows and Mac were not affected.
+
 ## 0.2.91
 
 - BlindRadio no longer refuses to start when no audio device can open. Before, a machine with its sound device unplugged, disabled, or missing entirely got a "The requested audio device is not available" error box and the app closed before its window ever showed. Now the app opens and runs without sound — browsing, timers and recordings all work — and moves playback to a real device by itself as soon as one can open.

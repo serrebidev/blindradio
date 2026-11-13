@@ -119,6 +119,12 @@ pub fn build() -> MainWindow {
 		sizer.add_spacer(strip_pad);
 	}
 	panel.set_sizer(sizer, true);
+	// wxGTK never sends the frame a size event it did not ask for, so without this
+	// the panel keeps its 20x20 default size and every control sits at the corner
+	// unsized: the window opens blank on Linux. Layout by hand: the frame sizes
+	// its one child, then the panel's sizer lays the controls out.
+	frame.layout();
+	panel.layout();
 	MainWindow {
 		frame,
 		stations,
