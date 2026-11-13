@@ -21,6 +21,10 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 	let icon = root.join("crates/blindradio/assets/blindradio.png");
 	let desktop = root.join("installer/blindradio.desktop");
 	// Ubuntu 22.04's TIFF and its codec dependencies are not present on every GTK host.
+	// Neither is libnotify (wx links it for notifications): the AppImage catalog's
+	// test host has the GTK stack and SDL but no libnotify, so the loader refused
+	// to start the 0.2.89 AppImage until it was bundled too. libnotify's own
+	// dependencies are all in the GTK stack every host here already has.
 	let libraries = [
 		"libtiff.so.5",
 		"libjpeg.so.8",
@@ -30,6 +34,7 @@ pub fn dist(root: &Path, dist: &Path) -> Result<(), String> {
 		"libjbig.so.0",
 		"libdeflate.so.0",
 		"libz.so.1",
+		"libnotify.so.4",
 	]
 	.map(library)
 	.into_iter()

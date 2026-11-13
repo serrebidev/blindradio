@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.90
+
+- The Linux AppImage now also bundles the notification library, libnotify. The app links it too, and the AppImage catalog's test machine — which has GTK and SDL but no libnotify — still refused to start the app after the TIFF fix in 0.2.89, with a loader error naming libnotify.so.4. It is bundled now, and the release's own AppImage check verifies it is in the package.
+
 ## 0.2.89
 
 - The Linux AppImage now bundles TIFF and its image codec libraries, fixing startup on systems without them. Linux builds now target glibc 2.35 (Ubuntu 22.04) instead of glibc 2.39 (Ubuntu 24.04).
