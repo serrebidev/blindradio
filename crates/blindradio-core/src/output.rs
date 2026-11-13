@@ -15,7 +15,7 @@ use crate::eq::Eq;
 use crate::record::Recorder;
 use crate::error::CoreError;
 use crate::ring::PcmRing;
-use crate::settings::EqSettings;
+use crate::settings::{ChannelMode, EqSettings};
 use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
 /// Warm-swap crossfade length.
@@ -46,6 +46,8 @@ pub enum MixerCmd {
 	Volume(f32),
 	Mute(bool),
 	Eq(EqSettings),
+	/// Stereo, mono, or one channel on both speakers.
+	Channels(ChannelMode),
 	/// The FM sound: whether the between-stations hiss sounds at all.
 	Hiss(bool),
 	/// Leave the active station for the space between stations: it fades out into soft hiss,
@@ -133,6 +135,21 @@ pub struct MixerCore {
 	shift_paused: bool,
 	/// Recorder slot for the as-heard tap; see RecordSlot.
 	record_slot: Option<Arc<Mutex<Option<Recorder>>>>,
+	/// Channel matrix heard now, `[ll, lr, rl, rr]`: left out = ll*L + lr*R.
+	/// Eases to `matrix_target` over a crossfade, so a mode change never clicks.
+	matrix: [f32; 4],
+	matrix_target: [f32; 4],
+}
+
+const STEREO: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+
+fn matrix(mode: ChannelMode) -> [f32; 4] {
+	match mode {
+		ChannelMode::Stereo => STEREO,
+		ChannelMode::Mono => [0.5; 4],
+		ChannelMode::Left => [1.0, 0.0, 1.0, 0.0],
+		ChannelMode::Right => [0.0, 1.0, 0.0, 1.0],
+	}
 }
 
 impl MixerCore {
@@ -167,6 +184,8 @@ impl MixerCore {
 			shift_cursor: None,
 			shift_paused: false,
 			record_slot: None,
+			matrix: STEREO,
+			matrix_target: STEREO,
 		};
 		m.set_rate(rate);
 		m
@@ -301,6 +320,7 @@ impl MixerCore {
 				self.eq.set(&s);
 				self.eq_settings = s;
 			}
+			MixerCmd::Channels(mode) => self.matrix_target = matrix(mode),
 		}
 	}
 
@@ -415,6 +435,20 @@ impl MixerCore {
 		}
 		let done = self.fade_frames;
 		self.fading.retain(|(_, pos)| *pos < done);
+
+		// Channel mode: station audio only, before the EQ. Stereo at rest is bit-exact.
+		if self.matrix != STEREO || self.matrix_target != STEREO {
+			let step = 1.0 / len;
+			for f in 0..frames {
+				for (m, t) in self.matrix.iter_mut().zip(self.matrix_target) {
+					*m = if (t - *m).abs() <= step { t } else { *m + step.copysign(t - *m) };
+				}
+				let [ll, lr, rl, rr] = self.matrix;
+				let (l, r) = (self.a[2 * f], self.a[2 * f + 1]);
+				self.a[2 * f] = ll * l + lr * r;
+				self.a[2 * f + 1] = rl * l + rr * r;
+			}
+		}
 
 		// Before the hiss: the Loudness leveler would ride it up to near full scale.
 		self.eq.process(&mut self.a);
@@ -885,6 +919,33 @@ mod tests {
 		// The first 25 ms fade in from silence.
 		render_frames(&mut mixer, 25);
 		assert_eq!(render_frames(&mut mixer, 4), [0.25; 8]);
+	}
+
+	#[test]
+	fn channel_modes_put_the_chosen_channel_on_both_speakers() {
+		let ring = Arc::new(PcmRing::new(RATE, 3.0));
+		ring.push(&[0.5, -0.25].repeat(2000));
+		let mut mixer = mixer();
+		mixer.handle(MixerCmd::SetActive {
+			ring: Some(ring),
+			token: 1,
+		});
+		// Past the fade-in.
+		render_frames(&mut mixer, 50);
+		assert_eq!(render_frames(&mut mixer, 2), [0.5, -0.25, 0.5, -0.25]);
+		for (mode, want) in [
+			(ChannelMode::Left, [0.5, 0.5]),
+			(ChannelMode::Right, [-0.25, -0.25]),
+			(ChannelMode::Mono, [0.125, 0.125]),
+			(ChannelMode::Stereo, [0.5, -0.25]),
+		] {
+			mixer.handle(MixerCmd::Channels(mode));
+			// The change eases in over one crossfade, never a jump.
+			let eased = render_frames(&mut mixer, 50);
+			let jump = eased.windows(3).map(|w| (w[2] - w[0]).abs()).fold(0.0, f32::max);
+			assert!(jump < 0.05, "{mode:?} jumped {jump}");
+			assert_eq!(render_frames(&mut mixer, 1), want, "{mode:?}");
+		}
 	}
 
 	#[test]

@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use blindradio_core::history::SessionHistory;
 use blindradio_core::library::{Collection, Folder, Home, Library};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
-use blindradio_core::settings::{EqSettings, Settings};
+use blindradio_core::settings::{ChannelMode, EqSettings, Settings};
 use blindradio_core::sleep::SleepTimer;
 use blindradio_core::sources::{Endpoints, Filters, Sources};
 use blindradio_core::station::Station;
@@ -379,6 +379,7 @@ pub struct App {
 	played_at: Option<usize>,
 	/// What the mixer was last told to play through.
 	heard_eq: EqSettings,
+	heard_channels: ChannelMode,
 	/// The station tree's filter, typed in the filter box; empty shows all.
 	dial_filter: String,
 	/// Playback changed behind a modal: the main tree catches up when it closes.
@@ -502,6 +503,8 @@ impl App {
 			played: Vec::new(),
 			played_at: None,
 			heard_eq,
+			// The mixer starts in stereo.
+			heard_channels: ChannelMode::Stereo,
 			dial_filter: String::new(),
 			reveal_on_close: false,
 			dial: false,
@@ -649,7 +652,7 @@ impl App {
 		self.now_playing(Some(&station.name));
 		self.tuner.focus(stations, index, Instant::now());
 		self.apply_station_volume(station);
-		self.refresh_eq();
+		self.refresh_sound();
 		if self.settings.play_on_move {
 			self.note_played(station);
 		}
@@ -1202,7 +1205,7 @@ impl App {
 			self.win.stations.list.set_focus();
 		}
 		self.apply_station_volume(&station);
-		self.refresh_eq();
+		self.refresh_sound();
 		self.library.add_recent(&station);
 		self.save_library();
 		if self.settings.last_station.as_ref() != Some(&station) {
@@ -1351,16 +1354,33 @@ impl App {
 	/// the playing station has its own.
 	pub fn set_eq(&mut self, eq: EqSettings) {
 		self.settings.eq = eq;
-		self.refresh_eq();
+		self.refresh_sound();
 		self.save_settings();
 	}
 
-	/// The mixer takes what the playing station plays through. Sent only on
-	/// a change: moving along the dial comes here per key.
-	pub fn refresh_eq(&mut self) {
+	/// The mixer takes the EQ and channel mode the playing station plays
+	/// through. Sent only on a change: moving along the dial comes here per key.
+	pub fn refresh_sound(&mut self) {
 		let id = self.tuner.playing().map_or("", |p| p.id.as_str());
 		let eq = crate::dialogs::equalizer::for_station(&self.settings, id);
+		let channels = self.settings.channels_for(id);
 		self.hear_eq(eq);
+		self.hear_channels(channels);
+	}
+
+	fn hear_channels(&mut self, mode: ChannelMode) {
+		if mode != self.heard_channels {
+			self.heard_channels = mode;
+			self.mixer(MixerCmd::Channels(mode));
+		}
+	}
+
+	/// Edit Station's channel choice, heard at once when that station is
+	/// playing; None is the global mode. `refresh_sound` undoes it.
+	pub fn preview_station_channels(&mut self, station_id: &str, own: Option<ChannelMode>) {
+		if self.tuner.playing().is_some_and(|p| p.id == station_id) {
+			self.hear_channels(own.unwrap_or(self.settings.channels));
+		}
 	}
 
 	fn hear_eq(&mut self, eq: EqSettings) {
@@ -1371,7 +1391,7 @@ impl App {
 	}
 
 	/// Edit Station's equalizer choices, heard as they are made when that
-	/// station is the one playing. Nothing is kept: `refresh_eq` undoes it.
+	/// station is the one playing. Nothing is kept: `refresh_sound` undoes it.
 	pub fn preview_station_eq(
 		&mut self,
 		station_id: &str,

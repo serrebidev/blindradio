@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: blindradio 0.2.78\n"
+"Project-Id-Version: blindradio 0.2.87\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 12:32-0700\n"
+"POT-Creation-Date: 2026-11-12 22:01-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -52,6 +52,12 @@ msgid "Removed from favorites"
 msgstr ""
 
 msgid "Sleep timer: stopping"
+msgstr ""
+
+msgid "Playing or recording radio"
+msgstr ""
+
+msgid "Could not prevent automatic sleep: "
 msgstr ""
 
 msgid "Device lost. Using default."
@@ -1036,6 +1042,21 @@ msgid "&Equalizer"
 msgstr ""
 
 msgid "Equalizer Pre&set"
+msgstr ""
+
+msgid "Audio &Channels"
+msgstr ""
+
+msgid "Stereo"
+msgstr ""
+
+msgid "Mono"
+msgstr ""
+
+msgid "Left Channel Only"
+msgstr ""
+
+msgid "Right Channel Only"
 msgstr ""
 
 msgid "Metadata offset, seconds (blank = Default; positive = early, negative = late)"

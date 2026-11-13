@@ -233,7 +233,7 @@ default is Custom Stations, where new stations went before the choice existed.
 The Applications key on a station offers Play, Add to Favorites, Copy Stream URL, Add to
 Collection, Edit Station and, when you have favorites folders, Add to Favorites Folder.
 Edit Station holds the station's name, its info (the text after the name in the lists, which you can change or clear), its stream URL and its own settings — buffer
-minutes, song recognition, scrobbling, equalizer and metadata timing offset for that station alone; there is no separate
+minutes, song recognition, scrobbling, equalizer, audio channels and metadata timing offset for that station alone; there is no separate
 Station Settings dialog anymore.
 Metadata Offset accepts whole seconds from -30 to 30. Leave it blank for Default, which keeps
 the stream's timing. A positive value delays early metadata; a negative value moves late metadata
@@ -301,6 +301,19 @@ go to the ends. Moving a band by hand makes the preset Custom — and Custom rem
 your bands: switch to another preset and back and your tuning is still there.
 To keep a tuning under your own name, type it in the Name box and choose Save Preset;
 it joins the Preset list. Delete Preset removes the saved preset showing in the list.
+
+## Audio channels
+
+Settings, Playback, Audio Channels picks what reaches your speakers: Stereo, the normal
+way; Mono, both channels mixed together on both speakers; Left Channel Only or Right
+Channel Only, that one channel on both speakers, not just panned. Some feeds carry two
+different programs, one on each side; Left or Right picks one of them. Mono helps with one
+ear or one speaker, or a station mixed hard to one side.
+
+A station can have its own: in Edit Station, Audio Channels is Use Global or one of the
+four. If the station is playing you hear each choice at once; OK keeps it and Cancel puts
+back what was there. A change eases in over a moment, so it never clicks. Recordings keep
+the stream's own channels.
 
 ## Collections
 

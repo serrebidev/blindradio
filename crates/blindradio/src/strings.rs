@@ -1105,6 +1105,18 @@ pub fn st_eq() -> String {
 pub fn st_eq_preset() -> String {
 	patois::t("Equalizer Pre&set")
 }
+pub fn channels() -> String {
+	patois::t("Audio &Channels")
+}
+pub fn channel_mode(mode: blindradio_core::settings::ChannelMode) -> String {
+	use blindradio_core::settings::ChannelMode;
+	match mode {
+		ChannelMode::Stereo => patois::t("Stereo"),
+		ChannelMode::Mono => patois::t("Mono"),
+		ChannelMode::Left => patois::t("Left Channel Only"),
+		ChannelMode::Right => patois::t("Right Channel Only"),
+	}
+}
 pub fn st_metadata_offset() -> String {
 	patois::t("Metadata offset, seconds (blank = Default; positive = early, negative = late)")
 }

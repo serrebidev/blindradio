@@ -189,7 +189,7 @@ impl Sink for RecSink {
 			MixerCmd::Mute(m) => RecCmd::Mute(m),
 			MixerCmd::Tune => RecCmd::Tune,
 			MixerCmd::ShiftAttach { .. } => RecCmd::ShiftAttach,
-			MixerCmd::Eq(_) | MixerCmd::Hiss(_) | MixerCmd::Buffers { .. } => return,
+			MixerCmd::Eq(_) | MixerCmd::Channels(_) | MixerCmd::Hiss(_) | MixerCmd::Buffers { .. } => return,
 			MixerCmd::ShiftPause(_)
 			| MixerCmd::ShiftSeek(_)
 			| MixerCmd::ShiftSeekTo(_)

@@ -278,6 +278,22 @@ pub enum StationEq {
 	Saved(String),
 }
 
+/// Which channels reach the speakers. Left and Right put that channel on
+/// both, for feeds carrying two programs side by side.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChannelMode {
+	#[default]
+	Stereo,
+	Mono,
+	Left,
+	Right,
+}
+
+impl ChannelMode {
+	pub const ALL: [ChannelMode; 4] = [ChannelMode::Stereo, ChannelMode::Mono, ChannelMode::Left, ChannelMode::Right];
+}
+
 /// Per-station overrides; a None field inherits the global setting.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -291,6 +307,7 @@ pub struct StationSettings {
 	pub eq: Option<StationEq>,
 	/// Metadata timing correction in seconds; None trusts the stream.
 	pub metadata_offset_seconds: Option<i8>,
+	pub channels: Option<ChannelMode>,
 }
 
 /// Volume ceiling as a fraction: 2.0 is 200%. Past 100% is boost for
@@ -327,6 +344,7 @@ pub struct Settings {
 	pub volume: f32,
 	pub muted: bool,
 	pub eq: EqSettings,
+	pub channels: ChannelMode,
 	/// Action id to chord text; empty means defaults.
 	pub hotkeys: BTreeMap<String, String>,
 	/// In-app shortcut overrides, KeyAction id to chord text; a
@@ -379,6 +397,7 @@ impl Default for Settings {
 			volume: 0.8,
 			muted: false,
 			eq: EqSettings::default(),
+			channels: ChannelMode::Stereo,
 			hotkeys: BTreeMap::new(),
 			keys: BTreeMap::new(),
 			last_station: None,
@@ -459,6 +478,14 @@ impl Settings {
 			}
 		}
 		s
+	}
+
+	/// The station's own channel mode, else the global one.
+	pub fn channels_for(&self, station_id: &str) -> ChannelMode {
+		self.station_overrides
+			.get(station_id)
+			.and_then(|o| o.channels)
+			.unwrap_or(self.channels)
 	}
 
 	/// Metadata timing correction for a station; None means use the stream's timing.
@@ -610,6 +637,7 @@ mod tests {
 				volume: Some(0.4),
 				eq: Some(StationEq::Saved("Quiet".into())),
 				metadata_offset_seconds: Some(18),
+				channels: Some(ChannelMode::Left),
 			},
 		);
 		let json = serde_json::to_string(&s).unwrap();
@@ -618,6 +646,9 @@ mod tests {
 		assert_eq!(back.station_overrides["st:1"].metadata_offset_seconds, Some(18));
 		let old: StationSettings = serde_json::from_str(r#"{"volume":0.5}"#).unwrap();
 		assert_eq!(old.eq, None, "a settings file from before it means global");
+		assert_eq!(old.channels, None);
+		assert_eq!(back.channels_for("st:1"), ChannelMode::Left);
+		assert_eq!(back.channels_for("st:2"), ChannelMode::Stereo);
 		assert_eq!(s.volume_for("st:1"), 0.4);
 		assert_eq!(s.metadata_offset_for("st:1"), Some(18));
 		assert_eq!(s.metadata_offset_for("st:2"), None);

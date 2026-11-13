@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use blindradio_core::library::StationDest;
-use blindradio_core::settings::StationSettings;
+use blindradio_core::settings::{ChannelMode, StationSettings};
 use blindradio_core::station::Station;
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
@@ -278,6 +278,23 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		});
 	}
 	eq_preset.on_selection_changed(move |_| preview());
+	// Use Global, then each mode.
+	let mut channel_items = vec![global.clone()];
+	channel_items.extend(ChannelMode::ALL.map(s::channel_mode));
+	let channel_refs: Vec<&str> = channel_items.iter().map(String::as_str).collect();
+	let channels_at = current
+		.channels
+		.and_then(|m| ChannelMode::ALL.iter().position(|&x| x == m))
+		.map_or(0, |i| i + 1);
+	let channels = choice(&dialog, &sizer, &s::channels(), &channel_refs, channels_at);
+	let own_channels = move |at: Option<u32>| at.and_then(|i| (i as usize).checked_sub(1)).map(|i| ChannelMode::ALL[i]);
+	{
+		let (a, id) = (app.clone(), station.id.clone());
+		channels.on_selection_changed(move |_| {
+			a.borrow_mut()
+				.preview_station_channels(&id, own_channels(channels.get_selection()));
+		});
+	}
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
 		.with_label(&s::ok())
@@ -324,6 +341,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				volume: current.volume,
 				eq: equalizer::station_eq(&eq, eq_mode.get_selection(), eq_preset.get_selection()),
 				metadata_offset_seconds,
+				channels: own_channels(channels.get_selection()),
 			};
 			{
 				let mut app = a.borrow_mut();
@@ -338,7 +356,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 					app.settings.station_overrides.insert(id.clone(), entry);
 				}
 				app.save_settings();
-				app.refresh_eq();
+				app.refresh_sound();
 			}
 			crate::speech::focus_returning();
 			a.borrow_mut().say(&format!("{}{}", s::saved(), typed));
@@ -348,7 +366,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 
 	name.set_focus();
 	let next = crate::dialogs::run(app, dialog, Action::EditStation, name, &token);
-	app.borrow_mut().refresh_eq();
+	app.borrow_mut().refresh_sound();
 	next
 }
 

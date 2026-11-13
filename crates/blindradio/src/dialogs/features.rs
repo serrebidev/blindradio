@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use blindradio_core::settings::{BufferSettings, RecordFormat, RecognitionProvider};
+use blindradio_core::settings::{BufferSettings, ChannelMode, RecordFormat, RecognitionProvider};
 use blindradio_core::sources::{Node, Sources, networks};
 use wx_utils::add_ok_cancel_footer;
 use wxdragon::prelude::*;
@@ -364,6 +364,14 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 	let (panel, sizer) = tab(&notebook, &s::tab_playback());
 	let fm_sound = check(&panel, &sizer, &s::fm_sound(), current.fm_sound);
+	let channel_items = ChannelMode::ALL.map(s::channel_mode);
+	let channels = choice(
+		&panel,
+		&sizer,
+		&s::channels(),
+		&channel_items.each_ref().map(String::as_str),
+		ChannelMode::ALL.iter().position(|&m| m == current.channels).unwrap_or(0),
+	);
 	let buffer_start = slider_field(
 		&panel,
 		&sizer,
@@ -565,6 +573,10 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.play_on_move = play_move.get_value();
 			st.expand_dial_folders = expand_dial.get_value();
 			st.fm_sound = fm_sound.get_value();
+			st.channels = channels
+				.get_selection()
+				.and_then(|i| ChannelMode::ALL.get(i as usize).copied())
+				.unwrap_or_default();
 			st.close_to_tray = tray.get_value();
 			st.maximize_on_start = max_start.get_value();
 			st.buffers = BufferSettings {
@@ -620,6 +632,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			}
 			app.save_settings();
 			app.apply_fm_sound();
+			app.refresh_sound();
 			app.apply_buffers();
 			app.refresh_dial();
 			if recog_no_token {

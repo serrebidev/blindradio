@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.88
+
+- New Audio Channels setting: Stereo, Mono, Left Channel Only or Right Channel Only. Mono mixes both channels onto both speakers. Left or Right puts that one channel on both speakers, for feeds that carry two programs side by side. Set it for every station in Settings, Playback, or for one station in Edit Station, where you hear each choice as you pick it. Recordings keep the stream's own channels.
+
 ## 0.2.87
 
 - Stations whose server falls behind for seconds at a time, such as TopRadio, no longer cut out a few minutes into each listen. BlindRadio now remembers how far each station's server has fallen behind, across tunes and restarts, and holds a quarter more than that before the station sounds. On such a station the start takes a few seconds longer, and then it plays through. Before, every listen started with only the server's first burst in hand, so the first deep slow stretch still ran dry and paused 3 to 10 seconds. What is remembered fades a little after each listen of ten minutes or more that never falls as far behind. Stations that send evenly are not delayed.

@@ -7,7 +7,7 @@ use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
 use blindradio_core::library::{Folder, Library};
-use blindradio_core::settings::{EqPreset, Settings, StationEq};
+use blindradio_core::settings::{ChannelMode, EqPreset, Settings, StationEq};
 use blindradio_core::station::{Source, Station};
 use uiautomation::actions::{ExpandCollapse, SelectionItem};
 use uiautomation::controls::{ListItemControl, TreeItemControl, WindowControl};
@@ -1839,12 +1839,21 @@ fn edit_station_keeps_its_own_equalizer() {
 	assert_eq!(value(&mode), "On");
 	assert!(preset.is_enabled().unwrap(), "On offers the presets");
 	assert_eq!(value(&preset), "Loudness");
+	let channels = control("Audio Channels", ControlType::ComboBox);
+	assert_eq!(value(&channels), "Use Global");
+	for _ in 0..8 {
+		if value(&channels) == "Left Channel Only" {
+			break;
+		}
+		channels.set_focus().unwrap();
+		app.press("{down}");
+	}
+	assert_eq!(value(&channels), "Left Channel Only");
 	app.invoke(&control("OK", ControlType::Button));
 	std::thread::sleep(Duration::from_millis(600));
-	assert_eq!(
-		Settings::load(&app.data).station_overrides["custom:quiet"].eq,
-		Some(StationEq::Preset(EqPreset::Loudness))
-	);
+	let own = &Settings::load(&app.data).station_overrides["custom:quiet"];
+	assert_eq!(own.eq, Some(StationEq::Preset(EqPreset::Loudness)));
+	assert_eq!(own.channels, Some(ChannelMode::Left));
 }
 
 /// Ctrl+V used to ignore the focused row here and land in the main list's root.
