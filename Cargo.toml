@@ -11,4 +11,4 @@ ship-shape = { git = "https://git.serrebiradio.com/serrebi/ship-shape", rev = "c
 [workspace.package]
 edition = "2024"
 license = "MIT"
-version = "0.2.88"
+version = "0.2.89"
