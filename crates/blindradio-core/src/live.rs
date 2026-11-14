@@ -27,7 +27,7 @@ pub(crate) const INSTALLING: &str = "Downloading live stream support";
 const LOOKUP: Duration = Duration::from_secs(30);
 const DOWNLOAD: Duration = Duration::from_secs(600);
 const CHECK_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
-const NOT_LIVE: &str = "Not live";
+pub(crate) const NOT_LIVE: &str = "Not live";
 const NIGHTLY: &str = "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download";
 const DENO_RELEASE: &str = "https://github.com/denoland/deno/releases/latest/download";
 
@@ -121,7 +121,7 @@ fn dir() -> PathBuf {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Site {
+pub(crate) enum Site {
 	YouTube,
 	Twitch,
 }
@@ -135,7 +135,7 @@ impl Site {
 	}
 }
 
-fn site(url: &str) -> Option<Site> {
+pub(crate) fn site(url: &str) -> Option<Site> {
 	let url = Url::parse(url).ok()?;
 	if !matches!(url.scheme(), "http" | "https") || url.path().trim_matches('/').is_empty() {
 		return None;
@@ -164,7 +164,9 @@ pub(crate) struct Live {
 
 /// Whether playing `url` has helpers to download first.
 pub(crate) fn needs_install(url: &str) -> bool {
-	site(url).is_some_and(|s| s.helpers().iter().any(|h| !h.path().exists()))
+	// Android runs no helper programs: `live_direct` asks the services itself.
+	!cfg!(target_os = "android")
+		&& site(url).is_some_and(|s| s.helpers().iter().any(|h| !h.path().exists()))
 }
 
 /// Fetches what `url` needs and is missing.
@@ -183,6 +185,9 @@ pub(crate) async fn install(client: &reqwest::Client, url: &str) -> Result<()> {
 /// The audio's address right now and the channel's name.
 pub(crate) async fn lookup(client: &reqwest::Client, url: &str) -> Result<Live> {
 	let site = site(url).ok_or_else(crate::net::not_a_stream)?;
+	if cfg!(target_os = "android") {
+		return crate::live_direct::lookup(client, url, site).await;
+	}
 	install(client, url).await?;
 	for helper in site.helpers().iter().filter(|h| h.stale()) {
 		let (client, helper) = (client.clone(), *helper);
