@@ -958,6 +958,17 @@ impl Output {
 		let _ = self.cmd_tx.try_send(cmd);
 	}
 
+	/// Stops pulling from the device while nothing plays, so a phone can sleep.
+	/// False when the device refused (Android: a stream still starting); try again later.
+	/// The desktop never pauses: hiss and the next station start without a reopen.
+	pub fn set_paused(&self, paused: bool) -> bool {
+		match &self.stream {
+			Some(stream) if paused => stream.pause().is_ok(),
+			Some(stream) => stream.play().is_ok(),
+			None => true,
+		}
+	}
+
 	pub fn rendered(&self) -> &Receiver<(u64, Instant)> {
 		&self.rendered_rx
 	}

@@ -27,6 +27,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Known shortcut = `ponytail:` comment. List: `git grep 'ponytail:'`.
 
 ## Code map
+- Android app = repo `serrebi/BlindRadio-Android`. Uses `blindradio-core` from this repo's `main` by git, JNI in its `native/`. Core API change = rebuild it there too. `Output::set_paused` exists for it (phone sleeps while stopped); desktop never pauses.
 - `app.rs` = `App`, `run`, `poll`. Children in `app/`: `status`, `dial`, `stations`, `recording`, `global_keys`. Child sees App privates. Child method called elsewhere = `pub(super)`.
 - `dialogs/browse.rs` = model + tests. `dialogs/browse/view.rs` = window.
 - `speech.rs` = message path: NVDA (`nvda.rs`), then JAWS (`jaws.rs`), then UIA live region. JAWS path never run under JAWS: won't launch it beside owner's NVDA.
