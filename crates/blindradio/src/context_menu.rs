@@ -35,6 +35,12 @@ pub enum Item {
 	CopyStation,
 	CutStation,
 	PasteStation,
+	/// The folder clipboard, on folder and list rows (Paste Folder
+	/// Here on station rows too): see `apply_folder`.
+	CopyFolder,
+	CutFolder,
+	PasteFolder,
+	PasteFolderInside,
 	EditStation,
 	StationInfo,
 	Export,
@@ -72,6 +78,12 @@ pub enum Choice {
 	CopyStation,
 	CutStation,
 	PasteStation,
+	/// The folder clipboard, on folder and list rows (Paste Folder
+	/// Here on station rows too): see `apply_folder`.
+	CopyFolder,
+	CutFolder,
+	PasteFolder,
+	PasteFolderInside,
 	EditStation,
 	StationInfo,
 	Export,
@@ -269,6 +281,23 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				menu.append(
 					add(Choice::PasteStation),
 					&s::paste_station_item(),
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::CopyFolder => {
+				menu.append(add(Choice::CopyFolder), &s::copy_folder_item(), "", ItemKind::Normal);
+			}
+			Item::CutFolder => {
+				menu.append(add(Choice::CutFolder), &s::cut_folder_item(), "", ItemKind::Normal);
+			}
+			Item::PasteFolder => {
+				menu.append(add(Choice::PasteFolder), &s::paste_folder_item(), "", ItemKind::Normal);
+			}
+			Item::PasteFolderInside => {
+				menu.append(
+					add(Choice::PasteFolderInside),
+					&s::paste_folder_inside_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -524,8 +553,38 @@ pub fn delete_question(name: &str, count: usize) -> String {
 	}
 }
 
+/// The folder clipboard items a folder or list row offers: Copy, Cut
+/// (`cut`: not Custom Stations itself), and with a folder on the
+/// clipboard, Paste Folder Here and Paste Folder Inside.
+pub fn folder_clip_items(app: &App, cut: bool) -> Vec<Item> {
+	let mut items = vec![Item::CopyFolder];
+	if cut {
+		items.push(Item::CutFolder);
+	}
+	if app.folder_clip.is_some() {
+		items.extend([Item::PasteFolder, Item::PasteFolderInside]);
+	}
+	items
+}
+
+/// Runs a folder clipboard choice; false for any other choice.
+pub fn apply_folder(app: &Rc<RefCell<App>>, choice: &Choice) -> bool {
+	let mut a = app.borrow_mut();
+	match choice {
+		Choice::CopyFolder => a.copy_folder_here(false),
+		Choice::CutFolder => a.copy_folder_here(true),
+		Choice::PasteFolder => a.paste_folder_here(),
+		Choice::PasteFolderInside => a.paste_folder_inside(),
+		_ => return false,
+	}
+	true
+}
+
 /// Runs a station menu choice.
 pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, choice: Choice) {
+	if apply_folder(app, &choice) {
+		return;
+	}
 	let action = match choice {
 		Choice::Play => Action::Play,
 		Choice::Favorite => Action::ToggleFavorite,
@@ -566,6 +625,10 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		// Collection owners handle their own.
 		Choice::Rename
 		| Choice::Delete
+		| Choice::CopyFolder
+		| Choice::CutFolder
+		| Choice::PasteFolder
+		| Choice::PasteFolderInside
 		| Choice::NewFolder
 		| Choice::AddAllTo(_)
 		| Choice::MoveToFolder(_) => return,

@@ -91,6 +91,7 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 					keys(&A::MoveToPlayingStation),
 					A::MoveToPlayingStation,
 				),
+				Item(s::hide_stations(), keys(&A::HideStations), A::HideStations),
 				Separator,
 				Item(s::add_custom(), keys(&A::NewCustomStation), A::NewCustomStation),
 				Item(s::copy_url(), keys(&A::CopyUrl), A::CopyUrl),
@@ -225,17 +226,22 @@ fn fill(ids: &mut MenuIds, entries: &[Entry], settings: &Settings, devices: &[St
 				if *action == Action::ToggleFavorite {
 					ids.favorite = id;
 				}
-				// The song-split recording mode is a check: its state
-				// is the setting, read at build like the devices are.
-				if *action == Action::RecordSongs {
+				// The song-split recording mode and Hide Stations are
+				// checks: their state is the setting, read at build
+				// like the devices are.
+				if matches!(action, Action::RecordSongs | Action::HideStations) {
 					let item = menu.append(
 						id,
 						&menu_label(label, keys),
 						"",
 						ItemKind::Check,
 					);
+					let on = match action {
+						Action::HideStations => settings.hide_stations,
+						_ => settings.recording.split_songs,
+					};
 					if let Some(item) = item
-						&& settings.recording.split_songs
+						&& on
 					{
 						item.check(true);
 					}

@@ -971,11 +971,12 @@ fn main_window_pastes_beside_the_focused_copy() {
 	assert_eq!(names(&saved, 2), ["Paste one", "Paste two"], "into Gamma");
 }
 
-/// Ctrl+C and Ctrl+X on a folder row leave the clipboard alone, whatever was last focused:
-/// they answer that nothing is there, and Paste still does what the last real copy or cut asked.
+/// Ctrl+C and Ctrl+X on a folder row take the folder, with everything in it. A folder cut
+/// out of Custom Stations and pasted on the Custom Stations row becomes a list of its own,
+/// at the top of All Lists. A station copy afterwards still pastes as a station.
 #[test]
 #[ignore = "needs a desktop"]
-fn main_window_copy_and_cut_need_a_station_row() {
+fn main_window_copies_and_cuts_folders_whole() {
 	let folder = |name: &str, stations| Folder {
 		name: name.into(),
 		stations,
@@ -988,22 +989,14 @@ fn main_window_copy_and_cut_need_a_station_row() {
 			vec![station("custom:one", "Row one"), station("custom:two", "Row two")],
 		),
 		folder("Beta", Vec::new()),
-		folder("Gamma", Vec::new()),
 	];
 	let settings = Settings {
-		main_list: Some("custom".into()),
+		main_list: Some("all-playlists".into()),
 		expand_dial_folders: true,
 		play_on_move: false,
 		..Settings::default()
 	};
 	let app = App::with_settings("copy-folder", library, settings);
-	let names = |i: usize| -> Vec<String> {
-		Library::load(&app.data).collections[0].folders[i]
-			.stations
-			.iter()
-			.map(|s| s.name.clone())
-			.collect()
-	};
 	let tree = app.main_tree();
 
 	// On a station Ctrl+D acts; on a folder neither it nor Ctrl+U reaches the last station.
@@ -1024,32 +1017,74 @@ fn main_window_copy_and_cut_need_a_station_row() {
 		"no URL from a folder"
 	);
 
-	// A copy stays a copy: Ctrl+X on a folder must not turn it into a cut.
+	// Cut Alpha, paste on Custom Stations' own row: Alpha is a list beside it.
+	app.select_row(&tree, "Alpha 2");
+	app.press("{ctrl}x");
+	assert!(
+		app.control("Cut Alpha", ControlType::Text, Duration::from_secs(3)).is_some(),
+		"it says so"
+	);
+	app.select_row(&tree, "Custom Stations 2");
+	app.press("{ctrl}v");
+	let saved = Library::load(&app.data);
+	let lists: Vec<&str> = saved.collections.iter().map(|c| c.name.as_str()).collect();
+	assert_eq!(lists, ["Custom Stations", "Alpha"], "a list of its own");
+	let alpha: Vec<&str> = saved.collections[1].stations.iter().map(|s| s.name.as_str()).collect();
+	assert_eq!(alpha, ["Row one", "Row two"], "its stations came along");
+	assert_eq!(saved.collections[0].folders.len(), 1, "gone from Custom Stations");
+
+	// A station copy replaces the folder on the clipboard.
+	let tree = app.main_tree();
 	app.select_row(&tree, "Row one");
 	app.press("{ctrl}c");
 	app.select_row(&tree, "Beta 0");
-	app.press("{ctrl}x");
-	assert!(
-		app.control("Nothing to cut", ControlType::Text, Duration::from_secs(3)).is_some(),
-		"it says so"
-	);
 	app.press("{ctrl}v");
-	assert_eq!(names(1), ["Row one"], "into Beta");
-	assert_eq!(names(0), ["Row one", "Row two"], "still in Alpha: it was a copy");
+	let saved = Library::load(&app.data);
+	assert_eq!(saved.collections[0].folders[0].stations.len(), 1, "into Beta");
+	assert_eq!(saved.collections[1].stations.len(), 2, "still in Alpha: a copy");
+}
 
-	// A cut stays a cut: Ctrl+C on a folder must not turn it into a copy.
+/// Hide Stations: the tree goes, focus waits on Play, the keys still play; it is remembered.
+#[test]
+#[ignore = "needs a desktop"]
+fn hide_stations_keeps_the_keys_and_is_remembered() {
+	let library = Library {
+		favorites: vec![station("custom:one", "One"), station("custom:two", "Two")],
+		..Library::default()
+	};
+	let mut settings = Settings {
+		main_list: Some("favorites".into()),
+		..Settings::default()
+	};
+	settings.keys.insert("hide_stations".into(), "Ctrl+W".into());
+	let app = App::with_settings("hide", library, settings);
+	app.main_tree();
+	app.press("{ctrl}w");
+	let saved = || Settings::load(&app.data).hide_stations;
+	assert!(saved(), "remembered");
+	let play = app
+		.control("Play", ControlType::Button, Duration::from_secs(5))
+		.expect("Play");
+	assert!(play.has_keyboard_focus().unwrap_or(false), "focus waits on Play");
+	let shown = app
+		.automation
+		.create_matcher()
+		.from(app.window.clone())
+		.control_type(ControlType::Tree)
+		.timeout(1000)
+		.find_first()
+		.is_ok_and(|t| {
+			!t.is_offscreen().unwrap_or(false)
+				&& t.get_bounding_rectangle().is_ok_and(|r| r.get_width() > 0)
+		});
+	assert!(!shown, "the tree is hidden");
+	app.press("{alt}2");
+	let last = Settings::load(&app.data).last_station.map(|s| s.name);
+	assert_eq!(last.as_deref(), Some("Two"), "Alt+2 played the second favorite");
+	app.press("{ctrl}w");
+	assert!(!saved(), "shown again");
 	let tree = app.main_tree();
-	app.select_row(&tree, "Row two");
-	app.press("{ctrl}x");
-	app.select_row(&tree, "Gamma 0");
-	app.press("{ctrl}c");
-	assert!(
-		app.control("Nothing to copy", ControlType::Text, Duration::from_secs(3)).is_some(),
-		"it says so"
-	);
-	app.press("{ctrl}v");
-	assert_eq!(names(2), ["Row two"], "into Gamma");
-	assert_eq!(names(0), ["Row one"], "gone from Alpha: it was a cut");
+	assert!(tree.has_keyboard_focus().unwrap_or(false), "focus back on the tree");
 }
 
 /// Answers Yes in the confirmation with this title.

@@ -967,6 +967,30 @@ pub fn pasted() -> String {
 pub fn into() -> String {
 	patois::t(" into ")
 }
+pub fn as_list() -> String {
+	patois::t(" as a list")
+}
+pub fn copy_folder_item() -> String {
+	patois::t("&Copy Folder")
+}
+pub fn cut_folder_item() -> String {
+	patois::t("Cu&t Folder")
+}
+pub fn paste_folder_item() -> String {
+	patois::t("&Paste Folder Here")
+}
+pub fn paste_folder_inside_item() -> String {
+	patois::t("Paste Folder &Inside")
+}
+pub fn hide_stations() -> String {
+	patois::t("&Hide Stations in the Main Window")
+}
+pub fn stations_hidden() -> String {
+	patois::t("Stations hidden")
+}
+pub fn stations_shown() -> String {
+	patois::t("Stations shown")
+}
 pub fn is_already_in() -> String {
 	patois::t(" is already in ")
 }

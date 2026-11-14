@@ -332,6 +332,9 @@ pub struct Settings {
 	/// opens or closes by hand keeps its state across rebuilds, as
 	/// always). BlindRSS has the same choice.
 	pub expand_dial_folders: bool,
+	/// The main window hides the station tree and its filter: playing,
+	/// recording and every key go on as before (Stations menu).
+	pub hide_stations: bool,
 	/// The FM sound: the soft hiss between stations while tuning,
 	/// like a dial crossing the band. On unless turned off.
 	pub fm_sound: bool,
@@ -390,6 +393,7 @@ impl Default for Settings {
 			play_last_at_startup: false,
 			play_on_move: true,
 			expand_dial_folders: true,
+			hide_stations: false,
 			fm_sound: true,
 			close_to_tray: false,
 			maximize_on_start: false,

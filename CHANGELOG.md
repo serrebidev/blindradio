@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.94
+
+- Folders now copy, cut and paste whole, with every subfolder and station inside them, in Browse and in the main window. Ctrl+C or Ctrl+X on a folder row, or Copy Folder and Cut Folder in its context menu, takes it; Ctrl+V or Paste Folder Here puts it on the level of the row you are on. On a collection row, such as Custom Stations, that level is the collections themselves, so the folder becomes a collection of its own. To bring a folder out of Custom Stations to the top of the main window: cut it, press Left to reach Custom Stations, and paste. Paste Folder Inside puts it inside the row's folder instead. A whole collection can be cut into another one, where it becomes a folder. Shift+Up and Shift+Down on a folder already move it with everything inside.
+- New Stations > Hide Stations in the Main Window. It hides the station tree and its Filter box while you listen; every shortcut keeps working, with focus on the Play button. Choose it again to show them. BlindRadio remembers the choice between runs. Give it a key in File > Keyboard Shortcuts if you want one.
+
 ## 0.2.93
 
 - Fixed a startup crash on Linux systems with no CA certificates installed. BlindRadio died before its window opened with "No CA certificates were loaded from the system". The app now carries its own copy of the standard certificate roots alongside the system ones, so it starts and plays on such a system.

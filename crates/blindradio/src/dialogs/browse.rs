@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use blindradio_core::library::{CUSTOM, Folder, Library, StationDest};
+use blindradio_core::library::{CUSTOM, Folder, FolderTarget, Library, StationDest};
 use blindradio_core::sources::{Node, Sort, SortField, Sources};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
@@ -852,6 +852,38 @@ impl BrowseModel {
 		self.key(i).map(|key| (key.to_owned(), Vec::new()))
 	}
 
+	/// A local folder or list row's own place, for Copy and Cut: a folder,
+	/// a collection, or Custom Stations. None for stations, remote rows
+	/// and the Collections header.
+	pub fn own_folder(&self, i: usize) -> Option<StationDest> {
+		if self.station(i).is_some() {
+			return None;
+		}
+		self.paste_home(i)
+			.map(|(id, path)| StationDest::Collection { id, path })
+	}
+
+	/// Where a pasted folder lands from row `i`: on the row's own level.
+	/// A folder's folder lands beside it, a station's in its list. Custom
+	/// Stations, a collection and the Collections header stand at the
+	/// level of lists, so a folder pasted there becomes a collection.
+	pub fn folder_dest(&self, i: usize) -> Option<FolderTarget> {
+		if i == self.collections {
+			return Some(FolderTarget::NewCollection { after: None });
+		}
+		if i == self.custom || self.items[i].parent == Some(self.collections) {
+			return Some(FolderTarget::NewCollection {
+				after: self.key(i).map(str::to_owned),
+			});
+		}
+		if let Some((id, mut path)) = self.local_folder(i) {
+			path.pop();
+			return Some(FolderTarget::Into(StationDest::Collection { id, path }));
+		}
+		let (id, path, _) = self.local_station(i)?;
+		Some(FolderTarget::Into(StationDest::Collection { id, path }))
+	}
+
 	/// The row of a local folder, or of the collection itself for an
 	/// empty path, found by the key its level builder gives it.
 	pub fn local_row(&self, collection: &str, path: &[usize]) -> Option<usize> {
@@ -1541,5 +1573,58 @@ mod tests {
 			Some((CUSTOM.to_string(), Vec::new()))
 		);
 		assert_eq!(m.paste_home(collections), None);
+	}
+
+	#[test]
+	fn browse_folder_paste_lands_on_the_rows_own_level() {
+		let mut lib = Library::default();
+		let p = lib.create_collection("List");
+		{
+			let c = lib.collection_mut(&p).unwrap();
+			let sub = c.add_folder(&[], "Sub").unwrap();
+			c.stations_at_mut(&sub).unwrap().push(st("deep"));
+		}
+		let m = BrowseModel::new(Memory::default(), &lib);
+		let collections = find(&m, None, "collections");
+		let list = find(&m, Some(collections), &p);
+		let sub = find(&m, Some(list), &format!("{p}/f0"));
+		let deep = find(&m, Some(sub), "deep");
+		let custom = find(&m, None, CUSTOM);
+		let into = |path: Vec<usize>| {
+			Some(FolderTarget::Into(StationDest::Collection {
+				id: p.clone(),
+				path,
+			}))
+		};
+		// A folder pastes beside itself, a station into its folder.
+		assert_eq!(m.folder_dest(sub), into(Vec::new()));
+		assert_eq!(m.folder_dest(deep), into(vec![0]));
+		// Lists stand at the level of lists: a folder there becomes one.
+		assert_eq!(
+			m.folder_dest(list),
+			Some(FolderTarget::NewCollection {
+				after: Some(p.clone())
+			})
+		);
+		assert_eq!(
+			m.folder_dest(custom),
+			Some(FolderTarget::NewCollection {
+				after: Some(CUSTOM.into())
+			})
+		);
+		assert_eq!(
+			m.folder_dest(collections),
+			Some(FolderTarget::NewCollection { after: None })
+		);
+		// Copy and Cut take the row's own folder or list.
+		assert_eq!(
+			m.own_folder(sub),
+			Some(StationDest::Collection {
+				id: p.clone(),
+				path: vec![0]
+			})
+		);
+		assert_eq!(m.own_folder(deep), None);
+		assert_eq!(m.own_folder(collections), None);
 	}
 }

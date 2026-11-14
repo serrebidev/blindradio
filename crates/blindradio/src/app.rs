@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use blindradio_core::history::SessionHistory;
-use blindradio_core::library::{Collection, Folder, Home, Library};
+use blindradio_core::library::{Collection, Folder, FolderTarget, Home, Library, StationDest};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
 use blindradio_core::settings::{ChannelMode, EqSettings, Settings};
 use blindradio_core::sleep::SleepTimer;
@@ -318,6 +318,15 @@ pub struct Clip {
 	pub from_path: Vec<usize>,
 }
 
+/// A folder on the clipboard, everything under it included: the copy
+/// taken, and the place it was taken from, so a cut can move it.
+#[derive(Clone)]
+pub struct FolderClip {
+	pub folder: Folder,
+	pub cut: bool,
+	pub from: StationDest,
+}
+
 /// Where Paste puts the clipboard station.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PasteDest {
@@ -370,6 +379,15 @@ pub struct App {
 	/// station, so pasting "into the parent folder" from a folder
 	/// row went to the dial collection's root — or nowhere.
 	pub paste_home: Option<PasteDest>,
+	/// The folder clipboard: Copy/Cut on a folder or list row. One
+	/// clipboard: copying a station empties it, and copying a folder
+	/// empties the station one.
+	pub folder_clip: Option<FolderClip>,
+	/// Browse's focused folder or list row, for Copy and Cut, and
+	/// where a pasted folder lands from its focused row. Cleared with
+	/// `paste_home` when the dialog closes.
+	pub dialog_folder: Option<StationDest>,
+	pub folder_dest: Option<FolderTarget>,
 	/// What Play/Pause plays after a stop.
 	remembered: Option<Station>,
 	/// Stations played this session, oldest first, for Previous/Next
@@ -499,6 +517,9 @@ impl App {
 			selected: None,
 			station_clip: None,
 			paste_home: None,
+			folder_clip: None,
+			dialog_folder: None,
+			folder_dest: None,
 			remembered: None,
 			played: Vec::new(),
 			played_at: None,
@@ -548,6 +569,7 @@ impl App {
 		// Play/Pause right after start plays the station from last time.
 		self.remembered = self.settings.last_station.clone();
 		self.refresh_dial();
+		self.show_stations();
 		// No audio device could open: running silent until one appears.
 		if self.output.borrow().silent() {
 			self.say(&s::device_lost());
@@ -696,6 +718,14 @@ impl App {
 			Action::PreviousStation => self.played_step(-1),
 			Action::NextStation => self.played_step(1),
 			Action::MoveToPlayingStation => self.move_to_playing_station(),
+			Action::HideStations => {
+				self.settings.hide_stations = !self.settings.hide_stations;
+				let hidden = self.settings.hide_stations;
+				self.save_settings();
+				self.refresh_menus();
+				self.show_stations();
+				self.say((if hidden { s::stations_hidden() } else { s::stations_shown() }).as_str());
+			}
 			Action::Record => {
 				if self.tuner.is_recording() {
 					self.finish_recording();
@@ -839,12 +869,13 @@ impl App {
 			Action::CopyUrl => self.copy_url(),
 			Action::CopyStation => match self.focused_station() {
 				Some(st) => self.copy_station(&st, false),
-				None => self.say(&s::nothing_to_copy()),
+				None => self.copy_folder_here(false),
 			},
 			Action::CutStation => match self.focused_station() {
 				Some(st) => self.copy_station(&st, true),
-				None => self.say(&s::nothing_to_cut()),
+				None => self.copy_folder_here(true),
 			},
+			Action::PasteStation if self.folder_clip.is_some() => self.paste_folder_here(),
 			Action::PasteStation => {
 				// Paste lands where the user is standing: the open
 				// dialog's focused row first (Browse states it), then
@@ -886,7 +917,7 @@ impl App {
 		// holds the focus (the tree, the volume slider) is never
 		// taken from.
 		if !self.dialog_open && !self.menu_open && self.win.frame.has_focus() {
-			self.win.stations.list.set_focus();
+			self.focus_home();
 		}
 		let now = Instant::now();
 		let rendered: Vec<_> = self.rendered.try_iter().collect();
@@ -1206,7 +1237,7 @@ impl App {
 				|| self.win.mute.has_focus()
 				|| self.win.favorite.has_focus())
 		{
-			self.win.stations.list.set_focus();
+			self.focus_home();
 		}
 		self.apply_station_volume(&station);
 		self.refresh_sound();

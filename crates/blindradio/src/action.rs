@@ -48,6 +48,8 @@ pub enum Action {
 	/// Forward through them again (Alt+Right).
 	NextStation,
 	MoveToPlayingStation,
+	/// Hide or show the station tree and its filter (Stations menu).
+	HideStations,
 	Mute,
 	VolumeUp,
 	VolumeDown,

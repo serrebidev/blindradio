@@ -22,6 +22,9 @@ const POLL_MS: i32 = 50;
 #[derive(Clone)]
 pub struct MainWindow {
 	pub frame: Frame,
+	/// Holds every control: Hide Stations lays it out again.
+	pub panel: Panel,
+	pub filter_label: StaticText,
 	/// The dial: the SerrebiRadio collection, or the collection last played from.
 	pub stations: DialTree,
 	/// Narrows the tree to matching stations; typing in the tree itself
@@ -127,6 +130,8 @@ pub fn build() -> MainWindow {
 	panel.layout();
 	MainWindow {
 		frame,
+		panel,
+		filter_label,
 		stations,
 		filter,
 		now_playing,
@@ -459,13 +464,10 @@ pub fn bind(app: &Rc<RefCell<App>>) {
 			// A dialog closing lands here too.
 			crate::speech::focus_returning();
 			// Raising the frame during poll can activate it while App is borrowed.
-			let tree = a
-				.try_borrow()
-				.ok()
-				.filter(|a| !a.dialog_open)
-				.map(|a| a.win.stations.list);
-			if let Some(tree) = tree {
-				tree.set_focus();
+			if let Ok(a) = a.try_borrow()
+				&& !a.dialog_open
+			{
+				a.focus_home();
 			}
 		}
 	});

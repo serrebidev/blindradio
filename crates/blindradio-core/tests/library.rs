@@ -664,3 +664,180 @@ fn folder_merge_skips_the_same_stream_from_another_source() {
 	assert_eq!(into.merge(from), 1, "only the new stream arrives");
 	assert_eq!(into.stations.len(), 2);
 }
+
+/// Custom Stations holding "Public Radio" (with a station and a subfolder
+/// "NPR" of its own) and "Music": the user's lists before the move.
+fn public_radio_lib() -> Library {
+	use blindradio_core::library::Folder;
+	let mut lib = Library::default();
+	lib.create_collection("Mine");
+	let custom = lib.collection_mut(CUSTOM).unwrap();
+	custom.folders = vec![
+		Folder {
+			name: "Public Radio".into(),
+			stations: vec![st("wnyc")],
+			folders: vec![Folder {
+				name: "NPR".into(),
+				stations: vec![st("kexp"), st("kqed")],
+				folders: Vec::new(),
+			}],
+		},
+		Folder {
+			name: "Music".into(),
+			stations: vec![st("soma")],
+			folders: Vec::new(),
+		},
+	];
+	lib
+}
+
+#[test]
+fn cut_folder_becomes_its_own_collection_with_everything_under_it() {
+	use blindradio_core::library::{FolderTarget, StationDest};
+	let mut lib = public_radio_lib();
+	let from = StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![0],
+	};
+	let folder = lib.folder_snapshot(&from).unwrap();
+	lib.paste_folder(
+		folder,
+		&from,
+		true,
+		&FolderTarget::NewCollection {
+			after: Some(CUSTOM.into()),
+		},
+	)
+	.unwrap();
+	// Right after Custom Stations, before "Mine".
+	let names: Vec<&str> = lib.collections.iter().map(|c| c.name.as_str()).collect();
+	assert_eq!(names, ["Custom Stations", "Public Radio", "Mine"]);
+	let moved = &lib.collections[1];
+	assert_eq!(ids(&moved.stations), ["wnyc"]);
+	assert_eq!(moved.folders[0].name, "NPR");
+	assert_eq!(ids(&moved.folders[0].stations), ["kexp", "kqed"]);
+	let custom = &lib.collections[0];
+	assert_eq!(custom.folders.len(), 1, "the cut left Custom Stations");
+	assert_eq!(custom.folders[0].name, "Music");
+}
+
+#[test]
+fn copied_folder_stays_and_collection_cut_into_a_folder_becomes_one() {
+	use blindradio_core::library::{FolderTarget, StationDest};
+	let mut lib = public_radio_lib();
+	let from = StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![1],
+	};
+	let music = lib.folder_snapshot(&from).unwrap();
+	let mine = lib.collections[1].id.clone();
+	let into_mine = FolderTarget::Into(StationDest::Collection {
+		id: mine.clone(),
+		path: Vec::new(),
+	});
+	lib.paste_folder(music, &from, false, &into_mine).unwrap();
+	assert_eq!(lib.collections[0].folders.len(), 2, "a copy leaves the original");
+	assert_eq!(lib.collections[1].folders[0].name, "Music");
+	// The whole of Mine cut into Custom Stations' Public Radio folder.
+	let whole = StationDest::Collection {
+		id: mine,
+		path: Vec::new(),
+	};
+	let snapshot = lib.folder_snapshot(&whole).unwrap();
+	let into_public = FolderTarget::Into(StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![0],
+	});
+	lib.paste_folder(snapshot, &whole, true, &into_public).unwrap();
+	assert_eq!(lib.collections.len(), 1, "the collection is gone");
+	let public = &lib.collections[0].folders[0];
+	assert_eq!(public.folders[1].name, "Mine");
+	assert_eq!(public.folders[1].folders[0].name, "Music");
+}
+
+#[test]
+fn folder_paste_refuses_what_would_lose_stations() {
+	use blindradio_core::library::{FolderPasteError as E, FolderTarget, StationDest};
+	let mut lib = public_radio_lib();
+	let public = StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![0],
+	};
+	let folder = lib.folder_snapshot(&public).unwrap();
+	let into = |path: Vec<usize>| {
+		FolderTarget::Into(StationDest::Collection {
+			id: CUSTOM.into(),
+			path,
+		})
+	};
+	let before = lib.clone();
+	assert_eq!(
+		lib.paste_folder(folder.clone(), &public, true, &into(vec![0, 0])),
+		Err(E::IntoItself)
+	);
+	assert_eq!(
+		lib.paste_folder(folder.clone(), &public, true, &into(Vec::new())),
+		Err(E::AlreadyThere),
+		"back into its own list"
+	);
+	assert_eq!(
+		lib.paste_folder(folder.clone(), &public, true, &into(vec![9])),
+		Err(E::Gone)
+	);
+	let custom = StationDest::Collection {
+		id: CUSTOM.into(),
+		path: Vec::new(),
+	};
+	let whole = lib.folder_snapshot(&custom).unwrap();
+	let mine = lib.collections[1].id.clone();
+	let into_mine = FolderTarget::Into(StationDest::Collection {
+		id: mine,
+		path: Vec::new(),
+	});
+	assert_eq!(
+		lib.paste_folder(whole, &custom, true, &into_mine),
+		Err(E::CustomFixed)
+	);
+	// The folder changed since the cut: its place no longer names it.
+	lib.collection_mut(CUSTOM).unwrap().folders[0].stations.clear();
+	let changed = lib.clone();
+	assert_eq!(
+		lib.paste_folder(folder, &public, true, &into(vec![1])),
+		Err(E::Changed)
+	);
+	assert_eq!(lib, changed, "nothing moved");
+	assert_ne!(before, changed);
+}
+
+#[test]
+fn cut_folder_into_a_later_sibling_lands_there() {
+	use blindradio_core::library::{FolderTarget, StationDest, path_after_removal};
+	assert_eq!(path_after_removal(&[2, 1], &[0]), [1, 1]);
+	assert_eq!(path_after_removal(&[0, 1], &[0, 0]), [0, 0]);
+	assert_eq!(path_after_removal(&[0], &[1]), [0]);
+	assert_eq!(path_after_removal(&[], &[1]), Vec::<usize>::new());
+	let mut lib = public_radio_lib();
+	let public = StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![0],
+	};
+	let folder = lib.folder_snapshot(&public).unwrap();
+	// Music is [1] before the cut, [0] after it.
+	let into_music = FolderTarget::Into(StationDest::Collection {
+		id: CUSTOM.into(),
+		path: vec![1],
+	});
+	let landed = lib.paste_folder(folder, &public, true, &into_music).unwrap();
+	assert_eq!(
+		landed,
+		StationDest::Collection {
+			id: CUSTOM.into(),
+			path: vec![0, 0],
+		}
+	);
+	let custom = &lib.collections[0];
+	assert_eq!(custom.folders.len(), 1);
+	assert_eq!(custom.folders[0].name, "Music");
+	assert_eq!(custom.folders[0].folders[0].name, "Public Radio");
+	assert_eq!(custom.folders[0].folders[0].folders[0].name, "NPR");
+}

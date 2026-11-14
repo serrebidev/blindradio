@@ -39,6 +39,13 @@ A station no list holds, such as an opened URL or a search result, plays without
 Focus stays on the row you were on, and until you move, commands such as Add to Favorites act
 on the playing station. Move to Playing Station then says the station is in no list.
 
+Stations > Hide Stations in the Main Window hides the station tree and its Filter box,
+leaving now playing, the playback buttons, Volume and the message line; choose it again
+to bring them back. While they are hidden, focus rests on the Play button and every
+shortcut works as before: Play/Pause, the favorite and Previous or Next Station keys,
+recording, volume, timers and the rest. The choice is remembered when BlindRadio closes.
+It has no shortcut of its own; give it one in File > Keyboard Shortcuts.
+
 ## Searching
 
 Ctrl+F opens Search: Name, Genre, Country and Language. Every box starts on Any. Enter in the
@@ -95,6 +102,22 @@ folder or playlist row, into that row's level; on a station, beside it. Cutting 
 station and pasting it where a copy of it already lives completes the move instead of
 refusing: the source copy goes away and the station stays filed where it already was. The main window's list takes
 the new order immediately, and Browse updates after a paste without reopening it.
+
+Folders copy, cut and paste whole, subfolders and stations with them, in Browse and in
+the main window alike. Ctrl+C or Ctrl+X on a folder row, or Copy Folder and Cut Folder in
+its context menu, puts the folder on the clipboard; a collection's own row copies and
+cuts the same way, and Custom Stations itself only copies. Ctrl+V, or Paste Folder Here,
+puts the folder on the level of the row you stand on: beside a folder row, or in a
+station's own list. On a collection row — Custom Stations, any other collection, or
+Browse's Collections header — that level is the collections themselves, so the folder
+becomes a collection of its own, listed right after that row. To bring a folder out of
+Custom Stations to the top of the main window's All Lists view, cut it, press Left to
+reach Custom Stations, and paste. Paste Folder Inside, on a folder or collection row,
+puts it inside that row instead. A cut folder leaves its old place when it is pasted.
+A folder pasted where one of the same name already is merges into it. A folder cannot be
+pasted inside itself, and a cut folder that changed before the paste asks to be cut again.
+Shift+Up and Shift+Down on a folder row move it with everything inside it.
+
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there, or on a collection itself, removes it too — after
 asking, and naming how many stations go with it; a directory's folders are the directory's

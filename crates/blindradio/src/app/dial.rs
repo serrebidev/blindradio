@@ -3,6 +3,34 @@
 use super::*;
 
 impl App {
+	/// Where the main window's focus belongs: the station tree, or the
+	/// Play button while the tree is hidden (a hidden control cannot
+	/// take the focus, and the poll would keep handing it over).
+	pub fn focus_home(&self) {
+		if self.settings.hide_stations {
+			self.win.play.set_focus();
+		} else {
+			self.win.stations.list.set_focus();
+		}
+	}
+
+	/// Hide Stations: the tree, the filter and their labels hide or show,
+	/// and the rest of the window takes up the room. Every key still
+	/// works: they are the frame's, not the tree's.
+	pub fn show_stations(&mut self) {
+		let show = !self.settings.hide_stations;
+		let w = &self.win;
+		let had_focus = w.stations.list.has_focus() || w.filter.has_focus();
+		w.filter_label.show(show);
+		w.filter.show(show);
+		w.stations.label.show(show);
+		w.stations.list.show(show);
+		w.panel.layout();
+		if had_focus || show {
+			self.focus_home();
+		}
+	}
+
 	/// Refills the main window list; focus stays on the same station, else the same place.
 	pub fn refresh_dial(&mut self) {
 		let (stations, nodes) = dial_tree(
@@ -122,7 +150,7 @@ impl App {
 		if !self.reveal_station(&station) {
 			return self.say(&s::playing_not_listed());
 		}
-		if !self.win.stations.list.has_focus() {
+		if !self.settings.hide_stations && !self.win.stations.list.has_focus() {
 			self.win.stations.list.set_focus();
 		}
 		self.selected = Some(station);
@@ -178,7 +206,7 @@ impl App {
 		if stations.is_empty() {
 			return false;
 		}
-		list.list.set_focus();
+		self.focus_home();
 		if !play {
 			// The row focus landed on raised no selection event: Play/Pause
 			// would answer "Nothing to play" with a station under focus.

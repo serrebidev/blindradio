@@ -1,8 +1,24 @@
 //! Station clipboard and filing: copy, cut, paste, favorites, collections.
 
-use blindradio_core::library::StationDest;
+use blindradio_core::library::{CUSTOM, FolderPasteError, LibraryError, StationDest};
 
 use super::*;
+
+/// A tree row's place as the library names it.
+fn place((id, path): (String, Vec<usize>)) -> StationDest {
+	if id == FAVORITES_LIST {
+		StationDest::Favorites(path)
+	} else {
+		StationDest::Collection { id, path }
+	}
+}
+
+fn paste_place(d: PasteDest) -> StationDest {
+	match d {
+		PasteDest::Collection(id, path) => StationDest::Collection { id, path },
+		PasteDest::Favorites(path) => StationDest::Favorites(path),
+	}
+}
 
 impl App {
 	/// Add to Collection: says which way it went.
@@ -79,8 +95,119 @@ impl App {
 			from_favorites,
 			from_path,
 		});
+		self.folder_clip = None;
 		let prefix = if cut { s::cut_said() } else { s::copied_station() };
 		self.say(&format!("{prefix}{}", station.name));
+	}
+
+	/// The folder or list row Copy and Cut act on: Browse's, else the main tree's.
+	fn focused_folder(&self) -> Option<StationDest> {
+		if self.dialog_open {
+			return self.dialog_folder.clone();
+		}
+		self.win.stations.selected_folder().map(place)
+	}
+
+	/// Where Paste puts a folder from the focused row: on that row's own
+	/// level. A folder row's folder lands beside it, a station row's in its
+	/// list, and a top row of All Lists makes a list of its own beside it.
+	fn folder_target_here(&self) -> Option<FolderTarget> {
+		if self.dialog_open {
+			return self.folder_dest.clone();
+		}
+		if !self.dial_filter.is_empty() {
+			return None;
+		}
+		match self.win.stations.selected_folder() {
+			Some((id, path)) if path.is_empty() => {
+				Some(FolderTarget::NewCollection { after: Some(id) })
+			}
+			Some((id, mut path)) => {
+				path.pop();
+				Some(FolderTarget::Into(place((id, path))))
+			}
+			None => self.tree_home().map(|d| FolderTarget::Into(paste_place(d))),
+		}
+	}
+
+	/// Copy or Cut on a folder or list row: the folder goes onto the
+	/// clipboard with everything under it.
+	pub fn copy_folder_here(&mut self, cut: bool) {
+		let Some(from) = self.focused_folder() else {
+			return self.say(&if cut { s::nothing_to_cut() } else { s::nothing_to_copy() });
+		};
+		if cut
+			&& matches!(&from, StationDest::Collection { id, path } if id == CUSTOM && path.is_empty())
+		{
+			return self.say(&LibraryError::CustomFixed.to_string());
+		}
+		let Some(folder) = self.library.folder_snapshot(&from) else {
+			return self.say(&if cut { s::nothing_to_cut() } else { s::nothing_to_copy() });
+		};
+		let prefix = if cut { s::cut_said() } else { s::copied_station() };
+		self.say(&format!("{prefix}{}", folder.name));
+		self.station_clip = None;
+		self.folder_clip = Some(FolderClip { folder, cut, from });
+	}
+
+	/// Paste of a folder from the focused row (Ctrl+V, the menus' Paste Folder).
+	pub fn paste_folder_here(&mut self) {
+		match self.folder_target_here() {
+			Some(to) => self.paste_folder(to),
+			None => self.say(&s::nowhere_to_paste()),
+		}
+	}
+
+	/// Paste Folder Inside: into the focused folder or list itself.
+	pub fn paste_folder_inside(&mut self) {
+		match self.focused_folder() {
+			Some(at) => self.paste_folder(FolderTarget::Into(at)),
+			None => self.say(&s::nowhere_to_paste()),
+		}
+	}
+
+	/// The clipboard folder lands at `to`; a cut one leaves its old place.
+	pub fn paste_folder(&mut self, to: FolderTarget) {
+		let Some(clip) = self.folder_clip.clone() else {
+			return self.say(&s::nothing_to_paste());
+		};
+		let name = clip.folder.name.clone();
+		let into = match &to {
+			FolderTarget::Into(d) => Some(self.list_name(d)),
+			FolderTarget::NewCollection { .. } => None,
+		};
+		match self.library.paste_folder(clip.folder, &clip.from, clip.cut, &to) {
+			Ok(landed) => {
+				if clip.cut {
+					self.folder_clip = None;
+				}
+				self.say(&match into {
+					Some(into) => format!("{}{name}{}{into}", s::pasted(), s::into()),
+					None => format!("{}{name}{}", s::pasted(), s::as_list()),
+				});
+				self.save_library();
+				let home = match landed {
+					StationDest::Favorites(path) => (FAVORITES_LIST.to_string(), path),
+					StationDest::Collection { id, path } => (id, path),
+				};
+				self.win.stations.land_on_folder(home);
+				self.refresh_dial();
+			}
+			Err(e) => {
+				if e == FolderPasteError::Changed {
+					self.folder_clip = None;
+				}
+				self.say(&e.to_string());
+			}
+		}
+	}
+
+	/// A list's name as Paste says it: the folder's, the collection's, Favorites.
+	fn list_name(&self, d: &StationDest) -> String {
+		match self.library.folder_snapshot(d) {
+			Some(f) => f.name,
+			None => s::favorites_list().to_string(),
+		}
 	}
 
 	/// Put the clipboard station at `dest`. A cut station is taken out

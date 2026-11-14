@@ -413,6 +413,58 @@ pub enum StationDest {
 	Collection { id: String, path: Vec<usize> },
 }
 
+/// Where a pasted folder lands: inside a list (its folders), or as a
+/// collection of its own, after the collection `after` (else last).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FolderTarget {
+	Into(StationDest),
+	NewCollection { after: Option<String> },
+}
+
+/// Why a folder paste did nothing.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum FolderPasteError {
+	#[error("Nowhere to paste here")]
+	Gone,
+	#[error("A folder cannot go inside itself")]
+	IntoItself,
+	#[error("It is already here")]
+	AlreadyThere,
+	#[error("The cut folder changed. Cut it again")]
+	Changed,
+	#[error("Custom Stations is fixed")]
+	CustomFixed,
+}
+
+/// Both places sit in the same folder tree: the favorites, or one collection.
+fn same_tree(a: &StationDest, b: &StationDest) -> bool {
+	match (a, b) {
+		(StationDest::Favorites(_), StationDest::Favorites(_)) => true,
+		(StationDest::Collection { id: a, .. }, StationDest::Collection { id: b, .. }) => a == b,
+		_ => false,
+	}
+}
+
+fn dest_path(d: &StationDest) -> &[usize] {
+	match d {
+		StationDest::Favorites(path) | StationDest::Collection { path, .. } => path,
+	}
+}
+
+/// `path` once the folder at `removed` has left the same tree: a later
+/// sibling on the way down slides up one.
+pub fn path_after_removal(path: &[usize], removed: &[usize]) -> Vec<usize> {
+	let mut path = path.to_vec();
+	if let Some((&last, parent)) = removed.split_last()
+		&& path.len() > parent.len()
+		&& path[..parent.len()] == *parent
+		&& path[parent.len()] > last
+	{
+		path[parent.len()] -= 1;
+	}
+	path
+}
+
 /// Where a held station lives (see `Library::station_home`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Home {
@@ -1029,6 +1081,170 @@ impl Library {
 			}
 		}
 		added
+	}
+
+	/// The folder at `at` as it stands, a whole collection for an empty
+	/// collection path. None for the favorites root, or a wrong place.
+	pub fn folder_snapshot(&self, at: &StationDest) -> Option<Folder> {
+		match at {
+			StationDest::Favorites(path) => self.fav_folder_at(path).cloned(),
+			StationDest::Collection { id, path } => {
+				let c = self.collections.iter().find(|c| c.id == *id)?;
+				if path.is_empty() {
+					return Some(Folder {
+						name: c.name.clone(),
+						stations: c.stations.clone(),
+						folders: c.folders.clone(),
+					});
+				}
+				c.folder_at(path).cloned()
+			}
+		}
+	}
+
+	/// Whether the list at `d` exists: a collection or favorites root, or a folder.
+	fn list_exists(&self, d: &StationDest) -> bool {
+		match d {
+			StationDest::Favorites(path) => self.fav_stations_at(path).is_some(),
+			StationDest::Collection { id, path } => self
+				.collections
+				.iter()
+				.find(|c| c.id == *id)
+				.is_some_and(|c| c.stations_at(path).is_some()),
+		}
+	}
+
+	/// Files `folder` as a collection of its own, placed after the
+	/// collection `after` (else last). A collection of the same name
+	/// (any case) takes it in instead. The collection's id.
+	pub fn add_folder_as_collection(&mut self, folder: Folder, after: Option<&str>) -> String {
+		let lower = folder.name.to_lowercase();
+		if let Some(c) = self
+			.collections
+			.iter_mut()
+			.find(|c| c.name.to_lowercase() == lower)
+		{
+			let mut whole = Folder {
+				name: c.name.clone(),
+				stations: std::mem::take(&mut c.stations),
+				folders: std::mem::take(&mut c.folders),
+			};
+			whole.merge(folder);
+			c.stations = whole.stations;
+			c.folders = whole.folders;
+			return c.id.clone();
+		}
+		let id = format!("col:{}", uuid::Uuid::new_v4());
+		let at = after
+			.and_then(|a| self.collections.iter().position(|c| c.id == a))
+			.map_or(self.collections.len(), |i| i + 1)
+			// Custom Stations stays first.
+			.max(1);
+		self.collections.insert(
+			at.min(self.collections.len()),
+			Collection {
+				id: id.clone(),
+				name: folder.name,
+				stations: folder.stations,
+				folders: folder.folders,
+			},
+		);
+		id
+	}
+
+	/// Pastes the folder copied or cut from `from` at `to`, subfolders and
+	/// stations with it. A copy files the copy taken (`folder`). A cut moves
+	/// the folder: it must still stand at `from` exactly as it was taken,
+	/// since its place is all there is to take it out by. A whole
+	/// collection cut into a list becomes a folder there, and a folder
+	/// pasted as a collection leaves its old list. Folders of the same name
+	/// merge, as filing a folder always does. Where the folder now is.
+	pub fn paste_folder(
+		&mut self,
+		folder: Folder,
+		from: &StationDest,
+		cut: bool,
+		to: &FolderTarget,
+	) -> std::result::Result<StationDest, FolderPasteError> {
+		use FolderPasteError as E;
+		let from_path = dest_path(from);
+		match to {
+			// A collection is a collection already.
+			FolderTarget::NewCollection { .. } if from_path.is_empty() => {
+				return Err(E::AlreadyThere);
+			}
+			FolderTarget::Into(d) if same_tree(from, d) => {
+				let at = dest_path(d);
+				if from_path.split_last().map(|(_, parent)| parent) == Some(at) {
+					return Err(E::AlreadyThere);
+				}
+				if cut && at.starts_with(from_path) {
+					return Err(E::IntoItself);
+				}
+			}
+			_ => {}
+		}
+		if let FolderTarget::Into(d) = to
+			&& !self.list_exists(d)
+		{
+			return Err(E::Gone);
+		}
+		let mut to = to.clone();
+		if cut {
+			if matches!(from, StationDest::Collection { id, path } if id == CUSTOM && path.is_empty()) {
+				return Err(E::CustomFixed);
+			}
+			if self.folder_snapshot(from).as_ref() != Some(&folder) {
+				return Err(E::Changed);
+			}
+			let removed = match from {
+				StationDest::Favorites(path) => self.remove_fav_folder(path),
+				StationDest::Collection { id, path } => self.remove_at(id, path),
+			};
+			if !removed {
+				return Err(E::Gone);
+			}
+			if let FolderTarget::Into(d) = &mut to
+				&& same_tree(from, d)
+			{
+				let moved = path_after_removal(dest_path(d), from_path);
+				match d {
+					StationDest::Favorites(path) | StationDest::Collection { path, .. } => {
+						*path = moved;
+					}
+				}
+			}
+		}
+		match to {
+			FolderTarget::Into(d) => {
+				let lower = folder.name.to_lowercase();
+				self.add_folder_to(&d, folder);
+				// Where it landed: the folder of its name on that level.
+				let list = match &d {
+					StationDest::Favorites(path) => self.fav_folder_list_at_mut(path),
+					StationDest::Collection { id, path } => self
+						.collection_mut(id)
+						.and_then(|c| c.folder_list_at_mut(path)),
+				};
+				let at = list
+					.and_then(|l| l.iter().position(|f| f.name.to_lowercase() == lower))
+					.unwrap_or(0);
+				Ok(match d {
+					StationDest::Favorites(mut path) => {
+						path.push(at);
+						StationDest::Favorites(path)
+					}
+					StationDest::Collection { id, mut path } => {
+						path.push(at);
+						StationDest::Collection { id, path }
+					}
+				})
+			}
+			FolderTarget::NewCollection { after } => Ok(StationDest::Collection {
+				id: self.add_folder_as_collection(folder, after.as_deref()),
+				path: Vec::new(),
+			}),
+		}
 	}
 
 	pub fn collections_containing(&self, station_id: &str) -> Vec<String> {

@@ -133,6 +133,14 @@ impl DialTree {
 		self.row(&item)
 	}
 
+	/// The selected folder or collection row's own place.
+	pub fn selected_folder(&self) -> Option<FolderHome> {
+		match self.selected_row()? {
+			Row::Folder { home, .. } => Some(home),
+			Row::Station(_) => None,
+		}
+	}
+
 	/// Whether a folder or collection row is selected.
 	pub fn on_folder(&self) -> bool {
 		matches!(self.selected_row(), Some(Row::Folder { .. }))
@@ -531,16 +539,16 @@ impl DialTree {
 				// A folder row is the user's own, as in Browse: it pastes,
 				// renames, deletes and exports.
 				if let Some(Row::Folder { home, .. }) = me.selected_row() {
-					let (data, has_clip) = {
+					let (data, has_clip, mut items) = {
 						let held = a.borrow();
 						(
 							folder_export(&held.library, &home),
 							held.station_clip.is_some(),
+							context_menu::folder_clip_items(&held, !is_custom_root(&home)),
 						)
 					};
 					match data {
 						Some((name, stations, folders)) => {
-							let mut items = Vec::new();
 							// Paste lands at this row's own level: on a
 							// collection row, beside its folders.
 							if has_clip {
@@ -554,6 +562,7 @@ impl DialTree {
 							}
 							items.push(context_menu::Item::Export);
 							match context_menu::popup(&me.list, &items) {
+								Some(choice) if context_menu::apply_folder(&a, &choice) => {}
 								Some(context_menu::Choice::Export) => {
 									context_menu::export_playlist(
 										&a, &me.list, &name, &stations, &folders,
@@ -604,6 +613,12 @@ impl DialTree {
 					&& !in_custom
 				{
 					items.push(context_menu::Item::Delete);
+				}
+				// A folder on the clipboard lands on this station's level.
+				if let Ok(items) = &mut items
+					&& a.borrow().folder_clip.is_some()
+				{
+					items.push(context_menu::Item::PasteFolder);
 				}
 				match (items, focused) {
 					(Ok(items), Some((i, st))) => match context_menu::popup(&me.list, &items) {

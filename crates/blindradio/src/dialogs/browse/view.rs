@@ -184,9 +184,8 @@ impl View {
 		};
 		// Paste follows the row the user is standing on, folder and
 		// playlist rows included, not only stations.
-		let home = self.model.borrow().paste_home(i);
 		let mut a = app.borrow_mut();
-		a.paste_home = home.map(|(id, path)| crate::app::PasteDest::Collection(id, path));
+		self.state_homes(&mut a, Some(i));
 		match dial {
 			Some((stations, k)) => a.focus_station(&stations, k),
 			None => a.selected = None,
@@ -459,12 +458,20 @@ impl View {
 		// A reorder rebuilt its level closed: the rows under it came back after.
 		self.expand_open(None);
 		self.show_focus();
+		let focus = self.model.borrow().focus();
+		a.selected = focus.and_then(|f| self.model.borrow().station(f).cloned());
+		self.state_homes(a, focus);
+	}
+
+	/// What the focused row tells the app: where a station pastes, and
+	/// the folder Copy and Cut take and where a pasted folder lands.
+	fn state_homes(&self, a: &mut App, i: Option<usize>) {
 		let m = self.model.borrow();
-		a.selected = m.focus().and_then(|f| m.station(f)).cloned();
-		a.paste_home = m
-			.focus()
+		a.paste_home = i
 			.and_then(|f| m.paste_home(f))
 			.map(|(id, path)| crate::app::PasteDest::Collection(id, path));
+		a.dialog_folder = i.and_then(|f| m.own_folder(f));
+		a.folder_dest = i.and_then(|f| m.folder_dest(f));
 	}
 
 	/// Files a directory's folder: its whole subtree from the source, as one folder with its
@@ -520,6 +527,7 @@ impl View {
 		let Some(f) = self.model.borrow().focus() else {
 			return;
 		};
+		let extra;
 		let (mut items, station, collection, local_folder, new_folder_in, has_clip, paste_dest) = {
 			let m = self.model.borrow();
 			let a = app.borrow();
@@ -538,6 +546,19 @@ impl View {
 			let has_clip = a.station_clip.is_some();
 			// Where Paste would land for this row: the model's word.
 			let paste_dest = m.paste_home(f);
+			// The folder clipboard: a folder or list row copies and cuts
+			// (Custom Stations itself only copies); a folder on the
+			// clipboard pastes on any row with a level of its own.
+			extra = match m.own_folder(f) {
+				Some(own) => context_menu::folder_clip_items(
+					&a,
+					!matches!(&own, StationDest::Collection { id, path } if id == CUSTOM && path.is_empty()),
+				),
+				None if a.folder_clip.is_some() && m.folder_dest(f).is_some() => {
+					vec![context_menu::Item::PasteFolder]
+				}
+				None => Vec::new(),
+			};
 			(
 				context_menu::items_for(&m.target(f), &a.library, has_clip),
 				m.station(f).cloned(),
@@ -556,7 +577,10 @@ impl View {
 			items.push(context_menu::Item::Delete);
 		}
 		let items = match items {
-			Ok(items) => items,
+			Ok(mut items) => {
+				items.extend(extra);
+				items
+			}
 			Err(text) => {
 				// A folder inside a playlist is the user's own: it
 				// renames, and everything under it exports. Any other
@@ -572,6 +596,7 @@ impl View {
 						context_menu::Item::Delete,
 						context_menu::Item::Export,
 					]);
+					items.extend(extra);
 					items
 				} else {
 					let m = self.model.borrow();
@@ -585,6 +610,7 @@ impl View {
 					if loaded {
 						items.push(context_menu::Item::Export);
 					}
+					items.extend(extra);
 					if items.is_empty() {
 						return app.borrow_mut().say(&text);
 					}
@@ -595,6 +621,9 @@ impl View {
 		let Some(choice) = context_menu::popup(&self.tree, &items) else {
 			return;
 		};
+		if context_menu::apply_folder(app, &choice) {
+			return self.refresh_local(app);
+		}
 		let deleted = station.is_some() && choice == Choice::DeleteCustom;
 		match (station, collection, choice) {
 			(Some(_), _, Choice::Delete) => self.delete(app, f),

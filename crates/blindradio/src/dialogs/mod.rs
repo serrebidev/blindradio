@@ -187,7 +187,14 @@ pub fn run_with_refresh(
 		let mut a = app.borrow_mut();
 		let outer = a
 			.dialog_open
-			.then(|| (a.selected.clone(), a.paste_home.clone()));
+			.then(|| {
+				(
+					a.selected.clone(),
+					a.paste_home.clone(),
+					a.dialog_folder.clone(),
+					a.folder_dest.clone(),
+				)
+			});
 		a.dialog_open = true;
 		outer
 	};
@@ -195,9 +202,11 @@ pub fn run_with_refresh(
 	token.close();
 	{
 		let mut a = app.borrow_mut();
-		if let Some((selected, home)) = outer {
+		if let Some((selected, home, folder, dest)) = outer {
 			a.selected = selected;
 			a.paste_home = home;
+			a.dialog_folder = folder;
+			a.folder_dest = dest;
 		} else {
 			a.dialog_open = false;
 			a.selected = a
@@ -208,6 +217,8 @@ pub fn run_with_refresh(
 			a.reveal_after_dialog();
 			// A paste home belongs to the dialog that stated it.
 			a.paste_home = None;
+			a.dialog_folder = None;
+			a.folder_dest = None;
 			a.tuner.list_closed();
 		}
 	}

@@ -37,6 +37,7 @@ pub enum KeyAction {
 	PreviousStation,
 	NextStation,
 	MoveToPlayingStation,
+	HideStations,
 	Record,
 	RecordPause,
 	RecordSongs,
@@ -121,7 +122,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 85] = [
+	pub const ALL: [KeyAction; 86] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -129,6 +130,7 @@ impl KeyAction {
 		K::PreviousStation,
 		K::NextStation,
 		K::MoveToPlayingStation,
+		K::HideStations,
 		K::Record,
 		K::RecordPause,
 		K::RecordSongs,
@@ -228,6 +230,7 @@ impl KeyAction {
 			| K::OpenRecent
 			| K::OpenCollections
 			| K::MoveToPlayingStation
+			| K::HideStations
 			| K::NewCustomStation
 			| K::CopyUrl
 			| K::CopyStation
@@ -276,6 +279,7 @@ impl KeyAction {
 			K::Stop => "stop",
 			K::PreviousStation => "previous_station",
 			K::MoveToPlayingStation => "move_to_playing_station",
+			K::HideStations => "hide_stations",
 			K::NextStation => "next_station",
 			K::Record => "record",
 			K::RecordPause => "record_pause",
@@ -370,6 +374,7 @@ impl KeyAction {
 			K::Stop => plain(&s::stop_menu()),
 			K::PreviousStation => plain(&s::previous_station()),
 			K::MoveToPlayingStation => plain(&s::move_to_playing_station()),
+			K::HideStations => plain(&s::hide_stations()),
 			K::NextStation => plain(&s::next_station()),
 			K::Record => plain(&s::record()),
 			K::RecordPause => plain(&s::record_pause()),
@@ -530,6 +535,7 @@ impl KeyAction {
 			K::Stop => Action::Stop,
 			K::PreviousStation => Action::PreviousStation,
 			K::MoveToPlayingStation => Action::MoveToPlayingStation,
+			K::HideStations => Action::HideStations,
 			K::NextStation => Action::NextStation,
 			K::Record => Action::Record,
 			K::RecordPause => Action::RecordPause,
@@ -612,6 +618,7 @@ impl KeyAction {
 			K::PreviousStation
 			| K::NextStation
 			| K::MoveToPlayingStation
+			| K::HideStations
 			| K::AddToCollection
 			| K::FocusVolume
 			| K::Import
@@ -674,6 +681,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::Stop => K::Stop,
 		Action::PreviousStation => K::PreviousStation,
 		Action::MoveToPlayingStation => K::MoveToPlayingStation,
+		Action::HideStations => K::HideStations,
 		Action::NextStation => K::NextStation,
 		Action::Record => K::Record,
 		Action::RecordPause => K::RecordPause,
@@ -935,6 +943,7 @@ mod tests {
 	fn new_menu_actions_can_be_bound_without_stealing_default_keys() {
 		for action in [
 			K::MoveToPlayingStation,
+			K::HideStations,
 			K::ExportCurrentList,
 			K::ExportAllPlaylists,
 			K::ExportFavorites,
