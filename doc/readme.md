@@ -121,7 +121,8 @@ Shift+Up and Shift+Down on a folder row move it with everything inside it.
 Delete on a station in Collections or Custom Stations removes it from that
 collection. Delete on a folder there, or on a collection itself, removes it too — after
 asking, and naming how many stations go with it; a directory's folders are the directory's
-own and cannot be deleted. A folder in Collections or Custom Stations also
+own and cannot be deleted. Custom Stations deletes the same way, empty or not, and comes
+back by itself the next time you add a custom station or import a playlist into it. A folder in Collections or Custom Stations also
 renames and deletes from its context menu (Rename, Delete), at any depth; a remote directory's
 folders are the directory's own and cannot be renamed. New Folder, on a
 collection's name or inside one of its folders, creates a folder there — the
@@ -509,7 +510,8 @@ way lists usually work. Shift+Up and Shift+Down move the focused station, folder
 All Playlists, collection, as they do in Browse (Alt+Up and Alt+Down work too); not while
 the Filter box has text in it. Delete on a station takes the copy you are on out of that
 list, after asking. Delete on a folder or collection removes it after asking, naming how many stations go with it, and
-Rename and Delete are on its context menu. Custom Stations itself stays. A station in
+Rename and Delete are on its context menu. Custom Stations deletes too, but cannot be
+renamed; adding a custom station brings it back. A station in
 one of your playlists, your favorites, or Custom Stations can be renamed and re-pointed:
 Edit Station on its context menu edits its name, info and stream URL everywhere it appears.
 Collections themselves are renamed in the Collections window (Rename button, or Rename on

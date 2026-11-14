@@ -161,13 +161,13 @@ pub fn items_for(
 			items.extend([Item::Rename, Item::Delete, Item::Export]);
 			Ok(items)
 		}
-		// Custom Stations cannot be renamed or deleted, but it exports.
+		// Custom Stations cannot be renamed, but it deletes and exports.
 		Target::Collection { custom: true } => {
 			let mut items = vec![Item::NewFolder];
 			if has_clip {
 				items.push(Item::PasteStation);
 			}
-			items.push(Item::Export);
+			items.extend([Item::Delete, Item::Export]);
 			Ok(items)
 		}
 		Target::Other => Err(s::nothing_to_do()),
@@ -774,7 +774,7 @@ mod tests {
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: true }, &lib, false),
-			Ok(vec![Item::NewFolder, Item::Export])
+			Ok(vec![Item::NewFolder, Item::Delete, Item::Export])
 		);
 		// A station on the clipboard can be pasted at a collection's
 		// own level, not only beside another station.
@@ -790,7 +790,7 @@ mod tests {
 		);
 		assert_eq!(
 			items_for(&Target::Collection { custom: true }, &lib, true),
-			Ok(vec![Item::NewFolder, Item::PasteStation, Item::Export])
+			Ok(vec![Item::NewFolder, Item::PasteStation, Item::Delete, Item::Export])
 		);
 		assert_eq!(
 			items_for(&Target::Other, &lib, false),

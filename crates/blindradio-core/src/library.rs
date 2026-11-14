@@ -518,7 +518,10 @@ fn step<T>(list: &mut [T], index: usize, up: bool) -> usize {
 impl Library {
 	pub fn load(dir: &Path) -> Library {
 		let mut lib: Library = store::load(&dir.join(store::LIBRARY_FILE));
-		lib.ensure_custom();
+		// Deleted by the user, it stays gone until a custom station is added again.
+		if lib.has_custom() {
+			lib.ensure_custom();
+		}
 		lib
 	}
 
@@ -526,7 +529,17 @@ impl Library {
 		store::save(&dir.join(store::LIBRARY_FILE), self)
 	}
 
-	/// Custom Stations is always present and first.
+	/// Whether Custom Stations is there: the user may delete it.
+	pub fn has_custom(&self) -> bool {
+		self.collections.iter().any(|c| c.id == CUSTOM)
+	}
+
+	/// Where other collections start: after Custom Stations, which stays first.
+	fn first_movable(&self) -> usize {
+		usize::from(self.collections.first().is_some_and(|c| c.id == CUSTOM))
+	}
+
+	/// Custom Stations present and first: made again when something goes into it.
 	pub(crate) fn ensure_custom(&mut self) {
 		match self.collections.iter().position(|c| c.id == CUSTOM) {
 			Some(0) => {}
@@ -960,10 +973,8 @@ impl Library {
 		Ok(())
 	}
 
+	/// Custom Stations too: it comes back when a custom station is added.
 	pub fn delete_collection(&mut self, id: &str) -> std::result::Result<(), LibraryError> {
-		if id == CUSTOM {
-			return Err(LibraryError::CustomFixed);
-		}
 		let before = self.collections.len();
 		self.collections.retain(|c| c.id != id);
 		if self.collections.len() == before {
@@ -1028,8 +1039,9 @@ impl Library {
 		if id == CUSTOM {
 			return false;
 		}
+		let first = self.first_movable();
 		match self.collections.iter().position(|c| c.id == id) {
-			Some(i) => step(&mut self.collections[1..], i - 1, up) != i - 1,
+			Some(i) => step(&mut self.collections[first..], i - first, up) != i - first,
 			None => false,
 		}
 	}
@@ -1045,7 +1057,7 @@ impl Library {
 	}
 
 	/// Removes the folder at `path` of a collection, or the collection itself
-	/// for an empty path. False for Custom Stations itself, or a wrong place.
+	/// for an empty path. False for a wrong place.
 	pub fn remove_at(&mut self, id: &str, path: &[usize]) -> bool {
 		if path.is_empty() {
 			return self.delete_collection(id).is_ok();
@@ -1139,7 +1151,7 @@ impl Library {
 			.and_then(|a| self.collections.iter().position(|c| c.id == a))
 			.map_or(self.collections.len(), |i| i + 1)
 			// Custom Stations stays first.
-			.max(1);
+			.max(self.first_movable());
 		self.collections.insert(
 			at.min(self.collections.len()),
 			Collection {

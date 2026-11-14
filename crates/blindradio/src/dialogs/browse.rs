@@ -648,8 +648,23 @@ impl BrowseModel {
 			kids.push(i);
 		}
 		self.set_children(self.collections, kids);
-		if let Some(c) = lib.collections.iter().find(|c| c.id == CUSTOM) {
-			self.set_contents(self.custom, &c.stations, &c.folders, &c.id);
+		// Custom Stations can be deleted: its root row goes, and comes back with it.
+		let shown = self.roots.contains(&self.custom);
+		match lib.collections.iter().find(|c| c.id == CUSTOM) {
+			Some(c) => {
+				if let Kind::Folder { name, .. } = &mut self.items[self.custom].kind {
+					name.clone_from(&c.name);
+				}
+				self.set_contents(self.custom, &c.stations, &c.folders, &c.id);
+				if !shown {
+					let at = self.roots.iter().position(|&r| r == self.collections);
+					self.roots.insert(at.map_or(self.roots.len(), |i| i + 1), self.custom);
+					let mut roots = std::mem::take(&mut self.roots);
+					self.apply_order(None, &mut roots);
+					self.roots = roots;
+				}
+			}
+			None => self.roots.retain(|&r| r != self.custom),
 		}
 		self.refocus(&chain);
 	}
@@ -719,6 +734,10 @@ impl BrowseModel {
 				self.focus = Some(level.get(pos).or(level.last()).copied().unwrap_or(i));
 			}
 			return;
+		}
+		// A root went (Custom Stations deleted): the root now in its place.
+		if let Some(&(_, pos)) = chain.last() {
+			self.focus = self.roots.get(pos).or(self.roots.last()).copied();
 		}
 	}
 
@@ -904,6 +923,12 @@ impl BrowseModel {
 		// could never be removed here (Brandon's report).
 		if let Some((collection, path)) = self.local_folder(i) {
 			return Delete::RemoveFolder { collection, path };
+		}
+		if i == self.custom {
+			return Delete::RemoveFolder {
+				collection: CUSTOM.into(),
+				path: Vec::new(),
+			};
 		}
 		// So is a collection: the Delete key answered "only your own
 		// stations" where its context menu's Delete worked.
@@ -1337,8 +1362,33 @@ mod tests {
 			},
 			"the Delete key on a collection, like its menu's Delete"
 		);
-		assert_eq!(m.delete_target(custom), Delete::NotOwn, "Custom Stations is fixed");
+		assert_eq!(
+			m.delete_target(custom),
+			Delete::RemoveFolder {
+				collection: CUSTOM.into(),
+				path: Vec::new()
+			},
+			"Custom Stations deletes too"
+		);
 		assert_eq!(m.delete_target(collections), Delete::NotOwn, "the header");
+	}
+
+	#[test]
+	fn browse_custom_root_goes_and_comes_back_with_the_library() {
+		let mut lib = Library::default();
+		let mut m = BrowseModel::new(Memory::default(), &lib);
+		let custom = find(&m, None, CUSTOM);
+		m.focus = Some(custom);
+		lib.delete_collection(CUSTOM).unwrap();
+		m.refresh_local(&lib);
+		assert!(!m.children(None).contains(&custom), "row gone");
+		assert!(m.focus.is_some_and(|f| m.children(None).contains(&f)), "focus on a root left");
+		lib.add_custom("Mine", "http://m");
+		m.refresh_local(&lib);
+		let roots = m.children(None);
+		let at = roots.iter().position(|&r| r == custom).expect("row back");
+		assert_eq!(roots[at - 1], m.collections, "after Collections");
+		assert_eq!(m.label(custom), "Custom Stations");
 	}
 
 	#[test]

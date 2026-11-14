@@ -117,7 +117,6 @@ fn custom_collection_rules() {
 		l.rename_collection(CUSTOM, "x"),
 		Err(LibraryError::CustomFixed)
 	);
-	assert_eq!(l.delete_collection(CUSTOM), Err(LibraryError::CustomFixed));
 	let a = l.create_collection("A");
 	let b = l.create_collection("B");
 	l.move_collection(CUSTOM, false);
@@ -163,7 +162,26 @@ fn places_name_a_folder_or_the_collection_itself() {
 	assert!(!l.remove_at(&b, &[5]), "no such folder");
 	assert!(l.remove_at(&b, &[]));
 	assert!(!l.collections.iter().any(|c| c.id == b));
-	assert!(!l.remove_at(CUSTOM, &[]), "Custom Stations is fixed");
+}
+
+#[test]
+fn custom_stations_deletes_and_comes_back_when_used() {
+	let dir = tempfile::tempdir().unwrap();
+	let mut l = Library::default();
+	let a = l.create_collection("A");
+	let b = l.create_collection("B");
+	l.add_custom("Mine", "http://m");
+	assert!(l.remove_at(CUSTOM, &[]), "stations and all");
+	assert!(!l.has_custom());
+	l.save(dir.path()).unwrap();
+	let mut l = Library::load(dir.path());
+	assert!(!l.has_custom(), "stays gone after a restart");
+	assert_eq!(l.collections[0].id, a);
+	assert!(l.move_collection(&b, true), "the first list moves now");
+	assert_eq!(l.collections[0].id, b);
+	l.add_custom("Again", "http://a");
+	assert_eq!(l.collections[0].id, CUSTOM, "back, first");
+	assert_eq!(l.collections[0].stations.len(), 1);
 }
 
 #[test]
@@ -245,7 +263,7 @@ fn collections_containing_station() {
 }
 
 #[test]
-fn library_round_trip_and_custom_readded() {
+fn library_round_trip_and_custom_stays_deleted() {
 	let d = tempfile::tempdir().unwrap();
 	let mut l = Library::default();
 	l.toggle_favorite(&st("a"));
@@ -263,8 +281,8 @@ fn library_round_trip_and_custom_readded() {
 	)
 	.unwrap();
 	let l2 = Library::load(d2.path());
-	assert_eq!(l2.collections[0].id, CUSTOM);
-	assert_eq!(l2.collections[1].id, "col:1");
+	assert_eq!(l2.collections.len(), 1, "a deleted Custom Stations stays deleted");
+	assert_eq!(l2.collections[0].id, "col:1");
 
 	let d3 = tempfile::tempdir().unwrap();
 	assert_eq!(Library::load(d3.path()).collections.len(), 1);

@@ -31,7 +31,7 @@ pub fn ordered(lib: &Library) -> Vec<&Collection> {
 		.collect()
 }
 
-/// Custom Stations cannot be renamed or deleted.
+/// Custom Stations cannot be renamed or moved.
 pub fn cannot_change(id: &str) -> Option<String> {
 	(id == CUSTOM).then(s::custom_fixed)
 }
@@ -457,9 +457,6 @@ impl View {
 			}
 			return self.refresh(app, Some(Focus::Folder(at.id.clone(), parent)));
 		}
-		if let Some(text) = cannot_change(&at.id) {
-			return app.borrow_mut().say(&text);
-		}
 		let question = format!("{}{}?", s::delete_prefix(), at.collection_name);
 		if !confirm(&self.tree, &question, &plain(&s::delete_item())) {
 			return;
@@ -717,8 +714,8 @@ impl View {
 		let mut items = Vec::new();
 		if cannot_change(&collection.id).is_none() {
 			items.push(Item::Rename);
-			items.push(Item::Delete);
 		}
+		items.push(Item::Delete);
 		let to = others(&app.borrow().library, &collection.id);
 		if !to.is_empty() {
 			items.push(Item::AddAllTo(to));

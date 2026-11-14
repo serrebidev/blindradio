@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.95
+
+- Custom Stations can now be deleted, empty or with stations in it, like any other list: Delete on its row, or Delete on its context menu, in the main window, Browse and the Collections window. BlindRadio asks first and says how many stations go with it. It stays gone until you add a custom station or import a playlist into it, which brings it back.
+
 ## 0.2.94
 
 - Folders now copy, cut and paste whole, with every subfolder and station inside them, in Browse and in the main window. Ctrl+C or Ctrl+X on a folder row, or Copy Folder and Cut Folder in its context menu, takes it; Ctrl+V or Paste Folder Here puts it on the level of the row you are on. On a collection row, such as Custom Stations, that level is the collections themselves, so the folder becomes a collection of its own. To bring a folder out of Custom Stations to the top of the main window: cut it, press Left to reach Custom Stations, and paste. Paste Folder Inside puts it inside the row's folder instead. A whole collection can be cut into another one, where it becomes a folder. Shift+Up and Shift+Down on a folder already move it with everything inside.

@@ -9,7 +9,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use blindradio_core::library::{CUSTOM, Folder, Library, LibraryError};
+use blindradio_core::library::{CUSTOM, Folder, Library};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
@@ -406,10 +406,6 @@ impl DialTree {
 	/// Delete on a folder row, or on a collection row in the All Lists view:
 	/// the row goes with everything in it, after asking and naming how much.
 	fn delete_folder(&self, app: &Rc<RefCell<App>>, home: &FolderHome) {
-		if is_custom_root(home) {
-			let text = LibraryError::CustomFixed.to_string();
-			return app.borrow_mut().say(&text);
-		}
 		let Some((name, stations, folders)) = folder_export(&app.borrow().library, home) else {
 			return;
 		};
@@ -555,11 +551,9 @@ impl DialTree {
 								items.push(context_menu::Item::PasteStation);
 							}
 							if !is_custom_root(&home) {
-								items.extend([
-									context_menu::Item::Rename,
-									context_menu::Item::Delete,
-								]);
+								items.push(context_menu::Item::Rename);
 							}
+							items.push(context_menu::Item::Delete);
 							items.push(context_menu::Item::Export);
 							match context_menu::popup(&me.list, &items) {
 								Some(choice) if context_menu::apply_folder(&a, &choice) => {}
@@ -646,7 +640,7 @@ fn modal<R>(app: &Rc<RefCell<App>>, show: impl FnOnce() -> R) -> R {
 	r
 }
 
-/// Custom Stations' own row in the All Lists view: it stays.
+/// Custom Stations' own row in the All Lists view: never renamed or cut.
 fn is_custom_root(home: &FolderHome) -> bool {
 	home.1.is_empty() && home.0 == CUSTOM
 }
