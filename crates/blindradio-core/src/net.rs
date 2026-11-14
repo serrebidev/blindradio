@@ -19,18 +19,34 @@ const HEAD_BYTES: usize = 1024;
 /// Head start each playlist entry gets before the next one is tried alongside it.
 const ENTRY_STAGGER: Duration = Duration::from_millis(500);
 
-static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
-	reqwest::Client::builder()
-		// Per-request headers from `user_agent_for` override this; it covers any stray request.
-		.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
-		// 10 s, not 4: some station servers are slow to finish the TLS
-		// handshake (AZPM's, measured), and a stream that connects slowly
-		// still plays for hours. Patient players connect where 4 s failed.
-		.connect_timeout(Duration::from_secs(10))
-		.redirect(reqwest::redirect::Policy::limited(10))
-		.build()
-		.expect("http client")
-});
+static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| build_client().expect("http client"));
+
+/// Builds the shared client. The bundled Mozilla roots ride along with the system
+/// store: on a machine with no CA certificates installed at all, the platform
+/// verifier refuses to build ("No CA certificates were loaded from the system")
+/// and the app used to panic before any window opened.
+fn build_client() -> reqwest::Result<reqwest::Client> {
+	let roots = || {
+		webpki_root_certs::TLS_SERVER_ROOT_CERTS
+			.iter()
+			.filter_map(|der| reqwest::Certificate::from_der(der.as_ref()).ok())
+	};
+	let builder = || {
+		reqwest::Client::builder()
+			// Per-request headers from `user_agent_for` override this; it covers any stray request.
+			.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
+			// 10 s, not 4: some station servers are slow to finish the TLS
+			// handshake (AZPM's, measured), and a stream that connects slowly
+			// still plays for hours. Patient players connect where 4 s failed.
+			.connect_timeout(Duration::from_secs(10))
+			.redirect(reqwest::redirect::Policy::limited(10))
+	};
+	match builder().tls_certs_merge(roots()).build() {
+		Ok(client) => Ok(client),
+		// If the merged store still will not build, the bundled roots alone are enough.
+		Err(_) => builder().tls_certs_only(roots()).build(),
+	}
+}
 
 /// SomaFM stream hosts (`ice<digits>.somafm.com`) drop any user agent containing "blindradio"
 /// (any case) with an empty reply, so they get a hyphenated name; everything else gets the real one.
@@ -564,6 +580,23 @@ mod tests {
 		assert_eq!(usable_name("Service Canada").as_deref(), Some("Service Canada"));
 		assert_eq!(strip_rank("(#1 - 104/500) Groove Salad"), "Groove Salad");
 		assert_eq!(strip_rank("Groove Salad"), "Groove Salad");
+	}
+
+	#[test]
+	fn client_builds_with_no_system_certificates() {
+		// An empty system store used to fail the build and panic the app before
+		// any window opened; the bundled roots must carry it. Linux reads these
+		// variables; other platforms use their OS store, which is never empty.
+		unsafe {
+			std::env::set_var("SSL_CERT_FILE", "/nonexistent/ca.pem");
+			std::env::set_var("SSL_CERT_DIR", "/nonexistent");
+		}
+		let built = super::build_client();
+		unsafe {
+			std::env::remove_var("SSL_CERT_FILE");
+			std::env::remove_var("SSL_CERT_DIR");
+		}
+		assert!(built.is_ok());
 	}
 
 	#[test]

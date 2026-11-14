@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.93
+
+- Fixed a startup crash on Linux systems with no CA certificates installed. BlindRadio died before its window opened with "No CA certificates were loaded from the system". The app now carries its own copy of the standard certificate roots alongside the system ones, so it starts and plays on such a system.
+
 ## 0.2.92
 
 - Fixed the Linux window opening blank. The menus and status bar showed, but the station list, buttons and volume slider never appeared — on Linux the window never got the resize message that makes it lay out its contents, so every control stayed piled in one corner at its smallest size. The window now lays itself out when it is built. Windows and Mac were not affected.
