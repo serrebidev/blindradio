@@ -6,7 +6,7 @@ version.workspace = true
 
 [dependencies]
 thiserror = "*"
-reqwest = { version = "*", default-features = false, features = ["rustls", "stream", "form", "multipart", "json", "gzip"] }
+reqwest = { version = "*", default-features = false, features = ["rustls", "native-tls", "stream", "form", "multipart", "json", "gzip"] }
 webpki-root-certs = "*"
 tokio = { version = "*", features = ["rt-multi-thread", "macros", "net", "time", "io-util", "sync", "process"] }
 sha2 = "*"
@@ -38,6 +38,11 @@ md5 = "*"
 aes = "*"
 oxideav-ac3 = "*"
 oxideav-core = "*"
+
+# The legacy TLS fallback (net.rs) uses the OS stack on Windows and macOS. Linux and Android
+# have no stack to borrow, so OpenSSL is compiled in, not loaded from the system.
+[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
+native-tls = { version = "*", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "*"

@@ -19,20 +19,23 @@ const HEAD_BYTES: usize = 1024;
 /// Head start each playlist entry gets before the next one is tried alongside it.
 const ENTRY_STAGGER: Duration = Duration::from_millis(500);
 
-static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| build_client().expect("http client"));
+static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| build_client(false).expect("http client"));
+/// Same client on the OS (Linux, Android: OpenSSL) TLS stack, for servers rustls refuses.
+static LEGACY: LazyLock<reqwest::Client> = LazyLock::new(|| build_client(true).expect("http client"));
 
 /// Builds the shared client. The bundled Mozilla roots ride along with the system
 /// store: on a machine with no CA certificates installed at all, the platform
 /// verifier refuses to build ("No CA certificates were loaded from the system")
 /// and the app used to panic before any window opened.
-fn build_client() -> reqwest::Result<reqwest::Client> {
+fn build_client(legacy: bool) -> reqwest::Result<reqwest::Client> {
 	let roots = || {
 		webpki_root_certs::TLS_SERVER_ROOT_CERTS
 			.iter()
 			.filter_map(|der| reqwest::Certificate::from_der(der.as_ref()).ok())
 	};
 	let builder = || {
-		reqwest::Client::builder()
+		let b = reqwest::Client::builder();
+		(if legacy { b.tls_backend_native() } else { b })
 			// Per-request headers from `user_agent_for` override this; it covers any stray request.
 			.user_agent(concat!("BlindRadio/", env!("CARGO_PKG_VERSION")))
 			// 10 s, not 4: some station servers are slow to finish the TLS
@@ -173,6 +176,18 @@ fn open_at<'a>(
 		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = match fetch(client, &url).await {
 			Ok(response) => response,
+			// Old Icecast boxes (Radio Koszalin's nadaje.com) offer only RSA key exchange, which
+			// rustls never speaks; VLC's GnuTLS and the OS stacks still do. Not on a timeout:
+			// a handshake that hangs (AZPM) would hang here too, and its HTTP twin plays.
+			Err(e) if e.is_connect() && !e.is_timeout() && url.starts_with("https://") => {
+				match fetch(&LEGACY, &url).await {
+					Ok(response) => response,
+					Err(_) => match http_twin(&url) {
+						Some(twin) => fetch(client, &twin).await.map_err(http_err)?,
+						None => return Err(http_err(e)),
+					},
+				}
+			}
 			Err(e) => match (e.is_connect(), http_twin(&url)) {
 				// Some stream hosts (Shoutcast boxes, AZPM among them)
 				// listen on 443 but their TLS handshake never completes,
@@ -591,12 +606,14 @@ mod tests {
 			std::env::set_var("SSL_CERT_FILE", "/nonexistent/ca.pem");
 			std::env::set_var("SSL_CERT_DIR", "/nonexistent");
 		}
-		let built = super::build_client();
+		let built = super::build_client(false);
+		let legacy = super::build_client(true);
 		unsafe {
 			std::env::remove_var("SSL_CERT_FILE");
 			std::env::remove_var("SSL_CERT_DIR");
 		}
 		assert!(built.is_ok());
+		assert!(legacy.is_ok());
 	}
 
 	#[test]

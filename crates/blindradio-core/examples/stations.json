@@ -1,4 +1,5 @@
 [
+	{ "id": "koszalin-root", "name": "Radio Koszalin", "url": "https://stream6.nadaje.com:8503/" },
 	{ "id": "groovesalad-mp3", "name": "Groove Salad MP3", "url": "https://ice1.somafm.com/groovesalad-128-mp3" },
 	{ "id": "groovesalad-aac", "name": "Groove Salad AAC", "url": "https://ice1.somafm.com/groovesalad-128-aac" },
 	{ "id": "dronezone-mp3", "name": "Drone Zone MP3", "url": "https://ice1.somafm.com/dronezone-128-mp3" },

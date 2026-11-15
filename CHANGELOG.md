@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.96
+
+- Fixed stations on older secure servers that would not play, such as Radio Koszalin (https://stream6.nadaje.com:8503/). Their servers only offer an old style of encryption that BlindRadio's own secure connection does not speak, so it said "Unreachable" while VLC played them. When that happens, BlindRadio now connects again through the system's own secure connection, which still speaks it.
+
 ## 0.2.95
 
 - Custom Stations can now be deleted, empty or with stations in it, like any other list: Delete on its row, or Delete on its context menu, in the main window, Browse and the Collections window. BlindRadio asks first and says how many stations go with it. It stays gone until you add a custom station or import a playlist into it, which brings it back.
