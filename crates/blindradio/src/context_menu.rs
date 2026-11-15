@@ -4,7 +4,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use blindradio_core::import;
-use blindradio_core::library::{CUSTOM, Folder, Library};
+use blindradio_core::library::{CUSTOM, Folder, Library, StationDest};
 use blindradio_core::station::Station;
 use wx_utils::prompt_text;
 use wxdragon::prelude::*;
@@ -60,7 +60,7 @@ pub enum Item {
 	/// collection id, folder path, "Collection / Folder" label.
 	AddToCollectionFolder(Vec<(String, Vec<usize>, String)>),
 	/// Every folder of one collection: its path and its display name.
-	MoveToFolder(Vec<(Vec<usize>, String)>),
+	MoveToFolder(StationDest, Vec<(Vec<usize>, String)>),
 	DeleteCustom,
 	Rename,
 	Delete,
@@ -72,6 +72,8 @@ pub enum Item {
 /// What the user chose.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Choice {
+	/// Internal menu choice: open the folder tree for this item.
+	PickFolder(usize),
 	Play,
 	Favorite,
 	CopyUrl,
@@ -229,7 +231,7 @@ pub fn fav_folder_list(lib: &Library) -> Vec<(Vec<usize>, String)> {
 const FIRST_ID: Id = ID_HIGHEST + 5000;
 
 /// Pops the menu up on `window` and waits; `None` when it was dismissed.
-pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
+pub fn popup(app: &Rc<RefCell<App>>, window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 	let mut choices = Vec::new();
 	let mut add = |c: Choice| {
 		choices.push(c);
@@ -245,7 +247,7 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 	};
 	let mut menu = Menu::builder().build();
 	catch(&menu);
-	for item in items {
+	for (index, item) in items.iter().enumerate() {
 		match item {
 			Item::Play => {
 				menu.append(add(Choice::Play), &s::play_item(), "", ItemKind::Normal);
@@ -414,44 +416,14 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 				);
 				menu.append_submenu(sub, &s::add_to_collection_sub(), "");
 			}
-			Item::AddToFavoriteFolder(folders) => {
-				let sub = Menu::builder().build();
-				catch(&sub);
-				for (path, name) in folders {
-					sub.append(
-						add(Choice::AddToFavoriteFolder(path.clone())),
-						&escape(name),
-						"",
-						ItemKind::Normal,
-					);
-				}
-				menu.append_submenu(sub, &s::add_to_fav_folder(), "");
+			Item::AddToFavoriteFolder(_) => {
+				menu.append(add(Choice::PickFolder(index)), &s::add_to_fav_folder(), "", ItemKind::Normal);
 			}
-			Item::AddToCollectionFolder(folders) => {
-				let sub = Menu::builder().build();
-				catch(&sub);
-				for (id, path, name) in folders {
-					sub.append(
-						add(Choice::AddToCollectionFolder(id.clone(), path.clone())),
-						&escape(name),
-						"",
-						ItemKind::Normal,
-					);
-				}
-				menu.append_submenu(sub, &s::add_to_collection_folder(), "");
+			Item::AddToCollectionFolder(_) => {
+				menu.append(add(Choice::PickFolder(index)), &s::add_to_collection_folder(), "", ItemKind::Normal);
 			}
-			Item::MoveToFolder(folders) => {
-				let sub = Menu::builder().build();
-				catch(&sub);
-				for (path, name) in folders {
-					sub.append(
-						add(Choice::MoveToFolder(path.clone())),
-						&escape(name),
-						"",
-						ItemKind::Normal,
-					);
-				}
-				menu.append_submenu(sub, &s::move_to_folder(), "");
+			Item::MoveToFolder(_, _) => {
+				menu.append(add(Choice::PickFolder(index)), &s::move_to_folder(), "", ItemKind::Normal);
 			}
 			Item::DeleteCustom => {
 				menu.append(
@@ -474,7 +446,59 @@ pub fn popup(window: &dyn WxWidget, items: &[Item]) -> Option<Choice> {
 	window.popup_menu(&mut menu, None);
 	crate::speech::focus_returning();
 	let i = usize::try_from(chosen.get()?.checked_sub(FIRST_ID)?).ok()?;
-	choices.get(i).cloned()
+	let choice = choices.get(i)?.clone();
+	if let Choice::PickFolder(index) = choice {
+		return pick_folder(app, window, &items[index]);
+	}
+	Some(choice)
+}
+
+fn pick_folder(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, item: &Item) -> Option<Choice> {
+	let (title, allowed) = match item {
+		Item::AddToFavoriteFolder(folders) => (
+			s::add_to_fav_folder(),
+			folders
+				.iter()
+				.map(|(path, _)| StationDest::Favorites(path.clone()))
+				.collect(),
+		),
+		Item::AddToCollectionFolder(folders) => (
+			s::add_to_collection_folder(),
+			folders
+				.iter()
+				.map(|(id, path, _)| StationDest::Collection {
+					id: id.clone(),
+					path: path.clone(),
+				})
+				.collect(),
+		),
+		Item::MoveToFolder(home, folders) => (
+			s::move_to_folder(),
+			folders
+				.iter()
+				.map(|(path, _)| match home {
+					StationDest::Favorites(_) => StationDest::Favorites(path.clone()),
+					StationDest::Collection { id, .. } => StationDest::Collection {
+						id: id.clone(),
+						path: path.clone(),
+					},
+				})
+				.collect(),
+		),
+		_ => return None,
+	};
+	// Release the app borrow before the nested modal pumps timers and other events.
+	let lib = app.borrow().library.clone();
+	let dest =
+		crate::dialogs::destination::choose(parent, &lib, &crate::menus::plain(&title), allowed)?;
+	Some(match (item, dest) {
+		(
+			Item::MoveToFolder(_, _),
+			StationDest::Favorites(path) | StationDest::Collection { path, .. },
+		) => Choice::MoveToFolder(path),
+		(_, StationDest::Favorites(path)) => Choice::AddToFavoriteFolder(path),
+		(_, StationDest::Collection { id, path }) => Choice::AddToCollectionFolder(id, path),
+	})
 }
 
 /// A Win32 popup menu opens with nothing highlighted. A Down key queued before its loop starts
@@ -624,6 +648,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		}
 		// Collection owners handle their own.
 		Choice::Rename
+		| Choice::PickFolder(_)
 		| Choice::Delete
 		| Choice::CopyFolder
 		| Choice::CutFolder

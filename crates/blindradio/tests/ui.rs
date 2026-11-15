@@ -574,6 +574,314 @@ fn browse_pastes_from_the_selected_collection_and_refreshes_in_place() {
 	}
 }
 
+/// Nested destinations stay collapsed until opened, and save into the selected folder.
+#[test]
+#[ignore = "needs a desktop"]
+fn new_station_uses_a_destination_tree() {
+	let mut library = Library::default();
+	let mut parent = Folder::new("Music / Local");
+	parent.folders.push(Folder::new("Jazz"));
+	library.collections[0].folders = vec![parent, Folder::new("News")];
+	let app = App::start("destination-tree", library);
+	app.press("{ctrl}n");
+	let dialog = app.find("Add Custom Station", WAIT).expect("add station");
+	let control = |name: &str, kind| {
+		app.automation
+			.create_matcher()
+			.from(dialog.clone())
+			.timeout(5000)
+			.name(name)
+			.control_type(kind)
+			.find_first()
+			.expect(name)
+	};
+	let tree = control("Add to", ControlType::Tree);
+	app.select_row(&tree, "Custom Stations");
+	app.press("{right}");
+	app.select_row(&tree, "Music / Local");
+	app.press("{right}");
+	app.press("{down}");
+	app.assert_selected(&tree, "Jazz");
+	control("Name", ControlType::Edit)
+		.get_pattern::<UIValuePattern>()
+		.unwrap()
+		.set_value("Tree station")
+		.unwrap();
+	control("Stream URL", ControlType::Edit)
+		.get_pattern::<UIValuePattern>()
+		.unwrap()
+		.set_value("https://example.com/tree")
+		.unwrap();
+	app.select_row(&tree, "Jazz");
+	app.press("{enter}");
+	assert!(
+		app.find("Add Custom Station", Duration::from_millis(200))
+			.is_none(),
+		"Enter adds the station from the destination tree"
+	);
+	std::thread::sleep(Duration::from_millis(400));
+	let saved = Library::load(&app.data);
+	assert_eq!(
+		saved.collections[0].folders[0].folders[0].stations[0].name,
+		"Tree station"
+	);
+	assert!(saved.collections[0].stations.is_empty());
+}
+
+/// Filing a station opens the same tree from each station window.
+#[test]
+#[ignore = "needs a desktop"]
+fn filing_menus_use_destination_trees() {
+	let mut library = Library::default();
+	let source = station("custom:source", "File this station");
+	library.collections[0].stations.push(source.clone());
+	library.toggle_favorite(&source);
+	let mut favorite_parent = Folder::new("Favorite music");
+	favorite_parent.folders.push(Folder::new("Jazz"));
+	library.fav_folders.push(favorite_parent);
+	let mut targets = Vec::new();
+	for i in 0..3 {
+		let id = library.create_collection(&format!("Target {i}"));
+		let mut parent = Folder::new("Music / Local");
+		parent.folders.push(Folder::new("Jazz"));
+		library.collection_mut(&id).unwrap().folders.push(parent);
+		targets.push(id);
+	}
+	let app = App::with_settings(
+		"filing-tree",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	for (i, (keys, title)) in [("", ""), ("{ctrl}g", "Browse"), ("{ctrl}l", "Collections")]
+		.into_iter()
+		.enumerate()
+	{
+		let window = if keys.is_empty() {
+			app.window.clone()
+		} else {
+			app.press(keys);
+			app.find(title, WAIT).expect(title)
+		};
+		if !keys.is_empty() {
+			let root = if title == "Browse" {
+				"Custom Stations 1"
+			} else {
+				"Custom Stations"
+			};
+			TreeItemControl::try_from(app.row(&window, root))
+				.unwrap()
+				.expand()
+				.unwrap();
+		}
+		app.select_row(&window, "File this station");
+		app.press("{shift}{f10}");
+		app.invoke(&app.menu_item("Add to Collection Folder"));
+		let picker = app
+			.find("Add to Collection Folder", WAIT)
+			.expect("folder picker");
+		let root = app.select_row(&picker, &format!("Target {i}"));
+		let ok = app
+			.automation
+			.create_matcher()
+			.from(picker.clone())
+			.name("OK")
+			.control_type(ControlType::Button)
+			.find_first()
+			.unwrap();
+		assert!(
+			!ok.is_enabled().unwrap(),
+			"collection root is only a parent here"
+		);
+		if i != 0 {
+			app.press("{right}");
+		}
+		let parent = app.select_row(&root, "Music / Local");
+		if i == 0 {
+			parent.double_click().unwrap();
+			std::thread::sleep(Duration::from_millis(400));
+			assert!(
+				app.find("Add to Collection Folder", Duration::from_millis(200))
+					.is_some(),
+				"double-click expands without filing the station"
+			);
+		} else {
+			app.press("{right}");
+		}
+		app.select_row(&parent, "Jazz");
+		app.press("{enter}");
+		assert!(
+			app.find("Add to Collection Folder", Duration::from_millis(200))
+				.is_none(),
+			"Enter confirms the destination in {title}"
+		);
+		let saved = Library::load(&app.data);
+		assert_eq!(
+			saved
+				.collections
+				.iter()
+				.find(|c| c.id == targets[i])
+				.unwrap()
+				.folders[0]
+				.folders[0]
+				.stations[0]
+				.id,
+			source.id,
+			"{title}"
+		);
+		if !keys.is_empty() {
+			app.press("{esc}");
+		}
+	}
+	app.press("{ctrl}b");
+	let favorites = app.find("Favorites", WAIT).expect("Favorites");
+	app.select_row(&favorites, "File this station");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Move to Folder"));
+	let picker = app.find("Move to Folder", WAIT).expect("move picker");
+	app.select_row(&picker, "Favorites");
+	let ok = app
+		.automation
+		.create_matcher()
+		.from(picker.clone())
+		.name("OK")
+		.control_type(ControlType::Button)
+		.find_first()
+		.unwrap();
+	assert!(!ok.is_enabled().unwrap(), "current home cannot be selected");
+	app.press("{enter}");
+	assert!(
+		app.find("Move to Folder", Duration::from_millis(200))
+			.is_some()
+	);
+	app.press("{esc}");
+	assert_eq!(
+		Library::load(&app.data).favorites.len(),
+		1,
+		"cancel keeps the station"
+	);
+	app.select_row(&favorites, "File this station");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Move to Folder"));
+	let picker = app.find("Move to Folder", WAIT).expect("move picker");
+	let parent = app.select_row(&picker, "Favorite music");
+	app.press("{right}");
+	app.select_row(&parent, "Jazz");
+	app.press("{enter}");
+	let saved = Library::load(&app.data);
+	assert!(saved.favorites.is_empty());
+	assert_eq!(saved.fav_folders[0].folders[0].stations[0].id, source.id);
+	app.press("{esc}");
+	app.press("{ctrl}l");
+	let collections = app.find("Collections", WAIT).expect("Collections");
+	let target = app.row(&collections, "Target 2");
+	TreeItemControl::try_from(target.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	let parent = app.row(&target, "Music / Local");
+	TreeItemControl::try_from(parent.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	let jazz = app.row(&parent, "Jazz");
+	TreeItemControl::try_from(jazz.clone())
+		.unwrap()
+		.expand()
+		.unwrap();
+	app.select_row(&jazz, "File this station");
+	app.press("{shift}{f10}");
+	app.invoke(&app.menu_item("Move to Folder"));
+	let picker = app
+		.find("Move to Folder", WAIT)
+		.expect("collection move picker");
+	app.select_row(&picker, "Target 2");
+	app.press("{enter}");
+	let saved = Library::load(&app.data);
+	let moved = saved
+		.collections
+		.iter()
+		.find(|c| c.id == targets[2])
+		.unwrap();
+	assert_eq!(
+		moved.stations[0].id, source.id,
+		"move from subfolder to collection root"
+	);
+	assert!(moved.folders[0].folders[0].stations.is_empty());
+}
+
+/// A copied stream URL pre-fills each new URL field.
+#[test]
+#[ignore = "needs a desktop"]
+fn url_dialogs_use_the_clipboard() {
+	let mut library = Library::default();
+	library.collections[0]
+		.stations
+		.push(station("custom:clip", "Clipboard station"));
+	let app = App::with_settings(
+		"clipboard-url",
+		library,
+		Settings {
+			main_list: Some("custom".into()),
+			..Settings::default()
+		},
+	);
+	app.select_row(&app.main_tree(), "Clipboard station");
+	app.press("{ctrl}u");
+	for (menu, title, label) in [
+		("Open URL…", "Open URL", "Stream URL"),
+		(
+			"Detect Audio Stream on Page…",
+			"Detect Audio Stream on Page",
+			"Page URL",
+		),
+	] {
+		app.press("{alt}f");
+		app.invoke(&app.menu_item(menu));
+		let dialog = app.find(title, WAIT).expect(title);
+		let mut matcher = app
+			.automation
+			.create_matcher()
+			.from(dialog)
+			.control_type(ControlType::Edit)
+			.timeout(5000);
+		if title != "Open URL" {
+			matcher = matcher.name(label);
+		}
+		let edit = matcher.find_first().unwrap();
+		assert_eq!(
+			edit.get_pattern::<UIValuePattern>()
+				.unwrap()
+				.get_value()
+				.unwrap(),
+			"http://127.0.0.1:9/custom:clip",
+			"{title}"
+		);
+		assert!(edit.has_keyboard_focus().unwrap(), "{title} focuses URL");
+		app.press("{esc}");
+	}
+	app.press("{ctrl}n");
+	let dialog = app.find("Add Custom Station", WAIT).expect("add station");
+	let edit = app
+		.automation
+		.create_matcher()
+		.from(dialog)
+		.name("Stream URL")
+		.control_type(ControlType::Edit)
+		.timeout(5000)
+		.find_first()
+		.unwrap();
+	assert_eq!(
+		edit.get_pattern::<UIValuePattern>()
+			.unwrap()
+			.get_value()
+			.unwrap(),
+		"http://127.0.0.1:9/custom:clip"
+	);
+}
+
 /// Name Automatically fills the name field from the stream's ICY name.
 #[test]
 #[ignore = "needs a desktop"]

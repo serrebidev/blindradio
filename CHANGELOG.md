@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.97
+
+- Destination folders now use a tree instead of a long flat list. In Add Custom Station, Add to Favorites Folder, Add to Collection Folder and Move to Folder, expand only the collection and folders you need with Right; Left closes them. This works from the main window, Browse, Search, Favorites and Collections.
+- Open URL, Add Custom Station and Detect Audio Stream on Page now fill their URL field from the clipboard when it contains a whole HTTP or HTTPS address. Other clipboard text is ignored. Edit Station keeps the station's saved URL.
+
 ## 0.2.96
 
 - Fixed stations on older secure servers that would not play, such as Radio Koszalin (https://stream6.nadaje.com:8503/). Their servers only offer an old style of encryption that BlindRadio's own secure connection does not speak, so it said "Unreachable" while VLC played them. When that happens, BlindRadio now connects again through the system's own secure connection, which still speaks it.

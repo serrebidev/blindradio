@@ -232,7 +232,7 @@ impl StationList {
 				);
 				match (items, focused) {
 					(Ok(items), Some((_, st))) => {
-						if let Some(choice) = context_menu::popup(&me.list, &items) {
+						if let Some(choice) = context_menu::popup(&a, &me.list, &items) {
 							context_menu::apply(&a, &me.list, &st, choice);
 						}
 					}

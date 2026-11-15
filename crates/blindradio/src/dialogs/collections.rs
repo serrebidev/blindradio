@@ -7,7 +7,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use blindradio_core::import;
-use blindradio_core::library::{CUSTOM, Collection, Folder, Library};
+use blindradio_core::library::{CUSTOM, Collection, Folder, Library, StationDest};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
@@ -670,10 +670,13 @@ impl View {
 					vec![(Vec::new(), c.name.clone())];
 				targets.extend(folder_list(c));
 				targets.retain(|(path, _)| *path != at.path);
-				items.push(Item::MoveToFolder(targets));
+				items.push(Item::MoveToFolder(
+					StationDest::Collection { id: at.id.clone(), path: Vec::new() },
+					targets,
+				));
 			}
 		}
-		match context_menu::popup(&self.tree, &items) {
+		match context_menu::popup(app, &self.tree, &items) {
 			Some(Choice::MoveToFolder(path)) => {
 				self.move_station_to(app, &at, &station.id, &path);
 			}
@@ -694,7 +697,7 @@ impl View {
 		if app.borrow().station_clip.is_some() {
 			items.push(Item::PasteStation);
 		}
-		match context_menu::popup(&self.tree, &items) {
+		match context_menu::popup(app, &self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &at),
 			Some(Choice::Delete) => self.delete(app, row, &at),
 			Some(Choice::Export) => self.export(app, row, &at),
@@ -724,7 +727,7 @@ impl View {
 		if app.borrow().station_clip.is_some() {
 			items.push(Item::PasteStation);
 		}
-		match context_menu::popup(&self.tree, &items) {
+		match context_menu::popup(app, &self.tree, &items) {
 			Some(Choice::Rename) => self.rename(app, row, &collection),
 			Some(Choice::Delete) => self.delete(app, row, &collection),
 			Some(Choice::Export) => self.export(app, row, &collection),

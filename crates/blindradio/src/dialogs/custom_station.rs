@@ -3,7 +3,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use blindradio_core::library::StationDest;
 use blindradio_core::settings::{ChannelMode, StationSettings};
 use blindradio_core::station::Station;
 use wx_utils::add_ok_cancel_footer;
@@ -83,17 +82,14 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.with_label(&s::stream_url())
 		.build();
 	let url = TextCtrl::builder(&dialog).build();
+	url.set_value(&crate::clipboard::url());
 	// Where the new station goes: a collection or favorites folder, not
 	// always Custom Stations (the ask behind the picker).
-	let dests: Vec<(String, StationDest)> = app.borrow().library.destinations();
-	let dest_label = StaticText::builder(&dialog)
-		.with_label(&s::destination())
-		.build();
-	let dest = Choice::builder(&dialog).build();
-	for (label, _) in &dests {
-		dest.append(label);
-	}
-	dest.set_selection(0);
+	let dest = Rc::new({
+		let app = app.borrow();
+		let allowed = app.library.destinations().into_iter().map(|(_, d)| d).collect();
+		super::destination::DestinationTree::new(&dialog, &app.library, allowed)
+	});
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	for (label, control) in [(&name_label, &name), (&url_label, &url)] {
 		sizer.add(
@@ -106,12 +102,12 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	}
 	name_button(app, &dialog, &sizer, name, url, &token);
 	sizer.add(
-		&dest_label,
+		&dest.label,
 		0,
 		SizerFlag::Left | SizerFlag::Right | SizerFlag::Top,
 		5,
 	);
-	sizer.add(&dest, 0, SizerFlag::Expand | SizerFlag::All, 5);
+	sizer.add(&dest.tree, 1, SizerFlag::Expand | SizerFlag::All, 5);
 	// A bad URL must keep the window open, so OK is not a stock button.
 	let ok = Button::builder(&dialog)
 		.with_id(OK_ID)
@@ -129,7 +125,8 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 	{
 		let (a, d) = (app.clone(), dialog);
-		ok.on_click(move |_| {
+		let picker = dest.clone();
+		let save = move || {
 			let link = url.get_value();
 			if !is_stream_url(&link) {
 				return a.borrow_mut().say(&s::not_a_stream_url());
@@ -142,14 +139,9 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			} else {
 				typed
 			};
-			let chosen = dest
-				.get_selection()
-				.and_then(|i| dests.get(i as usize))
-				.map(|(_, d)| d.clone())
-				.unwrap_or(StationDest::Collection {
-					id: blindradio_core::library::CUSTOM.into(),
-					path: Vec::new(),
-				});
+			let Some(chosen) = dest.selected() else {
+				return;
+			};
 			let station = {
 				let mut app = a.borrow_mut();
 				let station = app.library.add_custom_to(&typed, &link, &chosen);
@@ -160,7 +152,12 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			crate::speech::focus_returning();
 			a.borrow_mut().say(&format!("{}{}", s::added(), station.name));
 			d.end_modal(ID_OK);
-		});
+		};
+		{
+			let save = save.clone();
+			ok.on_click(move |_| save());
+		}
+		picker.on_confirm(save);
 	}
 
 	name.set_focus();

@@ -253,7 +253,13 @@ with `Not a stream URL` and the window stays open. Name Automatically, here and 
 asks the URL for the station's own name and fills it in; if it comes out odd, edit it. Add to
 chooses where the station is
 filed: Custom Stations, any collection or folder, or Favorites and its folders — the
-default is Custom Stations, where new stations went before the choice existed.
+default is Custom Stations. This picker is a tree: Right expands a collection or folder,
+Left closes it, and Up and Down move among the visible rows. Expand only the branches
+you need, select the destination, then choose OK.
+
+Open URL, Add Custom Station and Detect Audio Stream on Page fill the URL field from
+the clipboard when it holds a whole HTTP or HTTPS address. You can edit or replace it;
+other clipboard text is ignored. Edit Station always keeps the station's saved URL.
 
 ## Context menu
 
@@ -272,6 +278,11 @@ Search or Browse can be filed into an imported playlist's folder, the same place
 Ctrl+N offers. For your own station it also offers Delete Custom Station. In the main window and
 in Browse, a station in a collection also offers Delete, which takes out the copy you are on. On a
 category it says `Nothing to do here`.
+
+Add to Favorites Folder, Add to Collection Folder and Move to Folder open the same
+folder tree. Right expands a branch, Left closes it, and Enter confirms the selected
+destination. Escape cancels. A parent shown only to reach its subfolders cannot be
+chosen unless that parent is also an available destination.
 
 In Browse, a directory's folder, such as Celine Dion under By Genre in Online Radio Box, offers
 Add to Favorites, Add to Collection (with New Collection), Add to Favorites Folder and Add to

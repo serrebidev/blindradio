@@ -28,7 +28,7 @@ pub fn choose(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station) 
 		Item::Collections(ticks(&app.borrow().library, station)),
 		Item::NewCollection,
 	];
-	if let Some(choice) = context_menu::popup(parent, &items) {
+	if let Some(choice) = context_menu::popup(app, parent, &items) {
 		context_menu::apply(app, parent, station, choice);
 	}
 }

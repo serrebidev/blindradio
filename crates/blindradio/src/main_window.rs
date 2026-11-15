@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use blindradio_core::station::{Source, Station};
-use wx_utils::{confirm, prompt_text};
+use wx_utils::confirm;
 use wxdragon::event::{Event, EventType, WxEvtHandler};
 use wxdragon::prelude::*;
 
@@ -233,7 +233,13 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 			// Quick playback or a test: the URL plays as a throwaway
 			// station and is not added anywhere (Recent still lists it).
 			let frame = app.borrow().win.frame;
-			if let Some(link) = prompt_text(&frame, s::stream_url(), &s::open_url_title()) {
+			let prompt = TextEntryDialog::builder(&frame, &s::stream_url(), &s::open_url_title())
+				.with_default_value(&crate::clipboard::url())
+				.with_style(TextEntryDialogStyle::Default | TextEntryDialogStyle::ProcessEnter)
+				.build();
+			let link = (prompt.show_modal() == ID_OK).then(|| prompt.get_value()).flatten();
+			prompt.destroy();
+			if let Some(link) = link.filter(|s| !s.trim().is_empty()) {
 				let link = dialogs::custom_station::clean_url(&link);
 				if dialogs::custom_station::is_stream_url(&link) {
 					app.borrow_mut().play(Station {

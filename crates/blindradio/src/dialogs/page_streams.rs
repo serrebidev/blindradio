@@ -27,6 +27,8 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	// Each label is created just before the control it names.
 	let url_label = StaticText::builder(&dialog).with_label(&s::page_url()).build();
 	let url = TextCtrl::builder(&dialog).build();
+	url.set_value(&crate::clipboard::url());
+	url.set_selection(-1, -1);
 	let detect = Button::builder(&dialog).with_label(&s::detect_button()).build();
 	detect.set_default();
 	let streams = StationList::new(&dialog, &s::streams_found());

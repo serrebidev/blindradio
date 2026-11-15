@@ -555,7 +555,7 @@ impl DialTree {
 							}
 							items.push(context_menu::Item::Delete);
 							items.push(context_menu::Item::Export);
-							match context_menu::popup(&me.list, &items) {
+							match context_menu::popup(&a, &me.list, &items) {
 								Some(choice) if context_menu::apply_folder(&a, &choice) => {}
 								Some(context_menu::Choice::Export) => {
 									context_menu::export_playlist(
@@ -615,7 +615,7 @@ impl DialTree {
 					items.push(context_menu::Item::PasteFolder);
 				}
 				match (items, focused) {
-					(Ok(items), Some((i, st))) => match context_menu::popup(&me.list, &items) {
+					(Ok(items), Some((i, st))) => match context_menu::popup(&a, &me.list, &items) {
 						Some(context_menu::Choice::Delete) => {
 							if me.ask_delete_station(&a, i) {
 								a.borrow_mut().delete_from_dial(i);

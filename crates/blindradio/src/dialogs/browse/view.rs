@@ -618,7 +618,7 @@ impl View {
 				}
 			}
 		};
-		let Some(choice) = context_menu::popup(&self.tree, &items) else {
+		let Some(choice) = context_menu::popup(app, &self.tree, &items) else {
 			return;
 		};
 		if context_menu::apply_folder(app, &choice) {

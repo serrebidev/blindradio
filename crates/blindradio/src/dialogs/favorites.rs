@@ -7,7 +7,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use blindradio_core::import;
-use blindradio_core::library::Folder;
+use blindradio_core::library::{Folder, StationDest};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};
@@ -463,14 +463,14 @@ impl View {
 							vec![(Vec::new(), s::favorites_list().to_string())];
 						targets.extend(context_menu::fav_folder_list(&lib.library));
 						targets.retain(|(path, _)| *path != loc.path);
-						items.push(Item::MoveToFolder(targets));
+						items.push(Item::MoveToFolder(StationDest::Favorites(Vec::new()), targets));
 					}
 					if lib.station_clip.is_some() {
 						items.push(Item::PasteStation);
 					}
 				}
 				items.push(Item::Delete);
-				match context_menu::popup(&self.tree, &items) {
+				match context_menu::popup(app, &self.tree, &items) {
 					Some(Choice::Play) => {
 						app.borrow_mut().selected = Some(station);
 						dispatch(app, Action::Play);
@@ -501,7 +501,7 @@ impl View {
 				if app.borrow().station_clip.is_some() {
 					items.push(Item::PasteStation);
 				}
-				match context_menu::popup(&self.tree, &items) {
+				match context_menu::popup(app, &self.tree, &items) {
 					Some(Choice::Rename) => self.rename_folder(app, &loc.path),
 					Some(Choice::Delete) => self.remove(app, row),
 					Some(Choice::PasteStation) => {
