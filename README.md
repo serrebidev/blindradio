@@ -7,6 +7,8 @@ A vibe-coded, screen-reader-first internet radio player for Windows, macOS, and 
 
 **Questions, bugs, or release news?** Join the [SerrebiProjects Telegram group](https://t.me/SerrebiProjects), the fastest place to get help.
 
+More serrebi projects: [projects.serrebiradio.com](https://projects.serrebiradio.com)
+
 ## Features
 
 - Every station list tunes as you move through it: the main dial, Search, Browse, Favorites, Recently Played and Collections all play the station under focus.
@@ -86,3 +88,7 @@ AAC decoding uses the Fraunhofer FDK AAC library, which has its own licence.
 ## Community and support
 
 Report bugs and request features in [Issues](https://github.com/serrebidev/BlindRadio/issues). For questions, feedback, and release news, join the [SerrebiProjects Telegram group](https://t.me/SerrebiProjects).
+
+## Credits
+
+See [CREDITS.md](CREDITS.md) for where the ideas behind this project came from, and the third-party projects it builds on.
