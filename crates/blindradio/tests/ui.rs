@@ -2,6 +2,7 @@
 //! Run: `cargo test -p blindradio --test ui -- --ignored --test-threads=1`
 #![cfg(windows)]
 
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
@@ -32,6 +33,54 @@ unsafe extern "system" {
 	fn EnumChildWindows(parent: isize, callback: EnumWindowsProc, param: isize) -> i32;
 	fn GetClassNameW(window: isize, buffer: *mut u16, max: i32) -> i32;
 	fn GetWindowTextW(window: isize, buffer: *mut u16, max: i32) -> i32;
+	fn SetWinEventHook(
+		first: u32, last: u32, module: isize, callback: WinEventProc,
+		process: u32, thread: u32, flags: u32,
+	) -> isize;
+	fn UnhookWinEvent(hook: isize) -> i32;
+}
+
+thread_local! {
+	static TREE_FOCUS: RefCell<Vec<(isize, i32)>> = const { RefCell::new(Vec::new()) };
+}
+
+type WinEventProc = Option<unsafe extern "system" fn(isize, u32, isize, i32, i32, u32, u32)>;
+
+unsafe extern "system" fn note_focus(
+	_: isize, _: u32, window: isize, _: i32, child: i32, _: u32, _: u32,
+) {
+	if class_of(window) == "SysTreeView32" {
+		TREE_FOCUS.with(|events| events.borrow_mut().push((window, child)));
+	}
+}
+
+/// Keyboard focus alone misses the native tree's accessibility focus events.
+struct FocusEvents(isize);
+
+impl FocusEvents {
+	fn start() -> Self {
+		TREE_FOCUS.with(|events| events.borrow_mut().clear());
+		let hook = unsafe { SetWinEventHook(0x8005, 0x8005, 0, Some(note_focus), 0, 0, 0) };
+		assert_ne!(hook, 0, "focus event hook");
+		Self(hook)
+	}
+
+	fn tree_events(&self, tree: isize) -> Vec<i32> {
+		use windows::Win32::UI::WindowsAndMessaging::{MSG, PM_REMOVE, PeekMessageW};
+		let mut message = MSG::default();
+		// Out-of-context WinEvents arrive on the registering thread's message queue.
+		unsafe { while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE).as_bool() {} }
+		TREE_FOCUS.with(|events| {
+			events.borrow().iter()
+				.filter_map(|(window, child)| (*window == tree).then_some(*child)).collect()
+		})
+	}
+}
+
+impl Drop for FocusEvents {
+	fn drop(&mut self) {
+		unsafe { UnhookWinEvent(self.0) };
+	}
 }
 
 type EnumWindowsProc = Option<unsafe extern "system" fn(isize, isize) -> i32>;
@@ -1523,17 +1572,19 @@ fn hide_stations_keeps_the_keys_and_is_remembered() {
 #[test]
 #[ignore = "needs a desktop"]
 fn hide_stations_at_startup_focuses_play_not_the_hidden_tree() {
+	let events = FocusEvents::start();
 	let library = Library {
 		favorites: vec![station("custom:one", "One"), station("custom:two", "Two")],
 		..Library::default()
 	};
-	let settings = Settings {
+	let mut settings = Settings {
 		main_list: Some("favorites".into()),
 		hide_stations: true,
 		play_last_at_startup: true,
 		last_station: Some(station("custom:two", "Two")),
 		..Settings::default()
 	};
+	settings.keys.insert("hide_stations".into(), "Ctrl+W".into());
 	let app = App::with_settings_no_refocus("hide-startup", library, settings);
 	// Startup settles: land_dial selects the startup station last, and
 	// that selection must not leave the hidden tree holding the focus.
@@ -1544,6 +1595,19 @@ fn hide_stations_at_startup_focuses_play_not_the_hidden_tree() {
 		"the Play button holds the focus at startup, not the hidden tree"
 	);
 	assert_ne!(focus, tree, "the hidden tree never holds the focus");
+	assert!(
+		events.tree_events(tree).is_empty(),
+		"the hidden tree sends no accessibility focus events"
+	);
+	app.press("{alt}1");
+	assert_eq!(
+		Settings::load(&app.data).last_station.map(|s| s.name).as_deref(),
+		Some("One"),
+		"favorite keys still tune with the tree hidden"
+	);
+	assert!(events.tree_events(tree).is_empty(), "hidden tuning sends no focus events");
+	app.press("{ctrl}w");
+	app.assert_selected(&app.main_tree(), "One");
 }
 
 /// Answers Yes in the confirmation with this title.

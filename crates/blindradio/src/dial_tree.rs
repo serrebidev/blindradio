@@ -67,6 +67,8 @@ pub struct DialTree {
 	/// Where the next rebuild puts focus, for a change that moves it off the
 	/// focused row's place. Set before the rebuild, so focus lands once.
 	landing: Rc<RefCell<Option<Row>>>,
+	/// Hidden selections wait here: even SelectItem alone emits MSAA focus.
+	pending_selection: Rc<RefCell<Option<TreeItemId>>>,
 	/// Folder path keys whose open state differs from the default:
 	/// collapsed ones while the default is expanded, opened ones
 	/// while it is collapsed. Toggling a folder by hand records the
@@ -100,6 +102,7 @@ impl DialTree {
 			rows: Rc::new(RefCell::new(Vec::new())),
 			folders: Rc::new(RefCell::new(Vec::new())),
 			landing: Rc::new(RefCell::new(None)),
+			pending_selection: Rc::new(RefCell::new(None)),
 			overrides: Rc::new(RefCell::new(HashSet::new())),
 			expand_default: Rc::new(Cell::new(true)),
 			quiet: Rc::new(Cell::new(false)),
@@ -108,6 +111,22 @@ impl DialTree {
 
 	pub fn stations(&self) -> Rc<[Station]> {
 		self.stations.borrow().clone()
+	}
+
+	fn selected_item(&self) -> Option<TreeItemId> {
+		self.pending_selection.borrow().clone().or_else(|| self.list.get_selection())
+	}
+
+	pub fn show(&self, show: bool) {
+		self.list.show(show);
+		let pending = show.then(|| self.pending_selection.borrow_mut().take()).flatten();
+		if let Some(item) = pending {
+			self.quiet.set(true);
+			self.list.select_item(&item);
+			self.list.set_focused_item(&item);
+			self.list.ensure_visible(&item);
+			self.quiet.set(false);
+		}
 	}
 
 	fn row(&self, item: &TreeItemId) -> Option<Row> {
@@ -119,7 +138,7 @@ impl DialTree {
 
 	/// The flat index of the selected station row; a folder selects nothing.
 	pub fn current(&self) -> Option<usize> {
-		let item = self.list.get_selection()?;
+		let item = self.selected_item()?;
 		match self.row(&item) {
 			Some(Row::Station(i)) => Some(i),
 			_ => None,
@@ -129,7 +148,7 @@ impl DialTree {
 	/// The selected row itself, folder or station: the Applications
 	/// key acts on the row, not only on stations.
 	fn selected_row(&self) -> Option<Row> {
-		let item = self.list.get_selection()?;
+		let item = self.selected_item()?;
 		self.row(&item)
 	}
 
@@ -157,7 +176,7 @@ impl DialTree {
 		lib: &Library,
 		main_list: Option<&str>,
 	) -> Option<(String, Vec<usize>)> {
-		let item = self.list.get_selection()?;
+		let item = self.selected_item()?;
 		let row = self.row(&item)?;
 		let parent = || self.row(&self.list.get_item_parent(&item)?);
 		match if matches!(row, Row::Folder { .. }) {
@@ -176,7 +195,7 @@ impl DialTree {
 	/// The selected station's index among the stations on its level, which
 	/// lead the level in flat order. None on a folder row.
 	pub fn selected_level_index(&self) -> Option<usize> {
-		let item = self.list.get_selection()?;
+		let item = self.selected_item()?;
 		let Row::Station(i) = self.row(&item)? else {
 			return None;
 		};
@@ -225,6 +244,7 @@ impl DialTree {
 				.filter(|row| matches!(row, Row::Folder { .. }))
 		});
 		self.quiet.set(true);
+		self.pending_selection.borrow_mut().take();
 		// wx deletes rows one by one and the native tree moves the selection onto the
 		// next each time: a repaint and a focus event per row, which floods NVDA.
 		self.list.freeze();
@@ -245,14 +265,16 @@ impl DialTree {
 		// panicked (caught by the toolkit, the event lost).
 		let landed = land.and_then(|row| self.item_of_row(&row));
 		if let Some(item) = landed.or_else(|| self.item_of(focus)) {
-			self.list.select_item(&item);
 			// A hidden tree's focused item still reaches the screen
 			// reader as a focus event: NVDA reads "level 1 ... N of N"
 			// for a station the user cannot see.
 			if self.list.is_shown() {
+				self.list.select_item(&item);
 				self.list.set_focused_item(&item);
+				self.list.ensure_visible(&item);
+			} else {
+				*self.pending_selection.borrow_mut() = Some(item);
 			}
-			self.list.ensure_visible(&item);
 		}
 		self.list.thaw();
 		self.quiet.set(false);
@@ -343,12 +365,14 @@ impl DialTree {
 			return;
 		};
 		self.quiet.set(!tune);
-		self.list.select_item(&item);
 		// As in set_dial: a hidden tree gets no focused item.
 		if self.list.is_shown() {
+			self.list.select_item(&item);
 			self.list.set_focused_item(&item);
+			self.list.ensure_visible(&item);
+		} else {
+			*self.pending_selection.borrow_mut() = Some(item);
 		}
-		self.list.ensure_visible(&item);
 		self.quiet.set(false);
 	}
 
@@ -368,7 +392,7 @@ impl DialTree {
 	/// Where focus goes when the focused folder at `home` goes: the next
 	/// folder takes its place, else the row before it, else its parent.
 	fn row_after_delete(&self, home: &FolderHome) -> Option<Row> {
-		let item = self.list.get_selection()?;
+		let item = self.selected_item()?;
 		if let Some(next) = self.list.get_next_sibling(&item) {
 			// A folder after it slides into its index; a collection keeps its id.
 			return if home.1.is_empty() {

@@ -1560,7 +1560,7 @@ dependencies = [
 [[package]]
 name = "live-region"
 version = "0.3.3"
-source = "git+https://github.com/trypsynth/live-region#3179910894b85ba53444adeba2257b78c2ab5e17"
+source = "git+https://github.com/trypsynth/live-region#d34d19910416887ae7758c432b1bfadb2a834910"
 dependencies = [
  "objc",
  "pkg-config",

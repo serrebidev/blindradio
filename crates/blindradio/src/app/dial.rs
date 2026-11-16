@@ -24,7 +24,7 @@ impl App {
 		w.filter_label.show(show);
 		w.filter.show(show);
 		w.stations.label.show(show);
-		w.stations.list.show(show);
+		w.stations.show(show);
 		w.panel.layout();
 		if had_focus || show {
 			self.focus_home();
