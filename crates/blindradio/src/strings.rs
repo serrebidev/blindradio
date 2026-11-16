@@ -66,7 +66,7 @@ pub fn starter_not_loaded() -> String {
 	patois::t("Starter stations not loaded")
 }
 pub fn about_description() -> String {
-	patois::t("Screen-reader-first internet radio.")
+	patois::t("Screen-reader-first internet radio.\n\nAuthor: serrebidev. GitHub: https://github.com/serrebidev/blindradio. Forgejo: https://git.serrebiradio.com/serrebi/blindradio. Projects: https://projects.serrebiradio.com. Telegram: https://t.me/SerrebiProjects. Full credits: CREDITS.md.")
 }
 pub const WEBSITE: &str = "https://github.com/serrebidev/blindradio";
 
