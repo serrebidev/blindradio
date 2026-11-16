@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.100
+
+- Help > About now lists the author, the GitHub and Forgejo pages, the projects site and the Telegram channel, and points to CREDITS.md for full credits.
+- The README now follows the shared layout and credits the libraries and upstream code BlindRadio uses.
+
 ## 0.2.99
 
 - Fixed the remaining hidden-station announcement after a restart. Selecting a station in the hidden tree still sent accessibility focus events even with keyboard focus on Play, so NVDA announced the station and repeated it with NVDA+Up. Hidden selections now wait until the tree is shown; station shortcuts still work and the current station is selected when it returns.
