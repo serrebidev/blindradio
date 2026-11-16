@@ -568,8 +568,10 @@ impl App {
 		let first_run = store::first_run(&self.data);
 		// Play/Pause right after start plays the station from last time.
 		self.remembered = self.settings.last_station.clone();
-		self.refresh_dial();
+		// Hidden first: the rebuild below must not give the hidden
+		// tree a focused item (NVDA reads it as "level 1 ... N of N").
 		self.show_stations();
+		self.refresh_dial();
 		// No audio device could open: running silent until one appears.
 		if self.output.borrow().silent() {
 			self.say(&s::device_lost());

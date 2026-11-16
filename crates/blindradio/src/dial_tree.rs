@@ -246,7 +246,12 @@ impl DialTree {
 		let landed = land.and_then(|row| self.item_of_row(&row));
 		if let Some(item) = landed.or_else(|| self.item_of(focus)) {
 			self.list.select_item(&item);
-			self.list.set_focused_item(&item);
+			// A hidden tree's focused item still reaches the screen
+			// reader as a focus event: NVDA reads "level 1 ... N of N"
+			// for a station the user cannot see.
+			if self.list.is_shown() {
+				self.list.set_focused_item(&item);
+			}
 			self.list.ensure_visible(&item);
 		}
 		self.list.thaw();
@@ -339,7 +344,10 @@ impl DialTree {
 		};
 		self.quiet.set(!tune);
 		self.list.select_item(&item);
-		self.list.set_focused_item(&item);
+		// As in set_dial: a hidden tree gets no focused item.
+		if self.list.is_shown() {
+			self.list.set_focused_item(&item);
+		}
 		self.list.ensure_visible(&item);
 		self.quiet.set(false);
 	}

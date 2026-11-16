@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.98
+
+- Fixed starting BlindRadio with Stations > Hide Stations in the Main Window on: the screen reader announced the startup station as if the hidden tree were showing ("level 1 ... 34 of 34"), and NVDA+Up repeated it. Focus now rests on the Play button from the start, as it does after choosing Hide Stations.
+
 ## 0.2.97
 
 - Destination folders now use a tree instead of a long flat list. In Add Custom Station, Add to Favorites Folder, Add to Collection Folder and Move to Folder, expand only the collection and folders you need with Right; Left closes them. This works from the main window, Browse, Search, Favorites and Collections.

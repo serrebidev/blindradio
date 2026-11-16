@@ -43,7 +43,8 @@ Stations > Hide Stations in the Main Window hides the station tree and its Filte
 leaving now playing, the playback buttons, Volume and the message line; choose it again
 to bring them back. While they are hidden, focus rests on the Play button and every
 shortcut works as before: Play/Pause, the favorite and Previous or Next Station keys,
-recording, volume, timers and the rest. The choice is remembered when BlindRadio closes.
+recording, volume, timers and the rest. Starting BlindRadio with them hidden puts
+focus on the Play button as well. The choice is remembered when BlindRadio closes.
 It has no shortcut of its own; give it one in File > Keyboard Shortcuts.
 
 ## Searching

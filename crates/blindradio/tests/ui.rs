@@ -26,6 +26,110 @@ unsafe extern "system" {
 	fn GetMenuItemID(menu: isize, position: i32) -> u32;
 	fn GetMenuState(menu: isize, position: u32, flags: u32) -> u32;
 	fn PostMessageW(window: isize, message: u32, wparam: usize, lparam: isize) -> i32;
+	fn GetGUIThreadInfo(thread: u32, info: *mut GuiThreadInfo) -> i32;
+	fn GetWindowThreadProcessId(window: isize, pid: *mut u32) -> u32;
+	fn EnumWindows(callback: EnumWindowsProc, param: isize) -> i32;
+	fn EnumChildWindows(parent: isize, callback: EnumWindowsProc, param: isize) -> i32;
+	fn GetClassNameW(window: isize, buffer: *mut u16, max: i32) -> i32;
+	fn GetWindowTextW(window: isize, buffer: *mut u16, max: i32) -> i32;
+}
+
+type EnumWindowsProc = Option<unsafe extern "system" fn(isize, isize) -> i32>;
+
+#[repr(C)]
+struct GuiThreadInfo {
+	cb_size: u32,
+	flags: u32,
+	active: isize,
+	focus: isize,
+	capture: isize,
+	menu_owner: isize,
+	move_size: isize,
+	caret: isize,
+	caret_rect: [i32; 4],
+}
+
+/// Windows of one process with their class and text, for focus checks.
+struct WinCollect {
+	pid: u32,
+	windows: Vec<(isize, String, String)>,
+}
+
+unsafe extern "system" fn collect_top(window: isize, param: isize) -> i32 {
+	unsafe {
+		let mut pid = 0u32;
+		GetWindowThreadProcessId(window, &mut pid);
+		let collect = &mut *(param as *mut WinCollect);
+		if pid == collect.pid {
+			collect.windows.push((window, class_of(window), text_of(window)));
+			EnumChildWindows(window, Some(collect_child), param);
+		}
+	}
+	1
+}
+
+unsafe extern "system" fn collect_child(window: isize, param: isize) -> i32 {
+	unsafe {
+		let collect = &mut *(param as *mut WinCollect);
+		collect.windows.push((window, class_of(window), text_of(window)));
+		EnumChildWindows(window, Some(collect_child), param);
+	}
+	1
+}
+
+fn class_of(window: isize) -> String {
+	wide_text(|buffer| unsafe { GetClassNameW(window, buffer.as_mut_ptr(), buffer.len() as i32) })
+}
+
+fn text_of(window: isize) -> String {
+	wide_text(|buffer| unsafe { GetWindowTextW(window, buffer.as_mut_ptr(), buffer.len() as i32) })
+}
+
+fn wide_text(mut read: impl FnMut(&mut [u16]) -> i32) -> String {
+	let mut buffer = [0u16; 256];
+	let len = (read(&mut buffer).max(0) as usize).min(buffer.len());
+	String::from_utf16_lossy(&buffer[..len]).to_owned()
+}
+
+/// The focused window in the app's UI thread, and the app's tree and
+/// Play/Pause button windows: NVDA reads the focused one at startup.
+fn app_focus(pid: u32) -> (isize, isize, isize) {
+	let mut collect = WinCollect {
+		pid,
+		windows: Vec::new(),
+	};
+	unsafe { EnumWindows(Some(collect_top), &mut collect as *mut _ as isize) };
+	let tree = collect
+		.windows
+		.iter()
+		.find(|(_, class, _)| class == "SysTreeView32")
+		.map(|(window, _, _)| *window)
+		.expect("tree window");
+	let button = collect
+		.windows
+		.iter()
+		.find(|(_, class, text)| class == "Button" && (text == "Play" || text == "Pause"))
+		.map(|(window, _, _)| *window)
+		.expect("Play button window");
+	let top = collect.windows.first().expect("main window").0;
+	let mut owner = 0u32;
+	let thread = unsafe { GetWindowThreadProcessId(top, &mut owner) };
+	let mut info = GuiThreadInfo {
+		cb_size: std::mem::size_of::<GuiThreadInfo>() as u32,
+		flags: 0,
+		active: 0,
+		focus: 0,
+		capture: 0,
+		menu_owner: 0,
+		move_size: 0,
+		caret: 0,
+		caret_rect: [0; 4],
+	};
+	assert!(
+		unsafe { GetGUIThreadInfo(thread, &mut info) } != 0,
+		"GUI thread info"
+	);
+	(info.focus, tree, button)
 }
 
 fn station(id: &str, name: &str) -> Station {
@@ -52,7 +156,22 @@ impl App {
 		Self::with_settings(name, library, Settings::default())
 	}
 
-	fn with_settings(name: &str, library: Library, mut settings: Settings) -> App {
+	fn with_settings(name: &str, library: Library, settings: Settings) -> App {
+		Self::with_settings_inner(name, library, settings, true)
+	}
+
+	/// Without the harness's own window focus: the app's startup focus
+	/// stays as real startup leaves it.
+	fn with_settings_no_refocus(name: &str, library: Library, settings: Settings) -> App {
+		Self::with_settings_inner(name, library, settings, false)
+	}
+
+	fn with_settings_inner(
+		name: &str,
+		library: Library,
+		mut settings: Settings,
+		refocus: bool,
+	) -> App {
 		let data =
 			std::env::temp_dir().join(format!("blindradio-ui-{}-{name}", std::process::id()));
 		let _ = std::fs::remove_dir_all(&data);
@@ -72,16 +191,20 @@ impl App {
 			.timeout(WAIT.as_millis() as u64)
 			.filter_fn(Box::new({
 				let pid = child.id();
-				move |e: &UIElement| Ok(e.get_process_id()? == pid)
+				move |e: &UIElement| {
+					Ok(e.get_process_id()? == pid
+						&& e.get_name().unwrap_or_default().starts_with("BlindRadio"))
+				}
 			}))
-			.name("BlindRadio")
 			.control_type(ControlType::Window)
 			.find_first()
 			.expect("the window appears");
-		if let Ok(window) = WindowControl::try_from(window.clone()) {
-			let _ = window.set_foregrand();
+		if refocus {
+			if let Ok(window) = WindowControl::try_from(window.clone()) {
+				let _ = window.set_foregrand();
+			}
+			window.set_focus().ok();
 		}
-		window.set_focus().ok();
 		App {
 			child,
 			automation,
@@ -1393,6 +1516,34 @@ fn hide_stations_keeps_the_keys_and_is_remembered() {
 	assert!(!saved(), "shown again");
 	let tree = app.main_tree();
 	assert!(tree.has_keyboard_focus().unwrap_or(false), "focus back on the tree");
+}
+
+/// Starting with Hide Stations on: NVDA must read Play, not the hidden
+/// tree's startup station as "level 1 ... N of N".
+#[test]
+#[ignore = "needs a desktop"]
+fn hide_stations_at_startup_focuses_play_not_the_hidden_tree() {
+	let library = Library {
+		favorites: vec![station("custom:one", "One"), station("custom:two", "Two")],
+		..Library::default()
+	};
+	let settings = Settings {
+		main_list: Some("favorites".into()),
+		hide_stations: true,
+		play_last_at_startup: true,
+		last_station: Some(station("custom:two", "Two")),
+		..Settings::default()
+	};
+	let app = App::with_settings_no_refocus("hide-startup", library, settings);
+	// Startup settles: land_dial selects the startup station last, and
+	// that selection must not leave the hidden tree holding the focus.
+	std::thread::sleep(Duration::from_secs(1));
+	let (focus, tree, button) = app_focus(app.child.id());
+	assert_eq!(
+		focus, button,
+		"the Play button holds the focus at startup, not the hidden tree"
+	);
+	assert_ne!(focus, tree, "the hidden tree never holds the focus");
 }
 
 /// Answers Yes in the confirmation with this title.
