@@ -385,6 +385,25 @@ pub fn unmuted() -> String {
 pub fn mute_menu() -> String {
 	patois::t("&Mute")
 }
+pub fn playback_speed() -> String {
+	patois::t("Pl&ayback Speed")
+}
+pub fn faster() -> String {
+	patois::t("&Faster")
+}
+pub fn slower() -> String {
+	patois::t("&Slower")
+}
+pub fn normal_speed() -> String {
+	patois::t("&Normal Speed")
+}
+/// Spoken on a speed change: "Speed 1.25x".
+pub fn speed_is(speed: f32) -> String {
+	patois::t("Speed {speed}x").replace("{speed}", &format!("{speed:.2}"))
+}
+pub fn keep_pitch() -> String {
+	patois::t("Speed &keeps the pitch (off: tape, pitch follows speed)")
+}
 pub fn volume_up() -> String {
 	patois::t("Volume &Up")
 }

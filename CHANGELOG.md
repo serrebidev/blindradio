@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.103
+
+- Playback speed for the time-shift buffer, from 0.5x to 2x: Playback, Playback Speed, or Alt+Up for faster, Alt+Down for slower and Alt+Home for normal. Each key says the new speed. Faster catches up on a program you went back in, then plays live at normal speed. Slower falls behind live and keeps going from the buffer. Voices keep their pitch. The new Speed keeps the pitch check box on the Playback tab of Settings switches to tape speed, where pitch follows speed, like a faster cassette deck. Suggested by a listener, with Bookamp as the example.
+
 ## 0.2.102
 
 - HLS stations that put a segment number where the title goes, such as Telewebion's Radio Varzesh, no longer announce a new number every two seconds. A playlist title without a letter in it is ignored.

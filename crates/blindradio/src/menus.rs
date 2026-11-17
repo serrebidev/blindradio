@@ -113,6 +113,14 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 				Item(s::go_live(), keys(&A::GoLive), A::GoLive),
 				Item(s::previous_segment(), keys(&A::PreviousSegment), A::PreviousSegment),
 				Item(s::next_segment(), keys(&A::NextSegment), A::NextSegment),
+				Sub(
+					s::playback_speed(),
+					vec![
+						Item(s::faster(), keys(&A::Faster), A::Faster),
+						Item(s::slower(), keys(&A::Slower), A::Slower),
+						Item(s::normal_speed(), keys(&A::NormalSpeed), A::NormalSpeed),
+					],
+				),
 				Separator,
 				Item(s::mute_menu(), keys(&A::Mute), A::Mute),
 				Item(s::volume_up(), keys(&A::VolumeUp), A::VolumeUp),
@@ -288,7 +296,7 @@ mod tests {
 	use super::*;
 	use crate::action::app_key;
 	use wxdragon::prelude::{
-		WXK_DOWN, WXK_F1, WXK_F5, WXK_F6, WXK_F7, WXK_F8, WXK_LEFT, WXK_RIGHT, WXK_UP,
+		WXK_DOWN, WXK_F1, WXK_F5, WXK_F6, WXK_F7, WXK_F8, WXK_HOME, WXK_LEFT, WXK_RIGHT, WXK_UP,
 	};
 
 	/// Every item with its shortcut, `&` dropped, submenus flattened.
@@ -325,6 +333,7 @@ mod tests {
 			"F6" => WXK_F6,
 			"F7" => WXK_F7,
 			"F8" => WXK_F8,
+			"Home" => WXK_HOME,
 			k if k.len() == 1 => k.chars().next().unwrap() as i32,
 			k => panic!("unknown key {k}"),
 		};

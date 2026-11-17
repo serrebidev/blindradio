@@ -364,6 +364,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 
 	let (panel, sizer) = tab(&notebook, &s::tab_playback());
 	let fm_sound = check(&panel, &sizer, &s::fm_sound(), current.fm_sound);
+	let keep_pitch = check(&panel, &sizer, &s::keep_pitch(), current.keep_pitch);
 	let channel_items = ChannelMode::ALL.map(s::channel_mode);
 	let channels = choice(
 		&panel,
@@ -573,6 +574,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.play_on_move = play_move.get_value();
 			st.expand_dial_folders = expand_dial.get_value();
 			st.fm_sound = fm_sound.get_value();
+			st.keep_pitch = keep_pitch.get_value();
 			st.channels = channels
 				.get_selection()
 				.and_then(|i| ChannelMode::ALL.get(i as usize).copied())
@@ -632,6 +634,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			}
 			app.save_settings();
 			app.apply_fm_sound();
+			app.apply_speed();
 			app.refresh_sound();
 			app.apply_buffers();
 			app.refresh_dial();

@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use blindradio_core::history::SessionHistory;
 use blindradio_core::library::{Collection, Folder, FolderTarget, Home, Library, StationDest};
 use blindradio_core::output::{DeviceEvent, MixerCmd, Output, output_devices};
-use blindradio_core::settings::{ChannelMode, EqSettings, Settings};
+use blindradio_core::settings::{ChannelMode, EqSettings, MAX_SPEED, MIN_SPEED, Settings};
 use blindradio_core::sleep::SleepTimer;
 use blindradio_core::sources::{Endpoints, Filters, Sources};
 use blindradio_core::station::Station;
@@ -41,6 +41,7 @@ mod status;
 const VOLUME_STEP: i32 = 1;
 /// The 5% volume keys move five points per press.
 const VOLUME_STEP_FAST: i32 = 5;
+const SPEED_STEP: f32 = 0.05;
 
 /// Volume ceiling in slider points: 200 is 200%, boost for quiet stations.
 pub const MAX_POINTS: i32 = (blindradio_core::settings::MAX_VOLUME * 100.0) as i32;
@@ -478,6 +479,10 @@ impl App {
 		let output = Output::start(settings.audio_device.as_deref())?;
 		output.send(MixerCmd::Volume(settings.volume));
 		output.send(MixerCmd::Mute(settings.muted));
+		output.send(MixerCmd::Speed {
+			speed: settings.speed,
+			keep_pitch: settings.keep_pitch,
+		});
 		let heard_eq = settings.eq.clone();
 		output.send(MixerCmd::Eq(heard_eq.clone()));
 		output.send(MixerCmd::Hiss(settings.fm_sound));
@@ -783,6 +788,9 @@ impl App {
 				// The toggle says what it did, like every other action.
 				self.say(&mute_message(self.settings.muted));
 			}
+			Action::Faster => self.set_speed(self.settings.speed + SPEED_STEP),
+			Action::Slower => self.set_speed(self.settings.speed - SPEED_STEP),
+			Action::NormalSpeed => self.set_speed(1.0),
 			Action::VolumeUp => self.set_volume(self.volume() + VOLUME_STEP),
 			Action::VolumeDown => self.set_volume(self.volume() - VOLUME_STEP),
 			Action::VolumeUp5 => self.set_volume(self.volume() + VOLUME_STEP_FAST),
@@ -1338,6 +1346,21 @@ impl App {
 
 	fn volume(&self) -> i32 {
 		(self.settings.volume * 100.0).round() as i32
+	}
+
+	/// Time-shift speed, in steps of 0.05, spoken.
+	fn set_speed(&mut self, speed: f32) {
+		self.settings.speed = ((speed * 20.0).round() / 20.0).clamp(MIN_SPEED, MAX_SPEED);
+		self.apply_speed();
+		self.save_settings_soon();
+		self.say(&s::speed_is(self.settings.speed));
+	}
+
+	pub fn apply_speed(&self) {
+		self.mixer(MixerCmd::Speed {
+			speed: self.settings.speed,
+			keep_pitch: self.settings.keep_pitch,
+		});
 	}
 
 	fn set_volume(&mut self, points: i32) {

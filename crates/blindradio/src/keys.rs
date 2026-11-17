@@ -60,6 +60,9 @@ pub enum KeyAction {
 	GoLiveAlt,
 	GoLiveF8,
 	Mute,
+	Faster,
+	Slower,
+	NormalSpeed,
 	VolumeUp,
 	VolumeDown,
 	VolumeUp5,
@@ -122,7 +125,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 86] = [
+	pub const ALL: [KeyAction; 89] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -153,6 +156,9 @@ impl KeyAction {
 		K::GoLiveAlt,
 		K::GoLiveF8,
 		K::Mute,
+		K::Faster,
+		K::Slower,
+		K::NormalSpeed,
 		K::VolumeUp,
 		K::VolumeDown,
 		K::VolumeUp5,
@@ -303,6 +309,9 @@ impl KeyAction {
 			K::GoLiveAlt => "go_live_alt",
 			K::GoLiveF8 => "go_live_f8",
 			K::Mute => "mute",
+			K::Faster => "faster",
+			K::Slower => "slower",
+			K::NormalSpeed => "normal_speed",
 			K::VolumeUp => "volume_up",
 			K::VolumeDown => "volume_down",
 			K::VolumeUp5 => "volume_up_5",
@@ -397,6 +406,9 @@ impl KeyAction {
 			K::GoLive => plain(&s::go_live()),
 			K::GoLiveAlt | K::GoLiveF8 => alt(&s::go_live()),
 			K::Mute => plain(&s::mute_menu()),
+			K::Faster => plain(&s::faster()),
+			K::Slower => plain(&s::slower()),
+			K::NormalSpeed => plain(&s::normal_speed()),
 			K::VolumeUp => plain(&s::volume_up()),
 			K::VolumeDown => plain(&s::volume_down()),
 			K::VolumeUp5 => plain(&s::volume_up_5()),
@@ -482,6 +494,9 @@ impl KeyAction {
 			K::WriteNextSegment => "Ctrl+F7",
 			K::WriteCurrentSegment => "Ctrl+F8",
 			K::Mute => "Ctrl+M",
+			K::Faster => "Alt+Up",
+			K::Slower => "Alt+Down",
+			K::NormalSpeed => "Alt+Home",
 			K::VolumeUp => "Ctrl+Up",
 			K::VolumeDown => "Ctrl+Down",
 			K::VolumeUp5 => "Ctrl+Shift+Up",
@@ -554,6 +569,9 @@ impl KeyAction {
 			K::SeekStart | K::SeekStartAlt => Action::SeekStart,
 			K::GoLive | K::GoLiveAlt | K::GoLiveF8 => Action::GoLive,
 			K::Mute => Action::Mute,
+			K::Faster => Action::Faster,
+			K::Slower => Action::Slower,
+			K::NormalSpeed => Action::NormalSpeed,
 			K::VolumeUp => Action::VolumeUp,
 			K::VolumeDown => Action::VolumeDown,
 			K::VolumeUp5 => Action::VolumeUp5,
@@ -621,6 +639,9 @@ impl KeyAction {
 			| K::HideStations
 			| K::AddToCollection
 			| K::FocusVolume
+			| K::Faster
+			| K::Slower
+			| K::NormalSpeed
 			| K::Import
 			| K::ImportAsCollection
 			| K::ExportCurrentList
@@ -700,6 +721,9 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::SeekStart => K::SeekStartAlt,
 		Action::GoLive => K::GoLiveF8,
 		Action::Mute => K::Mute,
+		Action::Faster => K::Faster,
+		Action::Slower => K::Slower,
+		Action::NormalSpeed => K::NormalSpeed,
 		Action::VolumeUp => K::VolumeUp,
 		Action::VolumeDown => K::VolumeDown,
 		Action::VolumeUp5 => K::VolumeUp5,

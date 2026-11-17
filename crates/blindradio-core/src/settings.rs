@@ -318,6 +318,10 @@ pub struct StationSettings {
 /// distortion is the listener's choice, never a surprise.
 pub const MAX_VOLUME: f32 = 2.0;
 
+/// Playback speed range, as times normal.
+pub const MIN_SPEED: f32 = 0.5;
+pub const MAX_SPEED: f32 = 2.0;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -349,6 +353,11 @@ pub struct Settings {
 	pub audio_device: Option<String>,
 	pub volume: f32,
 	pub muted: bool,
+	/// Time-shift playback speed, 1 is normal: faster catches up to live,
+	/// slower falls behind it. Mixer: `MixerCmd::Speed`.
+	pub speed: f32,
+	/// Speed keeps voices at their pitch; off is tape, pitch follows speed.
+	pub keep_pitch: bool,
 	pub eq: EqSettings,
 	pub channels: ChannelMode,
 	/// Action id to chord text; empty means defaults.
@@ -403,6 +412,8 @@ impl Default for Settings {
 			audio_device: None,
 			volume: 0.8,
 			muted: false,
+			speed: 1.0,
+			keep_pitch: true,
 			eq: EqSettings::default(),
 			channels: ChannelMode::Stereo,
 			hotkeys: BTreeMap::new(),
@@ -466,6 +477,9 @@ impl Settings {
 			p.treble = 0;
 		}
 		s.buffers = s.buffers.clamped();
+		if !(MIN_SPEED..=MAX_SPEED).contains(&s.speed) {
+			s.speed = 1.0;
+		}
 		s.timeshift.minutes = s.timeshift.minutes.clamp(1, 240);
 		s.timeshift.max_mb = s.timeshift.max_mb.min(16_384);
 		s.timeshift.seek_step_seconds = s.timeshift.seek_step_seconds.clamp(5, 60);

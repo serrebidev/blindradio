@@ -194,7 +194,8 @@ impl Sink for RecSink {
 			| MixerCmd::ShiftSeek(_)
 			| MixerCmd::ShiftSeekTo(_)
 			| MixerCmd::ShiftLive
-			| MixerCmd::RecordSlot(_) => return,
+			| MixerCmd::RecordSlot(_)
+			| MixerCmd::Speed { .. } => return,
 		};
 		self.cmds.lock().push(rec);
 	}

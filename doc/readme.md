@@ -361,6 +361,27 @@ four. If the station is playing you hear each choice at once; OK keeps it and Ca
 back what was there. A change eases in over a moment, so it never clicks. Recordings keep
 the stream's own channels.
 
+## Playback speed
+
+Playback, Playback Speed plays the time-shift buffer faster or slower, from 0.5x to 2x.
+Faster (Alt+Up) and Slower (Alt+Down) change the speed by 0.05x each time.
+Normal Speed (Alt+Home) goes back to 1x. Each key says the new speed, such as `Speed 1.25x`.
+BlindRadio remembers the speed after a restart.
+
+- Faster catches up on a program you went back in. When playback reaches live, it plays at
+  normal speed, because nothing newer has arrived yet. The speed stays set, and works again
+  the next time you go back.
+- Slower falls behind live from where you are, and the buffer keeps recording behind you.
+  Go to Live (F8) jumps back to the broadcast; at a slow speed it then falls behind again.
+- Speed needs time-shift playback, which is on unless you turned it off on the Playback tab.
+
+By default, speed keeps voices at their own pitch. BlindRadio cuts the audio into short
+overlapping pieces and lines each one up with the last, the same method as SoundTouch and
+web browsers' playback speed. It runs inside the audio path, with no extra buffering. Settings, Playback
+tab, Speed keeps the pitch: turn it off for tape speed, where pitch moves with speed, like a
+cassette deck played faster. Some stations speed songs up a little that way, because many
+listeners like the brighter sound.
+
 ## Collections
 
 Ctrl+L lists Custom Stations and every collection as a tree, folders included. New Folder
@@ -618,6 +639,8 @@ Global Hotkeys, below, are the separate set that works from other apps.
 | Ctrl+M | Mute, saying `Muted` or `Unmuted`. Changing the volume while muted unmutes, saying `Unmuted` |
 | Ctrl+Up, Ctrl+Down | Volume up, down |
 | Ctrl+Shift+Up, Ctrl+Shift+Down | Volume up, down by 5 |
+| Alt+Up, Alt+Down | Playback speed faster, slower |
+| Alt+Home | Normal playback speed |
 | Ctrl+D | Add to or remove from Favorites |
 | Ctrl+F | Search |
 | Ctrl+G | Browse |

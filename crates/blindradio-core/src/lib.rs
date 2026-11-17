@@ -22,6 +22,7 @@ pub mod scrobble;
 mod secret;
 pub mod schedule;
 pub mod segments;
+pub mod stretch;
 pub mod ring;
 pub mod ringfeed;
 pub mod settings;

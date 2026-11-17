@@ -16,6 +16,7 @@ use crate::record::Recorder;
 use crate::error::CoreError;
 use crate::ring::PcmRing;
 use crate::settings::{ChannelMode, EqSettings};
+use crate::stretch::Stretch;
 use crate::timeshift::{ShiftBuffer, ShiftStatus};
 
 /// Warm-swap crossfade length.
@@ -74,6 +75,10 @@ pub enum MixerCmd {
 	/// listener hears into it, live or time-shifted, so a recording
 	/// starts where the listener is. The decoder runs ahead by the ring.
 	RecordSlot(Option<Arc<Mutex<Option<Recorder>>>>),
+	/// Playback speed in the time-shift buffer; 1 is normal. Faster
+	/// catches up and returns to normal at live; slower falls behind
+	/// live into the buffer. `keep_pitch` false is tape: pitch follows.
+	Speed { speed: f32, keep_pitch: bool },
 }
 
 /// Where the playing ring stands.
@@ -141,6 +146,9 @@ pub struct MixerCore {
 	/// Eases to `matrix_target` over a crossfade, so a mode change never clicks.
 	matrix: [f32; 4],
 	matrix_target: [f32; 4],
+	speed: f32,
+	keep_pitch: bool,
+	stretch: Stretch,
 }
 
 const STEREO: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
@@ -188,6 +196,9 @@ impl MixerCore {
 			record_slot: None,
 			matrix: STEREO,
 			matrix_target: STEREO,
+			speed: 1.0,
+			keep_pitch: true,
+			stretch: Stretch::new(rate),
 		};
 		m.set_rate(rate);
 		m
@@ -201,6 +212,7 @@ impl MixerCore {
 		self.hiss_step = 1.0 / self.fade_frames.max(1) as f32;
 		self.eq = Eq::new(rate);
 		self.eq.set(&self.eq_settings);
+		self.stretch = Stretch::new(rate);
 	}
 
 	pub fn handle(&mut self, cmd: MixerCmd) {
@@ -234,6 +246,7 @@ impl MixerCore {
 				self.shift = None;
 				self.shift_cursor = None;
 				self.shift_paused = false;
+				self.stretch.reset();
 				// Waiting on a station hisses; stop is silent.
 				self.hiss = ring.is_some();
 				let is = |a: &Arc<PcmRing>| ring.as_ref().is_some_and(|r| Arc::ptr_eq(a, r));
@@ -260,6 +273,7 @@ impl MixerCore {
 				self.shift = Some((buffer, status));
 				self.shift_cursor = None;
 				self.shift_paused = false;
+				self.stretch.reset();
 			}
 			MixerCmd::ShiftPause(paused) => {
 				if let Some((buffer, status)) = &self.shift {
@@ -276,6 +290,7 @@ impl MixerCore {
 				}
 			}
 			MixerCmd::ShiftSeek(seconds) => {
+				self.stretch.reset();
 				if let Some((buffer, status)) = &self.shift {
 					// From where playback stands, not the newest audio: a connect burst
 					// puts that far ahead, and a step back from it would land forward.
@@ -297,6 +312,7 @@ impl MixerCore {
 				}
 			}
 			MixerCmd::ShiftSeekTo(frame) => {
+				self.stretch.reset();
 				if let Some((buffer, status)) = &self.shift {
 					let live = status.live_frame(buffer);
 					let start = buffer.start();
@@ -308,6 +324,7 @@ impl MixerCore {
 				}
 			}
 			MixerCmd::ShiftLive => {
+				self.stretch.reset();
 				self.shift_cursor = None;
 				self.shift_paused = false;
 				if let Some((_, status)) = &self.shift {
@@ -316,6 +333,10 @@ impl MixerCore {
 				}
 			}
 			MixerCmd::RecordSlot(slot) => self.record_slot = slot,
+			MixerCmd::Speed { speed, keep_pitch } => {
+				self.speed = speed.clamp(0.25, 4.0);
+				self.keep_pitch = keep_pitch;
+			}
 			MixerCmd::Volume(v) => self.volume = v.clamp(0.0, crate::settings::MAX_VOLUME),
 			MixerCmd::Mute(muted) => self.muted = muted,
 			MixerCmd::Eq(s) => {
@@ -340,6 +361,17 @@ impl MixerCore {
 			let backlog = self.active.as_ref().map_or(0, |ring| ring.frames());
 			status.backlog.store(backlog, Ordering::Relaxed);
 		}
+		// Slower than real time falls behind live: playback moves into the
+		// buffer where live stands, and drifts back from there.
+		let slow = self.speed < 1.0;
+		if slow
+			&& self.shift_cursor.is_none()
+			&& !self.shift_paused
+			&& self.flow == Flow::Playing
+			&& let Some((buffer, status)) = &self.shift
+		{
+			self.shift_cursor = Some(status.live_frame(buffer));
+		}
 		// Time-shifted playback reads the buffer at the cursor instead of the
 		// ring; the ring is drained and dropped so its producer never blocks.
 		let shifted = self.shift.is_some() && (self.shift_paused || self.shift_cursor.is_some());
@@ -350,13 +382,29 @@ impl MixerCore {
 				ring.pop_into(&mut self.b);
 			}
 			if !self.shift_paused {
-				let cursor = self.shift_cursor.unwrap_or(0);
+				let mut next = self.shift_cursor.unwrap_or(0);
 				let (buffer, status) = self.shift.as_ref().unwrap();
-				let n = buffer.read_at(cursor, &mut self.a);
-				got = n / 2;
-				let next = cursor + got as u64;
-				// Reaching live hands playback back to the ring, which plays on from this frame.
-				self.shift_cursor = if next >= status.live_frame(buffer) { None } else { Some(next) };
+				if (self.speed - 1.0).abs() > 0.001 {
+					// Up to the newest audio, not live: slowing at live reads the backlog.
+					let read = |at: u64, out: &mut [f32]| buffer.read_at(at, out);
+					let span = buffer.start()..buffer.live_edge();
+					(got, next) =
+						self.stretch
+							.render(&read, span, next, self.speed, self.keep_pitch, &mut self.a);
+				} else {
+					self.stretch.reset();
+				}
+				// Normal speed, or what the stretch left near live.
+				let n = buffer.read_at(next, &mut self.a[got * 2..]) / 2;
+				got += n;
+				next += n as u64;
+				// Reaching live hands playback back to the ring, which plays on from
+				// this frame. Slower than live never reaches it.
+				let live = status.live_frame(buffer);
+				self.shift_cursor = if !slow && next >= live { None } else { Some(next) };
+				if self.shift_cursor.is_none() {
+					self.stretch.reset();
+				}
 			}
 			if let Some((_, status)) = &self.shift {
 				status
@@ -1766,6 +1814,34 @@ mod tests {
 		let behind = status.behind_seconds(&buffer);
 		assert!((0.4..0.7).contains(&behind), "the pause counts: {behind}");
 		assert!(ring.frames() > 7_000);
+	}
+
+	#[test]
+	fn faster_catches_up_then_plays_live_at_normal_speed() {
+		let (mut m, buffer, status, _ring) = burst_setup();
+		m.handle(MixerCmd::ShiftSeek(-2));
+		m.handle(MixerCmd::Speed { speed: 2.0, keep_pitch: true });
+		let out = render_frames(&mut m, 1_000);
+		assert!(out[200..].iter().all(|s| (s - 0.5).abs() < 0.01), "steady level while stretched");
+		render_frames(&mut m, 1);
+		let behind = status.behind_seconds(&buffer);
+		assert!((0.9..1.1).contains(&behind), "a second gained in a second: {behind}");
+		render_frames(&mut m, 1_100);
+		assert_eq!(status.cursor.load(Ordering::Relaxed), u64::MAX, "caught up: live");
+		assert_eq!(m.strikes, 0, "the ring never ran dry");
+	}
+
+	#[test]
+	fn slower_falls_behind_live() {
+		for keep_pitch in [true, false] {
+			let (mut m, buffer, status, _ring) = burst_setup();
+			m.handle(MixerCmd::Speed { speed: 0.5, keep_pitch });
+			let out = render_frames(&mut m, 2_000);
+			assert!(out[200..].iter().all(|s| (s - 0.5).abs() < 0.01), "steady level");
+			render_frames(&mut m, 1);
+			let behind = status.behind_seconds(&buffer);
+			assert!((0.9..1.1).contains(&behind), "{keep_pitch}: half speed loses 1 s in 2: {behind}");
+		}
 	}
 }
 

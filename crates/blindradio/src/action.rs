@@ -51,6 +51,10 @@ pub enum Action {
 	/// Hide or show the station tree and its filter (Stations menu).
 	HideStations,
 	Mute,
+	/// Time-shift playback speed up, down, back to 1x.
+	Faster,
+	Slower,
+	NormalSpeed,
 	VolumeUp,
 	VolumeDown,
 	VolumeUp5,

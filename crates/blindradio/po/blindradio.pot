@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: blindradio 0.2.93\n"
+"Project-Id-Version: blindradio 0.2.102\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 08:29-0700\n"
+"POT-Creation-Date: 2026-11-17 15:13-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -76,6 +76,24 @@ msgid "Starter stations not loaded"
 msgstr ""
 
 msgid "Screen-reader-first internet radio."
+msgstr ""
+
+msgid "Author: serrebidev."
+msgstr ""
+
+msgid "GitHub: serrebidev/blindradio"
+msgstr ""
+
+msgid "Forgejo: serrebi/blindradio"
+msgstr ""
+
+msgid "Projects: projects.serrebiradio.com"
+msgstr ""
+
+msgid "Telegram: SerrebiProjects"
+msgstr ""
+
+msgid "Full credits"
 msgstr ""
 
 msgid "Play"
@@ -352,6 +370,24 @@ msgid "Unmuted"
 msgstr ""
 
 msgid "&Mute"
+msgstr ""
+
+msgid "Pl&ayback Speed"
+msgstr ""
+
+msgid "&Faster"
+msgstr ""
+
+msgid "&Slower"
+msgstr ""
+
+msgid "&Normal Speed"
+msgstr ""
+
+msgid "Speed {speed}x"
+msgstr ""
+
+msgid "Speed &keeps the pitch (off: tape, pitch follows speed)"
 msgstr ""
 
 msgid "Volume &Up"
