@@ -1343,6 +1343,13 @@ impl App {
 	fn set_volume(&mut self, points: i32) {
 		self.settings.volume = points.clamp(0, MAX_POINTS) as f32 / 100.0;
 		self.mixer(MixerCmd::Volume(self.settings.volume));
+		// Changing the volume means the listener wants to hear it,
+		// so a muted app unmutes on the first change, as in DVBViewer.
+		if self.settings.muted {
+			self.settings.muted = false;
+			self.mixer(MixerCmd::Mute(false));
+			self.say(&mute_message(false));
+		}
 		// The level set while a station plays is that station's
 		// remembered volume, applied again when it starts.
 		if let Some(playing) = self.tuner.playing() {

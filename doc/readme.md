@@ -612,7 +612,7 @@ Global Hotkeys, below, are the separate set that works from other apps.
 | Ctrl+P | Play or pause |
 | Space | Play or pause, on a list, a tree or the volume slider; elsewhere Space types or presses as usual |
 | Ctrl+S | Stop |
-| Ctrl+M | Mute, saying `Muted` or `Unmuted` |
+| Ctrl+M | Mute, saying `Muted` or `Unmuted`. Changing the volume while muted unmutes, saying `Unmuted` |
 | Ctrl+Up, Ctrl+Down | Volume up, down |
 | Ctrl+Shift+Up, Ctrl+Shift+Down | Volume up, down by 5 |
 | Ctrl+D | Add to or remove from Favorites |

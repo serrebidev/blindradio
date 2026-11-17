@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.101
+
+- Changing the volume while muted now unmutes on the first change and says "Unmuted". This works with the volume keys, the volume slider and the global volume hotkeys, as in DVBViewer Pro.
+
 ## 0.2.100
 
 - Help > About now names the author and has a button for each link: GitHub, Forgejo, the projects site, the Telegram channel and the full credits. Tab reaches each one and Enter opens it.
