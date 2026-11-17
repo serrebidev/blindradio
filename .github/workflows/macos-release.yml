@@ -48,3 +48,7 @@ jobs:
           curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
           echo "Attached $name to $TAG"
         done
+    - name: Cargo clean (free disk)
+      if: always()
+      continue-on-error: true
+      run: cargo clean

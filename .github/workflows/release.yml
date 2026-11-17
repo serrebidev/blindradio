@@ -185,6 +185,21 @@ jobs:
 
       # Drop only the link, never the shared folder behind it,
       # before the runner deletes the work folder.
+      # Each commit leaves new copies of the workspace crates' test
+      # exes and libraries (~1 GB a release); nothing reuses the old
+      # ones, since every release bumps the shared version. Drop those
+      # left by earlier runs. Dependencies and the wxWidgets CMake
+      # build stay: rebuilding them is what makes a cold build slow.
+      # ponytail: old dependency copies after `cargo update` still pile
+      # up slowly; delete the folder on the runner if that ever matters.
+      - name: Prune old workspace builds (free disk)
+        if: always() && runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $old = (Get-Date).AddHours(-2)
+          Get-ChildItem "$env:CARGO_TARGET_DIR/*/build/blindradio*", "$env:CARGO_TARGET_DIR/*/build/xtask" -Directory -ErrorAction SilentlyContinue |
+            Get-ChildItem -Directory | Where-Object LastWriteTime -lt $old | Remove-Item -Recurse -Force
       - name: Unlink persistent target folder (Windows)
         if: always() && runner.os == 'Windows'
         shell: pwsh
@@ -266,6 +281,13 @@ jobs:
             target/dist/BlindRadio.tar.gz.minisig
 
       # Drop only the link, never the shared folder behind it.
+      # Same prune as the Windows leg: old workspace builds only.
+      - name: Prune old workspace builds (free disk)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          find "$CARGO_TARGET_DIR"/*/build/blindradio* "$CARGO_TARGET_DIR"/*/build/xtask             -mindepth 1 -maxdepth 1 -type d -mmin +120 -exec rm -rf {} + 2>/dev/null || true
       - name: Unlink persistent target folder (Linux)
         if: always()
         shell: bash
@@ -331,6 +353,13 @@ jobs:
 
       # Drop only the link, never the shared folder behind it,
       # before the runner deletes the work folder.
+      # Same prune as the Windows leg: old workspace builds only.
+      - name: Prune old workspace builds (free disk)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          find "$CARGO_TARGET_DIR"/*/build/blindradio* "$CARGO_TARGET_DIR"/*/build/xtask             -mindepth 1 -maxdepth 1 -type d -mmin +120 -exec rm -rf {} + 2>/dev/null || true
       - name: Unlink persistent target folder (macOS)
         if: always() && runner.os == 'macOS'
         shell: bash
