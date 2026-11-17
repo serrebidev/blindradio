@@ -7,7 +7,7 @@ taken from this file by the release workflow.
 
 ## 0.2.100
 
-- Help > About now lists the author, the GitHub and Forgejo pages, the projects site and the Telegram channel, and points to CREDITS.md for full credits.
+- Help > About now names the author and has a button for each link: GitHub, Forgejo, the projects site, the Telegram channel and the full credits. Tab reaches each one and Enter opens it.
 - The README now follows the shared layout and credits the libraries and upstream code BlindRadio uses.
 
 ## 0.2.99

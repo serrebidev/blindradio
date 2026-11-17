@@ -66,7 +66,35 @@ pub fn starter_not_loaded() -> String {
 	patois::t("Starter stations not loaded")
 }
 pub fn about_description() -> String {
-	patois::t("Screen-reader-first internet radio.\n\nAuthor: serrebidev. GitHub: https://github.com/serrebidev/blindradio. Forgejo: https://git.serrebiradio.com/serrebi/blindradio. Projects: https://projects.serrebiradio.com. Telegram: https://t.me/SerrebiProjects. Full credits: CREDITS.md.")
+	patois::t("Screen-reader-first internet radio.")
+}
+pub fn about_author() -> String {
+	patois::t("Author: serrebidev.")
+}
+/// About's links, each shown as its own button so Tab reaches it.
+pub fn about_links() -> Vec<(String, &'static str)> {
+	vec![
+		(
+			patois::t("GitHub: serrebidev/blindradio"),
+			"https://github.com/serrebidev/blindradio",
+		),
+		(
+			patois::t("Forgejo: serrebi/blindradio"),
+			"https://git.serrebiradio.com/serrebi/blindradio",
+		),
+		(
+			patois::t("Projects: projects.serrebiradio.com"),
+			"https://projects.serrebiradio.com",
+		),
+		(
+			patois::t("Telegram: SerrebiProjects"),
+			"https://t.me/SerrebiProjects",
+		),
+		(
+			patois::t("Full credits"),
+			"https://git.serrebiradio.com/serrebi/blindradio/src/branch/main/CREDITS.md",
+		),
+	]
 }
 pub const WEBSITE: &str = "https://github.com/serrebidev/blindradio";
 
@@ -386,7 +414,14 @@ pub fn sleep_timer() -> String {
 }
 /// In `SLEEP_MINUTES` order.
 pub fn sleep_items() -> [String; 6] {
-	[patois::t("&15 Minutes"), patois::t("&30 Minutes"), patois::t("&45 Minutes"), patois::t("1 &Hour"), patois::t("&90 Minutes"), patois::t("&2 Hours")]
+	[
+		patois::t("&15 Minutes"),
+		patois::t("&30 Minutes"),
+		patois::t("&45 Minutes"),
+		patois::t("1 &Hour"),
+		patois::t("&90 Minutes"),
+		patois::t("&2 Hours"),
+	]
 }
 pub fn sleep_off() -> String {
 	patois::t("&Off")

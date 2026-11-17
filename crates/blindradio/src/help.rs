@@ -54,13 +54,22 @@ pub fn open(html: &str, name: &str) -> bool {
 pub fn about(frame: &Frame) {
 	let dialog = Dialog::builder(frame, &s::about_title()).build();
 	let body = format!(
-		"{} {}\n{}\n{}",
+		"{} {}\n{}\n\n{}",
 		s::APP_NAME,
 		env!("CARGO_PKG_VERSION"),
 		s::about_description(),
-		s::WEBSITE
+		s::about_author()
 	);
 	let text = StaticText::builder(&dialog).with_label(&body).build();
+	// Each link is its own button: Tab reaches it, Enter or Space opens it.
+	let links = BoxSizer::builder(Orientation::Vertical).build();
+	for (label, url) in s::about_links() {
+		let link = Button::builder(&dialog).with_label(&label).build();
+		link.on_click(move |_| {
+			launch_default_browser(url, BrowserLaunchFlags::Default);
+		});
+		links.add(&link, 0, SizerFlag::Expand | SizerFlag::All, 3);
+	}
 	let button = Button::builder(&dialog)
 		.with_label(&s::licenses_button())
 		.build();
@@ -74,6 +83,7 @@ pub fn about(frame: &Frame) {
 	buttons.add(&close, 0, SizerFlag::All, 5);
 	let sizer = BoxSizer::builder(Orientation::Vertical).build();
 	sizer.add(&text, 0, SizerFlag::Expand | SizerFlag::All, 10);
+	sizer.add_sizer(&links, 0, SizerFlag::Expand | SizerFlag::All, 7);
 	sizer.add_sizer(&buttons, 0, SizerFlag::All, 0);
 	dialog.set_sizer_and_fit(sizer, true);
 	button.on_click(move |_| {
@@ -88,6 +98,23 @@ use crate::strings as s;
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn about_has_every_project_link() {
+		let urls: Vec<&str> = super::s::about_links()
+			.into_iter()
+			.map(|(_, url)| url)
+			.collect();
+		assert_eq!(
+			urls,
+			[
+				"https://github.com/serrebidev/blindradio",
+				"https://git.serrebiradio.com/serrebi/blindradio",
+				"https://projects.serrebiradio.com",
+				"https://t.me/SerrebiProjects",
+				"https://git.serrebiradio.com/serrebi/blindradio/src/branch/main/CREDITS.md",
+			]
+		);
+	}
 	use super::*;
 
 	#[test]
