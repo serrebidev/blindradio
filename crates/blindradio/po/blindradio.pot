@@ -1086,6 +1086,9 @@ msgstr ""
 msgid "Metadata offset, seconds (blank = Default; positive = early, negative = late)"
 msgstr ""
 
+msgid "&Hide Song Titles From This Station"
+msgstr ""
+
 msgid "Enter a whole number from -30 to 30, or leave blank for Default."
 msgstr ""
 

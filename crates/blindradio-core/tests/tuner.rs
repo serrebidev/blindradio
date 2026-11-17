@@ -687,6 +687,24 @@ fn station_metadata_offset_delays_title_display_without_timeshift() {
 }
 
 #[test]
+fn station_with_hidden_titles_never_shows_or_says_them() {
+	let mut f = fixture();
+	let list = stations(7);
+	let mut settings = blindradio_core::settings::Settings::default();
+	settings.station_overrides.entry("s4".into()).or_default().hide_titles = true;
+	f.tuner.set_settings(Arc::new(Mutex::new(settings)));
+	f.tuner.play(&list[4], f.t0);
+	f.fake.emit(4, StreamEvent::Title(Some("1794926078649534".into())));
+	f.tuner.poll(f.t0 + ms(10), &[]);
+	f.tuner.poll(f.t0 + ms(5000), &[]);
+	let got = f.drain_events();
+	assert!(
+		!got.iter().any(|e| matches!(e, TunerEvent::Title { .. } | TunerEvent::Announce(_))),
+		"{got:?}"
+	);
+}
+
+#[test]
 fn late_events_from_a_reopened_station_are_ignored() {
 	let mut f = fixture();
 	let list = stations(11);

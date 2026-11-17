@@ -1179,6 +1179,9 @@ pub fn channel_mode(mode: blindradio_core::settings::ChannelMode) -> String {
 pub fn st_metadata_offset() -> String {
 	patois::t("Metadata offset, seconds (blank = Default; positive = early, negative = late)")
 }
+pub fn st_hide_titles() -> String {
+	patois::t("&Hide Song Titles From This Station")
+}
 pub fn st_metadata_offset_invalid() -> String {
 	patois::t("Enter a whole number from -30 to 30, or leave blank for Default.")
 }

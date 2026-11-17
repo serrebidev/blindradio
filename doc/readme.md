@@ -275,6 +275,9 @@ Metadata Offset accepts whole seconds from -30 to 30. Leave it blank for Default
 the stream's timing. A positive value delays early metadata; a negative value moves late metadata
 back. The corrected title timing drives the now-playing line, history, segment navigation and
 segment recordings.
+Hide Song Titles From This Station ignores the titles the stream sends: the now-playing line shows
+only the station name and nothing is announced. Use it for a station whose title changes every
+few seconds with a number or code in place of a song.
 When a collection has folders it also offers Add to Collection Folder, which files the
 station straight into one — Custom Stations' folders included, so a station found in
 Search or Browse can be filed into an imported playlist's folder, the same places

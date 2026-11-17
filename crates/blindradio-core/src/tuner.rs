@@ -1920,6 +1920,17 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 		let playing = self.playing.as_ref().is_some_and(|p| p.id == station_id);
 		match event {
 			StreamEvent::Title(title) => {
+				let hidden = self
+					.settings
+					.as_ref()
+					.is_some_and(|s| s.lock().titles_hidden_for(&station_id));
+				// Hidden while playing: the next title the stream sends clears the shown one.
+				if hidden {
+					if self.open[i].title.take().is_some() && playing {
+						self.receive_title(&station_id, None, now);
+					}
+					return;
+				}
 				self.open[i].title = title.clone();
 				if playing {
 					self.receive_title(&station_id, title, now);

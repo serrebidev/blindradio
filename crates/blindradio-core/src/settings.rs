@@ -308,6 +308,9 @@ pub struct StationSettings {
 	/// Metadata timing correction in seconds; None trusts the stream.
 	pub metadata_offset_seconds: Option<i8>,
 	pub channels: Option<ChannelMode>,
+	/// Ignore the stream's titles: for a station whose "title" changes every few seconds.
+	#[serde(skip_serializing_if = "std::ops::Not::not")]
+	pub hide_titles: bool,
 }
 
 /// Volume ceiling as a fraction: 2.0 is 200%. Past 100% is boost for
@@ -499,6 +502,11 @@ impl Settings {
 			.and_then(|o| o.metadata_offset_seconds)
 	}
 
+	/// The station's own titles are ignored.
+	pub fn titles_hidden_for(&self, station_id: &str) -> bool {
+		self.station_overrides.get(station_id).is_some_and(|o| o.hide_titles)
+	}
+
 	/// The encoded ring budget in bytes, when the ring is enabled:
 	/// `max_mb`, or the 200 MB default when it is 0. Zero when the ring
 	/// is off.
@@ -642,6 +650,7 @@ mod tests {
 				eq: Some(StationEq::Saved("Quiet".into())),
 				metadata_offset_seconds: Some(18),
 				channels: Some(ChannelMode::Left),
+				hide_titles: true,
 			},
 		);
 		let json = serde_json::to_string(&s).unwrap();
@@ -656,6 +665,8 @@ mod tests {
 		assert_eq!(s.volume_for("st:1"), 0.4);
 		assert_eq!(s.metadata_offset_for("st:1"), Some(18));
 		assert_eq!(s.metadata_offset_for("st:2"), None);
+		assert!(back.titles_hidden_for("st:1") && !back.titles_hidden_for("st:2"));
+		assert!(!old.hide_titles);
 		assert_eq!(s.volume_for("st:2"), s.volume);
 		assert_eq!(s.timeshift_minutes_for("st:1"), 5);
 		assert!(s.recognition_enabled_for("st:1"));

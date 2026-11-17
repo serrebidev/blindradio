@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.102
+
+- HLS stations that put a segment number where the title goes, such as Telewebion's Radio Varzesh, no longer announce a new number every two seconds. A playlist title without a letter in it is ignored.
+- Edit Station has a new Hide Song Titles From This Station check box. The station then shows only its name and announces no titles, for any station whose title changes too often to be useful.
+
 ## 0.2.101
 
 - Changing the volume while muted now unmutes on the first change and says "Unmuted". This works with the volume keys, the volume slider and the global volume hotkeys, as in DVBViewer Pro.

@@ -117,6 +117,7 @@ pub async fn run_hls(
 				.as_deref()
 				.filter(|_| titled)
 				.map(str::trim)
+				.filter(|t| extinf_text_is_a_title(t))
 				.unwrap_or("");
 			let title = id3.unwrap_or_else(|| extinf.to_owned());
 			if !title.is_empty() {
@@ -154,6 +155,12 @@ fn extinf_is_a_title(playlist: &Url) -> bool {
 	!playlist
 		.host_str()
 		.is_some_and(|h| h.ends_with(".ttvnw.net"))
+}
+
+/// Telewebion's #EXTINF says the segment number, `1794926078651583`: a new "title" every segment.
+/// A title has a letter in it.
+fn extinf_text_is_a_title(text: &str) -> bool {
+	text.chars().any(char::is_alphabetic)
 }
 
 /// Decoder hint for the first audio from TS or `run_hls`: by its first bytes, else MPEG audio.
@@ -725,6 +732,14 @@ mod tests {
 		assert!(!of("https://video-weaver.sea02.hls.ttvnw.net/v1/playlist/x.m3u8"));
 		assert!(of("https://radio.example/live.m3u8"));
 		assert!(of("https://ttvnw.net.example/live.m3u8"));
+	}
+
+	#[test]
+	fn numbered_extinf_is_never_a_title() {
+		assert!(!extinf_text_is_a_title("1794926078651583"));
+		assert!(!extinf_text_is_a_title("2026-11-17 17:51:49.0"));
+		assert!(extinf_text_is_a_title("Artist - Song"));
+		assert!(extinf_text_is_a_title("رادیو ورزش"));
 	}
 
 	#[test]

@@ -225,6 +225,9 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 		&s::st_metadata_offset(),
 		&current.metadata_offset_seconds.map(|n| n.to_string()).unwrap_or_default(),
 	);
+	let hide_titles = CheckBox::builder(&dialog).with_label(&s::st_hide_titles()).build();
+	hide_titles.set_value(current.hide_titles);
+	sizer.add(&hide_titles, 0, SizerFlag::All, 5);
 	let (global, on, off) = (s::use_global(), s::on(), s::off());
 	let recog = choice(
 		&dialog,
@@ -339,6 +342,7 @@ pub fn show_edit(app: &Rc<RefCell<App>>, station: &Station) -> Option<Action> {
 				eq: equalizer::station_eq(&eq, eq_mode.get_selection(), eq_preset.get_selection()),
 				metadata_offset_seconds,
 				channels: own_channels(channels.get_selection()),
+				hide_titles: hide_titles.get_value(),
 			};
 			{
 				let mut app = a.borrow_mut();
