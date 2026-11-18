@@ -56,7 +56,7 @@ jobs:
             exit 1
           fi
           python3 - "$VERSION" <<'PY'
-          import re, sys
+          import glob, re, sys
           version = sys.argv[1]
           if not any(l.strip() == f"## {version}" for l in open("CHANGELOG.md").read().splitlines()):
               sys.exit(f"no ## {version} section in CHANGELOG.md")
@@ -71,10 +71,12 @@ jobs:
           # The lock's copy of our own version moves with the manifest. Left to cargo, the
           # change makes it resolve our `*` dependencies again and settle on older versions
           # the lock already holds, so what ships is not what the gate tested.
+          # Crates in vendor/ have no source line either, and keep their own versions.
+          name = re.compile(r'^name = "(.+)"$', re.M)
+          members = {name.search(open(p).read()).group(1) for p in glob.glob("crates/*/Cargo.toml")}
           blocks = open("Cargo.lock").read().split("[[package]]\n")
           for i, block in enumerate(blocks):
-              # Only workspace members have no source line.
-              if i and "\nsource = " not in block:
+              if i and "\nsource = " not in block and name.search(block).group(1) in members:
                   blocks[i] = re.sub(r'^version = ".*"$', f'version = "{version}"', block, count=1, flags=re.M)
           open("Cargo.lock", "w").write("[[package]]\n".join(blocks))
           PY
