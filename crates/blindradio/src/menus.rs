@@ -99,6 +99,7 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 				Item(s::add_to_collection(), keys(&A::AddToCollection), A::AddToCollection),
 				Separator,
 				Item(s::get_starter(), keys(&A::GetStarter), A::GetStarter),
+				Item(s::update_folders(), keys(&A::UpdateFolders), A::UpdateFolders),
 			],
 		),
 		(

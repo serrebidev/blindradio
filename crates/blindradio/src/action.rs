@@ -110,6 +110,8 @@ pub enum Action {
 	About,
 	/// Fetch the SerrebiRadio starter list again.
 	GetStarter,
+	/// Update every folder filed from a directory.
+	UpdateFolders,
 	Exit,
 	/// Alt+V: focus the volume slider.
 	FocusVolume,

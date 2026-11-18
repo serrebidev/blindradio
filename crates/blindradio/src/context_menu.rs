@@ -41,6 +41,8 @@ pub enum Item {
 	CutFolder,
 	PasteFolder,
 	PasteFolderInside,
+	/// A folder filed from a directory: read it again.
+	UpdateFolder,
 	EditStation,
 	StationInfo,
 	Export,
@@ -86,6 +88,7 @@ pub enum Choice {
 	CutFolder,
 	PasteFolder,
 	PasteFolderInside,
+	UpdateFolder,
 	EditStation,
 	StationInfo,
 	Export,
@@ -300,6 +303,14 @@ pub fn popup(app: &Rc<RefCell<App>>, window: &dyn WxWidget, items: &[Item]) -> O
 				menu.append(
 					add(Choice::PasteFolderInside),
 					&s::paste_folder_inside_item(),
+					"",
+					ItemKind::Normal,
+				);
+			}
+			Item::UpdateFolder => {
+				menu.append(
+					add(Choice::UpdateFolder),
+					&s::update_folder_item(),
 					"",
 					ItemKind::Normal,
 				);
@@ -579,11 +590,15 @@ pub fn delete_question(name: &str, count: usize) -> String {
 
 /// The folder clipboard items a folder or list row offers: Copy, Cut
 /// (`cut`: not Custom Stations itself), and with a folder on the
-/// clipboard, Paste Folder Here and Paste Folder Inside.
+/// clipboard, Paste Folder Here and Paste Folder Inside. A folder filed
+/// from a directory also offers Update from Directory.
 pub fn folder_clip_items(app: &App, cut: bool) -> Vec<Item> {
 	let mut items = vec![Item::CopyFolder];
 	if cut {
 		items.push(Item::CutFolder);
+	}
+	if app.focused_folder_origin().is_some() {
+		items.push(Item::UpdateFolder);
 	}
 	if app.folder_clip.is_some() {
 		items.extend([Item::PasteFolder, Item::PasteFolderInside]);
@@ -599,6 +614,11 @@ pub fn apply_folder(app: &Rc<RefCell<App>>, choice: &Choice) -> bool {
 		Choice::CutFolder => a.copy_folder_here(true),
 		Choice::PasteFolder => a.paste_folder_here(),
 		Choice::PasteFolderInside => a.paste_folder_inside(),
+		Choice::UpdateFolder => {
+			if let Some(at) = a.focused_folder() {
+				a.update_folders(Some(at), |_| {});
+			}
+		}
 		_ => return false,
 	}
 	true
@@ -654,6 +674,7 @@ pub fn apply(app: &Rc<RefCell<App>>, parent: &dyn WxWidget, station: &Station, c
 		| Choice::CutFolder
 		| Choice::PasteFolder
 		| Choice::PasteFolderInside
+		| Choice::UpdateFolder
 		| Choice::NewFolder
 		| Choice::AddAllTo(_)
 		| Choice::MoveToFolder(_) => return,

@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use blindradio_core::library::{CUSTOM, Folder, FolderTarget, Library, StationDest};
-use blindradio_core::sources::{Node, Sort, SortField, Sources};
+use blindradio_core::sources::{ADD_CAP, Node, Sort, SortField, Sources};
 use blindradio_core::station::Station;
 use wx_utils::{confirm, prompt_text};
 use wxdragon::event::{Event, EventType, WxEvtHandler};

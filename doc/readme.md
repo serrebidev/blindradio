@@ -297,6 +297,22 @@ stations and subfolders inside, loaded or not, and you hear how many stations ca
 again, or a folder of the same name, brings only what is new into the one already there. One
 add stops at 5000 stations and says so.
 
+A folder filed this way remembers the directory folder it came from, and can be brought up to
+date. On the folder's context menu, in Browse or in the main window, Update from Directory reads
+that directory folder again: stations it has added arrive, in the same subfolders, and a station
+whose stream address the directory changed follows it. An update never removes anything: a station
+the directory dropped stays until you delete it, a name you gave a station is kept, and a station you
+deleted yourself comes back if the directory still lists it. The same goes for a
+whole directory: file the BlindRadio Directory itself, then update it, and every playlist inside
+follows. Stations, Update Directory Folders does it for every such folder at once, wherever it sits
+in your collections or favorites, and has no key until you give it one in Keyboard Shortcuts. Both
+say what changed, for instance `Persian: 2 added, 0 changed`. An update reads at most 5000 stations
+of a folder. A directory that is off in Settings, or that does not answer, leaves its folders as they
+are. A folder of the BlindRadio Directory or Recommended Radio Streams filed in an older version
+is recognised as long as it still carries the playlist's name, such as Persian. Any other old folder
+needs one Add to Collection of the same directory folder to the same place from Browse: that
+brings what is new and links the folder, and from then on it updates.
+
 Station Info, on every station's menu, opens a read-only window you can read line by line and copy
 from: name, info, slogan, genre, country, location, language, codec, bitrate, directory, homepage and
 stream URL, whichever the station's directory gives. Radio Browser gives the most. A TuneIn station

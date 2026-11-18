@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,10 @@ pub struct Collection {
 	/// Named subfolders, each holding its own stations and folders.
 	#[serde(default)]
 	pub folders: Vec<Folder>,
+	/// The Browse folder this list was filed from, when a directory's folder
+	/// was pasted as a collection of its own.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub origin: Option<String>,
 }
 
 /// The same stream, whichever source named it: ids follow the source
@@ -37,7 +42,13 @@ pub struct Collection {
 /// behind a playlist address, counts as another station; address
 /// normalization is the upgrade path.
 fn same_stream(a: &Station, b: &Station) -> bool {
-	a.id == b.id || (!a.url.is_empty() && a.url == b.url)
+	(a.id == b.id && !positional(a)) || (!a.url.is_empty() && a.url == b.url)
+}
+
+/// Playlist-file directories number their stations by row (`brdir:UK:3`):
+/// an edit upstream shifts the rows, so there an id names a row, not a stream.
+fn positional(s: &Station) -> bool {
+	matches!(s.source, Source::Directory | Source::Recommended)
 }
 
 /// A named folder inside a collection or the favorites: its own stations at
@@ -48,14 +59,85 @@ pub struct Folder {
 	pub name: String,
 	pub stations: Vec<Station>,
 	pub folders: Vec<Folder>,
+	/// The Browse folder this one was filed from (its browse id), so
+	/// Update from Directory can read it again. None for a folder made by hand.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub origin: Option<String>,
+}
+
+/// What `Folder::refresh` changed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Refreshed {
+	pub added: usize,
+	/// Stations whose stream address the directory changed.
+	pub updated: usize,
+}
+
+impl Refreshed {
+	pub fn any(&self) -> bool {
+		self.added + self.updated > 0
+	}
+
+	pub fn plus(self, o: Refreshed) -> Refreshed {
+		Refreshed {
+			added: self.added + o.added,
+			updated: self.updated + o.updated,
+		}
+	}
+}
+
+/// A directory's stations, indexed: a whole directory runs to thousands of
+/// rows, and an update lands on the UI thread.
+struct Listing<'a> {
+	theirs: &'a [Station],
+	urls: HashMap<&'a str, Vec<usize>>,
+	ids: HashMap<&'a str, usize>,
+	names: HashMap<String, Vec<usize>>,
+}
+
+impl<'a> Listing<'a> {
+	fn new(theirs: &'a [Station]) -> Listing<'a> {
+		let mut listing = Listing {
+			theirs,
+			urls: HashMap::new(),
+			ids: HashMap::new(),
+			names: HashMap::new(),
+		};
+		for (i, t) in theirs.iter().enumerate() {
+			if !t.url.is_empty() {
+				listing.urls.entry(&t.url).or_default().push(i);
+			}
+			listing.ids.entry(&t.id).or_insert(i);
+			listing.names.entry(t.name.to_lowercase()).or_default().push(i);
+		}
+		listing
+	}
+
+	/// The listed station `mine` is: by address, else by id, else (row-numbered
+	/// ids) by name. An address another saved station already has is no new
+	/// address for this one.
+	fn counterpart(&self, mine: &Station, held: &HashSet<String>) -> Option<usize> {
+		if let Some(all) = self.urls.get(mine.url.as_str()) {
+			return all.first().copied();
+		}
+		let free = |i: &usize| !held.contains(&self.theirs[*i].url);
+		if positional(mine) {
+			self.names
+				.get(&mine.name.to_lowercase())?
+				.iter()
+				.copied()
+				.find(|i| self.theirs[*i].source == mine.source && free(i))
+		} else {
+			self.ids.get(mine.id.as_str()).copied().filter(free)
+		}
+	}
 }
 
 impl Folder {
 	pub fn new(name: &str) -> Folder {
 		Folder {
 			name: name.into(),
-			stations: Vec::new(),
-			folders: Vec::new(),
+			..Folder::default()
 		}
 	}
 
@@ -85,6 +167,9 @@ impl Folder {
 	/// merges, a station already on its level stays once. How many stations arrived.
 	pub fn merge(&mut self, other: Folder) -> usize {
 		let mut added = 0;
+		if other.origin.is_some() {
+			self.origin = other.origin;
+		}
 		for s in other.stations {
 			if !self.stations.iter().any(|x| same_stream(x, &s)) {
 				self.stations.push(s);
@@ -131,6 +216,131 @@ impl Folder {
 			None => Some(self),
 			Some((&i, rest)) => self.folders.get_mut(i)?.at_mut(rest),
 		}
+	}
+
+	/// Brings this folder level with `upstream`, the directory's folder as it
+	/// stands now: stations it lists that are missing arrive, in the same
+	/// subfolders, and a station whose address it changed follows. Nothing
+	/// leaves, and names and ids stay as the library has them.
+	/// ponytail: a station the user deleted comes back, nothing records the
+	/// deletion; keep a list of dismissed addresses if that annoys anyone.
+	pub fn refresh(&mut self, upstream: &Folder) -> Refreshed {
+		let theirs = upstream.all_stations();
+		let listing = Listing::new(&theirs);
+		let mut held: HashSet<String> = self.all_stations().into_iter().map(|s| s.url).collect();
+		let mut found = vec![false; theirs.len()];
+		let mut out = Refreshed::default();
+		self.reconcile(&listing, &mut found, &mut held, &mut out);
+		let taken: HashSet<String> = self.all_stations().into_iter().map(|s| s.id).collect();
+		out.added = self.fill(upstream, &found, &mut 0, &taken);
+		self.link_folders(upstream);
+		out
+	}
+
+	fn reconcile(
+		&mut self,
+		listing: &Listing,
+		found: &mut [bool],
+		held: &mut HashSet<String>,
+		out: &mut Refreshed,
+	) {
+		for mine in &mut self.stations {
+			let Some(i) = listing.counterpart(mine, held) else {
+				continue;
+			};
+			let theirs = &listing.theirs[i];
+			found[i] = true;
+			// One stream can sit in two playlists: every listing of it is held.
+			for &j in listing.urls.get(theirs.url.as_str()).into_iter().flatten() {
+				found[j] = true;
+			}
+			if mine.url != theirs.url {
+				mine.url.clone_from(&theirs.url);
+				held.insert(theirs.url.clone());
+				out.updated += 1;
+			}
+		}
+		for f in &mut self.folders {
+			f.reconcile(listing, found, held, out);
+		}
+	}
+
+	/// Subfolders learn where they came from, so each can update alone.
+	fn link_folders(&mut self, upstream: &Folder) {
+		for theirs in &upstream.folders {
+			let lower = theirs.name.to_lowercase();
+			if let Some(mine) = self.folders.iter_mut().find(|f| f.name.to_lowercase() == lower) {
+				if mine.origin.is_none() {
+					mine.origin.clone_from(&theirs.origin);
+				}
+				mine.link_folders(theirs);
+			}
+		}
+	}
+
+	/// Files what `found` marks missing, walking `upstream` in the order
+	/// `all_stations` lists it. A row-numbered id another station here already
+	/// wears is made unique, so one id never names two stations.
+	fn fill(
+		&mut self,
+		upstream: &Folder,
+		found: &[bool],
+		next: &mut usize,
+		taken: &HashSet<String>,
+	) -> usize {
+		let mut added = 0;
+		for s in &upstream.stations {
+			if !found[*next] {
+				let mut s = s.clone();
+				if positional(&s) && taken.contains(&s.id) {
+					s.id = format!("{}:{}", s.id, uuid::Uuid::new_v4().simple());
+				}
+				self.stations.push(s);
+				added += 1;
+			}
+			*next += 1;
+		}
+		for f in &upstream.folders {
+			let n = f.all_stations().len();
+			if found[*next..*next + n].iter().all(|&x| x) {
+				*next += n;
+			} else {
+				added += self.child_mut(&f.name).fill(f, found, next, taken);
+			}
+		}
+		added
+	}
+
+	/// The Browse folder this one was filed from, when it says so itself or its
+	/// stations do: a folder of the BlindRadio Directory or Recommended Radio
+	/// Streams filed before folders remembered their origin has stations
+	/// numbered `brdir:<playlist>:<row>`, and wears the playlist's name.
+	/// Stations the user added from elsewhere say nothing either way.
+	pub fn inferred_origin(&self) -> Option<String> {
+		if self.origin.is_some() {
+			return self.origin.clone();
+		}
+		let mut file: Option<(String, String)> = None;
+		for s in self.all_stations() {
+			let Some((root, rest)) = s.id.split_once(':') else {
+				continue;
+			};
+			if root != "brdir" && root != "recommended" {
+				continue;
+			}
+			let Some((stem, _row)) = rest.split_once(':') else {
+				continue;
+			};
+			match &file {
+				None => file = Some((root.into(), stem.into())),
+				Some((r, f)) if r == root && f == stem => {}
+				Some(_) => return None,
+			}
+		}
+		let (root, stem) = file?;
+		let plain = |s: &str| s.replace('-', " ").trim().to_lowercase();
+		(plain(&self.name) == plain(&stem))
+			.then(|| format!("{root}/{}", crate::sources::directory::enc(&stem)))
 	}
 }
 
@@ -554,6 +764,7 @@ impl Library {
 					name: CUSTOM_NAME.into(),
 					stations: Vec::new(),
 					folders: Vec::new(),
+					origin: None,
 				},
 			),
 		}
@@ -955,6 +1166,7 @@ impl Library {
 			name: name.into(),
 			stations: Vec::new(),
 			folders: Vec::new(),
+			origin: None,
 		});
 		id
 	}
@@ -1107,11 +1319,100 @@ impl Library {
 						name: c.name.clone(),
 						stations: c.stations.clone(),
 						folders: c.folders.clone(),
+						origin: c.origin.clone(),
 					});
 				}
 				c.folder_at(path).cloned()
 			}
 		}
+	}
+
+	/// Where the folder or collection at `at` was filed from, for Update from
+	/// Directory.
+	pub fn origin_at(&self, at: &StationDest) -> Option<String> {
+		self.folder_snapshot(at)?.inferred_origin()
+	}
+
+	/// Every folder that can be updated from its directory, outermost only:
+	/// an updated folder brings the folders inside it along.
+	pub fn linked_folders(&self) -> Vec<(StationDest, String)> {
+		fn walk(
+			folders: &[Folder],
+			base: &[usize],
+			dest: &dyn Fn(Vec<usize>) -> StationDest,
+			out: &mut Vec<(StationDest, String)>,
+		) {
+			for (i, f) in folders.iter().enumerate() {
+				let mut path = base.to_vec();
+				path.push(i);
+				match f.inferred_origin() {
+					Some(origin) => out.push((dest(path), origin)),
+					None => walk(&f.folders, &path, dest, out),
+				}
+			}
+		}
+		let mut out = Vec::new();
+		walk(&self.fav_folders, &[], &StationDest::Favorites, &mut out);
+		for c in &self.collections {
+			let id = c.id.clone();
+			let whole = StationDest::Collection {
+				id: id.clone(),
+				path: Vec::new(),
+			};
+			if let Some(origin) = self.origin_at(&whole) {
+				out.push((whole, origin));
+				continue;
+			}
+			walk(
+				&c.folders,
+				&[],
+				&move |path| StationDest::Collection {
+					id: id.clone(),
+					path,
+				},
+				&mut out,
+			);
+		}
+		out
+	}
+
+	/// Brings the folder at `at` level with `upstream`, read from `origin`,
+	/// and keeps `origin` on it from now on. The read takes a while and folders
+	/// move meanwhile, so a place that no longer holds `origin` is looked up
+	/// again: the stations never land in a neighbor. None when the folder is gone.
+	pub fn refresh_folder(
+		&mut self,
+		at: &StationDest,
+		origin: &str,
+		upstream: &Folder,
+	) -> Option<Refreshed> {
+		let at = if self.origin_at(at).as_deref() == Some(origin) {
+			at.clone()
+		} else {
+			self.linked_folders().into_iter().find(|(_, o)| o == origin)?.0
+		};
+		let folder = match &at {
+			StationDest::Favorites(path) => self.fav_folder_at_mut(path)?,
+			StationDest::Collection { id, path } if path.is_empty() => {
+				let c = self.collection_mut(id)?;
+				let mut whole = Folder {
+					name: c.name.clone(),
+					stations: std::mem::take(&mut c.stations),
+					folders: std::mem::take(&mut c.folders),
+					origin: Some(origin.to_owned()),
+				};
+				let got = whole.refresh(upstream);
+				c.stations = whole.stations;
+				c.folders = whole.folders;
+				c.origin = whole.origin;
+				return Some(got);
+			}
+			StationDest::Collection { id, path } => {
+				self.collection_mut(id)?.folder_at_mut(path)?
+			}
+		};
+		folder.origin = Some(origin.to_owned());
+		Some(folder.refresh(upstream))
 	}
 
 	/// Whether the list at `d` exists: a collection or favorites root, or a folder.
@@ -1140,10 +1441,12 @@ impl Library {
 				name: c.name.clone(),
 				stations: std::mem::take(&mut c.stations),
 				folders: std::mem::take(&mut c.folders),
+				origin: c.origin.take(),
 			};
 			whole.merge(folder);
 			c.stations = whole.stations;
 			c.folders = whole.folders;
+			c.origin = whole.origin;
 			return c.id.clone();
 		}
 		let id = format!("col:{}", uuid::Uuid::new_v4());
@@ -1159,6 +1462,7 @@ impl Library {
 				name: folder.name,
 				stations: folder.stations,
 				folders: folder.folders,
+				origin: folder.origin,
 			},
 		);
 		id

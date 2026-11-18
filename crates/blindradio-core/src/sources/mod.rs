@@ -34,6 +34,10 @@ impl Node {
 	}
 }
 
+/// Most stations a directory's folder files in one go (or reads back to update
+/// one): a whole directory would crawl for hours and bloat the library.
+pub const ADD_CAP: usize = 5000;
+
 pub mod directory;
 pub mod icecast;
 pub mod iheart;
@@ -618,6 +622,7 @@ impl Sources {
 									name,
 									stations: inner_s,
 									folders: inner_f,
+									origin: Some(id),
 								});
 							}
 						}

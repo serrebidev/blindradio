@@ -1,8 +1,16 @@
 //! Station clipboard and filing: copy, cut, paste, favorites, collections.
 
-use blindradio_core::library::{CUSTOM, FolderPasteError, LibraryError, StationDest};
+use blindradio_core::library::{CUSTOM, FolderPasteError, LibraryError, Refreshed, StationDest};
+use blindradio_core::sources::{ADD_CAP, Sort};
 
 use super::*;
+
+/// One folder's directory read: where it is filed, where it came from, what came back.
+type FolderRead = (
+	StationDest,
+	String,
+	blindradio_core::Result<(Vec<Station>, Vec<Folder>)>,
+);
 
 /// A tree row's place as the library names it.
 fn place((id, path): (String, Vec<usize>)) -> StationDest {
@@ -101,7 +109,7 @@ impl App {
 	}
 
 	/// The folder or list row Copy and Cut act on: Browse's, else the main tree's.
-	fn focused_folder(&self) -> Option<StationDest> {
+	pub(crate) fn focused_folder(&self) -> Option<StationDest> {
 		if self.dialog_open {
 			return self.dialog_folder.clone();
 		}
@@ -380,6 +388,93 @@ impl App {
 				s::is_already_in()
 			));
 		}
+	}
+
+	/// Where the focused folder was filed from, if it was filed from a directory.
+	pub(crate) fn focused_folder_origin(&self) -> Option<String> {
+		self.library.origin_at(&self.focused_folder()?)
+	}
+
+	/// Update from Directory: the folder at `only`, or with None every folder
+	/// filed from a directory, reads its directory again. New stations arrive
+	/// and changed addresses are corrected; nothing leaves. `after` runs once
+	/// the library has changed, for a window showing it.
+	pub fn update_folders(
+		&mut self,
+		only: Option<StationDest>,
+		after: impl FnOnce(&mut App) + 'static,
+	) {
+		let jobs = match only {
+			Some(at) => match self.library.origin_at(&at) {
+				Some(origin) => vec![(at, origin)],
+				None => return self.say(&s::not_from_directory()),
+			},
+			None => self.library.linked_folders(),
+		};
+		if jobs.is_empty() {
+			return self.say(&s::no_directory_folders());
+		}
+		let one = (jobs.len() == 1).then(|| self.list_name(&jobs[0].0));
+		self.say(&format!("{}{}", s::updating(), one.as_deref().unwrap_or("")));
+		let sources = self.sources.clone();
+		self.bridge.spawn(
+			WindowToken::new(),
+			async move {
+				let mut done = Vec::new();
+				for (at, origin) in jobs {
+					let got = sources.tree_up_to(&origin, Sort::default(), ADD_CAP).await;
+					done.push((at, origin, got));
+				}
+				done
+			},
+			move |app: &mut App, done| {
+				app.updated_folders(done, one);
+				after(app);
+			},
+		);
+	}
+
+	fn updated_folders(&mut self, done: Vec<FolderRead>, one: Option<String>) {
+		let (mut total, mut folders, mut missed) = (Refreshed::default(), 0, 0);
+		for (at, origin, got) in done {
+			// A directory switched off or down answers with nothing: that is
+			// no reason to empty the folder.
+			let up = match got {
+				Ok((stations, folders)) if !stations.is_empty() || !folders.is_empty() => Folder {
+					stations,
+					folders,
+					..Folder::default()
+				},
+				Ok(_) => {
+					missed += 1;
+					continue;
+				}
+				Err(e) => {
+					eprintln!("update {origin}: {e}");
+					missed += 1;
+					continue;
+				}
+			};
+			match self.library.refresh_folder(&at, &origin, &up) {
+				Some(r) => {
+					total = total.plus(r);
+					folders += 1;
+				}
+				None => missed += 1,
+			}
+		}
+		self.save_library();
+		self.refresh_dial();
+		let counts = if total.any() {
+			s::update_counts(total.added, total.updated)
+		} else {
+			s::up_to_date()
+		};
+		let tail = if missed > 0 { s::not_reached(missed) } else { String::new() };
+		self.say(&match one {
+			Some(name) => format!("{name}: {counts}{tail}"),
+			None => format!("{}: {counts}{tail}", s::updated_folders(folders)),
+		});
 	}
 
 	/// Browse: a directory's whole folder lands at `dest`. Says how many

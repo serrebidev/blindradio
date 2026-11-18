@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.2.104
+
+- A folder filed from a directory can now be brought up to date. Update from Directory, on the folder's context menu in Browse or the main window, reads the directory's folder again: new stations arrive in the same subfolders and a station whose stream address changed follows it. Nothing is ever removed: a station the directory dropped stays until you delete it, and names you gave stations are kept. Stations, Update Directory Folders does every such folder at once, and says what changed. It works for any directory, the BlindRadio Directory included, so a Persian folder or the whole directory filed earlier can follow the directory. Folders of the BlindRadio Directory and Recommended Radio Streams filed in older versions are recognised by their name; any other old folder links the next time you add the same directory folder to it again.
+- Filing a BlindRadio Directory or Recommended Radio Streams folder again no longer skips a new station that has the number an old one had. Those directories number stations by their place in the playlist file, so an addition in the middle changed the numbers.
+
 ## 0.2.103
 
 - Playback speed for the time-shift buffer, from 0.5x to 2x: Playback, Playback Speed, or Alt+Up for faster, Alt+Down for slower and Alt+Home for normal. Each key says the new speed. Faster catches up on a program you went back in, then plays live at normal speed. Slower falls behind live and keeps going from the buffer. Voices keep their pitch. The new Speed keeps the pitch check box on the Playback tab of Settings switches to tape speed, where pitch follows speed, like a faster cassette deck. Suggested by a listener, with Bookamp as the example.

@@ -1536,3 +1536,30 @@ msgstr ""
 #. TRANSLATORS: A shortcut in the Customize Keyboard Shortcuts list whose key is not on the keyboard layout in use, so it cannot be pressed. The {} placeholder is replaced with the shortcut, for example "Ctrl+;".
 msgid "{} (not on this keyboard layout)"
 msgstr ""
+
+msgid "Up&date Directory Folders"
+msgstr ""
+
+msgid "&Update from Directory"
+msgstr ""
+
+msgid "Updating "
+msgstr ""
+
+msgid "Not filed from a directory. Add it again from Browse first"
+msgstr ""
+
+msgid "No folders filed from a directory"
+msgstr ""
+
+msgid "{added} added, {updated} changed"
+msgstr ""
+
+msgid "already up to date"
+msgstr ""
+
+msgid "Updated {n} folders"
+msgstr ""
+
+msgid ", {n} not reached"
+msgstr ""

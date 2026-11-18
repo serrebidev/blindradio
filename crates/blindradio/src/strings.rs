@@ -200,6 +200,40 @@ pub fn copy_url() -> String {
 pub fn get_starter() -> String {
 	patois::t("&Get SerrebiRadio Stations")
 }
+/// Stations menu: every folder filed from a directory reads it again.
+pub fn update_folders() -> String {
+	patois::t("Up&date Directory Folders")
+}
+/// Folder menu: this folder reads its directory again.
+pub fn update_folder_item() -> String {
+	patois::t("&Update from Directory")
+}
+pub fn updating() -> String {
+	patois::t("Updating ")
+}
+pub fn not_from_directory() -> String {
+	patois::t("Not filed from a directory. Add it again from Browse first")
+}
+pub fn no_directory_folders() -> String {
+	patois::t("No folders filed from a directory")
+}
+/// Spoken after an update: `Persian: 2 added, 1 changed`.
+pub fn update_counts(added: usize, updated: usize) -> String {
+	patois::t("{added} added, {updated} changed")
+		.replace("{added}", &added.to_string())
+		.replace("{updated}", &updated.to_string())
+}
+pub fn up_to_date() -> String {
+	patois::t("already up to date")
+}
+/// `Updated 3 folders: ...`
+pub fn updated_folders(n: usize) -> String {
+	patois::t("Updated {n} folders").replace("{n}", &n.to_string())
+}
+/// Tail of an update that missed some: `, 2 not reached`.
+pub fn not_reached(n: usize) -> String {
+	patois::t(", {n} not reached").replace("{n}", &n.to_string())
+}
 pub fn play_pause() -> String {
 	patois::t("&Play/Pause")
 }

@@ -94,6 +94,7 @@ pub enum KeyAction {
 	OpenUrl,
 	DetectStreams,
 	GetStarter,
+	UpdateFolders,
 	PlayFavorite1,
 	PlayFavorite2,
 	PlayFavorite3,
@@ -125,7 +126,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 89] = [
+	pub const ALL: [KeyAction; 90] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -190,6 +191,7 @@ impl KeyAction {
 		K::OpenUrl,
 		K::DetectStreams,
 		K::GetStarter,
+		K::UpdateFolders,
 		K::PlayFavorite1,
 		K::PlayFavorite2,
 		K::PlayFavorite3,
@@ -247,6 +249,7 @@ impl KeyAction {
 			| K::OpenUrl
 			| K::DetectStreams
 			| K::GetStarter
+			| K::UpdateFolders
 			| K::PlayFavorite1
 			| K::PlayFavorite2
 			| K::PlayFavorite3
@@ -343,6 +346,7 @@ impl KeyAction {
 			K::OpenUrl => "open_url",
 			K::DetectStreams => "detect_streams",
 			K::GetStarter => "get_starter",
+			K::UpdateFolders => "update_folders",
 			K::PlayFavorite1 => "play_favorite_1",
 			K::PlayFavorite2 => "play_favorite_2",
 			K::PlayFavorite3 => "play_favorite_3",
@@ -440,6 +444,7 @@ impl KeyAction {
 			K::OpenUrl => plain(&s::open_url()),
 			K::DetectStreams => plain(&s::detect_streams()),
 			K::GetStarter => plain(&s::get_starter()),
+			K::UpdateFolders => plain(&s::update_folders()),
 			K::PlayFavorite1 => favorite(1),
 			K::PlayFavorite2 => favorite(2),
 			K::PlayFavorite3 => favorite(3),
@@ -603,6 +608,7 @@ impl KeyAction {
 			K::OpenUrl => Action::OpenUrl,
 			K::DetectStreams => Action::DetectStreams,
 			K::GetStarter => Action::GetStarter,
+			K::UpdateFolders => Action::UpdateFolders,
 			K::PlayFavorite1 => Action::PlayFavorite(0),
 			K::PlayFavorite2 => Action::PlayFavorite(1),
 			K::PlayFavorite3 => Action::PlayFavorite(2),
@@ -751,6 +757,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::OpenUrl => K::OpenUrl,
 		Action::DetectStreams => K::DetectStreams,
 		Action::GetStarter => K::GetStarter,
+		Action::UpdateFolders => K::UpdateFolders,
 		Action::Import => K::Import,
 		Action::ExportCurrentList => K::ExportCurrentList,
 		Action::ExportAllPlaylists => K::ExportAllPlaylists,

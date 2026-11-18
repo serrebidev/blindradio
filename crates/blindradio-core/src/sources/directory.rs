@@ -21,7 +21,7 @@ const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
 	.remove(b'_')
 	.remove(b'~');
 
-fn enc(s: &str) -> String {
+pub(crate) fn enc(s: &str) -> String {
 	utf8_percent_encode(s, SEGMENT).to_string()
 }
 

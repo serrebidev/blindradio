@@ -182,6 +182,7 @@ fn playlist_export_data(
 						name: c.name.clone(),
 						stations: c.stations.clone(),
 						folders: c.folders.clone(),
+						origin: c.origin.clone(),
 					})
 					.collect(),
 			))
@@ -835,6 +836,7 @@ impl App {
 				}
 			}
 			Action::GetStarter => self.get_starter(false),
+			Action::UpdateFolders => self.update_folders(None, |_| {}),
 			Action::FocusVolume => self.win.volume.set_focus(),
 			Action::Exit => {
 				// A recording in progress is the one thing quitting

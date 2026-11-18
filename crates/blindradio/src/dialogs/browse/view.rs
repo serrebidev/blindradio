@@ -2,10 +2,6 @@
 
 use super::*;
 
-/// Most stations a directory's folder files in one go: a whole directory
-/// would crawl for hours and bloat the library.
-const ADD_CAP: usize = 5000;
-
 /// The wx tree over the model. Every change the program makes runs `quiet`; handlers return
 /// at once then, before borrowing the app or the model.
 struct View {
@@ -493,6 +489,7 @@ impl View {
 		let sources = a.sources.clone();
 		let sort = self.sort.get();
 		let (v, window) = (self.clone(), window.clone());
+		let origin = key.clone();
 		a.bridge.spawn(
 			WindowToken::new(),
 			async move { sources.tree_up_to(&key, sort, ADD_CAP).await },
@@ -503,6 +500,7 @@ impl View {
 							name,
 							stations,
 							folders,
+							origin: Some(origin),
 						};
 						let count = folder.all_stations().len();
 						if count == 0 {
@@ -621,6 +619,19 @@ impl View {
 		let Some(choice) = context_menu::popup(app, &self.tree, &items) else {
 			return;
 		};
+		if choice == Choice::UpdateFolder {
+			// The stations arrive later: the tree follows if Browse is still open.
+			let at = app.borrow().focused_folder();
+			if at.is_some() {
+				let (v, window) = (self.clone(), token.clone());
+				app.borrow_mut().update_folders(at, move |a| {
+					if window.is_open() {
+						v.refresh_local_in(a);
+					}
+				});
+			}
+			return;
+		}
 		if context_menu::apply_folder(app, &choice) {
 			return self.refresh_local(app);
 		}

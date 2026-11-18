@@ -678,6 +678,7 @@ fn browse_pastes_from_the_selected_collection_and_refreshes_in_place() {
 		name: "Misc".into(),
 		stations: vec![copy, cut],
 		folders: Vec::new(),
+		origin: None,
 	});
 	let app = App::with_settings(
 		"paste-refresh",
@@ -1406,6 +1407,7 @@ fn main_window_pastes_beside_the_focused_copy() {
 		name: name.into(),
 		stations,
 		folders: Vec::new(),
+		origin: None,
 	};
 	library.collections[0].folders = vec![
 		folder("Alpha", vec![shared.clone(), one, two]),
@@ -1461,6 +1463,7 @@ fn main_window_copies_and_cuts_folders_whole() {
 		name: name.into(),
 		stations,
 		folders: Vec::new(),
+		origin: None,
 	};
 	let mut library = Library::default();
 	library.collections[0].folders = vec![
@@ -1699,6 +1702,7 @@ fn main_window_moves_renames_and_deletes_rows() {
 		name: name.into(),
 		stations,
 		folders: Vec::new(),
+		origin: None,
 	};
 	library.collection_mut(&alpha).unwrap().folders = vec![
 		folder(
@@ -1777,6 +1781,7 @@ fn main_window_delete_takes_the_focused_row() {
 		name: "Same".into(),
 		stations,
 		folders: Vec::new(),
+		origin: None,
 	};
 	library.collections[0].stations =
 		vec![station("custom:one", "One"), station("custom:two", "Two")];
@@ -1834,7 +1839,9 @@ fn browse_pastes_into_an_imported_playlist_folder() {
 			name: "Misc".into(),
 			stations: vec![copy, cut],
 			folders: Vec::new(),
+			origin: None,
 		}],
+		origin: None,
 	});
 	let app = App::start("paste-import", library);
 	app.press("{ctrl}g");
@@ -2428,7 +2435,9 @@ fn collections_paste_follows_the_focused_row_and_refreshes() {
 			name: "Misc".into(),
 			stations: vec![copy],
 			folders: Vec::new(),
+			origin: None,
 		}],
+		origin: None,
 	});
 	let app = App::with_settings(
 		"paste-collections",
@@ -2484,11 +2493,13 @@ fn favorites_paste_follows_the_focused_row_and_refreshes() {
 				name: "First".into(),
 				stations: vec![station("custom:one", "One")],
 				folders: Vec::new(),
+				origin: None,
 			},
 			Folder {
 				name: "Second".into(),
 				stations: Vec::new(),
 				folders: Vec::new(),
+				origin: None,
 			},
 		],
 		..Library::default()
@@ -2786,6 +2797,7 @@ fn playback_reveals_the_main_tree_and_file_exports_are_reachable() {
 		name: "Hidden".into(),
 		stations: vec![one, two],
 		folders: Vec::new(),
+		origin: None,
 	});
 	let app = App::with_settings(
 		"selection",

@@ -328,7 +328,9 @@ fn whole_folder_files_and_merges() {
 			name: "Live".into(),
 			stations: inner.iter().map(|id| st(id)).collect(),
 			folders: Vec::new(),
+			origin: None,
 		}],
+		origin: None,
 	};
 	let fav = StationDest::Favorites(Vec::new());
 	assert_eq!(l.add_folder_to(&fav, genre(&["a", "b"], &["c"])), Some(3));
@@ -368,11 +370,13 @@ fn removal_takes_every_copy() {
 		name: name.into(),
 		stations: vec![st("a")],
 		folders: Vec::new(),
+		origin: None,
 	};
 	let two = || Folder {
 		name: "Pop".into(),
 		stations: vec![st("a")],
 		folders: vec![leaf("One"), leaf("Two")],
+		origin: None,
 	};
 	let mut l = Library::default();
 	l.fav_folders.push(two());
@@ -670,6 +674,7 @@ fn folder_merge_skips_the_same_stream_from_another_source() {
 		name: "Genre".into(),
 		stations: vec![st_url("rb:1", "http://x/stream")],
 		folders: Vec::new(),
+		origin: None,
 	};
 	let from = Folder {
 		name: "Genre".into(),
@@ -678,6 +683,7 @@ fn folder_merge_skips_the_same_stream_from_another_source() {
 			st_url("tunein:10", "http://x/new"),
 		],
 		folders: Vec::new(),
+		origin: None,
 	};
 	assert_eq!(into.merge(from), 1, "only the new stream arrives");
 	assert_eq!(into.stations.len(), 2);
@@ -698,12 +704,15 @@ fn public_radio_lib() -> Library {
 				name: "NPR".into(),
 				stations: vec![st("kexp"), st("kqed")],
 				folders: Vec::new(),
+				origin: None,
 			}],
+			origin: None,
 		},
 		Folder {
 			name: "Music".into(),
 			stations: vec![st("soma")],
 			folders: Vec::new(),
+			origin: None,
 		},
 	];
 	lib
@@ -858,4 +867,247 @@ fn cut_folder_into_a_later_sibling_lands_there() {
 	assert_eq!(custom.folders[0].name, "Music");
 	assert_eq!(custom.folders[0].folders[0].name, "Public Radio");
 	assert_eq!(custom.folders[0].folders[0].folders[0].name, "NPR");
+}
+
+mod refresh {
+	use super::{Source, Station, st};
+	use blindradio_core::library::{Folder, Library, Refreshed, StationDest};
+
+	/// A BlindRadio Directory row: numbered by its place in the playlist file.
+	fn row(stem: &str, n: usize, name: &str, url: &str) -> Station {
+		Station {
+			id: format!("brdir:{stem}:{n}"),
+			name: name.into(),
+			url: url.into(),
+			source: Source::Directory,
+			info: None,
+			details: Default::default(),
+		}
+	}
+
+	fn folder(name: &str, stations: Vec<Station>, folders: Vec<Folder>) -> Folder {
+		Folder {
+			name: name.into(),
+			stations,
+			folders,
+			origin: None,
+		}
+	}
+
+	fn names(f: &Folder) -> Vec<String> {
+		f.all_stations().into_iter().map(|s| s.name).collect()
+	}
+
+	#[test]
+	fn new_stations_arrive_in_their_subfolders_old_ones_stay() {
+		let mut mine = folder(
+			"Persian",
+			vec![row("Persian", 0, "A", "http://a")],
+			vec![folder("News", vec![row("Persian", 1, "B", "http://b")], vec![])],
+		);
+		let up = folder(
+			"Persian",
+			vec![row("Persian", 0, "A", "http://a"), row("Persian", 3, "D", "http://d")],
+			vec![folder(
+				"News",
+				vec![row("Persian", 1, "B", "http://b"), row("Persian", 2, "C", "http://c")],
+				vec![],
+			)],
+		);
+		let got = mine.refresh(&up);
+		assert_eq!(got, Refreshed { added: 2, updated: 0 });
+		assert_eq!(names(&mine), ["A", "D", "B", "C"]);
+		assert_eq!(mine.folders[0].stations.len(), 2, "C went into News");
+		assert_eq!(mine.refresh(&up), Refreshed::default(), "a second pass changes nothing");
+	}
+
+	#[test]
+	fn shifted_row_numbers_never_hide_a_new_station_or_share_an_id() {
+		let mut mine = folder(
+			"Persian",
+			vec![row("Persian", 0, "A", "http://a"), row("Persian", 1, "B", "http://b")],
+			vec![],
+		);
+		// A new station went in at the top: every old row moved down one.
+		let up = folder(
+			"Persian",
+			vec![
+				row("Persian", 0, "New", "http://new"),
+				row("Persian", 1, "A", "http://a"),
+				row("Persian", 2, "B", "http://b"),
+			],
+			vec![],
+		);
+		assert_eq!(mine.refresh(&up).added, 1);
+		assert_eq!(names(&mine), ["A", "B", "New"]);
+		let ids: Vec<String> = mine.all_stations().into_iter().map(|s| s.id).collect();
+		assert_eq!(&ids[..2], ["brdir:Persian:0", "brdir:Persian:1"], "old ids untouched");
+		assert!(ids[2].starts_with("brdir:Persian:0:"), "the new one's id does not repeat");
+	}
+
+	#[test]
+	fn a_changed_address_follows_the_directory_the_name_and_id_stay() {
+		let mut a = st("a");
+		a.name = "My Name".into();
+		let mut mine = folder("F", vec![a.clone()], vec![]);
+		let mut moved = a.clone();
+		moved.name = "Their Name".into();
+		moved.url = "http://moved".into();
+		let got = mine.refresh(&folder("F", vec![moved], vec![]));
+		assert_eq!(got, Refreshed { added: 0, updated: 1 });
+		assert_eq!(mine.stations[0].id, "a");
+		assert_eq!(mine.stations[0].name, "My Name", "the user's name stays");
+		assert_eq!(mine.stations[0].url, "http://moved");
+		// A row-numbered station is known by its name once its address is gone.
+		let mut mine = folder("F", vec![row("P", 0, "Radio", "http://old")], vec![]);
+		let up = folder("F", vec![row("P", 5, "Radio", "http://new")], vec![]);
+		assert_eq!(mine.refresh(&up), Refreshed { added: 0, updated: 1 });
+		assert_eq!(mine.stations[0].url, "http://new");
+		assert_eq!(mine.stations[0].id, "brdir:P:0");
+	}
+
+	#[test]
+	fn what_the_directory_dropped_stays() {
+		let mut mine = folder(
+			"F",
+			vec![st("keep"), st("gone"), Station { source: Source::Custom, ..st("mine") }],
+			vec![],
+		);
+		let up = folder("F", vec![st("keep")], vec![]);
+		assert_eq!(mine.refresh(&up), Refreshed::default());
+		assert_eq!(mine.stations.len(), 3);
+	}
+
+	#[test]
+	fn a_stream_listed_twice_does_not_pile_up() {
+		let twice = folder(
+			"All",
+			vec![],
+			vec![
+				folder("UK", vec![row("UK", 0, "BBC", "http://bbc")], vec![]),
+				folder("News", vec![row("News", 0, "BBC", "http://bbc")], vec![]),
+			],
+		);
+		let mut mine = twice.clone();
+		assert_eq!(mine.refresh(&twice), Refreshed::default());
+		assert_eq!(mine.refresh(&twice), Refreshed::default());
+		assert_eq!(mine.all_stations().len(), 2);
+	}
+
+	#[test]
+	fn two_saved_stations_of_one_name_do_not_take_the_same_address() {
+		let mut mine = folder(
+			"F",
+			vec![row("P", 0, "Radio", "http://old"), row("P", 1, "Radio", "http://new")],
+			vec![],
+		);
+		let up = folder("F", vec![row("P", 0, "Radio", "http://new")], vec![]);
+		assert_eq!(mine.refresh(&up), Refreshed::default());
+		assert_eq!(mine.stations[0].url, "http://old");
+	}
+
+	#[test]
+	fn a_folder_that_moved_during_the_read_is_found_again() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("C");
+		let dest = StationDest::Collection { id: id.clone(), path: vec![] };
+		let mut linked = folder("Persian", vec![st("a")], vec![]);
+		linked.origin = Some("brdir/Persian".into());
+		lib.add_folder_to(&dest, folder("Before", vec![st("z")], vec![])).unwrap();
+		lib.add_folder_to(&dest, linked).unwrap();
+		let read_at = StationDest::Collection { id: id.clone(), path: vec![1] };
+		lib.remove_at(&id, &[0]);
+		let up = folder("Persian", vec![st("a"), st("b")], vec![]);
+		assert_eq!(lib.refresh_folder(&read_at, "brdir/Persian", &up).unwrap().added, 1);
+		lib.remove_at(&id, &[0]);
+		assert_eq!(lib.refresh_folder(&read_at, "brdir/Persian", &up), None, "gone is gone");
+	}
+
+	#[test]
+	fn a_folder_pasted_as_a_collection_keeps_its_link() {
+		let mut lib = Library::default();
+		let mut linked = folder("Persian", vec![st("a")], vec![]);
+		linked.origin = Some("brdir/Persian".into());
+		let id = lib.add_folder_as_collection(linked, None);
+		let at = StationDest::Collection { id: id.clone(), path: vec![] };
+		assert_eq!(lib.linked_folders(), vec![(at.clone(), "brdir/Persian".to_string())]);
+		let up = folder("Persian", vec![st("a"), st("b")], vec![]);
+		assert_eq!(lib.refresh_folder(&at, "brdir/Persian", &up).unwrap().added, 1);
+		assert_eq!(lib.collection_mut(&id).unwrap().stations.len(), 2);
+	}
+
+	#[test]
+	fn a_station_moved_to_another_folder_is_not_filed_twice() {
+		let mut mine = folder("F", vec![], vec![folder("Mine", vec![st("a")], vec![])]);
+		let up = folder("F", vec![st("a")], vec![]);
+		assert_eq!(mine.refresh(&up), Refreshed::default());
+		assert_eq!(mine.all_stations().len(), 1);
+	}
+
+	#[test]
+	fn filing_again_after_an_edit_keeps_new_rows_with_the_same_number() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("C");
+		let dest = StationDest::Collection { id, path: vec![] };
+		let first = folder("P", vec![row("P", 0, "A", "http://a")], vec![]);
+		lib.add_folder_to(&dest, first).unwrap();
+		let second = folder("P", vec![row("P", 0, "New", "http://new"), row("P", 1, "A", "http://a")], vec![]);
+		assert_eq!(lib.add_folder_to(&dest, second), Some(1), "row 0 is a different station now");
+	}
+
+	#[test]
+	fn old_folders_of_a_playlist_are_recognised_by_their_stations() {
+		let persian = folder("Persian", vec![row("Persian", 0, "A", "http://a")], vec![]);
+		assert_eq!(persian.inferred_origin().as_deref(), Some("brdir/Persian"));
+		let spaced = folder("public radio", vec![row("Public Radio", 2, "A", "http://a")], vec![]);
+		assert_eq!(spaced.inferred_origin().as_deref(), Some("brdir/Public%20Radio"));
+		let dashed = folder(
+			"Jazz Blues",
+			vec![Station { id: "recommended:jazz-blues:4".into(), source: Source::Recommended, ..st("x") }],
+			vec![],
+		);
+		assert_eq!(dashed.inferred_origin().as_deref(), Some("recommended/jazz-blues"));
+		let renamed = folder("Mine", vec![row("Persian", 0, "A", "http://a")], vec![]);
+		assert_eq!(renamed.inferred_origin(), None, "a folder the user named is not guessed at");
+		let own_added = folder("Persian", vec![row("Persian", 0, "A", "http://a"), st("rb")], vec![]);
+		assert_eq!(own_added.inferred_origin().as_deref(), Some("brdir/Persian"), "the user's own station");
+		let updated = folder("Persian", vec![row("Persian", 0, "A:x", "http://a")], vec![]);
+		assert_eq!(updated.inferred_origin().as_deref(), Some("brdir/Persian"));
+		let mixed = folder("Persian", vec![row("Persian", 0, "A", "http://a"), row("UK", 0, "B", "http://b")], vec![]);
+		assert_eq!(mixed.inferred_origin(), None, "two playlists");
+		assert_eq!(Folder::new("Empty").inferred_origin(), None);
+	}
+
+	#[test]
+	fn refreshing_a_folder_links_it_and_the_link_survives_saving() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("C");
+		let dest = StationDest::Collection { id: id.clone(), path: vec![] };
+		let mut jazz = folder("Jazz", vec![st("a")], vec![]);
+		jazz.origin = Some("rb/tag/jazz".into());
+		lib.add_folder_to(&dest, jazz).unwrap();
+		let at = StationDest::Collection { id: id.clone(), path: vec![0] };
+		let up = folder("Jazz", vec![st("a"), st("b")], vec![]);
+		let got = lib.refresh_folder(&at, "rb/tag/jazz", &up).unwrap();
+		assert_eq!(got.added, 1);
+		assert_eq!(lib.origin_at(&at).as_deref(), Some("rb/tag/jazz"));
+		assert_eq!(lib.linked_folders(), vec![(at.clone(), "rb/tag/jazz".to_string())]);
+		let json = serde_json::to_string(&lib).unwrap();
+		let back: Library = serde_json::from_str(&json).unwrap();
+		assert_eq!(back.origin_at(&at).as_deref(), Some("rb/tag/jazz"));
+		assert!(!serde_json::to_string(&Folder::new("x")).unwrap().contains("origin"));
+	}
+
+	#[test]
+	fn a_linked_folder_covers_the_folders_inside_it() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("C");
+		let dest = StationDest::Collection { id: id.clone(), path: vec![] };
+		let mut outer = folder("All", vec![], vec![folder("Persian", vec![row("Persian", 0, "A", "http://a")], vec![])]);
+		outer.origin = Some("brdir".into());
+		lib.add_folder_to(&dest, outer).unwrap();
+		let got = lib.linked_folders();
+		assert_eq!(got.len(), 1);
+		assert_eq!(got[0].1, "brdir");
+	}
 }
