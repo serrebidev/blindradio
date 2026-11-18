@@ -1024,6 +1024,19 @@ mod refresh {
 	}
 
 	#[test]
+	fn a_collection_named_like_its_folder_updates_the_folder() {
+		let mut lib = Library::default();
+		let id = lib.create_collection("Persian");
+		let dest = StationDest::Collection { id: id.clone(), path: vec![] };
+		let mut linked = folder("Persian", vec![row("Persian", 0, "A", "http://a")], vec![]);
+		linked.origin = Some("brdir/Persian".into());
+		lib.add_folder_to(&dest, linked).unwrap();
+		let inner = StationDest::Collection { id: id.clone(), path: vec![0] };
+		assert_eq!(lib.origin_at(&dest), None, "the collection only holds the folder");
+		assert_eq!(lib.linked_folders(), vec![(inner, "brdir/Persian".to_string())]);
+	}
+
+	#[test]
 	fn a_folder_pasted_as_a_collection_keeps_its_link() {
 		let mut lib = Library::default();
 		let mut linked = folder("Persian", vec![st("a")], vec![]);

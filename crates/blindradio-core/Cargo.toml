@@ -5,6 +5,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+jiff = "*"
 m3u8-parser = "*"
 thiserror = "*"
 reqwest = { version = "*", default-features = false, features = ["rustls", "native-tls", "stream", "form", "multipart", "json", "gzip"] }

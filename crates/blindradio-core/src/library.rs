@@ -45,8 +45,8 @@ fn same_stream(a: &Station, b: &Station) -> bool {
 	(a.id == b.id && !positional(a)) || (!a.url.is_empty() && a.url == b.url)
 }
 
-/// Playlist-file directories number their stations by row (`brdir:UK:3`):
-/// an edit upstream shifts the rows, so there an id names a row, not a stream.
+/// Stations saved from playlist-file directories by older versions carry their row
+/// (`brdir:UK:3`): an edit upstream shifts the rows, so there an id names no stream.
 fn positional(s: &Station) -> bool {
 	matches!(s.source, Source::Directory | Source::Recommended)
 }
@@ -1330,7 +1330,13 @@ impl Library {
 	/// Where the folder or collection at `at` was filed from, for Update from
 	/// Directory.
 	pub fn origin_at(&self, at: &StationDest) -> Option<String> {
-		self.folder_snapshot(at)?.inferred_origin()
+		let folder = self.folder_snapshot(at)?;
+		// A collection that only holds folders is not the directory's: they are.
+		let whole = matches!(at, StationDest::Collection { path, .. } if path.is_empty());
+		if whole && folder.origin.is_none() && folder.stations.is_empty() {
+			return None;
+		}
+		folder.inferred_origin()
 	}
 
 	/// Every folder that can be updated from its directory, outermost only:

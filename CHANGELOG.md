@@ -5,6 +5,17 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.3
+
+- Daily and weekly alarms and scheduled recordings now keep their clock time when daylight saving changes. An 8:00 alarm used to move to 7:00 or 9:00.
+- Alarms and scheduled recordings now start and stop on time while a window such as Browse or Settings is open. An alarm could be missed, and a recording could run past its end.
+- Stations in the BlindRadio Directory and Recommended Radio Streams keep their identity when a playlist changes. After a new station was added above them, editing, pasting or favoriting one could act on a different station.
+- Update from Directory no longer says a folder is already up to date when the directory could not be reached.
+- Updating a directory folder kept in a collection of the same name now puts new stations in that folder, not loose in the collection.
+- An HLS station whose encryption line is damaged is now refused instead of playing noise, and a segment with a damaged duration is no longer skipped.
+- Adding or updating a directory folder can no longer run forever on a directory page that links back to itself.
+- BlindRadio for desktop and BlindRadio for Android now share version 0.3.3.
+
 ## 0.3.2
 
 - HLS stations that put commas in their song details, such as KCRW and iHeartRadio stations, no longer make BlindRadio request audio files that do not exist.

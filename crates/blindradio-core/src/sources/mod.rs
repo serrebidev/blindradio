@@ -626,7 +626,12 @@ impl Sources {
 								});
 							}
 						}
-						Node::LoadMore { id } => level.push(id),
+						// A page that links back to itself must not spin forever.
+						Node::LoadMore { id } => {
+							if seen.insert(id.clone()) {
+								level.push(id);
+							}
+						}
 					}
 				}
 			}

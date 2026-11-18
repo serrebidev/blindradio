@@ -230,6 +230,9 @@ pub fn up_to_date() -> String {
 pub fn updated_folders(n: usize) -> String {
 	patois::t("Updated {n} folders").replace("{n}", &n.to_string())
 }
+pub fn directory_not_reached() -> String {
+	patois::t("Directory not reached")
+}
 /// Tail of an update that missed some: `, 2 not reached`.
 pub fn not_reached(n: usize) -> String {
 	patois::t(", {n} not reached").replace("{n}", &n.to_string())

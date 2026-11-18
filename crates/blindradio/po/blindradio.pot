@@ -1563,3 +1563,6 @@ msgstr ""
 
 msgid ", {n} not reached"
 msgstr ""
+
+msgid "Directory not reached"
+msgstr ""

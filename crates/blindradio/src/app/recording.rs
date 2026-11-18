@@ -168,9 +168,6 @@ impl App {
 	/// entry whose window is still open fires when the dialog closes.
 	pub(super) fn check_schedules(&mut self) {
 		use blindradio_core::schedule::Repeat;
-		if self.dialog_open {
-			return;
-		}
 		let now = update::now();
 		if let Some((id, occ)) = self.sched_active.clone() {
 			let end = self

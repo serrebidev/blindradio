@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Where a station came from. Ids follow the source: `rb:<uuid>`, `tunein:<guide_id>`,
 /// `iheart:<id>`, `icecast:<url>`, `shoutcast:<id>`, `internet-radio:<slug>`,
-/// `iprd:<id>`, `live365:<mount>`, `orb:<country>.<alias>`, `recommended:<file>:<row>`,
+/// `iprd:<id>`, `live365:<mount>`, `orb:<country>.<alias>`, `recommended:<file>:<address>`,
 /// `net:<network-slug>:<slug>`, `custom:<uuid-v4>`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Source {

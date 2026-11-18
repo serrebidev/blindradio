@@ -1,6 +1,6 @@
 //! HLS playlists as this player needs them, read by the `m3u8-parser` crate.
 
-use m3u8_parser::m3u8::error::ParseError;
+use m3u8_parser::m3u8::error::{ParseError, SyntaxError};
 use m3u8_parser::m3u8::playlist::Playlist as Parsed;
 pub(super) use m3u8_parser::m3u8::playlist::MediaSegment;
 pub(super) use m3u8_parser::m3u8::tags::Key;
@@ -49,8 +49,8 @@ pub(super) struct MediaPlaylist {
 const BAD_LINES_ALLOWED: usize = 32;
 
 /// The parser refuses a whole playlist over one line it cannot read. A station keeps playing
-/// without that line. #EXTINF without its comma is common enough to repair instead: losing the
-/// line would lose the segment.
+/// without that line. An #EXTINF is repaired instead, since losing it would lose its segment.
+/// A broken key or init segment refuses the playlist: the audio would decode to noise.
 fn tolerant(text: &str) -> Option<Parsed> {
 	let mut lines: Vec<String> = text
 		.lines()
@@ -66,8 +66,16 @@ fn tolerant(text: &str) -> Option<Parsed> {
 	for _ in 0..=BAD_LINES_ALLOWED {
 		match lines.join("\n").parse() {
 			Ok(parsed) => return Some(parsed),
-			Err(ParseError::Syntax { line, .. }) if (1..=lines.len()).contains(&line) => {
-				lines.remove(line - 1);
+			Err(ParseError::Syntax { line, kind }) if (1..=lines.len()).contains(&line) => {
+				let bad = &mut lines[line - 1];
+				if bad.starts_with("#EXT-X-KEY") || bad.starts_with("#EXT-X-MAP") {
+					return None;
+				}
+				if bad.starts_with("#EXTINF:") && !matches!(kind, SyntaxError::MissingUriAfterExtInf) {
+					"#EXTINF:0,".clone_into(bad);
+				} else {
+					lines.remove(line - 1);
+				}
 			}
 			Err(_) => return None,
 		}
@@ -260,12 +268,17 @@ mod tests {
 	#[test]
 	fn one_bad_line_never_stops_a_station() {
 		let m = as_media(
-			"#EXTM3U\n#EXT-X-TARGETDURATION:10.0\n#EXT-X-MEDIA-SEQUENCE:abc\n#EXT-X-KEY:URI=\"k\"\n\
-			#EXTINF:10\na.aac\n#EXTINF:10,\nb.aac\n#EXTINF:10,\n",
+			"#EXTM3U\n#EXT-X-TARGETDURATION:10.0\n#EXT-X-MEDIA-SEQUENCE:abc\n\
+			#EXTINF:10\na.aac\n#EXTINF:soon,\nb.aac\n#EXTINF:10,\nc.aac\n#EXTINF:10,\n",
 		);
 		let uris: Vec<&str> = m.segments.iter().map(|s| s.uri.as_str()).collect();
-		assert_eq!(uris, ["a.aac", "b.aac"]);
-		assert!(m.segments[0].key.is_none());
+		assert_eq!(uris, ["a.aac", "b.aac", "c.aac"]);
+	}
+
+	#[test]
+	fn audio_that_cannot_be_decrypted_is_refused_not_played_as_noise() {
+		assert_eq!(parse(b"#EXTM3U\n#EXT-X-KEY:URI=\"k\"\n#EXTINF:10,\na.aac\n"), None);
+		assert_eq!(parse(b"#EXTM3U\n#EXT-X-MAP:BYTERANGE=\"1@0\"\n#EXTINF:10,\na.m4s\n"), None);
 	}
 
 	#[test]

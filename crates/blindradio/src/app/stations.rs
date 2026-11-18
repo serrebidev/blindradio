@@ -465,6 +465,11 @@ impl App {
 		}
 		self.save_library();
 		self.refresh_dial();
+		// Nothing was read: "already up to date" would be a guess.
+		if folders == 0 {
+			let failed = s::directory_not_reached();
+			return self.say(&one.map_or(failed.clone(), |name| format!("{name}: {failed}")));
+		}
 		let counts = if total.any() {
 			s::update_counts(total.added, total.updated)
 		} else {

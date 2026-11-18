@@ -116,11 +116,13 @@ impl Directory {
 			.collect()
 	}
 
-	fn station_of(&self, stem: &str, i: usize, e: &crate::playlist::PlaylistEntry) -> Node {
+	fn station_of(&self, stem: &str, e: &crate::playlist::PlaylistEntry) -> Node {
 		// Recommended Radio Streams writes some addresses with a comma after them.
 		let url = e.url.trim_end_matches(',');
+		// The address names the station: a row number would hand a station's id
+		// to its neighbor whenever the playlist gains a line above it.
 		Node::Station(Station {
-			id: format!("{}:{stem}:{i}", self.root),
+			id: format!("{}:{stem}:{url}", self.root),
 			name: e.title.clone().unwrap_or_else(|| url.to_owned()),
 			url: url.to_owned(),
 			source: self.source.clone(),
@@ -136,13 +138,13 @@ impl Directory {
 		let entries = parse_m3u(body);
 		let mut nodes = Vec::new();
 		let mut seen: Vec<String> = Vec::new();
-		for (i, e) in entries.iter().enumerate() {
+		for e in &entries {
 			let path = group_path(&e.group);
 			if path.len() < prefix.len() || path[..prefix.len()] != *prefix {
 				continue;
 			}
 			if path.len() == prefix.len() {
-				nodes.push(self.station_of(stem, i, e));
+				nodes.push(self.station_of(stem, e));
 			} else {
 				let next = &path[prefix.len()];
 				if !seen.contains(next) {
@@ -215,7 +217,7 @@ mod tests {
 		let Node::Station(s) = &got[0] else {
 			panic!("station row")
 		};
-		assert_eq!(s.id, "recommended:electronic:0");
+		assert_eq!(s.id, "recommended:electronic:http://fr.ah.fm:8000/");
 		assert_eq!(s.name, "After Hours FM");
 		assert_eq!(s.url, "http://fr.ah.fm:8000/", "the comma is not the address");
 		assert_eq!(s.source, Source::Recommended);
@@ -267,7 +269,7 @@ mod tests {
 		let Node::Station(loose) = &got[1] else {
 			panic!("station row")
 		};
-		assert_eq!(loose.id, "brdir:UK:1");
+		assert_eq!(loose.id, "brdir:UK:http://x/2");
 		assert_eq!(loose.name, "Loose");
 		assert_eq!(loose.source, Source::Directory);
 		assert_eq!(got[2], folder("brdir/UK/News", "News"));
@@ -280,13 +282,30 @@ mod tests {
 		let Node::Station(first) = &got[0] else {
 			panic!("station row")
 		};
-		assert_eq!(first.id, "brdir:UK:0");
+		assert_eq!(first.id, "brdir:UK:http://x/1");
 		assert_eq!(first.name, "BBC Radio 1");
 		assert_eq!(first.info.as_deref(), Some("BBC"));
 		let Node::Station(second) = &got[1] else {
 			panic!("station row")
 		};
 		assert_eq!(second.name, "BBC Radio 2");
+	}
+
+	#[test]
+	fn a_line_added_above_leaves_every_station_its_id() {
+		let ids = |body: &str| -> Vec<String> {
+			level("UK", body, &[])
+				.into_iter()
+				.filter_map(|n| match n {
+					Node::Station(s) => Some(s.id),
+					_ => None,
+				})
+				.collect()
+		};
+		let before = ids("#EXTM3U\n#EXTINF:-1,One\nhttp://x/1\n");
+		let after = ids("#EXTM3U\n#EXTINF:-1,New\nhttp://x/9\n#EXTINF:-1,One\nhttp://x/1\n");
+		assert_eq!(after[1], before[0]);
+		assert_ne!(after[0], before[0], "the new station takes no one's id");
 	}
 
 	#[test]

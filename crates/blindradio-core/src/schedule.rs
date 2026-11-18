@@ -1,7 +1,9 @@
 //! Scheduled recordings: a station, a start time, a duration and a repeat
-//! rule. Pure arithmetic on Unix seconds; the app owns the clock, the
-//! dialog and the tuner.
+//! rule. Times are Unix seconds; repeats follow the local clock. The app
+//! owns the clock, the dialog and the tuner.
 
+use jiff::tz::TimeZone;
+use jiff::{Timestamp, ToSpan};
 use serde::{Deserialize, Serialize};
 
 use crate::station::Station;
@@ -76,36 +78,68 @@ impl Default for ScheduledRecording {
 }
 
 const DAY: u64 = 86_400;
-const WEEK: u64 = 7 * DAY;
 
 impl ScheduledRecording {
-	fn period(&self) -> Option<u64> {
+	/// Days between occurrences; None for a one-off.
+	fn period_days(&self) -> Option<u32> {
 		match self.repeat {
 			Repeat::Once => None,
-			Repeat::Daily => Some(DAY),
-			Repeat::Weekly => Some(WEEK),
+			Repeat::Daily => Some(1),
+			Repeat::Weekly => Some(7),
 		}
+	}
+
+	/// Occurrence `n`: the first one's clock time, `n` periods on, so 8:00 stays
+	/// 8:00 when daylight saving changes. A time the change skips plays an hour on.
+	fn nth(&self, n: u64, days: u32, tz: &TimeZone) -> u64 {
+		let on_the_clock = || -> Option<u64> {
+			let first = Timestamp::from_second(i64::try_from(self.start_unix).ok()?).ok()?;
+			let steps = i64::try_from(n).ok()?.checked_mul(i64::from(days))?;
+			let at = first.to_zoned_datetime(tz.clone()).checked_add(steps.days()).ok()?;
+			u64::try_from(at.timestamp().as_second()).ok()
+		};
+		on_the_clock().unwrap_or_else(|| self.start_unix + n * u64::from(days) * DAY)
+	}
+
+	/// Which occurrence stands at `now`, at or after the first.
+	fn index_at(&self, now: u64, days: u32, tz: &TimeZone) -> u64 {
+		let mut n = (now - self.start_unix) / (u64::from(days) * DAY);
+		while n > 0 && self.nth(n, days, tz) > now {
+			n -= 1;
+		}
+		while self.nth(n + 1, days, tz) <= now {
+			n += 1;
+		}
+		n
+	}
+
+	fn occurrence_in(&self, now: u64, tz: &TimeZone) -> Option<u64> {
+		if now < self.start_unix {
+			return None;
+		}
+		Some(match self.period_days() {
+			None => self.start_unix,
+			Some(days) => self.nth(self.index_at(now, days, tz), days, tz),
+		})
+	}
+
+	fn next_in(&self, now: u64, tz: &TimeZone) -> Option<u64> {
+		if now < self.start_unix {
+			return Some(self.start_unix);
+		}
+		self.period_days()
+			.map(|days| self.nth(self.index_at(now, days, tz) + 1, days, tz))
 	}
 
 	/// The occurrence that starts at or before `now`: the one that may be
 	/// recording right now. None when the first start is still ahead.
 	pub fn occurrence_at(&self, now: u64) -> Option<u64> {
-		if now < self.start_unix {
-			return None;
-		}
-		match self.period() {
-			None => Some(self.start_unix),
-			Some(p) => Some(self.start_unix + (now - self.start_unix) / p * p),
-		}
+		self.occurrence_in(now, &TimeZone::system())
 	}
 
 	/// The first occurrence strictly after `now`, if any.
 	pub fn next_after(&self, now: u64) -> Option<u64> {
-		if now < self.start_unix {
-			return Some(self.start_unix);
-		}
-		self.period()
-			.map(|p| self.start_unix + (now - self.start_unix) / p * p + p)
+		self.next_in(now, &TimeZone::system())
 	}
 
 	/// When the recording of `occurrence` stops.
@@ -137,6 +171,55 @@ pub const ALARM_GRACE: u64 = 300;
 mod tests {
 	use super::*;
 	use crate::station::Source;
+
+	const WEEK: u64 = 7 * DAY;
+	const HOUR: u64 = 3_600;
+
+	/// US Eastern: in 2026 clocks go forward on March 8 and back on November 1.
+	fn eastern() -> TimeZone {
+		TimeZone::posix("EST5EDT,M3.2.0,M11.1.0").unwrap()
+	}
+
+	fn clock(tz: &TimeZone, text: &str) -> u64 {
+		let at = text.parse::<jiff::civil::DateTime>().unwrap();
+		at.to_zoned_datetime(tz.clone()).unwrap().timestamp().as_second() as u64
+	}
+
+	#[test]
+	fn a_daily_time_stays_on_the_clock_when_daylight_saving_changes() {
+		let tz = eastern();
+		let spring = entry(clock(&tz, "2026-03-07T08:00"), Repeat::Daily);
+		let next = clock(&tz, "2026-03-08T08:00");
+		assert_eq!(next - spring.start_unix, 23 * HOUR, "that day is an hour short");
+		assert_eq!(spring.next_in(spring.start_unix, &tz), Some(next));
+		assert_eq!(spring.occurrence_in(next - 1, &tz), Some(spring.start_unix));
+		assert_eq!(spring.occurrence_in(next, &tz), Some(next));
+		let summer = clock(&tz, "2026-07-01T08:00");
+		assert_eq!(spring.occurrence_in(summer + 60, &tz), Some(summer));
+		let autumn = entry(clock(&tz, "2026-10-31T08:00"), Repeat::Daily);
+		let next = clock(&tz, "2026-11-01T08:00");
+		assert_eq!(next - autumn.start_unix, 25 * HOUR, "that day is an hour long");
+		assert_eq!(autumn.next_in(autumn.start_unix, &tz), Some(next));
+	}
+
+	#[test]
+	fn a_weekly_time_stays_on_the_clock_when_daylight_saving_changes() {
+		let tz = eastern();
+		let e = entry(clock(&tz, "2026-03-02T21:30"), Repeat::Weekly);
+		let next = clock(&tz, "2026-03-09T21:30");
+		assert_eq!(next - e.start_unix, WEEK - HOUR);
+		assert_eq!(e.next_in(e.start_unix + 60, &tz), Some(next));
+		assert_eq!(e.occurrence_in(next + 60, &tz), Some(next));
+	}
+
+	#[test]
+	fn a_time_the_clocks_skip_plays_an_hour_on_then_returns() {
+		let tz = eastern();
+		let e = entry(clock(&tz, "2026-03-07T02:30"), Repeat::Daily);
+		let skipped = clock(&tz, "2026-03-08T03:30");
+		assert_eq!(e.next_in(e.start_unix, &tz), Some(skipped));
+		assert_eq!(e.next_in(skipped, &tz), Some(clock(&tz, "2026-03-09T02:30")));
+	}
 
 	fn entry(start: u64, repeat: Repeat) -> ScheduledRecording {
 		ScheduledRecording {

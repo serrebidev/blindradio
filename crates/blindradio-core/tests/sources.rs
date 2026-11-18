@@ -147,7 +147,7 @@ async fn recommended_reads_its_playlists_folder() {
 			.await
 			.unwrap(),
 		vec![Node::Station(Station {
-			id: "recommended:jazz-blues:0".into(),
+			id: "recommended:jazz-blues:http://rec.test/1".into(),
 			name: "Blue Note".into(),
 			url: "http://rec.test/1".into(),
 			source: Source::Recommended,
@@ -276,7 +276,7 @@ async fn children_dispatch_by_prefix() {
 			.await
 			.unwrap(),
 		vec![Node::Station(Station {
-			id: "brdir:Public Radio:0".into(),
+			id: "brdir:Public Radio:http://pr.test/1".into(),
 			name: "WNYC".into(),
 			url: "http://pr.test/1".into(),
 			source: Source::Directory,

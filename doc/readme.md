@@ -485,7 +485,7 @@ as the songs come in. The exact boundary carries the station's own timing — it
 information arrives when the station sends it — so a second either side is normal.
 
 Recording, Scheduled Recordings sets recordings up ahead of time: a station, a start time,
-a duration in minutes, and Once, Daily or Weekly. Add, Edit and Delete manage the list;
+a duration in minutes, and Once, Daily or Weekly. Daily and Weekly keep their clock time when daylight saving changes. Add, Edit and Delete manage the list;
 an entry can be switched off without deleting it. When the time comes the entry records
 on its own background stream — playback is never tuned to it — and stops when the
 duration is up; a recording already running by hand is never interrupted, and a Once
