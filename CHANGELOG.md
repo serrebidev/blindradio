@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.2
+
+- HLS stations that put commas in their song details, such as KCRW and iHeartRadio stations, no longer make BlindRadio request audio files that do not exist.
+- A song title containing a comma is no longer cut off at the comma on HLS stations.
+- BlindRadio's version number now matches BlindRadio for Android.
+
 ## 0.2.104
 
 - A folder filed from a directory can now be brought up to date. Update from Directory, on the folder's context menu in Browse or the main window, reads the directory's folder again: new stations arrive in the same subfolders and a station whose stream address changed follows it. Nothing is ever removed: a station the directory dropped stays until you delete it, and names you gave stations are kept. Stations, Update Directory Folders does every such folder at once, and says what changed. It works for any directory, the BlindRadio Directory included, so a Persian folder or the whole directory filed earlier can follow the directory. Folders of the BlindRadio Directory and Recommended Radio Streams filed in older versions are recognised by their name; any other old folder links the next time you add the same directory folder to it again.

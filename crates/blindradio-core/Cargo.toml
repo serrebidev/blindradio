@@ -5,6 +5,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+m3u8-parser = "*"
 thiserror = "*"
 reqwest = { version = "*", default-features = false, features = ["rustls", "native-tls", "stream", "form", "multipart", "json", "gzip"] }
 webpki-root-certs = "*"
@@ -28,7 +29,6 @@ quick-xml = { version = "*", features = ["serialize"] }
 scraper = "*"
 base64 = "*"
 flate2 = "*"
-m3u8-rs = "*"
 cpal = "*"
 dirs = "*"
 hound = "*"

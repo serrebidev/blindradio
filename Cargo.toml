@@ -1,9 +1,14 @@
 [workspace]
 members = ["crates/*"]
+exclude = ["vendor"]
 resolver = "3"
 
 # zip 9: zip 8 carries RUSTSEC-2026-0367, 0368, 0369 and 0429. Drop when shipfitter takes it.
 [patch.crates-io]
+# UI tests only. Upstream uses chrono (RUSTSEC-2026-0543) for one stopwatch. Drop when upstream does.
+uiautomation = { path = "vendor/uiautomation" }
+# wxdragon names paste, unmaintained (RUSTSEC-2024-0436): this hands it pastey. Drop when wxdragon moves.
+paste = { path = "vendor/paste" }
 shipfitter = { git = "https://git.serrebiradio.com/serrebi/shipfitter", branch = "zip-9" }
 # Forgejo releases: upstream ship-shape only speaks api.github.com. Drop when upstream takes it.
 ship-shape = { git = "https://git.serrebiradio.com/serrebi/ship-shape", rev = "cff6bdb5596676723b3a0890b1b030c8edac0d28" }

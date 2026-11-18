@@ -4,9 +4,6 @@ use aes::Aes128;
 use aes::cipher::{BlockCipherDecrypt, KeyInit};
 use bytes::Bytes;
 use crossbeam_channel::Sender;
-use m3u8_rs::{
-	AlternativeMedia, AlternativeMediaType, KeyMethod, MediaPlaylist, Playlist, VariantStream,
-};
 use reqwest::Url;
 use tokio::time::{sleep_until, timeout};
 
@@ -14,6 +11,10 @@ use crate::latm::{LatmToAdts, is_loas};
 use crate::net::{http_err, not_a_stream, user_agent_for};
 use crate::stream::send;
 use crate::{CoreError, Result};
+
+mod playlist;
+
+use playlist::{AlternativeMedia, Key, MediaPlaylist, Playlist, VariantStream};
 
 /// A live playlist that yields no new segment for this many target durations is lost.
 const STALL_TARGETS: u32 = 3;
@@ -63,8 +64,7 @@ pub async fn run_hls(
 	let mut progress = loaded;
 	let mut last_err = None;
 	let mut init_sent = false;
-	// EXT-X-KEY and a byte range without an offset both hold over from the segments before them.
-	let mut key: Option<m3u8_rs::Key> = None;
+	// A byte range without an offset carries on from the segment before it.
 	let mut key_bytes: Option<(Url, [u8; 16])> = None;
 	let mut range_end = 0;
 	loop {
@@ -74,7 +74,7 @@ pub async fn run_hls(
 		{
 			// fMP4: the segments mean nothing to the decoder without their init segment.
 			let url = base.join(&map.uri).map_err(|_| not_a_stream())?;
-			let range = map.byte_range.as_ref().map(|r| (r.offset.unwrap_or(0), r.length));
+			let range = map.byterange.map(|r| (r.offset.unwrap_or(0), r.length));
 			let (_, init) = get(&client, &url, range, limit).await?;
 			if !send(&tx, init).await {
 				return Ok(());
@@ -82,10 +82,7 @@ pub async fn run_hls(
 			init_sent = true;
 		}
 		for (seq, segment) in (playlist.media_sequence..).zip(&playlist.segments) {
-			if let Some(k) = &segment.key {
-				key = (k.method != KeyMethod::None).then(|| k.clone());
-			}
-			let range = segment.byte_range.as_ref().map(|r| {
+			let range = segment.byterange.map(|r| {
 				let start = r.offset.unwrap_or(range_end);
 				range_end = start + r.length;
 				(start, r.length)
@@ -95,7 +92,7 @@ pub async fn run_hls(
 			}
 			next = seq + 1;
 			fresh = true;
-			let decrypt = match &key {
+			let decrypt = match &segment.key {
 				Some(k) => {
 					let Some(bytes) = key_for(&client, &base, k, &mut key_bytes, limit).await
 					else {
@@ -179,7 +176,7 @@ pub(crate) fn hint(audio: &[u8]) -> &'static str {
 async fn key_for(
 	client: &reqwest::Client,
 	base: &Url,
-	key: &m3u8_rs::Key,
+	key: &Key,
 	held: &mut Option<(Url, [u8; 16])>,
 	limit: Duration,
 ) -> Option<[u8; 16]> {
@@ -196,7 +193,7 @@ async fn key_for(
 }
 
 /// The IV a segment states, else its media sequence number, as HLS defines.
-fn iv_for(key: &m3u8_rs::Key, seq: u64) -> [u8; 16] {
+fn iv_for(key: &Key, seq: u64) -> [u8; 16] {
 	let stated = key.iv.as_deref().and_then(|iv| {
 		let hex = iv.strip_prefix("0x").or_else(|| iv.strip_prefix("0X"))?;
 		u128::from_str_radix(hex, 16).ok()
@@ -239,13 +236,14 @@ fn pick_variant(variants: &[VariantStream]) -> Option<&VariantStream> {
 		let c = c.trim().to_ascii_lowercase();
 		AUDIO.iter().any(|a| c.starts_with(a))
 	};
-	let playable = || variants.iter().filter(|v| !v.is_i_frame);
 	let codecs = |v: &VariantStream| v.codecs.clone().unwrap_or_default();
-	let audio_only = playable()
+	let audio_only = variants
+		.iter()
 		.filter(|v| v.codecs.is_some() && codecs(v).split(',').all(is_audio))
 		.max_by_key(|v| v.bandwidth);
 	audio_only.or_else(|| {
-		playable()
+		variants
+			.iter()
 			.filter(|v| v.codecs.is_none() || codecs(v).split(',').any(is_audio))
 			.min_by_key(|v| v.bandwidth)
 	})
@@ -261,7 +259,7 @@ fn audio_rendition<'a>(
 	let group = variant.audio.as_ref()?;
 	let mut audio: Vec<_> = alternatives
 		.iter()
-		.filter(|a| a.media_type == AlternativeMediaType::Audio && a.group_id == *group)
+		.filter(|a| a.is_audio && a.group_id == *group)
 		.filter(|a| a.uri.is_some())
 		.collect();
 	audio.sort_by_key(|a| !a.default);
@@ -275,16 +273,12 @@ fn media(playlist: Playlist) -> Result<MediaPlaylist> {
 	};
 	// Plain AES-128 is ordinary HLS: the key is one more file the server hands out. SAMPLE-AES and
 	// any other key format is DRM, and stays refused.
-	let identity = |k: &m3u8_rs::Key| {
+	let identity = |k: &Key| {
 		k.keyformat
 			.as_deref()
 			.is_none_or(|f| f.eq_ignore_ascii_case("identity"))
 	};
-	let playable = |k: &m3u8_rs::Key| match k.method {
-		KeyMethod::None => true,
-		KeyMethod::AES128 => k.uri.is_some() && identity(k),
-		_ => false,
-	};
+	let playable = |k: &Key| k.method == "AES-128" && k.uri.is_some() && identity(k);
 	if !p.segments.iter().all(|s| s.key.as_ref().is_none_or(playable)) {
 		return Err(unsupported());
 	}
@@ -304,7 +298,7 @@ async fn fetch_playlist(
 fn parse(body: &[u8]) -> Result<Playlist> {
 	// The parser wants #EXTM3U as the very first bytes; sniffing tolerates a BOM and blank lines.
 	let body = body.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(body);
-	m3u8_rs::parse_playlist_res(body.trim_ascii_start()).map_err(|_| not_a_stream())
+	playlist::parse(body.trim_ascii_start()).ok_or_else(not_a_stream)
 }
 
 /// Tries a segment twice; `None` skips it. Returns its audio and any ID3 title it carries.
@@ -707,11 +701,10 @@ mod tests {
 	#[test]
 	fn audio_rendition_prefers_the_default_in_the_variants_group() {
 		let audio = |group: &str, uri: Option<&str>, default| AlternativeMedia {
-			media_type: AlternativeMediaType::Audio,
+			is_audio: true,
 			group_id: group.into(),
 			uri: uri.map(Into::into),
 			default,
-			..Default::default()
 		};
 		let all = [
 			audio("other", Some("wrong"), true),
@@ -816,11 +809,12 @@ mod tests {
 		assert_eq!(decrypt_segment(&sealed, &key, iv), Some(plain));
 		assert_eq!(decrypt_segment(&sealed[..17], &key, iv), None, "partial block");
 		assert_eq!(decrypt_segment(&sealed, &[1; 16], iv), None, "wrong key");
-		let key_tag = |iv: Option<&str>| m3u8_rs::Key {
-			method: KeyMethod::AES128,
+		let key_tag = |iv: Option<&str>| Key {
+			method: "AES-128".into(),
 			uri: Some("k".into()),
 			iv: iv.map(Into::into),
-			..Default::default()
+			keyformat: None,
+			keyformatversions: None,
 		};
 		assert_eq!(iv_for(&key_tag(None), 5), 5u128.to_be_bytes(), "from the sequence");
 		assert_eq!(iv_for(&key_tag(Some("0x0A")), 5), 10u128.to_be_bytes());
@@ -828,30 +822,16 @@ mod tests {
 
 	#[test]
 	fn only_plain_aes_is_played() {
-		let with = |key: m3u8_rs::Key| {
-			media(Playlist::MediaPlaylist(MediaPlaylist {
-				segments: vec![m3u8_rs::MediaSegment {
-					key: Some(key),
-					..Default::default()
-				}],
-				..Default::default()
-			}))
+		let with = |key: &str| {
+			let body = format!("#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-KEY:{key}\n#EXTINF:4,\na.aac\n");
+			media(parse(body.as_bytes()).unwrap())
 		};
-		let aes = |format: Option<&str>| m3u8_rs::Key {
-			method: KeyMethod::AES128,
-			uri: Some("k".into()),
-			keyformat: format.map(Into::into),
-			..Default::default()
-		};
-		assert!(with(aes(None)).is_ok());
-		assert!(with(aes(Some("identity"))).is_ok());
-		assert!(with(aes(Some("com.apple.streamingkeydelivery"))).is_err(), "DRM");
-		let sample = m3u8_rs::Key {
-			method: KeyMethod::SampleAES,
-			uri: Some("k".into()),
-			..Default::default()
-		};
-		assert!(with(sample).is_err());
+		assert!(with("METHOD=NONE").is_ok());
+		assert!(with("METHOD=AES-128,URI=\"k\"").is_ok());
+		assert!(with("METHOD=AES-128,URI=\"k\",KEYFORMAT=\"identity\"").is_ok());
+		let drm = "METHOD=AES-128,URI=\"k\",KEYFORMAT=\"com.apple.streamingkeydelivery\"";
+		assert!(with(drm).is_err(), "DRM");
+		assert!(with("METHOD=SAMPLE-AES,URI=\"k\"").is_err());
 	}
 
 	fn id3(version: u8, frames: &[(&[u8; 4], &[u8])]) -> Vec<u8> {

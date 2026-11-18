@@ -18,6 +18,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Link fail `wxd_PrintData_*`: wxdragon feature variants share one CMake cache, OFF sticks. Delete `target/debug/wxdragon_sys_cmake_build/build/CMakeCache.txt`, `target/debug/build/wxdragon-sys-*`, `target/debug/.fingerprint/wxdragon-sys-*`. Rebuild inside vcvars.
 
 ## Rules
+- Unmaintained dep = replace now, never accept. Research first: web, GitHub by stars and by recent, best maintained wins.
 - Deps never pinned: `version = "*"`, newest. `cargo update` before release. `cargo audit` clean except accepted below.
 - No FFmpeg, no shipped codec DLLs. Decoders pure Rust, compiled in. FFmpeg only makes test fixtures.
 - Strings terse. Error Display = inner text only. UI adds prefix.
@@ -40,6 +41,8 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Live = what ring plays next, not newest audio. Servers burst on connect (WNYC ~15 s). Burst sits in `PcmRing`, stays ahead of listener. `ShiftStatus::live_frame` takes it off: seek, pause, behind-live use that, never `live_edge`.
 - Recording taps: playing station PCM = mixer as-heard tap (`MixerCmd::RecordSlot`), never decoder: decoder runs ahead by ring. Original = `Tuner::record_buffered` paced to playhead, live too. Live playhead steps back a little between mixer passes (edge per decoder push, backlog per pass): anchor only on jump count `ShiftStatus::seeks`, never on time going back, else chunks repeat (0.2.83 crackle). New playhead jump = `ShiftStatus::jump`. Background stream: ring closed (nobody drains it, else decoder stalls), `play_slot` None so playing station never writes into it.
 - `core/segments.rs` = title bookmarks, jump + write. Marks in ms on tuner timeline: decoded = frame time, ring = session time. Mode switch clears them. Title at playhead = `Tuner::heard_title`, never wall clock.
+
+- `hls/playlist.rs` = adapter over `m3u8-parser`. Parser refuses whole playlist on one bad line: `tolerant` drops that line, retries. m3u8-rs dropped: pulled chrono, split a comma in #EXTINF into a fake segment. hls_m3u8 refused real playlists (EXT-X-VERSION 8, 10).
 
 ## UI traps
 - Screen reader names control from StaticText created just before it. Build label first. Creation order = name.
@@ -82,6 +85,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Key lost = rotate = installed copies never verify again. Public half: `crates/blindradio/assets/minisign.pub`. Change takes new release.
 
 ## Accepted, not fixable here
+- `uiautomation` patched to `vendor/uiautomation` (`Cargo.toml`), UI tests only: upstream uses chrono, RUSTSEC-2026-0543, for one stopwatch. Upstream drops chrono = delete `vendor/`, drop patch.
 - `shipfitter` patched to fork `serrebidev/shipfitter` branch `zip-9` (`Cargo.toml`): upstream pins zip 8, RUSTSEC-2026-0367, 0368, 0369, 0429. Upstream takes zip 9 = drop patch, delete fork.
-- `paste` unmaintained, RUSTSEC-2024-0436: proc macro inside `wxdragon`, build time. Waits on wxdragon.
+- `paste` = `vendor/paste`, shim over `pastey` (`Cargo.toml` patch): wxdragon names paste, RUSTSEC-2024-0436. wxdragon moves to pastey = delete shim, drop patch.
 - `unsafe` in `status_strip.rs`: COM vtables for UIA provider. No safe form without new dep.

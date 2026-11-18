@@ -1,0 +1,10 @@
+[package]
+name = "paste"
+version = "1.0.16"
+edition = "2021"
+description = "wxdragon asks for paste, which is unmaintained (RUSTSEC-2024-0436). This hands it pastey, the maintained successor."
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+pastey = "*"
