@@ -11,6 +11,11 @@ on:
         description: "Version to release, such as 0.2.7"
         required: true
         type: string
+      dry_run:
+        description: Build and sign only; publish nothing
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: cloud-release
@@ -47,13 +52,14 @@ jobs:
         id: make
         env:
           VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
           FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
           # Forgejo is the source of truth; the build legs check out from GitHub.
-          git remote set-url origin "https://x-access-token:$FORGEJO_TOKEN@git.serrebiradio.com/serrebi/blindradio.git"
+          [ "$DRY_RUN" = "true" ] || git remote set-url origin "https://x-access-token:$FORGEJO_TOKEN@git.serrebiradio.com/serrebi/blindradio.git"
           tag="v$VERSION"
-          if git ls-remote --tags origin "$tag" | grep -q .; then
+          if [ "$DRY_RUN" != "true" ] && git ls-remote --tags origin "$tag" | grep -q .; then
             echo "tag $tag already exists; refusing to re-release" >&2
             exit 1
           fi
@@ -90,8 +96,9 @@ jobs:
           # [skip ci]: the gate already tests this, a push-triggered CI would only queue.
           git diff --cached --quiet || git commit -m "chore: release $VERSION [skip ci]"
           branch="release/$tag"
+          [ "$DRY_RUN" != "true" ] || branch="dry-run/$tag"
           # A rerun after a failure starts this branch over.
-          git push -f origin "HEAD:refs/heads/$branch"
+          [ "$DRY_RUN" = "true" ] || git push -f origin "HEAD:refs/heads/$branch"
           git push -f "https://github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
@@ -373,6 +380,7 @@ jobs:
   publish:
     name: Verify and publish
     needs: [gate, bump, windows, linux, macos]
+    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     steps:
       # Collect every platform's signed packages before publishing the release.
