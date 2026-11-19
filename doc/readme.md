@@ -577,6 +577,23 @@ including the standard dialog buttons. System Default follows your computer's la
 Only languages somebody has translated are listed, next to English; a change applies to
 windows opened after it, and everything is in the new language the next time the app starts.
 
+## Scrobbling
+
+Scrobble Listened Songs on the Songs tab of Settings sends each song that plays for a minute or
+more, and whose title names an artist, to ListenBrainz, Libre.fm, or both. Edit Station can turn
+it on or off for one station.
+
+ListenBrainz: paste your user token from your ListenBrainz settings page into ListenBrainz Token.
+ListenBrainz Server stays blank for listenbrainz.org. For a server of your own, type its address,
+such as `http://192.168.1.5:8100`. A program that offers a ListenBrainz-compatible API, such as
+Maloja or Koito, works too: type the address up to the part before `/1/`, for example
+`https://maloja.example.com/apis/listenbrainz`. Check ListenBrainz says whose token it is, or why
+the server refused it.
+
+Libre.fm: type your user name and password, then press Sign In to Libre.fm. BlindRadio says
+whose account it signed in to and keeps only the sign-in, never the password. To sign out, clear
+the user name and press OK.
+
 ## Recognizing a song when a station sends no title
 
 BlindRadio does not use Shazam. It uses AudD, and only when you turn it on: open

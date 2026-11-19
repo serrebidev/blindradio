@@ -1873,7 +1873,8 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			Some((a, t)) => (a.trim().to_string(), t.trim().to_string()),
 			None => (String::new(), previous.0.clone()),
 		};
-		if track.is_empty() {
+		// Both services refuse a listen without an artist.
+		if track.is_empty() || artist.is_empty() {
 			return;
 		}
 		let started = std::time::SystemTime::now()
@@ -1882,27 +1883,17 @@ impl<F: StreamFactory, S: Sink> Tuner<F, S> {
 			.unwrap_or(0)
 			.saturating_sub(now.duration_since(previous.1).as_secs());
 		rt.spawn(async move {
-			if let Some(token) = &settings.scrobble.listenbrainz_token
+			let sc = &settings.scrobble;
+			if let Some(token) = &sc.listenbrainz_token
 				&& !token.is_empty()
 			{
-				let _ = scrobble::listenbrainz(token, &artist, &track, None, started).await;
+				let server = sc.listenbrainz_server.as_deref();
+				let _ = scrobble::listenbrainz(server, token, &artist, &track, started).await;
 			}
-			if let (Some(key), Some(secret), Some(session)) = (
-				&settings.scrobble.lastfm_api_key,
-				&settings.scrobble.lastfm_secret,
-				&settings.scrobble.lastfm_session_key,
-			) && !key.is_empty()
+			if let Some(session) = &sc.librefm_session_key
+				&& !session.is_empty()
 			{
-				let _ = scrobble::lastfm(
-					settings.scrobble.lastfm_base.as_deref(),
-					key,
-					secret,
-					session,
-					&artist,
-					&track,
-					started,
-				)
-				.await;
+				let _ = scrobble::librefm(session, &artist, &track, started).await;
 			}
 		});
 	}

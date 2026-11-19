@@ -1184,17 +1184,44 @@ pub fn scrob_enable() -> String {
 pub fn scrob_lb_token() -> String {
 	patois::t("ListenBrainz T&oken")
 }
-pub fn scrob_key() -> String {
-	patois::t("last.fm API &Key")
+pub fn scrob_lb_server() -> String {
+	patois::t("ListenBrainz Ser&ver (blank is listenbrainz.org)")
 }
-pub fn scrob_secret() -> String {
-	patois::t("&last.fm Secret")
+pub fn scrob_lb_check() -> String {
+	patois::t("C&heck ListenBrainz")
 }
-pub fn scrob_session() -> String {
-	patois::t("last.fm Session K&ey")
+pub fn scrob_lb_no_token() -> String {
+	patois::t("Type a ListenBrainz token first")
 }
-pub fn scrob_base() -> String {
-	patois::t("last.fm &Base URL (blank is last.fm)")
+pub fn scrob_lb_works(user: &str) -> String {
+	patois::t("ListenBrainz token works, user {user}").replace("{user}", user)
+}
+pub fn scrob_lb_failed(error: &str) -> String {
+	patois::t("ListenBrainz: {error}").replace("{error}", error)
+}
+pub fn scrob_libre_user() -> String {
+	patois::t("Libre.fm &User Name")
+}
+pub fn scrob_libre_password() -> String {
+	patois::t("Libre.fm &Password")
+}
+pub fn scrob_libre_sign_in() -> String {
+	patois::t("Sign In to &Libre.fm")
+}
+pub fn scrob_libre_need_both() -> String {
+	patois::t("Type the Libre.fm user name and password first")
+}
+pub fn scrob_libre_signed_in(user: &str) -> String {
+	patois::t("Signed in to Libre.fm as {user}").replace("{user}", user)
+}
+pub fn scrob_libre_failed(error: &str) -> String {
+	patois::t("Libre.fm: {error}").replace("{error}", error)
+}
+pub fn scrob_libre_not_signed_in() -> String {
+	patois::t("The Libre.fm password is typed but not signed in. Press Sign In to Libre.fm, or clear the password.")
+}
+pub fn checking() -> String {
+	patois::t("Checking")
 }
 pub fn use_global() -> String {
 	patois::t("Use Global")

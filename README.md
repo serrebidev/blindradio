@@ -21,7 +21,7 @@ More serrebi projects: [projects.serrebiradio.com](https://projects.serrebiradio
 - Segment bookmarks: each title a station sends marks the buffer, so you can jump between songs and program segments and write the current, previous, next or all of them to their own files.
 - Recording on Ctrl+R: the stream's own format untouched, or WAV, MP3 (constant or variable bitrate) or FLAC decoded.
 - Song recognition for stations that send no titles, through AudD (not Shazam; needs a free token from audd.io, set in Settings); the recognized song shows in the status line and can be announced as it changes.
-- Scrobbling to ListenBrainz and to last.fm or Libre.fm for songs that play a minute or more.
+- Scrobbling to ListenBrainz (hosted or your own server) and Libre.fm for songs that play a minute or more. Libre.fm signs in with your user name and password.
 - Song History, published and for the session, and titles from ICY metadata and HLS ID3 or EXTINF tags.
 - Streams that deliver slower than their bitrate refill a deeper cushion after running dry (three seconds, then nine, up to fifteen) instead of stuttering every few seconds; a clean minute earns the normal cushion back.
 - Sleep Timer, an equalizer, and an Audio Device menu that follows devices as they are lost and return.
@@ -60,7 +60,7 @@ Every asset has a `.minisig` beside it, and the in-app updater verifies that sig
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
-BlindRadio has no telemetry, analytics or accounts of its own. It connects to the stations you play and the directories you browse, each under its own policy, and checks this repository's GitHub releases for app updates. Scrobbling sends the songs you play to ListenBrainz or last.fm/Libre.fm only when you turn it on and sign in; song recognition sends a short sample to AudD only when you turn it on for a station or globally.
+BlindRadio has no telemetry, analytics or accounts of its own. It connects to the stations you play and the directories you browse, each under its own policy, and checks this repository's GitHub releases for app updates. Scrobbling sends the songs you play to ListenBrainz or Libre.fm only when you turn it on and sign in; song recognition sends a short sample to AudD only when you turn it on for a station or globally.
 
 ## Building
 

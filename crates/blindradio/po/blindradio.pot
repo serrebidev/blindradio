@@ -1068,16 +1068,43 @@ msgstr ""
 msgid "ListenBrainz T&oken"
 msgstr ""
 
-msgid "last.fm API &Key"
+msgid "ListenBrainz Ser&ver (blank is listenbrainz.org)"
 msgstr ""
 
-msgid "&last.fm Secret"
+msgid "C&heck ListenBrainz"
 msgstr ""
 
-msgid "last.fm Session K&ey"
+msgid "Type a ListenBrainz token first"
 msgstr ""
 
-msgid "last.fm &Base URL (blank is last.fm)"
+msgid "ListenBrainz token works, user {user}"
+msgstr ""
+
+msgid "ListenBrainz: {error}"
+msgstr ""
+
+msgid "Libre.fm &User Name"
+msgstr ""
+
+msgid "Libre.fm &Password"
+msgstr ""
+
+msgid "Sign In to &Libre.fm"
+msgstr ""
+
+msgid "Type the Libre.fm user name and password first"
+msgstr ""
+
+msgid "Signed in to Libre.fm as {user}"
+msgstr ""
+
+msgid "Libre.fm: {error}"
+msgstr ""
+
+msgid "The Libre.fm password is typed but not signed in. Press Sign In to Libre.fm, or clear the password."
+msgstr ""
+
+msgid "Checking"
 msgstr ""
 
 msgid "Use Global"

@@ -5,6 +5,16 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.4
+
+- last.fm scrobbling is gone: it needed an API key and secret of your own. Your old last.fm settings are dropped.
+- Libre.fm scrobbling now signs in with just your user name and password: type them on the Songs tab of Settings and press Sign In to Libre.fm. BlindRadio says whose account it signed in to and keeps only the sign-in, never the password. Clear the user name to sign out. If you scrobbled to Libre.fm before, sign in once again.
+- ListenBrainz can now scrobble to a server of your own, or to a program with a ListenBrainz-compatible API such as Maloja: type its address in ListenBrainz Server. Blank is listenbrainz.org.
+- Check ListenBrainz on the Songs tab says whose token it is, or why the server refused it.
+- Listens sent to ListenBrainz now name BlindRadio as the program that sent them.
+- A song whose title names no artist is no longer sent to be scrobbled. Both services refuse such listens.
+- BlindRadio for desktop and BlindRadio for Android now share version 0.3.4.
+
 ## 0.3.3
 
 - Daily and weekly alarms and scheduled recordings now keep their clock time when daylight saving changes. An 8:00 alarm used to move to 7:00 or 9:00.

@@ -159,7 +159,7 @@ mod tests {
 	fn with_token(token: &str) -> Settings {
 		let mut settings = Settings::default();
 		settings.recognition.audd_token = Some(token.into());
-		settings.scrobble.lastfm_secret = Some(format!("{token}-secret"));
+		settings.scrobble.librefm_session_key = Some(format!("{token}-secret"));
 		settings
 	}
 
@@ -169,7 +169,7 @@ mod tests {
 		with_token("hunter2").save(dir.path()).unwrap();
 		let loaded = Settings::load(dir.path());
 		assert_eq!(loaded.recognition.audd_token.as_deref(), Some("hunter2"));
-		assert_eq!(loaded.scrobble.lastfm_secret.as_deref(), Some("hunter2-secret"));
+		assert_eq!(loaded.scrobble.librefm_session_key.as_deref(), Some("hunter2-secret"));
 		let file = std::fs::read_to_string(dir.path().join("settings.json")).unwrap();
 		if cfg!(windows) {
 			assert!(!file.contains("hunter2"), "sealed in the file");

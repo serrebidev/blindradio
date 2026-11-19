@@ -258,14 +258,13 @@ pub struct ScrobbleSettings {
 	pub enabled: bool,
 	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
 	pub listenbrainz_token: Option<String>,
+	/// None is the hosted ListenBrainz; else a self-hosted server's API root.
+	pub listenbrainz_server: Option<String>,
+	/// The Libre.fm account signed in, as Libre.fm spells it.
+	pub librefm_user: Option<String>,
+	/// From signing in with the password, which is not kept.
 	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
-	pub lastfm_api_key: Option<String>,
-	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
-	pub lastfm_secret: Option<String>,
-	#[serde(serialize_with = "crate::secret::seal", deserialize_with = "crate::secret::open")]
-	pub lastfm_session_key: Option<String>,
-	/// None is last.fm itself; set to a Libre.fm URL to scrobble there.
-	pub lastfm_base: Option<String>,
+	pub librefm_session_key: Option<String>,
 }
 
 /// A station's own equalizer, chosen in Edit Station.

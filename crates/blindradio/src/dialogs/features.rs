@@ -5,6 +5,7 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+use blindradio_core::scrobble;
 use blindradio_core::settings::{BufferSettings, ChannelMode, RecordFormat, RecognitionProvider};
 use blindradio_core::sources::{Node, Sources, networks};
 use wx_utils::add_ok_cancel_footer;
@@ -284,6 +285,7 @@ const FORMATS: [RecordFormat; 4] = [
 pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let frame = app.borrow().win.frame;
 	let current = app.borrow().settings.clone();
+	let token = WindowToken::new();
 	// The startup list choices: the default stations, every playlist merged,
 	// the favorites, or any one collection (an imported playlist is a collection).
 	let mut collections: Vec<(String, String)> = app
@@ -486,30 +488,72 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		&s::scrob_lb_token(),
 		current.scrobble.listenbrainz_token.as_deref().unwrap_or(""),
 	);
-	let fm_key = field(
+	let lb_server = field(
 		&panel,
 		&sizer,
-		&s::scrob_key(),
-		current.scrobble.lastfm_api_key.as_deref().unwrap_or(""),
+		&s::scrob_lb_server(),
+		current.scrobble.listenbrainz_server.as_deref().unwrap_or(""),
 	);
-	let fm_secret = field(
+	let lb_check = Button::builder(&panel).with_label(&s::scrob_lb_check()).build();
+	sizer.add(&lb_check, 0, SizerFlag::All, 5);
+	{
+		let (a, token) = (app.clone(), token.clone());
+		lb_check.on_click(move |_| {
+			let (server, key) = (blank_none(&lb_server.get_value()), lb_token.get_value());
+			let mut app = a.borrow_mut();
+			if key.trim().is_empty() {
+				return app.say(&s::scrob_lb_no_token());
+			}
+			app.say(&s::checking());
+			app.bridge.spawn(
+				token.clone(),
+				async move { scrobble::listenbrainz_user(server.as_deref(), &key).await },
+				|app: &mut App, got| match got {
+					Ok(user) => app.say(&s::scrob_lb_works(&user)),
+					Err(e) => app.say(&s::scrob_lb_failed(&e.to_string())),
+				},
+			);
+		});
+	}
+	let libre_user = field(
 		&panel,
 		&sizer,
-		&s::scrob_secret(),
-		current.scrobble.lastfm_secret.as_deref().unwrap_or(""),
+		&s::scrob_libre_user(),
+		current.scrobble.librefm_user.as_deref().unwrap_or(""),
 	);
-	let fm_session = field(
-		&panel,
-		&sizer,
-		&s::scrob_session(),
-		current.scrobble.lastfm_session_key.as_deref().unwrap_or(""),
-	);
-	let fm_base = field(
-		&panel,
-		&sizer,
-		&s::scrob_base(),
-		current.scrobble.lastfm_base.as_deref().unwrap_or(""),
-	);
+	// Unmasked like the tokens: a screen reader reads a masked field as stars.
+	let libre_password = field(&panel, &sizer, &s::scrob_libre_password(), "");
+	let libre_sign_in = Button::builder(&panel)
+		.with_label(&s::scrob_libre_sign_in())
+		.build();
+	sizer.add(&libre_sign_in, 0, SizerFlag::All, 5);
+	// A sign-in made here, kept on OK: (name, session key).
+	let libre_signed: Rc<RefCell<Option<(String, String)>>> = Rc::default();
+	{
+		let (a, token, signed) = (app.clone(), token.clone(), libre_signed.clone());
+		libre_sign_in.on_click(move |_| {
+			let (user, password) = (libre_user.get_value(), libre_password.get_value());
+			let mut app = a.borrow_mut();
+			if user.trim().is_empty() || password.is_empty() {
+				return app.say(&s::scrob_libre_need_both());
+			}
+			app.say(&s::checking());
+			let signed = signed.clone();
+			app.bridge.spawn(
+				token.clone(),
+				async move { scrobble::librefm_login(&user, &password).await },
+				move |app: &mut App, got| match got {
+					Ok((name, key)) => {
+						libre_user.set_value(&name);
+						libre_password.set_value("");
+						app.say(&s::scrob_libre_signed_in(&name));
+						*signed.borrow_mut() = Some((name, key));
+					}
+					Err(e) => app.say(&s::scrob_libre_failed(&e.to_string())),
+				},
+			);
+		});
+	}
 	panel.set_sizer(sizer, true);
 
 	let (panel, sizer) = tab(&notebook, &s::tab_sources());
@@ -540,10 +584,16 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let ok = footer(&dialog, sizer);
 	dialog.set_sizer_and_fit(sizer, true);
 
-	let token = WindowToken::new();
 	{
 		let (a, d) = (app.clone(), dialog);
 		ok.on_click(move |_| {
+			let libre = libre_signed.borrow_mut().take();
+			if libre.is_none() && !libre_password.get_value().is_empty() {
+				crate::speech::focus_returning();
+				a.borrow_mut().say(&s::scrob_libre_not_signed_in());
+				libre_sign_in.set_focus();
+				return;
+			}
 			let mut app = a.borrow_mut();
 			let st = &mut app.settings;
 			st.announce_titles = ann_titles.get_value();
@@ -618,10 +668,15 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 			st.recognition.announce = recog_announce.get_value();
 			st.scrobble.enabled = scrob_on.get_value();
 			st.scrobble.listenbrainz_token = blank_none(&lb_token.get_value());
-			st.scrobble.lastfm_api_key = blank_none(&fm_key.get_value());
-			st.scrobble.lastfm_secret = blank_none(&fm_secret.get_value());
-			st.scrobble.lastfm_session_key = blank_none(&fm_session.get_value());
-			st.scrobble.lastfm_base = blank_none(&fm_base.get_value());
+			st.scrobble.listenbrainz_server = blank_none(&lb_server.get_value());
+			if let Some((user, key)) = libre {
+				st.scrobble.librefm_user = Some(user);
+				st.scrobble.librefm_session_key = Some(key);
+			} else if libre_user.get_value().trim().is_empty() {
+				// A blank user name signs out.
+				st.scrobble.librefm_user = None;
+				st.scrobble.librefm_session_key = None;
+			}
 			let disabled: BTreeSet<String> = directories.off().into_iter().chain(nets.off()).collect();
 			let sources_changed = st.disabled_sources != disabled;
 			st.disabled_sources = disabled;

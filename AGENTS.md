@@ -4,7 +4,7 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 `crates/blindradio-core` = engine, no UI. `crates/blindradio` = wxDragon app. `crates/xtask` = packaging.
 
 ## Build and test
-- Build: `cargo build`. Gate: `cargo test --workspace`, `cargo clippy --workspace --all-targets`. CI runs gate on push + PR (`ci.yml`), Windows only.
+- Build: `cargo build`. Gate: `cargo test --workspace`, `cargo clippy --workspace --all-targets`. Gate = `ci.yml` on GitHub Windows runner, run by release.
 - Desktop UI, real window, takes keyboard: `cargo test -p blindradio --test ui -- --ignored --test-threads=1`.
 - First UI run after rebuild loses keys, tests fail at random. Rerun before believing. Rare single flake remains, passes alone.
 - Installed copy running = test exe exits, "the window appears" times out. Instance name comes from `USERNAME`: set it to anything else for the test run.
@@ -71,13 +71,14 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - Directories: `docs/radio-directory-sources.md`. Encoded ring: `docs/encoded-ring-buffer.md`.
 
 ## Release
-- Cloud only, Forgejo (GitHub suspended): `POST git.serrebiradio.com/api/v1/repos/serrebi/blindradio/actions/workflows/release.yml/dispatches` body `{"ref":"main","inputs":{"version":"X"}}`. `## X` in `CHANGELOG.md` on main first. Windows, Linux, macOS legs run at once after `bump`, alongside gate. Runners: Windows = this PC `desknasbox-windows-x64`, macOS = owner's Mac `mac-mini-arm64`, Linux = WSL on this PC `wsl-linux-x64` (label `wsl-linux`, owner rule: Linux builds in WSL). Starts at boot, no logon: task "Forgejo Runner (WSL)", S4U. Gate on Windows runner (2 jobs at once, so gate + Windows build overlap); bump, publish on server. Gate target = `C:/forgejo-runner/cargo-target/blindradio/gate`, push CI = `.../test`. Shared folder = push run's tests lock exes gate relinks, LNK1104 both.
-- Workflow: gate (`ci.yml`) and bump start together. Bump pushes `release/vX` branch, no tag. Windows, Linux, macOS build off it during gate. Publish needs gate + all three: tags, release, uploads, main takes bump, branch deleted. Failed run = nothing published, rerun starts over. Tag exists = refused.
+- GitHub runners only, publish to Forgejo. Never Forgejo dispatch, never local build for release. Start: `gh workflow run release.yml -R serrebidev/blindradio --ref main -f version=X`. Dry run: add `-f dry_run=true`, builds + signs, publishes nothing, leaves branch `dry-run/vX` on GitHub + Forgejo: delete both.
+- `## X` in `CHANGELOG.md` on main first, pushed to both remotes. Gate (`ci.yml`), bump, Windows, Linux (ubuntu-22.04), macOS (arm64) run at once. Publish needs gate + all three: pushes bump to Forgejo main, tags, release, uploads. Failed run = nothing published, rerun starts over. Tag exists = refused.
+- GitHub sync disables auto triggers: workflows = workflow_dispatch only. Push CI on GitHub off; gate runs inside release.
 - Bump edits own version in `Cargo.lock` too, then `cargo metadata --locked`. Manifest alone = cargo re-resolves `*` deps, drops to older copies in lock, ships what gate never tested.
 - Windows assets Authenticode-unsigned. Minisign on everything.
 - Publish needs 10 files: zip, setup.exe, dmg, AppImage, tar.gz, each with `.minisig`.
 - Check after: `cargo xtask update-check <old version>`: asks Forgejo, downloads, verifies.
-- Build one OS: `cargo xtask dist-windows` (`BLINDRADIO_UNSIGNED=1` skips signtool), `dist-macos`, `dist-linux` in `tools/linux` container. AppImage launch check passes only as exit 124.
+- Build one OS by hand: `cargo xtask dist-windows` (`BLINDRADIO_UNSIGNED=1` skips signtool), `dist-macos`, `dist-linux` in `tools/linux` container. AppImage launch check passes only as exit 124.
 
 ## Signing key
 - `cargo xtask minisign-key <dir>` writes `minisign.key`, `minisign.pub`. Sign any file: `cargo xtask sign <file>…`.
