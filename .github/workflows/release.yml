@@ -254,7 +254,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build clang libclang-dev \
             libgtk-3-dev libasound2-dev libssl-dev libtiff-dev pkg-config \
-            curl ca-certificates file xvfb fuse libfuse2 xauth libegl1 libgl1
+            curl ca-certificates file xvfb fuse libfuse2 xauth libegl1 libgl1 \
+            libnotify4 libtiff5 libjpeg8 libwebp7 libjbig0 libdeflate0
 
       - name: Build in the runner's Ubuntu container and sign
         env:
