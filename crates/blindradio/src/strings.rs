@@ -194,6 +194,25 @@ pub fn import() -> String {
 pub fn import_as_collection() -> String {
 	patois::t("Import Playlist as Coll&ection…")
 }
+pub fn import_folder() -> String {
+	patois::t("Import &Folder of Playlists…")
+}
+pub fn import_folder_as_collection() -> String {
+	patois::t("Import Folder of Playlists as Collectio&n…")
+}
+pub fn import_folder_title() -> String {
+	patois::t("Import Folder of Playlists")
+}
+pub fn export_to_folder() -> String {
+	patois::t("Export Current Playlist to Fo&lder…")
+}
+pub fn export_folder_title() -> String {
+	patois::t("Export to Folder: a new folder is made inside the one you pick")
+}
+/// Prefix: `No playlists in <dir>`.
+pub fn no_playlists_in() -> String {
+	patois::t("No playlists in ")
+}
 pub fn copy_url() -> String {
 	patois::t("Copy Stream &URL")
 }

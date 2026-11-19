@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 
 use blindradio_core::import::{
 	ImportReport, ImportTarget, STARTER_COLLECTION, STARTER_PLAYLIST_URL, export_m3u,
-	export_m3u_tree, fetch_playlist, import_playlist, import_playlist_text, import_starter,
+	export_m3u_tree, export_playlist_dir, fetch_playlist, import_playlist, import_playlist_dir,
+	import_playlist_text, import_starter, playlist_dir_files,
 };
 use blindradio_core::playlist::PlaylistKind;
 use blindradio_core::library::{CUSTOM, Library};
@@ -269,6 +270,78 @@ fn export_tree_round_trip_rebuilds_nested_folders() {
 	assert_eq!(public.folders[0].stations[0].name, "B");
 	let pop = c.folders.iter().find(|f| f.name == "Top 40/Pop").unwrap();
 	assert_eq!(pop.stations[0].name, "A");
+}
+
+#[test]
+fn directory_imports_each_file_as_a_folder_and_exports_back() {
+	let dir = tempfile::tempdir().unwrap();
+	let top = dir.path().join("Radio");
+	std::fs::create_dir_all(top.join("World")).unwrap();
+	std::fs::write(
+		top.join("Jazz.m3u"),
+		"#EXTM3U\n#EXTINF:-1,A\nhttp://x.example/a\n#EXTINF:-1 group-title=\"Smooth\",B\nhttp://x.example/b\n",
+	)
+	.unwrap();
+	std::fs::write(
+		top.join("World/France.pls"),
+		"[playlist]\nFile1=http://x.example/c\nTitle1=C\nFile2=http://x.example/a\nNumberOfEntries=2\n",
+	)
+	.unwrap();
+	std::fs::write(top.join("notes.txt"), "http://x.example/z\n").unwrap();
+
+	let mut lib = Library::default();
+	let r = import_playlist_dir(&mut lib, &top, true).unwrap();
+	// A sits in both files: it lands once.
+	assert_eq!(r.message(), "Added 3. Had 1. Skipped 0.");
+	let c = lib.collections.iter().find(|c| c.name == "Radio").unwrap();
+	assert!(c.stations.is_empty());
+	let names: Vec<&str> = c.folders.iter().map(|f| f.name.as_str()).collect();
+	assert_eq!(names, ["Jazz", "World"]);
+	assert_eq!(c.folders[0].stations[0].name, "A");
+	assert_eq!(c.folders[0].folders[0].name, "Smooth");
+	assert_eq!(c.folders[1].folders[0].name, "France");
+	assert_eq!(c.folders[1].folders[0].stations[0].name, "C");
+
+	// Into Custom Stations: one folder named after the directory holds it all.
+	let mut lib2 = Library::default();
+	import_playlist_dir(&mut lib2, &top, false).unwrap();
+	assert_eq!(lib2.collections[0].folders[0].name, "Radio");
+	assert_eq!(lib2.collections[0].folders[0].folders.len(), 2);
+
+	// Export: one file per top folder, into a new directory, never over one.
+	let out = tempfile::tempdir().unwrap();
+	let (made, count) = export_playlist_dir(out.path(), "Radio", &c.stations, &c.folders).unwrap();
+	assert_eq!(
+		(made.file_name().unwrap().to_str(), count),
+		(Some("Radio"), 3)
+	);
+	let (again, _) = export_playlist_dir(out.path(), "Radio", &c.stations, &c.folders).unwrap();
+	assert_eq!(again.file_name().unwrap().to_str(), Some("Radio (2)"));
+	let mut back = Library::default();
+	let r = import_playlist_dir(&mut back, &made, true).unwrap();
+	assert_eq!(r.added, 3);
+	let b = back.collections.iter().find(|c| c.name == "Radio").unwrap();
+	assert_eq!(b.folders[1].name, "World");
+	assert_eq!(b.folders[1].folders[0].name, "France");
+
+	let empty = tempfile::tempdir().unwrap();
+	assert!(import_playlist_dir(&mut back, empty.path(), true).is_err());
+}
+
+#[test]
+fn directory_file_names_safe_and_unique() {
+	let f = |name: &str| blindradio_core::library::Folder {
+		name: name.into(),
+		stations: Vec::new(),
+		folders: Vec::new(),
+		origin: None,
+	};
+	let files = playlist_dir_files("x", &[], &[f("Top 40/Pop"), f("jazz"), f("Jazz"), f(" .")]);
+	let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
+	assert_eq!(
+		names,
+		["Top 40_Pop.m3u", "jazz.m3u", "Jazz (2).m3u", "Playlist.m3u"]
+	);
 }
 
 #[test]

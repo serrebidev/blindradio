@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.5
+
+- Import a whole folder of playlists: File > Import Folder of Playlists files it in Custom Stations, Import Folder of Playlists as Collection makes a collection named after the folder. Each playlist file becomes a folder named after it, and subfolders on disk stay subfolders.
+- File > Export Current Playlist to Folder writes a playlist as a folder of M3U files, one for each of its top folders. Importing that folder brings the same folders back. Nothing is overwritten: the export always makes a new folder.
+- BlindRadio for Android can import and export folders of playlists too.
+
 ## 0.3.4
 
 - last.fm scrobbling is gone: it needed an API key and secret of your own. Your old last.fm settings are dropped.

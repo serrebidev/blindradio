@@ -43,12 +43,19 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 					keys(&A::ImportAsCollection),
 					A::ImportAsCollection,
 				),
+				Item(s::import_folder(), keys(&A::ImportFolder), A::ImportFolder),
+				Item(
+					s::import_folder_as_collection(),
+					keys(&A::ImportFolderAsCollection),
+					A::ImportFolderAsCollection,
+				),
 				Separator,
 				Item(
 					s::export_current_list(),
 					keys(&A::ExportCurrentList),
 					A::ExportCurrentList,
 				),
+				Item(s::export_to_folder(), keys(&A::ExportToFolder), A::ExportToFolder),
 				Item(
 					s::export_all_playlists(),
 					keys(&A::ExportAllPlaylists),
@@ -504,6 +511,7 @@ mod tests {
 		let entries = menu(s::menu_file());
 		for action in [
 			Action::ExportCurrentList,
+			Action::ExportToFolder,
 			Action::ExportAllPlaylists,
 			Action::ExportFavorites,
 		] {

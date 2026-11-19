@@ -73,7 +73,12 @@ pub enum Action {
 	AddToCollection,
 	Import,
 	ImportAsCollection,
+	/// A directory of playlists, each file a folder.
+	ImportFolder,
+	ImportFolderAsCollection,
 	ExportCurrentList,
+	/// The current list as a directory, a file per top folder.
+	ExportToFolder,
 	ExportAllPlaylists,
 	ExportFavorites,
 	/// Minutes.

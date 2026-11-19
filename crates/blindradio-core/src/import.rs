@@ -112,14 +112,112 @@ pub fn import_playlist_text(
 	kind_hint: Option<PlaylistKind>,
 	target: ImportTarget,
 ) -> ImportReport {
-	let (entries, skipped) = match kind_hint.or_else(|| sniff(body)) {
-		Some(PlaylistKind::Pls) => parse_pls_counted(body),
-		_ => parse_m3u_counted(body),
+	import_playlists(
+		lib,
+		vec![PlaylistFile {
+			path: Vec::new(),
+			body: body.to_string(),
+			kind: kind_hint,
+		}],
+		target,
+	)
+}
+
+/// One playlist read from a directory tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlaylistFile {
+	/// The folder its stations land in, under the import target: the
+	/// subdirectories it sat in, then its own file stem.
+	pub path: Vec<String>,
+	pub body: String,
+	/// None sniffs the body.
+	pub kind: Option<PlaylistKind>,
+}
+
+impl PlaylistFile {
+	/// A playlist file by name: `dirs` above it, its stem last in `path`.
+	/// None when the extension is no playlist's.
+	pub fn new(mut dirs: Vec<String>, file_name: &str, body: String) -> Option<PlaylistFile> {
+		let (stem, ext) = file_name.rsplit_once('.')?;
+		let kind = match ext.to_ascii_lowercase().as_str() {
+			"pls" => PlaylistKind::Pls,
+			"m3u" | "m3u8" | "m3u_plus" => PlaylistKind::M3u,
+			_ => return None,
+		};
+		if !stem.is_empty() {
+			dirs.push(stem.to_string());
+		}
+		Some(PlaylistFile {
+			path: dirs,
+			body,
+			kind: Some(kind),
+		})
+	}
+}
+
+/// Every playlist under `dir`, subdirectories included, sorted by path so
+/// folders come in name order. Other files are passed over.
+pub fn read_playlist_dir(dir: &Path) -> Result<Vec<PlaylistFile>> {
+	fn walk(dir: &Path, trail: &mut Vec<String>, out: &mut Vec<PlaylistFile>) -> Result<()> {
+		for entry in std::fs::read_dir(dir)? {
+			let entry = entry?;
+			let name = entry.file_name().to_string_lossy().into_owned();
+			if entry.file_type()?.is_dir() {
+				trail.push(name);
+				walk(&entry.path(), trail, out)?;
+				trail.pop();
+			} else if let Some(f) = PlaylistFile::new(trail.clone(), &name, String::new()) {
+				out.push(PlaylistFile {
+					body: decode(std::fs::read(entry.path())?),
+					..f
+				});
+			}
+		}
+		Ok(())
+	}
+	let mut out = Vec::new();
+	walk(dir, &mut Vec::new(), &mut out)?;
+	out.sort_by(|a, b| a.path.cmp(&b.path));
+	Ok(out)
+}
+
+/// A whole directory of playlists: each file becomes a folder named after
+/// it, each subdirectory a folder holding its files' folders. Into
+/// Custom Stations, a folder named after the directory wraps them all;
+/// as a collection, the collection is named after the directory.
+pub fn import_playlist_dir(
+	lib: &mut Library,
+	dir: &Path,
+	as_collection: bool,
+) -> Result<ImportReport> {
+	let files = read_playlist_dir(dir)?;
+	if files.is_empty() {
+		return Err(CoreError::Playlist("No playlists".into()));
+	}
+	let name = dir
+		.file_name()
+		.and_then(|n| n.to_str())
+		.filter(|n| !n.is_empty())
+		.unwrap_or("Imported")
+		.to_string();
+	let target = match as_collection {
+		true => ImportTarget::Collection(name),
+		false => ImportTarget::CustomFolder(name),
 	};
+	Ok(import_playlists(lib, files, target))
+}
+
+/// Several playlists into one target, each under its own `path`. Dedupe
+/// spans the whole collection and every file: a URL lands once.
+pub fn import_playlists(
+	lib: &mut Library,
+	files: Vec<PlaylistFile>,
+	target: ImportTarget,
+) -> ImportReport {
 	let mut report = ImportReport {
 		added: 0,
 		had: 0,
-		skipped,
+		skipped: 0,
 	};
 	let (target_id, wrap) = match target {
 		ImportTarget::Custom => {
@@ -138,10 +236,34 @@ pub fn import_playlist_text(
 	// Dedupe spans the whole collection, folders included.
 	let mut seen: std::collections::HashSet<String> =
 		c.all_stations().iter().map(|s| s.url.clone()).collect();
-	let mut root = match wrap {
-		Some(name) => Root::Folder(c.child_mut(&name)),
-		None => Root::Collection(c),
-	};
+	for file in files {
+		let (entries, skipped) = match file.kind.or_else(|| sniff(&file.body)) {
+			Some(PlaylistKind::Pls) => parse_pls_counted(&file.body),
+			_ => parse_m3u_counted(&file.body),
+		};
+		report.skipped += skipped;
+		let mut path = wrap.iter().chain(&file.path).filter(|s| !s.is_empty());
+		let mut root = match path.next() {
+			None => Root::Collection(&mut *c),
+			Some(first) => {
+				let mut f = c.child_mut(first);
+				for seg in path {
+					f = f.child_mut(seg);
+				}
+				Root::Folder(f)
+			}
+		};
+		add_entries(&mut root, &mut seen, entries, &mut report);
+	}
+	report
+}
+
+fn add_entries(
+	root: &mut Root,
+	seen: &mut std::collections::HashSet<String>,
+	entries: Vec<crate::playlist::PlaylistEntry>,
+	report: &mut ImportReport,
+) {
 	let mut group: Option<String> = None;
 	for e in entries {
 		if e.group.is_some() {
@@ -182,7 +304,6 @@ pub fn import_playlist_text(
 		}
 		report.added += 1;
 	}
-	report
 }
 
 /// The SerrebiRadio starter list, as text.
@@ -224,6 +345,12 @@ pub const GROUP_PATH_SEP: &str = " / ";
 /// folder's full path as `group-title`, so re-importing rebuilds the
 /// same folders, nested ones included.
 pub fn export_m3u_tree(stations: &[Station], folders: &[Folder], path: &Path) -> Result<()> {
+	std::fs::write(path, m3u_tree_text(stations, folders))?;
+	Ok(())
+}
+
+/// The text [`export_m3u_tree`] writes.
+pub fn m3u_tree_text(stations: &[Station], folders: &[Folder]) -> String {
 	let mut out = String::from("#EXTM3U\n");
 	for s in stations {
 		write_entry(&mut out, s, None);
@@ -240,8 +367,88 @@ pub fn export_m3u_tree(stations: &[Station], folders: &[Folder], path: &Path) ->
 		}
 	}
 	walk(&mut out, folders, &mut Vec::new());
-	std::fs::write(path, out)?;
-	Ok(())
+	out
+}
+
+/// A name made safe as a file or directory name on every OS.
+fn safe_file_name(name: &str) -> String {
+	let safe: String = name
+		.chars()
+		.map(|c| match c {
+			'<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '_',
+			c if c.is_control() => '_',
+			c => c,
+		})
+		.collect();
+	let safe = safe.trim().trim_end_matches('.');
+	match safe.is_empty() {
+		true => "Playlist".to_string(),
+		false => safe.to_string(),
+	}
+}
+
+/// A list as a directory of playlists, the shape [`import_playlist_dir`]
+/// reads back: each top-level folder its own `.m3u` (its subfolders as
+/// groups), loose stations in `<name>.m3u`. File names safe and unique
+/// (`Jazz (2).m3u`).
+pub fn playlist_dir_files(
+	name: &str,
+	stations: &[Station],
+	folders: &[Folder],
+) -> Vec<(String, String)> {
+	let mut taken = std::collections::HashSet::new();
+	let mut file = |name: &str| {
+		let safe = safe_file_name(name);
+		(1..)
+			.map(|n| match n {
+				1 => safe.clone(),
+				n => format!("{safe} ({n})"),
+			})
+			.find(|c| taken.insert(c.to_lowercase()))
+			.map(|c| format!("{c}.m3u"))
+			.unwrap_or_default()
+	};
+	let mut out = Vec::new();
+	if !stations.is_empty() {
+		out.push((file(name), m3u_tree_text(stations, &[])));
+	}
+	for f in folders {
+		out.push((file(&f.name), m3u_tree_text(&f.stations, &f.folders)));
+	}
+	out
+}
+
+/// Writes [`playlist_dir_files`] into a new directory `<name>` under
+/// `parent`, `<name> (2)` when taken: nothing is overwritten. Gives the
+/// directory made and how many stations went.
+pub fn export_playlist_dir(
+	parent: &Path,
+	name: &str,
+	stations: &[Station],
+	folders: &[Folder],
+) -> Result<(std::path::PathBuf, usize)> {
+	let base = safe_file_name(name);
+	let mut n = 1;
+	let dir = loop {
+		let dir = parent.join(match n {
+			1 => base.clone(),
+			n => format!("{base} ({n})"),
+		});
+		match std::fs::create_dir(&dir) {
+			Ok(()) => break dir,
+			Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => n += 1,
+			Err(e) => return Err(e.into()),
+		}
+	};
+	for (file, text) in playlist_dir_files(name, stations, folders) {
+		std::fs::write(dir.join(file), text)?;
+	}
+	let count = stations.len()
+		+ folders
+			.iter()
+			.map(|f| f.all_stations().len())
+			.sum::<usize>();
+	Ok((dir, count))
 }
 
 fn write_entry(out: &mut String, s: &Station, group: Option<&str>) {

@@ -176,6 +176,13 @@ a group written as a path (News / World) becomes subfolders inside subfolders â€
 its order is kept. M3U, M3U8, M3U Plus and PLS files are read. Local files and addresses that
 are not HTTP are counted as skipped.
 
+A whole folder of playlists imports at once. File > Import Folder of Playlists picks a folder
+and files it in Custom Stations as a folder named after it; Import Folder of Playlists as
+Collection makes a collection named after it instead. Every playlist file in the folder
+becomes a folder named after the file, and each subfolder on disk becomes a folder holding
+its own playlists. A station already in the collection, from an earlier import or another
+file, is counted as had and lands only once. Other files are passed over.
+
 BlindRadio plays HLS and MPEG-TS streams as well as ordinary internet radio, taking the audio
 from channels that also carry video. The audio can be AAC, including DVB's LATM carriage, MP3,
 MP2, AC-3 or E-AC-3, with surround mixed down to stereo. HLS can be in TS or fragmented MP4 and
@@ -241,6 +248,13 @@ player that only builds its address while running in a browser says `No audio st
 File > Export Current Playlist exports the selected playlist, Export All Playlists exports
 all collections including Custom Stations, and Export Favorites exports Favorites. Each
 opens a save dialog and preserves folders in the M3U file.
+
+File > Export Current Playlist to Folder writes the selected playlist as a folder of
+playlists instead of one file. Pick where it goes: a new folder named after the playlist is
+made there, never over an old one (a second export is named Jazz (2)). Each top folder of
+the playlist becomes its own M3U file, its subfolders as groups, and stations outside any
+folder go in a file named after the playlist. With All Lists showing, each collection becomes
+a file. Importing that folder as a collection brings the same folders back.
 
 Favorites and Collections each have an Export button that writes an M3U through a save dialog.
 The main window's tree exports too: a station from its menu, and a folder â€” a directory,

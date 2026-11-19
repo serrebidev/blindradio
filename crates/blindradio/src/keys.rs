@@ -107,7 +107,10 @@ pub enum KeyAction {
 	PlayFavorite10,
 	Import,
 	ImportAsCollection,
+	ImportFolder,
+	ImportFolderAsCollection,
 	ExportCurrentList,
+	ExportToFolder,
 	ExportAllPlaylists,
 	ExportFavorites,
 	FeatureSettings,
@@ -126,7 +129,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 90] = [
+	pub const ALL: [KeyAction; 93] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -204,7 +207,10 @@ impl KeyAction {
 		K::PlayFavorite10,
 		K::Import,
 		K::ImportAsCollection,
+		K::ImportFolder,
+		K::ImportFolderAsCollection,
 		K::ExportCurrentList,
+		K::ExportToFolder,
 		K::ExportAllPlaylists,
 		K::ExportFavorites,
 		K::FeatureSettings,
@@ -262,7 +268,10 @@ impl KeyAction {
 			| K::PlayFavorite10 => 1,
 			K::Import
 			| K::ImportAsCollection
+			| K::ImportFolder
+			| K::ImportFolderAsCollection
 			| K::ExportCurrentList
+			| K::ExportToFolder
 			| K::ExportAllPlaylists
 			| K::ExportFavorites
 			| K::FeatureSettings
@@ -362,6 +371,9 @@ impl KeyAction {
 			K::ExportAllPlaylists => "export_all_playlists",
 			K::ExportFavorites => "export_favorites",
 			K::ImportAsCollection => "import_as_collection",
+			K::ImportFolder => "import_folder",
+			K::ImportFolderAsCollection => "import_folder_as_collection",
+			K::ExportToFolder => "export_to_folder",
 			K::FeatureSettings => "feature_settings",
 			K::GlobalHotkeys => "global_hotkeys",
 			K::KeyboardShortcuts => "keyboard_shortcuts",
@@ -460,6 +472,9 @@ impl KeyAction {
 			K::ExportAllPlaylists => plain(&s::export_all_playlists()),
 			K::ExportFavorites => plain(&s::export_favorites()),
 			K::ImportAsCollection => plain(&s::import_as_collection()),
+			K::ImportFolder => plain(&s::import_folder()),
+			K::ImportFolderAsCollection => plain(&s::import_folder_as_collection()),
+			K::ExportToFolder => plain(&s::export_to_folder()),
 			K::FeatureSettings => plain(&s::feature_settings()),
 			K::GlobalHotkeys => plain(&s::global_hotkeys()),
 			K::KeyboardShortcuts => plain(&s::keyboard_shortcuts()),
@@ -624,6 +639,9 @@ impl KeyAction {
 			K::ExportAllPlaylists => Action::ExportAllPlaylists,
 			K::ExportFavorites => Action::ExportFavorites,
 			K::ImportAsCollection => Action::ImportAsCollection,
+			K::ImportFolder => Action::ImportFolder,
+			K::ImportFolderAsCollection => Action::ImportFolderAsCollection,
+			K::ExportToFolder => Action::ExportToFolder,
 			K::FeatureSettings => Action::FeatureSettings,
 			K::GlobalHotkeys => Action::GlobalHotkeys,
 			K::KeyboardShortcuts => Action::KeyboardShortcuts,
@@ -650,7 +668,10 @@ impl KeyAction {
 			| K::NormalSpeed
 			| K::Import
 			| K::ImportAsCollection
+			| K::ImportFolder
+			| K::ImportFolderAsCollection
 			| K::ExportCurrentList
+			| K::ExportToFolder
 			| K::ExportAllPlaylists
 			| K::ExportFavorites
 			| K::PlayFavorite1
@@ -763,6 +784,9 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::ExportAllPlaylists => K::ExportAllPlaylists,
 		Action::ExportFavorites => K::ExportFavorites,
 		Action::ImportAsCollection => K::ImportAsCollection,
+		Action::ImportFolder => K::ImportFolder,
+		Action::ImportFolderAsCollection => K::ImportFolderAsCollection,
+		Action::ExportToFolder => K::ExportToFolder,
 		Action::FeatureSettings => K::FeatureSettings,
 		Action::GlobalHotkeys => K::GlobalHotkeys,
 		Action::KeyboardShortcuts => K::KeyboardShortcuts,

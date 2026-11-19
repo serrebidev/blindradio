@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: blindradio 0.2.102\n"
+"Project-Id-Version: blindradio 0.3.4\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 15:13-0700\n"
+"POT-Creation-Date: 2026-11-19 06:53-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -189,10 +189,58 @@ msgstr ""
 msgid "Import Playlist as Coll&ection…"
 msgstr ""
 
+msgid "Import &Folder of Playlists…"
+msgstr ""
+
+msgid "Import Folder of Playlists as Collectio&n…"
+msgstr ""
+
+msgid "Import Folder of Playlists"
+msgstr ""
+
+msgid "Export Current Playlist to Fo&lder…"
+msgstr ""
+
+msgid "Export to Folder: a new folder is made inside the one you pick"
+msgstr ""
+
+msgid "No playlists in "
+msgstr ""
+
 msgid "Copy Stream &URL"
 msgstr ""
 
 msgid "&Get SerrebiRadio Stations"
+msgstr ""
+
+msgid "Up&date Directory Folders"
+msgstr ""
+
+msgid "&Update from Directory"
+msgstr ""
+
+msgid "Updating "
+msgstr ""
+
+msgid "Not filed from a directory. Add it again from Browse first"
+msgstr ""
+
+msgid "No folders filed from a directory"
+msgstr ""
+
+msgid "{added} added, {updated} changed"
+msgstr ""
+
+msgid "already up to date"
+msgstr ""
+
+msgid "Updated {n} folders"
+msgstr ""
+
+msgid "Directory not reached"
+msgstr ""
+
+msgid ", {n} not reached"
 msgstr ""
 
 msgid "&Play/Pause"
@@ -1562,34 +1610,4 @@ msgstr ""
 
 #. TRANSLATORS: A shortcut in the Customize Keyboard Shortcuts list whose key is not on the keyboard layout in use, so it cannot be pressed. The {} placeholder is replaced with the shortcut, for example "Ctrl+;".
 msgid "{} (not on this keyboard layout)"
-msgstr ""
-
-msgid "Up&date Directory Folders"
-msgstr ""
-
-msgid "&Update from Directory"
-msgstr ""
-
-msgid "Updating "
-msgstr ""
-
-msgid "Not filed from a directory. Add it again from Browse first"
-msgstr ""
-
-msgid "No folders filed from a directory"
-msgstr ""
-
-msgid "{added} added, {updated} changed"
-msgstr ""
-
-msgid "already up to date"
-msgstr ""
-
-msgid "Updated {n} folders"
-msgstr ""
-
-msgid ", {n} not reached"
-msgstr ""
-
-msgid "Directory not reached"
 msgstr ""

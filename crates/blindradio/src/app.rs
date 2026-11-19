@@ -170,7 +170,7 @@ fn playlist_export_data(
 			lib.favorites.clone(),
 			lib.fav_folders.clone(),
 		)),
-		Action::ExportAllPlaylists | Action::ExportCurrentList
+		Action::ExportAllPlaylists | Action::ExportCurrentList | Action::ExportToFolder
 			if *action == Action::ExportAllPlaylists || main_list == Some(ALL_LISTS) =>
 		{
 			Some((
@@ -187,7 +187,7 @@ fn playlist_export_data(
 					.collect(),
 			))
 		}
-		Action::ExportCurrentList => dial_collection(lib, main_list)
+		Action::ExportCurrentList | Action::ExportToFolder => dial_collection(lib, main_list)
 			.map(|c| (c.name.clone(), c.stations.clone(), c.folders.clone())),
 		_ => None,
 	}
@@ -464,6 +464,9 @@ impl App {
 			)
 		};
 		match data {
+			Some((name, stations, folders)) if *action == Action::ExportToFolder => {
+				crate::dialogs::collections::export_folder(app, &name, &stations, &folders)
+			}
 			Some((name, stations, folders)) => {
 				crate::context_menu::export_playlist(app, &parent, &name, &stations, &folders)
 			}
@@ -865,7 +868,10 @@ impl App {
 			| Action::AddToCollection
 			| Action::Import
 			| Action::ImportAsCollection
+			| Action::ImportFolder
+			| Action::ImportFolderAsCollection
 			| Action::ExportCurrentList
+			| Action::ExportToFolder
 			| Action::ExportAllPlaylists
 			| Action::ExportFavorites
 			| Action::OpenUrl

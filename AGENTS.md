@@ -89,4 +89,5 @@ Screen-reader-first internet radio. Rust. Windows, macOS arm64, Linux.
 - `uiautomation` patched to `vendor/uiautomation` (`Cargo.toml`), UI tests only: upstream uses chrono, RUSTSEC-2026-0543, for one stopwatch. Upstream drops chrono = delete `vendor/`, drop patch.
 - `shipfitter` patched to fork `serrebidev/shipfitter` branch `zip-9` (`Cargo.toml`): upstream pins zip 8, RUSTSEC-2026-0367, 0368, 0369, 0429. Upstream takes zip 9 = drop patch, delete fork.
 - `paste` = `vendor/paste`, shim over `pastey` (`Cargo.toml` patch): wxdragon names paste, RUSTSEC-2024-0436. wxdragon moves to pastey = delete shim, drop patch.
+- `heapless` 0.8 unsound warnings RUSTSEC-2026-0574..0582: via `flacenc` 0.5.1 only, newest, still on 0.8. flacenc uses `heapless::Vec` of f64/u8 only, advisories hit Spsc, Deque, IndexMap, SortedLinkedList, treiber stack. flacenc takes heapless 0.9 = `cargo update`, drop line.
 - `unsafe` in `status_strip.rs`: COM vtables for UIA provider. No safe form without new dep.

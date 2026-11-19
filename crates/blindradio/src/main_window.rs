@@ -262,7 +262,12 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 		}
 		Action::Import => dialogs::collections::import(app, false),
 		Action::ImportAsCollection => dialogs::collections::import(app, true),
-		Action::ExportCurrentList | Action::ExportAllPlaylists | Action::ExportFavorites => {
+		Action::ImportFolder => dialogs::collections::import_folder(app, false),
+		Action::ImportFolderAsCollection => dialogs::collections::import_folder(app, true),
+		Action::ExportCurrentList
+		| Action::ExportToFolder
+		| Action::ExportAllPlaylists
+		| Action::ExportFavorites => {
 			App::export_playlist(app, &action);
 		}
 		Action::SongHistory => {

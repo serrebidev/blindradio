@@ -1122,6 +1122,63 @@ pub fn import(app: &Rc<RefCell<App>>, as_collection: bool) {
 	app.borrow_mut().say(&said);
 }
 
+/// Import Folder of Playlists (as Collection): the directory, then the report.
+/// Each playlist file in it becomes a folder, subdirectories nest.
+pub fn import_folder(app: &Rc<RefCell<App>>, as_collection: bool) {
+	let parent = app.borrow().win.frame;
+	let dir = DirDialog::builder(&parent, &s::import_folder_title(), "")
+		.with_style(DirDialogStyle::Default.bits() | DirDialogStyle::MustExist.bits())
+		.build();
+	if dir.show_modal() != ID_OK {
+		return;
+	}
+	let Some(path) = dir.get_path() else {
+		return;
+	};
+	let path = Path::new(&path);
+	let said = {
+		let mut a = app.borrow_mut();
+		match import::import_playlist_dir(&mut a.library, path, as_collection) {
+			Ok(report) => {
+				a.save_library();
+				a.refresh_dial();
+				report.message()
+			}
+			Err(blindradio_core::CoreError::Playlist(_)) => {
+				format!("{}{}", s::no_playlists_in(), path.display())
+			}
+			Err(e) => {
+				eprintln!("import folder: {e}");
+				s::not_saved().to_string()
+			}
+		}
+	};
+	app.borrow_mut().say(&said);
+}
+
+/// Export to Folder: pick where, a new directory named after the list
+/// goes there, a playlist per top folder inside.
+pub fn export_folder(app: &Rc<RefCell<App>>, name: &str, stations: &[Station], folders: &[Folder]) {
+	let parent = app.borrow().win.frame;
+	let dir = DirDialog::builder(&parent, &s::export_folder_title(), "")
+		.with_style(DirDialogStyle::Default.bits() | DirDialogStyle::MustExist.bits())
+		.build();
+	if dir.show_modal() != ID_OK {
+		return;
+	}
+	let Some(path) = dir.get_path() else {
+		return;
+	};
+	let said = match import::export_playlist_dir(Path::new(&path), name, stations, folders) {
+		Ok((_, count)) => format!("{}{}", s::exported(), count),
+		Err(e) => {
+			eprintln!("export folder: {e}");
+			s::not_saved().to_string()
+		}
+	};
+	app.borrow_mut().say(&said);
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
