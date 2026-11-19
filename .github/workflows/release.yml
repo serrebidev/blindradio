@@ -40,7 +40,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          token: ${{ secrets.FORGEJO_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -48,8 +47,11 @@ jobs:
         id: make
         env:
           VERSION: ${{ inputs.version }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
+          # Forgejo is the source of truth; the build legs check out from GitHub.
+          git remote set-url origin "https://x-access-token:$FORGEJO_TOKEN@git.serrebiradio.com/serrebi/blindradio.git"
           tag="v$VERSION"
           if git ls-remote --tags origin "$tag" | grep -q .; then
             echo "tag $tag already exists; refusing to re-release" >&2
@@ -90,6 +92,7 @@ jobs:
           branch="release/$tag"
           # A rerun after a failure starts this branch over.
           git push -f origin "HEAD:refs/heads/$branch"
+          git push -f "https://github.com/$GITHUB_REPOSITORY.git" "HEAD:refs/heads/$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
   windows:
@@ -176,7 +179,7 @@ jobs:
         run: cargo xtask dist-windows
 
       - name: Upload signed packages
-        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: BlindRadio-windows
           path: |
@@ -212,9 +215,8 @@ jobs:
   linux:
     name: Linux assets
     needs: bump
-    # WSL on the Windows build PC (runner wsl-linux-x64), Ubuntu 22.04 job container:
-    # the owner's rule is Linux builds in WSL. Runs alongside the Windows and macOS legs.
-    runs-on: wsl-linux-22.04
+    # Ubuntu 22.04 keeps glibc old enough for current distributions.
+    runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
@@ -273,7 +275,7 @@ jobs:
           fi
 
       - name: Upload signed packages
-        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: BlindRadio-linux
           path: |
@@ -346,7 +348,7 @@ jobs:
         run: cargo xtask dist-macos
 
       - name: Upload signed packages
-        uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: BlindRadio-macos
           path: |
@@ -378,8 +380,7 @@ jobs:
         with:
           ref: ${{ needs.bump.outputs.branch }}
           fetch-depth: 0
-          token: ${{ secrets.FORGEJO_TOKEN }}
-      - uses: https://code.forgejo.org/forgejo/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
@@ -390,6 +391,7 @@ jobs:
           FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
         run: |
           set -euo pipefail
+          git remote set-url origin "https://x-access-token:$FORGEJO_TOKEN@git.serrebiradio.com/serrebi/blindradio.git"
           tag="v$VERSION"
           names="BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg"
           for wanted in $names; do
@@ -416,7 +418,7 @@ jobs:
           PY
           git tag "$tag"
           git push origin "$tag"
-          api="$GITHUB_SERVER_URL/api/v1/repos/$GITHUB_REPOSITORY"
+          api="https://git.serrebiradio.com/api/v1/repos/serrebi/blindradio"
           h="Authorization: token $FORGEJO_TOKEN"
           # Draft first, so the release never shows without its files. Right after the tag push
           # the create can fail once (0.2.87 run 287, exit 22): retry it, and say why it failed.
