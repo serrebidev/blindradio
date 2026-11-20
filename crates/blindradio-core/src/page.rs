@@ -30,6 +30,9 @@ const MAX_CANDIDATES: usize = 40;
 const CHECKS_AT_ONCE: usize = 8;
 const CHECK_DEADLINE: Duration = Duration::from_secs(8);
 const ALL_CHECKS_DEADLINE: Duration = Duration::from_secs(30);
+/// The whole search. A YouTube lookup that fails waits on a yt-dlp update with a 10 minute
+/// download limit; nobody waits that long on a silent dialog.
+const DETECT_DEADLINE: Duration = Duration::from_secs(90);
 
 const AUDIO_EXTENSIONS: [&str; 12] = [
 	"mp3", "aac", "aacp", "m4a", "ogg", "oga", "opus", "flac", "m3u", "m3u8", "pls", "mp2",
@@ -374,9 +377,31 @@ fn shortlist(mut found: Vec<Candidate>, page: &Url) -> Vec<Candidate> {
 	found
 }
 
-/// The streams `page` names; an address that is itself a stream is its own answer. Fails only
-/// when the page cannot be read.
+/// The streams `page` names; an address that is itself a stream is its own answer. Fails when
+/// the page cannot be read, the search breaks, or it runs past its deadline: it always answers.
 pub async fn detect(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
+	let (client, page) = (client.clone(), page.to_owned());
+	guarded(DETECT_DEADLINE, async move { search(&client, &page).await }).await
+}
+
+/// Runs `search` as its own task: a panic answers "Detection failed" instead of nothing, and a
+/// stall answers "Timed out" at `deadline`, cancelling the task.
+async fn guarded<T: Send + 'static>(
+	deadline: Duration,
+	search: impl Future<Output = Result<T>> + Send + 'static,
+) -> Result<T> {
+	let mut task = tokio::spawn(search);
+	match timeout(deadline, &mut task).await {
+		Ok(Ok(result)) => result,
+		Ok(Err(_)) => Err(CoreError::Http("Detection failed".into())),
+		Err(_) => {
+			task.abort();
+			Err(CoreError::Http("Timed out".into()))
+		}
+	}
+}
+
+async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 	let page = page_url(page)?;
 	if crate::live::is_page(page.as_str()) {
 		let live = crate::live::lookup(client, page.as_str()).await?;
@@ -458,6 +483,41 @@ pub async fn detect(client: &reqwest::Client, page: &str) -> Result<Vec<Station>
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// A search that panicked or stalled never answered: the dialog sat silent, with no
+	/// result and no error. It must always end with one or the other.
+	#[tokio::test]
+	async fn a_panicking_search_answers_with_an_error() {
+		let error = guarded(Duration::from_secs(5), async {
+			panic!("boom") as Result<()>
+		})
+		.await
+		.unwrap_err();
+		assert_eq!(error.to_string(), "Detection failed");
+	}
+
+	#[tokio::test]
+	async fn a_stalled_search_answers_at_its_deadline() {
+		let started = std::time::Instant::now();
+		let error = guarded(Duration::from_millis(100), async {
+			tokio::time::sleep(Duration::from_secs(30)).await;
+			Ok(())
+		})
+		.await
+		.unwrap_err();
+		assert_eq!(error.to_string(), "Timed out");
+		assert!(started.elapsed() < Duration::from_secs(5));
+	}
+
+	#[tokio::test]
+	async fn a_finished_search_answers_with_its_result() {
+		assert_eq!(
+			guarded(Duration::from_secs(5), async { Ok(7) })
+				.await
+				.unwrap(),
+			7
+		);
+	}
 
 	fn urls(scan: &Scan) -> Vec<(String, Rank)> {
 		scan.candidates

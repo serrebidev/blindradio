@@ -241,7 +241,7 @@ frames and its scripts, tries every stream address they name, and lists the ones
 first one plays, as in Search. Enter plays, and the Applications key offers the usual station menu,
 so a stream can be favorited, filed in a collection or copied with Copy Stream URL. If what you
 paste is already a stream, it is listed alone. BlindRadio reads the page without running it, so a
-player that only builds its address while running in a browser says `No audio streams found on this page`.
+player that only builds its address while running in a browser says `No audio streams found on this page`. A search that has not finished after 90 seconds stops and says "Timed out".
 
 ## Exporting
 

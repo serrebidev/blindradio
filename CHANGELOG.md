@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.6
+
+- Detect Audio Stream on Page always answers now. A search that broke, or ran on with no end, left the window silent, with no result and no error. It now says "Detection failed" if it breaks, and "Timed out" after 90 seconds.
+- BlindRadio's own copy of yt-dlp updates again on Windows. Each update downloaded the new version, but yt-dlp was usually running at that moment, and Windows will not replace a running program, so it stayed on the 2026.11.04 version. An outdated yt-dlp is the usual reason YouTube links stop playing.
+
 ## 0.3.5
 
 - Import a whole folder of playlists: File > Import Folder of Playlists files it in Custom Stations, Import Folder of Playlists as Collection makes a collection named after the folder. Each playlist file becomes a folder named after it, and subfolders on disk stay subfolders.

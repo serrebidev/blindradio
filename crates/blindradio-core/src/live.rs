@@ -9,7 +9,7 @@
 //! Upgrade path: also verify yt-dlp's SHA2-256SUMS.sig with its key compiled in.
 
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -373,8 +373,29 @@ fn write_verified(helper: Helper, body: &[u8], wanted: &str) -> Result<()> {
 		use std::os::unix::fs::PermissionsExt;
 		std::fs::set_permissions(&part, std::fs::Permissions::from_mode(0o755)).map_err(failed)?;
 	}
-	std::fs::rename(&part, helper.path()).map_err(failed)?;
+	swap_in(&part, &helper.path()).map_err(failed)?;
 	std::fs::write(helper.state(), wanted).map_err(failed)
+}
+
+/// Moves `part` over `target`. Windows refuses to replace a running program but lets it move
+/// aside, and yt-dlp is often running while its update lands.
+fn swap_in(part: &Path, target: &Path) -> std::io::Result<()> {
+	if std::fs::rename(part, target).is_ok() {
+		return Ok(());
+	}
+	let mut old = target.as_os_str().to_owned();
+	old.push(".old");
+	let old = PathBuf::from(old);
+	// An earlier swap's copy, once its program has exited.
+	let _ = std::fs::remove_file(&old);
+	std::fs::rename(target, &old)?;
+	if let Err(e) = std::fs::rename(part, target) {
+		let _ = std::fs::rename(&old, target);
+		return Err(e);
+	}
+	// Fails while the old program still runs; the next swap removes it.
+	let _ = std::fs::remove_file(&old);
+	Ok(())
 }
 
 #[cfg(test)]
@@ -487,5 +508,29 @@ mod tests {
 	fn a_download_that_fails_its_hash_is_refused() {
 		let error = write_verified(YT_DLP, b"tampered", &"0".repeat(64)).unwrap_err();
 		assert_eq!(error.to_string(), "Bad download");
+	}
+
+	/// yt-dlp is often running (a lookup starts the update and runs yt-dlp at once), and
+	/// Windows refuses to replace a running program. The rename failed every time, so the
+	/// managed yt-dlp stayed on 2026.11.04 while each lookup downloaded 23 MB for nothing.
+	#[cfg(windows)]
+	#[test]
+	fn a_running_program_is_still_replaced() {
+		let dir = tempfile::tempdir().unwrap();
+		let target = dir.path().join("helper.exe");
+		std::fs::copy(r"C:\Windows\System32\PING.EXE", &target).unwrap();
+		let mut running = std::process::Command::new(&target)
+			.args(["-n", "5", "127.0.0.1"])
+			.stdout(std::process::Stdio::null())
+			.spawn()
+			.unwrap();
+		std::thread::sleep(std::time::Duration::from_millis(300));
+		let part = dir.path().join("helper.exe.part");
+		std::fs::write(&part, b"new").unwrap();
+		swap_in(&part, &target).expect("swapped while running");
+		assert_eq!(std::fs::read(&target).unwrap(), b"new");
+		assert!(!part.exists());
+		running.kill().ok();
+		running.wait().ok();
 	}
 }
