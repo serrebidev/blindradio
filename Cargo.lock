@@ -1608,9 +1608,9 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "m3u8-parser"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62e956b8d8300d31e0071a716619ba76775897f856d2f49889a56b67eaef8934"
+checksum = "5e3c3042f3374f3e1b977d6fb4908ee0e029458fa187867c05f7698f18285b7a"
 
 [[package]]
 name = "mach2"
