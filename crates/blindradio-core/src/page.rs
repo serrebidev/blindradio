@@ -151,13 +151,22 @@ fn unescape(text: &str) -> String {
 		.replace("\\u0026", "&")
 }
 
-/// Every absolute web address in `text`, wherever it sits: scripts, JSON, comments.
-fn addresses(text: &str) -> Vec<Url> {
+/// Absolute web addresses and quoted scheme-relative addresses in source text.
+fn addresses(text: &str, base: &Url) -> Vec<Url> {
 	let text = unescape(text);
 	let ends = |c: char| {
 		c.is_whitespace() || matches!(c, '"' | '\'' | '`' | '<' | '>' | '\\' | ')' | ']' | '}' | ',')
 	};
 	let mut out = Vec::new();
+	for (at, quote) in text.match_indices(['"', '\'', '`']) {
+		let tail = &text[at + 1..];
+		if tail.starts_with("//")
+			&& let Some(end) = tail.find(ends)
+			&& tail[end..].starts_with(quote)
+		{
+			out.extend(base.join(&tail[..end]));
+		}
+	}
 	let mut rest = text.as_str();
 	while let Some(at) = rest.find("http") {
 		rest = &rest[at..];
@@ -228,7 +237,7 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 			.take(MAX_SCRIPTS)
 			.collect();
 	}
-	for url in addresses(body) {
+	for url in addresses(body, base) {
 		if let Some(rank) = rank_of(&url) {
 			add(url, rank, None);
 		}
@@ -237,7 +246,7 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 }
 
 /// The body when it is text a page or script is made of.
-async fn fetch_text(client: &reqwest::Client, url: &Url) -> Result<Option<(String, bool)>> {
+async fn fetch_text(client: &reqwest::Client, url: &Url) -> Result<Option<(String, bool, Url)>> {
 	let agent = concat!("Mozilla/5.0 (compatible; BlindRadio/", env!("CARGO_PKG_VERSION"), ")");
 	let get = client.get(url.clone()).header("User-Agent", agent).send();
 	let mut response = timeout(FETCH_DEADLINE, get)
@@ -258,6 +267,7 @@ async fn fetch_text(client: &reqwest::Client, url: &Url) -> Result<Option<(Strin
 	if !(kind.is_empty() || is_html || kind.starts_with("text/") || kind.contains("script") || kind.contains("json")) {
 		return Ok(None);
 	}
+	let base = response.url().clone();
 	let mut body = Vec::new();
 	let deadline = tokio::time::Instant::now() + FETCH_DEADLINE;
 	while body.len() < MAX_BYTES {
@@ -266,7 +276,7 @@ async fn fetch_text(client: &reqwest::Client, url: &Url) -> Result<Option<(Strin
 			_ => break,
 		}
 	}
-	Ok(Some((String::from_utf8_lossy(&body).into_owned(), is_html)))
+	Ok(Some((String::from_utf8_lossy(&body).into_owned(), is_html, base)))
 }
 
 /// What a checked address turned out to be.
@@ -438,10 +448,10 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 			Err(e) if first => return Err(e),
 			Err(_) => continue,
 		};
-		let Some((body, is_html)) = text else {
+		let Some((body, is_html, base)) = text else {
 			continue;
 		};
-		let scanned = scan(&body, &url, is_html);
+		let scanned = scan(&body, &base, is_html);
 		if first {
 			title = scanned.title;
 		}

@@ -74,3 +74,19 @@ async fn a_page_naming_no_streams_finds_none_and_a_dead_page_says_so() {
 	let dead = detect(&client(), &s.url("/nothing")).await.unwrap_err();
 	assert_eq!(dead.to_string(), "HTTP 404");
 }
+
+#[tokio::test]
+async fn finds_a_scheme_relative_stream_in_a_player_script() {
+	let server = serve(vec![
+		stream("/live.mp3"),
+	]);
+	let address = server.url("/live.mp3");
+	let script = format!(r#"const stream = "{}";"#, address.trim_start_matches("http:"));
+	let server = serve(vec![
+		text("/page", "text/html", r#"<script src="/player.js"></script>"#),
+		text("/player.js", "text/javascript", &script),
+	]);
+	let found = detect(&client(), &server.url("/page")).await.unwrap();
+	assert_eq!(found.len(), 1);
+	assert_eq!(found[0].url, address);
+}

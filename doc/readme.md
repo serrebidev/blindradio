@@ -237,7 +237,8 @@ hiss plays until it starts. Twitch ads play like the rest of the stream.
 
 When you only have a web page with a player on it, File → Detect Audio Stream on Page… finds the
 address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its
-frames and its scripts, tries every stream address they name, and lists the ones that work; the
+frames and its scripts, including scheme-relative stream links such as `//radio.example/live.mp3`.
+It checks candidate addresses and lists the ones that work; the
 first one plays, as in Search. Enter plays, and the Applications key offers the usual station menu,
 so a stream can be favorited, filed in a collection or copied with Copy Stream URL. If what you
 paste is already a stream, it is listed alone. BlindRadio reads the page without running it, so a

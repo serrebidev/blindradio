@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.7
+
+- Detect Audio Stream on Page finds scheme-relative stream links in player scripts, inspired by [StreamSift](https://github.com/OnjLouis/StreamSift). Relative links now resolve from the final page address after redirects.
+
 ## 0.3.6
 
 - Detect Audio Stream on Page always answers now. A search that broke, or ran on with no end, left the window silent, with no result and no error. It now says "Detection failed" if it breaks, and "Timed out" after 90 seconds.
