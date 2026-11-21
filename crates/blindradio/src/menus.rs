@@ -99,7 +99,7 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 					A::MoveToPlayingStation,
 				),
 				Item(s::hide_stations(), keys(&A::HideStations), A::HideStations),
-				Item(patois::t("Toggle Flat Playlist View"), String::new(), A::ToggleFlatPlaylist),
+				Item(patois::t("Toggle Flat Playlist &View"), String::new(), A::ToggleFlatPlaylist),
 				Separator,
 				Item(s::add_custom(), keys(&A::NewCustomStation), A::NewCustomStation),
 				Item(s::copy_url(), keys(&A::CopyUrl), A::CopyUrl),
