@@ -32,6 +32,12 @@ pub struct Collection {
 	/// was pasted as a collection of its own.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub origin: Option<String>,
+	/// Show the playlist as station rows in its saved source order.
+	#[serde(default)]
+	pub flat_view: Option<bool>,
+	/// Station IDs in import order, independent of their folder positions.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub playlist_order: Vec<String>,
 }
 
 /// The same stream, whichever source named it: ids follow the source
@@ -352,6 +358,40 @@ impl Collection {
 			out.extend(f.all_stations());
 		}
 		out
+	}
+
+	/// Grouped station indices in playlist order. Stations added by hand follow the imported rows.
+	pub fn flat_indices(&self, stations: &[Station]) -> Vec<usize> {
+		let positions: HashMap<_, _> = self.playlist_order.iter().enumerate()
+			.map(|(index, id)| (id.as_str(), index))
+			.collect();
+		let mut indices: Vec<_> = (0..stations.len()).collect();
+		indices.sort_by_key(|&index| positions.get(stations[index].id.as_str()).copied().unwrap_or(usize::MAX));
+		indices
+	}
+
+	/// The real folder and local index for a station in depth-first library order.
+	pub fn station_location(&self, index: usize) -> Option<(Vec<usize>, usize)> {
+		fn locate(
+			mut index: usize, stations: &[Station], folders: &[Folder], path: &mut Vec<usize>,
+		) -> std::result::Result<usize, usize> {
+			if index < stations.len() {
+				return Ok(index);
+			}
+			index -= stations.len();
+			for (i, folder) in folders.iter().enumerate() {
+				path.push(i);
+				match locate(index, &folder.stations, &folder.folders, path) {
+					Ok(local) => return Ok(local),
+					Err(left) => index = left,
+				}
+				path.pop();
+			}
+			Err(index)
+		}
+		let mut path = Vec::new();
+		let local = locate(index, &self.stations, &self.folders, &mut path).ok()?;
+		Some((path, local))
 	}
 
 	pub fn contains_url(&self, url: &str) -> bool {
@@ -761,6 +801,8 @@ impl Library {
 				0,
 				Collection {
 					id: CUSTOM.into(),
+					flat_view: None,
+					playlist_order: Vec::new(),
 					name: CUSTOM_NAME.into(),
 					stations: Vec::new(),
 					folders: Vec::new(),
@@ -1163,6 +1205,8 @@ impl Library {
 		let id = format!("col:{}", uuid::Uuid::new_v4());
 		self.collections.push(Collection {
 			id: id.clone(),
+			flat_view: None,
+			playlist_order: Vec::new(),
 			name: name.into(),
 			stations: Vec::new(),
 			folders: Vec::new(),
@@ -1465,6 +1509,8 @@ impl Library {
 			at.min(self.collections.len()),
 			Collection {
 				id: id.clone(),
+				flat_view: None,
+				playlist_order: Vec::new(),
 				name: folder.name,
 				stations: folder.stations,
 				folders: folder.folders,

@@ -50,6 +50,7 @@ pub enum Action {
 	MoveToPlayingStation,
 	/// Hide or show the station tree and its filter (Stations menu).
 	HideStations,
+	ToggleFlatPlaylist,
 	Mute,
 	/// Time-shift playback speed up, down, back to 1x.
 	Faster,

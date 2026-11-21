@@ -244,6 +244,18 @@ so a stream can be favorited, filed in a collection or copied with Copy Stream U
 paste is already a stream, it is listed alone. BlindRadio reads the page without running it, so a
 player that only builds its address while running in a browser says `No audio streams found on this page`. A search that has not finished after 90 seconds stops and says "Timed out".
 
+## Flat playlist view
+
+Choose **Toggle Flat Playlist View** from the Stations menu to hide or restore
+folders in the current playlist. Each playlist remembers its own view. Flat
+view follows the imported file order. Stations outside that order follow in
+library order. Switch to grouped view to move stations within their folders.
+
+For an older SerrebiRadio import, choose **Get SerrebiRadio Stations** to recover
+the current file order. For another older playlist, reimport its source file
+into the same collection. Existing entries keep their folders and the import
+updates their order in flat view.
+
 ## Exporting
 
 File > Export Current Playlist exports the selected playlist, Export All Playlists exports

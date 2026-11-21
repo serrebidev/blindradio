@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.8
+
+- Toggle Flat Playlist View hides folders for the current playlist and shows stations in the original file order. Refresh SerrebiRadio or reimport an older playlist into the same collection to recover its file order.
+
 ## 0.3.7
 
 - Detect Audio Stream on Page finds scheme-relative stream links in player scripts, inspired by [StreamSift](https://github.com/OnjLouis/StreamSift). Relative links now resolve from the final page address after redirects.

@@ -241,6 +241,11 @@ impl App {
 	/// own kind on its level, in the library itself. Focus goes with it. Not while the
 	/// Filter box flattens the tree.
 	pub fn move_dial_row(&mut self, up: bool) {
+		if dial_collection(&self.library, self.settings.main_list.as_deref())
+			.is_some_and(|c| c.flat_view == Some(true))
+		{
+			return self.say(&patois::t("Switch to grouped view to move stations"));
+		}
 		// The favorites as the dial list move like the Favorites
 		// window's rows do: stations among their fellows, folders
 		// among their siblings.

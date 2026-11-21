@@ -236,12 +236,14 @@ pub fn import_playlists(
 	// Dedupe spans the whole collection, folders included.
 	let mut seen: std::collections::HashSet<String> =
 		c.all_stations().iter().map(|s| s.url.clone()).collect();
+	let mut order = Vec::new();
 	for file in files {
 		let (entries, skipped) = match file.kind.or_else(|| sniff(&file.body)) {
 			Some(PlaylistKind::Pls) => parse_pls_counted(&file.body),
 			_ => parse_m3u_counted(&file.body),
 		};
 		report.skipped += skipped;
+		order.extend(entries.iter().map(|entry| entry.url.clone()));
 		let mut path = wrap.iter().chain(&file.path).filter(|s| !s.is_empty());
 		let mut root = match path.next() {
 			None => Root::Collection(&mut *c),
@@ -255,6 +257,16 @@ pub fn import_playlists(
 		};
 		add_entries(&mut root, &mut seen, entries, &mut report);
 	}
+	let stations = c.all_stations();
+	let mut by_url: std::collections::HashMap<_, _> = stations.iter()
+		.map(|station| (station.url.as_str(), station.id.as_str()))
+		.collect();
+	let mut ordered: Vec<_> = order.iter()
+		.filter_map(|url| by_url.remove(url.as_str()).map(str::to_owned))
+		.collect();
+	let mentioned: std::collections::HashSet<_> = ordered.iter().cloned().collect();
+	ordered.extend(c.playlist_order.iter().filter(|id| !mentioned.contains(*id)).cloned());
+	c.playlist_order = ordered;
 	report
 }
 
@@ -461,4 +473,26 @@ fn write_entry(out: &mut String, s: &Station, group: Option<&str>) {
 		}
 		None => out.push_str(&format!("#EXTINF:-1,{name}\n{}\n", s.url)),
 	}
+}
+
+#[cfg(test)]
+#[test]
+fn reimport_restores_interleaved_playlist_order_without_moving_stations() {
+	let mut library = Library::default();
+	let body = "#EXTM3U\n#EXTINF:-1 group-title=\"A\",One\nhttp://one\n\
+		#EXTINF:-1 group-title=\"B\",Two\nhttp://two\n\
+		#EXTINF:-1 group-title=\"A\",Three\nhttp://three\n";
+	import_starter(&mut library, body);
+	let collection = library.collections.iter_mut().find(|c| c.name == STARTER_COLLECTION).unwrap();
+	collection.playlist_order.clear();
+	collection.flat_view = Some(true);
+	let before = collection.all_stations();
+	assert_eq!(before.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["One", "Three", "Two"]);
+	let report = import_starter(&mut library, body);
+	assert_eq!((report.added, report.had), (0, 3));
+	let collection = library.collections.iter().find(|c| c.name == STARTER_COLLECTION).unwrap();
+	assert_eq!(collection.flat_view, Some(true));
+	assert_eq!(collection.all_stations(), before);
+	assert_eq!(collection.flat_indices(&before), [0, 2, 1]);
+	assert_eq!(collection.station_location(2), Some((vec![1], 0)));
 }

@@ -216,13 +216,13 @@ pub fn dial_tree(
 	filter: &str,
 ) -> (Vec<Station>, Vec<DialNode>) {
 	let stations = dial_stations(lib, main_list);
-	if !filter.is_empty() {
+	let flat = dial_collection(lib, main_list).filter(|c| c.flat_view == Some(true));
+	if flat.is_some() || !filter.is_empty() {
 		let q = filter.to_lowercase();
-		let nodes = stations
-			.iter()
-			.enumerate()
-			.filter(|(_, s)| s.name.to_lowercase().contains(&q))
-			.map(|(i, _)| DialNode::Station(i))
+		let indices = flat.map_or_else(|| (0..stations.len()).collect(), |c| c.flat_indices(&stations));
+		let nodes = indices.into_iter()
+			.filter(|&i| q.is_empty() || stations[i].name.to_lowercase().contains(&q))
+			.map(DialNode::Station)
 			.collect();
 		return (stations, nodes);
 	}
@@ -729,6 +729,21 @@ impl App {
 			Action::PreviousStation => self.played_step(-1),
 			Action::NextStation => self.played_step(1),
 			Action::MoveToPlayingStation => self.move_to_playing_station(),
+			Action::ToggleFlatPlaylist => {
+				let Some(id) = dial_collection(&self.library, self.settings.main_list.as_deref())
+					.map(|c| c.id.clone())
+				else {
+					return self.say(&patois::t("Choose a playlist first"));
+				};
+				let Some(collection) = self.library.collection_mut(&id) else {
+					return;
+				};
+				let flat = collection.flat_view != Some(true);
+				collection.flat_view = Some(flat);
+				self.save_library();
+				self.refresh_dial();
+				self.say(&if flat { patois::t("Flat playlist view") } else { patois::t("Grouped playlist view") });
+			}
 			Action::HideStations => {
 				self.settings.hide_stations = !self.settings.hide_stations;
 				let hidden = self.settings.hide_stations;

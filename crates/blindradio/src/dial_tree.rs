@@ -178,6 +178,12 @@ impl DialTree {
 	) -> Option<(String, Vec<usize>)> {
 		let item = self.selected_item()?;
 		let row = self.row(&item)?;
+		if let Row::Station(index) = row
+			&& let Some(collection) = dial_collection(lib, main_list)
+			&& collection.flat_view == Some(true)
+		{
+			return collection.station_location(index).map(|(path, _)| (collection.id.clone(), path));
+		}
 		let parent = || self.row(&self.list.get_item_parent(&item)?);
 		match if matches!(row, Row::Folder { .. }) {
 			Some(row)
