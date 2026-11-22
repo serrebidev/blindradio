@@ -9,9 +9,6 @@ taken from this file by the release workflow.
 
 - Detect Audio Stream on Page shows and announces progress, results, and errors in the dialog, even when action announcements are off.
 - Detect Audio Stream on Page can find streams in same-site player frames that require a referrer, including Shabakeh 3 on Parsa TV.
-
-## 0.3.10
-
 - Detect Audio Stream on Page finds relative stream paths in player scripts and honors the page's declared base URL.
 
 ## 0.3.9
