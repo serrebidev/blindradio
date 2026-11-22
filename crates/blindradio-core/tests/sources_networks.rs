@@ -28,7 +28,6 @@ fn networks_parse_and_order() {
 			"Big R Radio",
 			"KEXP",
 			"WFUV",
-			"Capital",
 			"Heart",
 			"Smooth",
 			"Classic FM",
@@ -85,7 +84,8 @@ fn networks_parse_and_order() {
 			"Fox News Radio",
 			"ESPN Radio",
 			"Al Jazeera English",
-			"NHK World Radio"
+			"NHK World Radio",
+			"Global",
 		]
 	);
 	let mut ids = HashSet::new();
@@ -214,7 +214,7 @@ fn new_networks_are_complete() {
 		("bigr", 51),
 		("kexp", 1),
 		("wfuv", 1),
-		("capital", 10),
+		("global", 142),
 		("heart", 10),
 		("smooth", 8),
 		("classic-fm", 3),
@@ -232,7 +232,7 @@ fn new_networks_are_complete() {
 		("wnyc", 4),
 		("mpr", 17),
 		("1fm", 73),
-		("radio-record", 92),
+		("radio-record", 120),
 		("virgin-radio-uk", 3),
 		("talksport", 2),
 		("times-radio", 1),
