@@ -291,7 +291,7 @@ fn reason(stderr: &str) -> String {
 		&& lower.contains("sign in to confirm you")
 		&& lower.contains("not a bot")
 	{
-		return "YouTube requires sign-in. Open this stream in your browser.".into();
+		return YOUTUBE_SIGN_IN.into();
 	}
 	if ["not currently live", "offline", "will begin", "premieres in"]
 		.iter()
@@ -305,6 +305,9 @@ fn reason(stderr: &str) -> String {
 		None => line.to_owned(),
 	}
 }
+
+pub(crate) const YOUTUBE_SIGN_IN: &str =
+	"YouTube requires sign-in. Open this stream in your browser.";
 
 /// The hash a release lists for `asset`. A list naming other files only never yields one that
 /// matches, so a wrong line fails the download instead of passing it.

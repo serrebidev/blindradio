@@ -153,6 +153,9 @@ async fn youtube(client: &reqwest::Client, url: &str) -> Result<Live> {
 		.await
 		.map_err(http)?;
 	let status = &player["playabilityStatus"];
+	if status["status"] == "LOGIN_REQUIRED" {
+		return Err(http(crate::live::YOUTUBE_SIGN_IN));
+	}
 	if status["status"] != "OK" {
 		let reason = status["reason"].as_str().unwrap_or("Not playable");
 		return Err(http(if status["liveStreamability"].is_object() { NOT_LIVE } else { reason }));
@@ -303,5 +306,16 @@ mod tests {
 			.await.unwrap();
 		let opened = crate::net::open(&client, &live.stream).await.unwrap();
 		assert!(matches!(opened, crate::net::Opened::Hls { .. }));
+	}
+
+	#[tokio::test]
+	#[ignore = "network"]
+	async fn talksport_resolves_with_android_client() {
+		let client = crate::net::client();
+		let live = lookup(&client, "https://www.youtube.com/watch?v=uLWEssCrXYc", Site::YouTube)
+			.await
+			.unwrap();
+		assert_eq!(live.name, "talkSPORT");
+		assert!(matches!(crate::net::open(&client, &live.stream).await.unwrap(), crate::net::Opened::Hls { .. }));
 	}
 }
