@@ -119,6 +119,20 @@ fn reported_youtube_live_link_plays() {
 	live_page_plays("https://www.youtube.com/watch?v=_raDh9nyXVo");
 }
 
+#[test]
+#[ignore = "network"]
+fn talksport_youtube_detects_and_plays() {
+	let url = "https://www.youtube.com/watch?v=uLWEssCrXYc";
+	let runtime = tokio::runtime::Runtime::new().unwrap();
+	let stations = runtime
+		.block_on(blindradio_core::page::detect(&blindradio_core::net::client(), url))
+		.unwrap();
+	assert_eq!(stations.len(), 1);
+	assert_eq!(stations[0].url, url);
+	println!("Detected {}", stations[0].name);
+	live_page_plays(&stations[0].url);
+}
+
 /// The BBC network's own fMP4 audio of the same channel, no helpers involved.
 #[test]
 #[ignore = "network"]

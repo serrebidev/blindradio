@@ -234,6 +234,7 @@ needs only yt-dlp. They are kept up to date on their own, in BlindRadio's folder
 cache, not in your settings. A link to a channel that is not on the air says Not live, and an
 ordinary video that is not a live stream says the same. Finding a stream takes a few seconds, so
 hiss plays until it starts. Twitch ads play like the rest of the stream.
+If YouTube requires sign-in during detection or playback, open the stream in your browser.
 
 When you only have a web page with a player on it, File → Detect Audio Stream on Page… finds the
 address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its

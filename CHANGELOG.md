@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.14
+
+- Playback failures announce the reason. When YouTube requires sign-in, stream detection and playback explain that the stream can be opened in a browser.
+
 ## 0.3.13
 
 - A link copied from a web page or a chat that carries unseen characters in front of it, such as a BOM or a direction mark, plays again. Open URL, Add Custom Station, Detect Audio Stream on Page and the engine itself now strip those before the address, where a plain check refused the link with "Not a stream URL".

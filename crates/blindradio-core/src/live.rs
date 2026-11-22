@@ -213,6 +213,7 @@ async fn query(url: &str, site: Site) -> Result<Live> {
 	let mut command = Command::new(YT_DLP.path());
 	command
 		.args(["--ignore-config", "--no-warnings", "--no-playlist"])
+		.args(["--encoding", "utf-8"])
 		.args(["--extractor-retries", "0", "-J"]);
 	if site == Site::YouTube {
 		command
@@ -286,6 +287,12 @@ fn reason(stderr: &str) -> String {
 		.unwrap_or("No data")
 		.trim();
 	let lower = line.to_ascii_lowercase();
+	if lower.starts_with("[youtube] ")
+		&& lower.contains("sign in to confirm you")
+		&& lower.contains("not a bot")
+	{
+		return "YouTube requires sign-in. Open this stream in your browser.".into();
+	}
 	if ["not currently live", "offline", "will begin", "premieres in"]
 		.iter()
 		.any(|w| lower.contains(w))
@@ -495,6 +502,10 @@ mod tests {
 			"@x/live: Unable to download API page: HTTP Error 404: Not Found"
 		);
 		assert_eq!(reason("nothing useful"), "No data");
+		assert_eq!(
+			reason("ERROR: [youtube] x: Sign in to confirm you’re not a bot. Use --cookies."),
+			"YouTube requires sign-in. Open this stream in your browser.",
+		);
 	}
 
 	#[test]

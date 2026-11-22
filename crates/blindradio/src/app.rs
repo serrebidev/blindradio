@@ -1125,15 +1125,15 @@ impl App {
 			TunerEvent::Reconnecting { .. } => self.say_kind(Kind::Failure, &s::reconnecting()),
 			TunerEvent::Reconnected { .. } => self.say_kind(Kind::Info, &s::reconnected()),
 			TunerEvent::Failed {
-				station_id, name, ..
+				station_id, name, reason
 			} => {
 				let why = self
 					.tuner
 					.playing()
 					.filter(|p| p.id == station_id)
 					.and_then(|p| p.details.unavailable.as_deref())
-					.map(|why| format!(" - {why}"))
-					.unwrap_or_default();
+					.unwrap_or(&reason);
+				let why = if why.is_empty() { String::new() } else { format!(" - {why}") };
 				self.say_kind(Kind::Failure, &format!("{}{name}{why}", s::failed()));
 			}
 			// The status line's per-second tick picks the format up.
