@@ -239,6 +239,8 @@ When you only have a web page with a player on it, File → Detect Audio Stream 
 address for you. Type or paste the page's address and press Enter. BlindRadio reads the page, its
 frames and its scripts, including stream paths such as `/live.mp3` and `./live.m3u8`.
 If the page declares a base URL, BlindRadio uses it to resolve relative links.
+It can also find MPEG-TS links and resolve Football360 live pages through their player feed.
+The feed must be available from your connection.
 The dialog shows and announces progress, the result count, or an error.
 It checks candidate addresses and lists the ones that work; the
 first one plays, as in Search. Enter plays, and the Applications key offers the usual station menu,

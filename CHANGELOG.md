@@ -5,6 +5,12 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.12
+
+- Play YouTube live streams whose HLS requests failed with a decompression error.
+- Detect Football360 live audio through its official player feed. If Aparat Sport blocks access, the dialog reports the HTTP error.
+- Detect MPEG-TS links and direct video player sources that expose supported audio streams.
+
 ## 0.3.11
 
 - Detect Audio Stream on Page shows and announces progress, results, and errors in the dialog, even when action announcements are off.

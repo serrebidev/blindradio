@@ -34,8 +34,8 @@ const ALL_CHECKS_DEADLINE: Duration = Duration::from_secs(30);
 /// download limit; nobody waits that long on a silent dialog.
 const DETECT_DEADLINE: Duration = Duration::from_secs(90);
 
-const AUDIO_EXTENSIONS: [&str; 12] = [
-	"mp3", "aac", "aacp", "m4a", "ogg", "oga", "opus", "flac", "m3u", "m3u8", "pls", "mp2",
+const AUDIO_EXTENSIONS: [&str; 13] = [
+	"mp3", "aac", "aacp", "m4a", "ogg", "oga", "opus", "flac", "m3u", "m3u8", "pls", "mp2", "ts",
 ];
 const PAGE_EXTENSIONS: [&str; 19] = [
 	"html", "htm", "js", "mjs", "css", "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "woff",
@@ -198,7 +198,7 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 			document_base.as_ref().unwrap_or(base)
 				.join(&unescape(value.trim())).ok().filter(is_web)
 		};
-		for element in html.select(&selector("audio[src], audio source[src], video source[src]")) {
+		for element in html.select(&selector("audio[src], audio source[src], video[src], video source[src]")) {
 			if let Some(url) = element.attr("src").and_then(join) {
 				add(url, Rank::Element, None);
 			}
@@ -446,6 +446,15 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 		rank: Rank::Extension,
 		label: None,
 	};
+	if crate::station_page::is_football360(page.as_str()) {
+		let opened = timeout(CHECK_DEADLINE, open(client, page.as_str()))
+			.await.map_err(|_| CoreError::Http("Timed out".into()))??;
+		let Opened::Hls { .. } = opened else {
+			return Err(crate::net::not_a_stream());
+		};
+		let sound = Sound { codec: Some("HLS".into()), ..Sound::default() };
+		return Ok(vec![station_of(&direct, sound, None, &page)]);
+	}
 	if let Some(sound) = check(client, &page, rank_of(&page) == Some(Rank::Extension)).await {
 		return Ok(vec![station_of(&direct, sound, None, &page)]);
 	}
@@ -569,6 +578,7 @@ mod tests {
 			Radio </title>
 			<meta property="og:audio" content="https://cdn.example/og.mp3"></head><body>
 			<audio src="live.aac"></audio>
+			<video src="live.ts"></video>
 			<a href="/hi.pls">High quality</a>
 			<a href="/about.html">About the stream</a>
 			<div data-stream="//cast.example:8000/;"></div>
@@ -583,6 +593,7 @@ mod tests {
 		let got = urls(&found);
 		for (url, rank) in [
 			("https://radio.example/player/live.aac", Rank::Element),
+			("https://radio.example/player/live.ts", Rank::Element),
 			("https://cdn.example/og.mp3", Rank::Element),
 			("https://radio.example/hi.pls", Rank::Extension),
 			("https://cast.example:8000/;", Rank::Extension),
@@ -610,6 +621,7 @@ mod tests {
 		assert_eq!(rank("https://a.example/stream"), Some(Rank::Word));
 		assert_eq!(rank("https://icecast.a.example:8000/x"), Some(Rank::Word));
 		assert_eq!(rank("https://a.example/x.MP3"), Some(Rank::Extension));
+		assert_eq!(rank("https://a.example/x.ts"), Some(Rank::Extension));
 		assert_eq!(rank("http://a.example:8000/;stream.nsv"), Some(Rank::Extension));
 		assert_eq!(rank("https://a.example/stream.css"), None);
 		assert_eq!(rank("https://a.example/news"), None);

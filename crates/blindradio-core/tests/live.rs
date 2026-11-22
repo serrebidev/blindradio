@@ -113,6 +113,12 @@ fn a_youtube_live_link_plays() {
 	live_page_plays("https://www.youtube.com/watch?v=bLAJZTSl2_Y");
 }
 
+#[test]
+#[ignore = "network"]
+fn reported_youtube_live_link_plays() {
+	live_page_plays("https://www.youtube.com/watch?v=_raDh9nyXVo");
+}
+
 /// The BBC network's own fMP4 audio of the same channel, no helpers involved.
 #[test]
 #[ignore = "network"]

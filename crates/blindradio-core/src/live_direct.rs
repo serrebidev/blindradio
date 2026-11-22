@@ -158,7 +158,9 @@ async fn youtube(client: &reqwest::Client, url: &str) -> Result<Live> {
 		return Err(http(if status["liveStreamability"].is_object() { NOT_LIVE } else { reason }));
 	}
 	let hls = player["streamingData"]["hlsManifestUrl"].as_str().ok_or_else(|| http(NOT_LIVE))?;
-	let master = client.get(hls).header(USER_AGENT, UA_VISIONOS).send().await.map_err(http)?.text().await.map_err(http)?;
+	let master = client.get(hls).header(USER_AGENT, UA_VISIONOS)
+		.header(reqwest::header::ACCEPT_ENCODING, "identity")
+		.send().await.map_err(http)?.text().await.map_err(http)?;
 	let stream = youtube_audio(&master).ok_or_else(|| CoreError::Decode("Unsupported format".into()))?;
 	let name = crate::station::known(player["videoDetails"]["author"].as_str().unwrap_or_default())
 		.or_else(|| crate::station::known(player["videoDetails"]["title"].as_str().unwrap_or_default()))
@@ -291,5 +293,15 @@ mod tests {
 				Err(e) => println!("{url}: {e}"),
 			}
 		}
+	}
+
+	#[tokio::test]
+	#[ignore = "requires the reported broadcast to be live"]
+	async fn reported_youtube_live_link_resolves_with_android_client() {
+		let client = crate::net::client();
+		let live = lookup(&client, "https://www.youtube.com/watch?v=_raDh9nyXVo", Site::YouTube)
+			.await.unwrap();
+		let opened = crate::net::open(&client, &live.stream).await.unwrap();
+		assert!(matches!(opened, crate::net::Opened::Hls { .. }));
 	}
 }

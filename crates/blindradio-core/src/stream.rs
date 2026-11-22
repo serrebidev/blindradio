@@ -328,7 +328,9 @@ async fn run(
 /// Tries the cached final URL briefly, evicting it on any failure, then the station URL.
 async fn connect(ctx: &EngineCtx, url: &str) -> std::result::Result<Conn, String> {
 	let began = Instant::now();
-	let cached = ctx.cache.lock().get(url).filter(|c| c != url);
+	// These pages issue short-lived stream URLs. Resolve them on every tune.
+	let temporary = crate::live::is_page(url) || crate::station_page::is_football360(url);
+	let cached = (!temporary).then(|| ctx.cache.lock().get(url)).flatten().filter(|c| c != url);
 	if let Some(cached) = cached {
 		if let Ok(Ok((conn, final_url))) = timeout(CACHED_BUDGET, open_audio(ctx, &cached)).await {
 			ctx.cache.lock().put(url, &final_url);
@@ -346,7 +348,9 @@ async fn connect(ctx: &EngineCtx, url: &str) -> std::result::Result<Conn, String
 	let (conn, final_url) = timeout(budget, open_audio(ctx, url))
 		.await
 		.unwrap_or_else(|_| Err("No data".to_owned()))?;
-	ctx.cache.lock().put(url, &final_url);
+	if !temporary {
+		ctx.cache.lock().put(url, &final_url);
+	}
 	Ok(conn)
 }
 

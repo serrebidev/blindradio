@@ -334,7 +334,8 @@ async fn get(
 	let fetch = async {
 		let mut request = client
 			.get(url.clone())
-			.header("User-Agent", user_agent_for(url.as_str()));
+			.header("User-Agent", user_agent_for(url.as_str()))
+			.header("Accept-Encoding", "identity");
 		if let Some((start, length)) = range {
 			let last = start + length.max(1) - 1;
 			request = request.header("Range", format!("bytes={start}-{last}"));

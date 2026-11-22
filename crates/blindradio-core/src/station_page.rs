@@ -18,6 +18,7 @@ enum Site {
 	Zeno,
 	Streema,
 	LiveOnline,
+	Football360,
 }
 
 fn page(url: &str) -> Option<(Site, String)> {
@@ -44,6 +45,8 @@ fn page(url: &str) -> Option<(Site, String)> {
 			(Site::Streema, *slug)
 		}
 		("liveonlineradio.net", [slug]) => (Site::LiveOnline, *slug),
+		("football360.ir", ["live", id] | ["live", id, _])
+			if id.bytes().all(|b| b.is_ascii_digit()) => (Site::Football360, *id),
 		_ => return None,
 	};
 	(!slug.is_empty()).then(|| (site, slug.to_owned()))
@@ -51,6 +54,57 @@ fn page(url: &str) -> Option<(Site, String)> {
 
 pub(crate) fn is_page(url: &str) -> bool {
 	page(url).is_some()
+}
+
+pub(crate) fn is_football360(url: &str) -> bool {
+	page(url).is_some_and(|(site, _)| site == Site::Football360)
+}
+
+pub(crate) fn is_aparat_lookup(url: &Url) -> bool {
+	url.scheme() == "https"
+		&& url.host_str() == Some("www.aparatsport.com")
+		&& url.port().is_none()
+		&& url.username().is_empty()
+		&& url.password().is_none()
+		&& url.path() == "/adele/getHls2"
+		&& url.query_pairs().any(|(key, id)| {
+			key == "stream_id" && !id.is_empty() && id.bytes().all(|b| b.is_ascii_alphanumeric())
+		})
+}
+
+fn football360(data: &Value, id: &str) -> Vec<String> {
+	let post = &data["props"]["pageProps"]["data"]["post"];
+	if post["code"].as_u64() != id.parse::<u64>().ok() {
+		return Vec::new();
+	}
+	let live = &post["live_detail"];
+	let mut urls = Vec::new();
+	if let Some(url) = live["stream"]["hls_playlist"].as_str() {
+		urls.push(url.to_owned());
+	}
+	for stream in live["streams"].as_array().into_iter().flatten() {
+		let meta = &stream["meta"];
+		if let Some(url) = meta["hls_playlist"].as_str() {
+			urls.push(url.to_owned());
+		}
+		if stream["provider"] == "APARAT"
+			&& let Some(url) = meta["get_hls_url"].as_str()
+			&& Url::parse(url).is_ok_and(|u| is_aparat_lookup(&u))
+		{
+			urls.push(url.to_owned());
+		}
+	}
+	urls
+}
+
+pub(crate) fn aparat_hls(body: &str) -> Option<String> {
+	let data: Value = serde_json::from_str(body).ok()?;
+	let hls = data.pointer("/stream_line/hls")
+		.or_else(|| data.pointer("/data/stream_line/hls"))?.as_str()?;
+	let url = Url::parse(hls).ok()?;
+	(matches!(url.scheme(), "http" | "https") && !is_local(&url)
+		&& url.host_str().is_some() && url.username().is_empty() && url.password().is_none())
+		.then(|| url.into())
 }
 
 /// Reuse the same playlist endpoint and formats as the TuneIn directory.
@@ -134,7 +188,11 @@ pub(crate) fn streams(url: &str, body: &str) -> Option<Vec<String>> {
 		let mut flight = String::new();
 		for script in html.select(&selector("script")) {
 			let text = script.text().collect::<String>();
-			if site == Site::RadioNet {
+			if site == Site::Football360 && script.attr("id") == Some("__NEXT_DATA__") {
+				if let Ok(value) = serde_json::from_str::<Value>(&text) {
+					urls.extend(football360(&value, &slug));
+				}
+			} else if site == Site::RadioNet {
 				if let Some(raw) = text
 					.strip_prefix("self.__next_f.push(")
 					.and_then(|s| s.strip_suffix(')'))
@@ -185,6 +243,27 @@ pub(crate) fn streams(url: &str, body: &str) -> Option<Vec<String>> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn football360_uses_the_requested_matches_aparat_lookup() {
+		let lookup = "https://www.aparatsport.com/adele/getHls2?stream_id=Ab12";
+		let url = "https://football360.ir/live/20261121137/match";
+		let body = format!(r#"<script id="__NEXT_DATA__" type="application/json">
+			{{"props":{{"pageProps":{{"data":{{"post":{{"code":20261121137,"live_detail":{{
+				"stream":{{"hls_playlist":null}},"streams":[
+					{{"provider":"APARAT","meta":{{"get_hls_url":"{lookup}"}}}},
+					{{"provider":"APARAT","meta":{{"get_hls_url":"http://127.0.0.1/adele/getHls2?stream_id=Ab12"}}}}
+				]}}
+			}}}}}}}}}}
+		</script>"#);
+		assert_eq!(streams(url, &body).unwrap(), [lookup]);
+		assert!(streams("https://football360.ir/live/20261121138", &body).unwrap().is_empty());
+		assert_eq!(
+			aparat_hls(r#"{"stream_line":{"hls":"https://media.example/live.m3u8"}}"#).as_deref(),
+			Some("https://media.example/live.m3u8"),
+		);
+		assert!(aparat_hls(r#"{"stream_line":{"hls":"http://127.0.0.1/stream"}}"#).is_none());
+	}
 
 	#[test]
 	fn supplied_pages_resolve_only_the_requested_station() {

@@ -173,6 +173,24 @@ fn open_at<'a>(
 			let live = crate::live::lookup(client, &url).await?;
 			return open_at(client, live.stream, depth + 1).await;
 		}
+		if reqwest::Url::parse(&url).is_ok_and(|u| crate::station_page::is_aparat_lookup(&u)) {
+			let response = fetch(client, &url).await.map_err(http_err)?;
+			let status = response.status();
+			if !status.is_success() {
+				return Err(CoreError::Http(format!("Aparat Sport HTTP {}", status.as_u16())));
+			}
+			let mut response = response;
+			let mut body = Vec::new();
+			while let Some(chunk) = response.chunk().await.map_err(http_err)? {
+				if chunk.len() > SNIFF_LIMIT - body.len() {
+					return Err(not_a_stream());
+				}
+				body.extend_from_slice(&chunk);
+			}
+			let body = std::str::from_utf8(&body).map_err(|_| not_a_stream())?;
+			let hls = crate::station_page::aparat_hls(body).ok_or_else(not_a_stream)?;
+			return open_at(client, hls, depth + 1).await;
+		}
 		let url = crate::station_page::tune_url(&url).unwrap_or(url);
 		let mut response = match fetch(client, &url).await {
 			Ok(response) => response,
