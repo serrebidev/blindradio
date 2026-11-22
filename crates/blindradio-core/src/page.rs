@@ -151,7 +151,7 @@ fn unescape(text: &str) -> String {
 		.replace("\\u0026", "&")
 }
 
-/// Absolute web addresses and quoted scheme-relative addresses in source text.
+/// Absolute web addresses and quoted relative URLs in source text.
 fn addresses(text: &str, base: &Url) -> Vec<Url> {
 	let text = unescape(text);
 	let ends = |c: char| {
@@ -160,7 +160,7 @@ fn addresses(text: &str, base: &Url) -> Vec<Url> {
 	let mut out = Vec::new();
 	for (at, quote) in text.match_indices(['"', '\'', '`']) {
 		let tail = &text[at + 1..];
-		if tail.starts_with("//")
+		if (tail.starts_with('/') || tail.starts_with("./") || tail.starts_with("../"))
 			&& let Some(end) = tail.find(ends)
 			&& tail[end..].starts_with(quote)
 		{
@@ -186,9 +186,18 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 	let mut add = |url: Url, rank: Rank, label: Option<String>| {
 		found.candidates.push(Candidate { url, rank, label });
 	};
+	let mut document_base = None;
 	if is_html {
 		let html = Html::parse_document(body);
-		let join = |value: &str| base.join(&unescape(value.trim())).ok().filter(is_web);
+		document_base = html.select(&selector("base[href]"))
+			.next()
+			.and_then(|element| element.attr("href"))
+			.and_then(|href| base.join(href.trim()).ok())
+			.filter(is_web);
+		let join = |value: &str| {
+			document_base.as_ref().unwrap_or(base)
+				.join(&unescape(value.trim())).ok().filter(is_web)
+		};
 		for element in html.select(&selector("audio[src], audio source[src], video source[src]")) {
 			if let Some(url) = element.attr("src").and_then(join) {
 				add(url, Rank::Element, None);
@@ -237,7 +246,7 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 			.take(MAX_SCRIPTS)
 			.collect();
 	}
-	for url in addresses(body, base) {
+	for url in addresses(body, document_base.as_ref().unwrap_or(base)) {
 		if let Some(rank) = rank_of(&url) {
 			add(url, rank, None);
 		}
@@ -597,6 +606,22 @@ mod tests {
 		assert_eq!(rank("https://a.example/news"), None);
 		assert_eq!(rank("https://liveradio.example/about"), None, "only the site's name");
 		assert_eq!(rank("ftp://a.example/x.mp3"), None);
+	}
+
+	#[test]
+	fn resolves_player_paths_and_honors_the_document_base() {
+		let base = Url::parse("https://radio.example/site/page").unwrap();
+		let html = r#"<base href="/player/">
+			<audio src="live"></audio>
+			<script src="app.js"></script>
+			<script>const hi = "./high.m3u8"; const low = '/audio/low.aac';</script>"#;
+		let found = scan(html, &base, true);
+		assert!(urls(&found).contains(&("https://radio.example/player/live".into(), Rank::Element)));
+		assert!(urls(&found).contains(&("https://radio.example/player/high.m3u8".into(), Rank::Extension)));
+		assert!(urls(&found).contains(&("https://radio.example/audio/low.aac".into(), Rank::Extension)));
+		assert_eq!(found.scripts, [base.join("/player/app.js").unwrap()]);
+		let script = scan(r#"const stream = "../live.mp3";"#, &found.scripts[0], false);
+		assert_eq!(urls(&script), [("https://radio.example/live.mp3".into(), Rank::Extension)]);
 	}
 
 	#[test]

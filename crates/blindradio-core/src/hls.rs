@@ -14,7 +14,7 @@ use crate::{CoreError, Result};
 
 mod playlist;
 
-use playlist::{AlternativeMedia, Key, MediaPlaylist, Playlist, VariantStream};
+use playlist::{AlternativeMedia, Key, KeyMethod, MediaPlaylist, Playlist, VariantStream};
 
 /// A live playlist that yields no new segment for this many target durations is lost.
 const STALL_TARGETS: u32 = 3;
@@ -278,7 +278,7 @@ fn media(playlist: Playlist) -> Result<MediaPlaylist> {
 			.as_deref()
 			.is_none_or(|f| f.eq_ignore_ascii_case("identity"))
 	};
-	let playable = |k: &Key| k.method == "AES-128" && k.uri.is_some() && identity(k);
+	let playable = |k: &Key| k.method == KeyMethod::Aes128 && k.uri.is_some() && identity(k);
 	if !p.segments.iter().all(|s| s.key.as_ref().is_none_or(playable)) {
 		return Err(unsupported());
 	}

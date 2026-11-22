@@ -3,7 +3,7 @@
 use m3u8_parser::m3u8::error::{ParseError, SyntaxError};
 use m3u8_parser::m3u8::playlist::Playlist as Parsed;
 pub(super) use m3u8_parser::m3u8::playlist::MediaSegment;
-pub(super) use m3u8_parser::m3u8::tags::Key;
+pub(super) use m3u8_parser::m3u8::tags::{Key, KeyMethod};
 use m3u8_parser::m3u8::tags::Tag;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -245,7 +245,7 @@ mod tests {
 		let map = first.map.as_ref().unwrap();
 		assert_eq!(map.uri, "init.mp4");
 		let key = first.key.as_ref().unwrap();
-		assert_eq!(key.method, "AES-128");
+		assert_eq!(key.method, KeyMethod::Aes128);
 		assert_eq!(key.uri.as_deref(), Some("k,1"));
 		assert_eq!(key.iv.as_deref(), Some("0x0A"));
 		assert_eq!(key.keyformat.as_deref(), Some("identity"));
