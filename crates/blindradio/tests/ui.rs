@@ -2027,15 +2027,20 @@ fn station_info_opens_from_the_context_menu_and_escape_closes() {
 
 #[test]
 #[ignore = "needs a desktop"]
-fn detect_audio_stream_opens_from_the_file_menu_and_escape_closes() {
+fn detect_audio_stream_reports_errors_in_the_dialog_and_escape_closes() {
 	let app = App::start("detect-streams", Library::default());
 	app.press("{alt}f");
 	app.invoke(&app.menu_item("Detect Audio Stream on Page…"));
-	assert!(
-		app.find("Detect Audio Stream on Page", Duration::from_secs(5))
-			.is_some(),
-		"the window opens"
-	);
+	let dialog = app.find("Detect Audio Stream on Page", WAIT).expect("the window opens");
+	let control = |name: &str, kind: ControlType| {
+		app.automation.create_matcher().from(dialog.clone()).name(name)
+			.control_type(kind).timeout(5000).find_first().unwrap()
+	};
+	control("Page URL", ControlType::Edit)
+		.get_pattern::<UIValuePattern>().unwrap()
+		.set_value("ftp://example.com/").unwrap();
+	app.invoke(&control("Detect", ControlType::Button));
+	control("Not a web address", ControlType::Text);
 	app.press("{esc}");
 	std::thread::sleep(Duration::from_millis(600));
 	assert!(

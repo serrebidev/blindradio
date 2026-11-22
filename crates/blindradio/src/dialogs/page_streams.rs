@@ -36,12 +36,14 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		.with_id(ID_CANCEL)
 		.with_label(&s::close())
 		.build();
+	let status = StaticText::builder(&dialog).with_label("").build();
 	let top = SizerFlag::Left | SizerFlag::Right | SizerFlag::Top;
 	sizer.add(&url_label, 0, top, 5);
 	sizer.add(&url, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add(&detect, 0, SizerFlag::All, 5);
 	sizer.add(&streams.label, 0, top, 5);
 	sizer.add(&streams.list, 1, SizerFlag::Expand | SizerFlag::All, 5);
+	sizer.add(&status, 0, SizerFlag::Expand | SizerFlag::All, 5);
 	sizer.add(&close, 0, SizerFlag::All, 5);
 	dialog.set_sizer(sizer, true);
 	dialog.set_size(Size::new(640, 480));
@@ -52,13 +54,14 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	let (a, list, tok) = (app.clone(), streams.clone(), token.clone());
 	detect.on_click(move |_| {
 		let page = url.get_value();
-		if page.trim().is_empty() {
-			return url.set_focus();
-		}
 		generation.set(generation.get() + 1);
 		let (mine, generation, list) = (generation.get(), generation.clone(), list.clone());
 		let mut app = a.borrow_mut();
-		app.say(&s::detecting());
+		let report = move |app: &mut App, message: &str| {
+			status.set_label(&crate::main_window::escape(message));
+			app.say_announced(message);
+		};
+		report(&mut app, &s::detecting());
 		app.bridge.spawn(
 			tok.clone(),
 			async move {
@@ -72,17 +75,18 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 					Ok(found) => found,
 					Err(e) => {
 						list.set_stations(Vec::new(), 0);
-						return app.say(&e.to_string());
+						return report(app, &e.to_string());
 					}
 				};
 				let count = found.len();
 				list.set_stations(found, 0);
 				if count == 0 {
-					return app.say(&s::no_streams());
+					return report(app, &s::no_streams());
 				}
 				list.list.set_focus();
+				crate::speech::focus_returning();
 				list.land(app);
-				app.say(&count_said(count));
+				report(app, &count_said(count));
 			},
 		);
 	});

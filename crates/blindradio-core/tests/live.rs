@@ -246,6 +246,17 @@ async fn detects_the_streams_of_real_pages() {
 
 #[tokio::test]
 #[ignore = "network"]
+async fn detects_the_parsa_tv_player_frame() {
+	let page = "https://www.parsatv.com/name=Shabakeh-3#irib";
+	let found = blindradio_core::page::detect(&blindradio_core::net::client(), page).await.unwrap();
+	for station in &found {
+		println!("{} | {}", station.name, station.url);
+	}
+	assert!(found.iter().any(|station| station.details.codec.as_deref() == Some("HLS")));
+}
+
+#[tokio::test]
+#[ignore = "network"]
 async fn opens_directory_station_page_links() {
 	use blindradio_core::net::{Opened, client, open};
 	let client = client();

@@ -255,10 +255,18 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 }
 
 /// The body when it is text a page or script is made of.
-async fn fetch_text(client: &reqwest::Client, url: &Url) -> Result<Option<(String, bool, Url)>> {
+async fn fetch_text(client: &reqwest::Client, url: &Url, parent: Option<&Url>) -> Result<Option<(String, bool, Url)>> {
 	let agent = concat!("Mozilla/5.0 (compatible; BlindRadio/", env!("CARGO_PKG_VERSION"), ")");
-	let get = client.get(url.clone()).header("User-Agent", agent).send();
-	let mut response = timeout(FETCH_DEADLINE, get)
+	let mut get = client.get(url.clone()).header("User-Agent", agent);
+	if let Some(parent) = parent.filter(|parent| parent.origin() == url.origin()) {
+		let mut referer = parent.clone();
+		let _ = referer.set_username("");
+		let _ = referer.set_password(None);
+		referer.set_fragment(None);
+		referer.set_query(None);
+		get = get.header(reqwest::header::REFERER, referer.as_str());
+	}
+	let mut response = timeout(FETCH_DEADLINE, get.send())
 		.await
 		.map_err(|_| CoreError::Http("Unreachable".into()))?
 		.map_err(http_err)?;
@@ -443,16 +451,17 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 	}
 	let mut title = None;
 	let mut found = Vec::new();
-	let mut queue = VecDeque::from([(page.clone(), true)]);
+	let mut queue = VecDeque::from([(page.clone(), None)]);
 	let mut read = HashSet::new();
-	while let Some((url, first)) = queue.pop_front() {
+	while let Some((url, parent)) = queue.pop_front() {
+		let first = parent.is_none();
 		if read.len() >= MAX_FETCHES || !read.insert(url.clone()) {
 			continue;
 		}
 		if !first && !is_local(&page) && is_local(&url) {
 			continue;
 		}
-		let text = match fetch_text(client, &url).await {
+		let text = match fetch_text(client, &url, parent.as_ref()).await {
 			Ok(text) => text,
 			Err(e) if first => return Err(e),
 			Err(_) => continue,
@@ -467,9 +476,9 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 		found.extend(scanned.candidates);
 		// Frames first: a player's frame is more telling than the site's scripts.
 		for frame in scanned.frames.into_iter().rev() {
-			queue.push_front((frame, false));
+			queue.push_front((frame, Some(base.clone())));
 		}
-		queue.extend(scanned.scripts.into_iter().map(|s| (s, false)));
+		queue.extend(scanned.scripts.into_iter().map(|s| (s, Some(base.clone()))));
 	}
 
 	let candidates = Arc::new(shortlist(found, &page));
