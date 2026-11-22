@@ -407,7 +407,7 @@ fn shortlist(mut found: Vec<Candidate>, page: &Url) -> Vec<Candidate> {
 /// The streams `page` names; an address that is itself a stream is its own answer. Fails when
 /// the page cannot be read, the search breaks, or it runs past its deadline: it always answers.
 pub async fn detect(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
-	let (client, page) = (client.clone(), page.to_owned());
+	let (client, page) = (client.clone(), crate::net::clean_url(page));
 	guarded(DETECT_DEADLINE, async move { search(&client, &page).await }).await
 }
 

@@ -136,7 +136,8 @@ impl Site {
 }
 
 pub(crate) fn site(url: &str) -> Option<Site> {
-	let url = Url::parse(url).ok()?;
+	let cleaned = crate::net::clean_url(url);
+	let url = Url::parse(&cleaned).ok()?;
 	if !matches!(url.scheme(), "http" | "https") || url.path().trim_matches('/').is_empty() {
 		return None;
 	}
@@ -184,6 +185,8 @@ pub(crate) async fn install(client: &reqwest::Client, url: &str) -> Result<()> {
 
 /// The audio's address right now and the channel's name.
 pub(crate) async fn lookup(client: &reqwest::Client, url: &str) -> Result<Live> {
+	let cleaned = crate::net::clean_url(url);
+	let url = &cleaned;
 	let site = site(url).ok_or_else(crate::net::not_a_stream)?;
 	if cfg!(target_os = "android") {
 		return crate::live_direct::lookup(client, url, site).await;
@@ -413,6 +416,8 @@ mod tests {
 			"https://youtu.be/bLAJZTSl2_Y",
 			"https://www.twitch.tv/buster",
 			"HTTPS://WWW.TWITCH.TV/buster",
+			"\u{200e}https://www.youtube.com/watch?v=bLAJZTSl2_Y",
+			"\u{feff}https://youtu.be/bLAJZTSl2_Y",
 		] {
 			assert!(is_page(url), "{url}");
 		}

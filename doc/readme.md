@@ -293,7 +293,10 @@ you need, select the destination, then choose OK.
 
 Open URL, Add Custom Station and Detect Audio Stream on Page fill the URL field from
 the clipboard when it holds a whole HTTP or HTTPS address. You can edit or replace it;
-other clipboard text is ignored. Edit Station always keeps the station's saved URL.
+other clipboard text is ignored. An address copied from a web page or a chat keeps
+working even when the copy carries unseen characters, such as a BOM or a
+direction mark, in front of it: BlindRadio strips those before the address.
+Edit Station always keeps the station's saved URL.
 
 ## Context menu
 

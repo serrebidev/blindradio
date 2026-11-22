@@ -18,13 +18,16 @@ use crate::strings as s;
 const OK_ID: Id = ID_HIGHEST + 7000;
 
 /// What a typed or pasted URL means. Copies from web pages and chat can
-/// carry a BOM or zero-width characters in front of the scheme; those
-/// bytes are part of neither the address nor its scheme, and a plain
-/// prefix check on the raw text rejects a good URL for them.
+/// carry a BOM, zero-width, bidi or quote characters in front of the
+/// scheme; those are part of neither the address nor its scheme, and a
+/// plain prefix check on the raw text rejects a good URL for them.
+///
+/// A valid web address starts with a letter, so anything ahead of the
+/// first ASCII letter is not the address either way.
 pub fn clean_url(url: &str) -> String {
 	url.trim()
-		.trim_start_matches(['\u{feff}', '\u{200b}', '\u{200c}', '\u{200d}'])
-		.trim()
+		.trim_start_matches(|c: char| !c.is_ascii_alphabetic())
+		.trim_end()
 		.to_string()
 }
 
@@ -388,6 +391,10 @@ mod tests {
 	fn pasted_url_baggage_is_cleaned() {
 		assert!(is_stream_url("\u{feff}https://example.com/a"));
 		assert!(is_stream_url("\u{200b}https://example.com/a"));
+		assert!(is_stream_url("\u{200e}https://example.com/a"));
+		assert!(is_stream_url("\u{200f}https://example.com/a"));
+		assert!(is_stream_url("\u{202a}https://example.com/a"));
+		assert!(is_stream_url(" \"https://example.com/a\""));
 		assert_eq!(
 			clean_url(" \u{feff}https://example.com/a "),
 			"https://example.com/a"

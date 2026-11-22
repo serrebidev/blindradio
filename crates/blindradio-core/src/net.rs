@@ -98,6 +98,17 @@ pub(crate) fn not_a_stream() -> CoreError {
 	CoreError::Playlist("Not a stream".into())
 }
 
+/// Strips what a copy from a web page and chat can put in front of an
+/// address: a BOM, zero-width, bidi or quote characters. A web address
+/// starts with a letter, so anything ahead of the first ASCII letter is
+/// not the address either way.
+pub(crate) fn clean_url(url: &str) -> String {
+	url.trim()
+		.trim_start_matches(|c: char| !c.is_ascii_alphabetic())
+		.trim_end()
+		.to_string()
+}
+
 /// The plain-HTTP twin of an HTTPS URL.
 fn http_twin(url: &str) -> Option<String> {
 	url.strip_prefix("https://")
@@ -165,6 +176,7 @@ fn open_at<'a>(
 	depth: u8,
 ) -> Pin<Box<dyn Future<Output = Result<Opened>> + Send + 'a>> {
 	Box::pin(async move {
+		let url = clean_url(&url);
 		// Depth 0 is the station URL itself, so MAX_DEPTH playlist levels mean MAX_DEPTH fetches in all.
 		if depth >= MAX_DEPTH {
 			return Err(not_a_stream());
