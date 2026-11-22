@@ -4129,554 +4129,722 @@
       {
         "slug": "record",
         "name": "Record",
-        "url": "https://radiorecord.hostingradio.ru/rr_main64.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "record-spb",
+        "name": "Record Saint Petersburg",
+        "url": "https://radiorecord.hostingradio.ru/rr_spb",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "record-moscow",
+        "name": "Record Moscow",
+        "url": "http://icecast-record.cdnvideo.ru/record",
+        "info": "MP3 320k"
+      },
+      {
+        "slug": "record-moldova",
+        "name": "Record Moldova",
+        "url": "https://air.radiorecord.md/recordmdhd",
+        "info": "AAC-LC 192k"
       },
       {
         "slug": "rus",
         "name": "Russian Mix",
-        "url": "https://radiorecord.hostingradio.ru/rus96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rus/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "khity-vsekh-vremen",
+        "name": "Хиты всех времен",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-alltimers/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "sd90",
         "name": "Супердискотека 90-х",
-        "url": "https://radiorecord.hostingradio.ru/sd9096.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-sd90/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "russianhits",
+        "name": "Russian Hits",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-russianhits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "pump",
         "name": "Колбасный Цех",
-        "url": "https://radiorecord.hostingradio.ru/pump96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-pump/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "live-dj-sets",
         "name": "Festivals",
-        "url": "https://radiorecord.hostingradio.ru/livedjsets96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-livedjsets/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "deep",
         "name": "Deep",
-        "url": "https://radiorecord.hostingradio.ru/deep96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-deep/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "chil",
         "name": "Chill-Out",
-        "url": "https://radiorecord.hostingradio.ru/chil96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-chil/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "skazki",
+        "name": "Сказки MC V",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-skazki/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "nashashlyki",
         "name": "На шашлыки!",
-        "url": "https://radiorecord.hostingradio.ru/nashashlyki96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-nashashlyki/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mix",
         "name": "Megamix",
-        "url": "https://radiorecord.hostingradio.ru/mix96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mix/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rock",
         "name": "Rock",
-        "url": "https://radiorecord.hostingradio.ru/rock96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rock/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rmx",
         "name": "Remix",
-        "url": "https://radiorecord.hostingradio.ru/rmx96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rmx/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "gop",
+        "name": "Гоп FM",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-gop/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "bighits",
         "name": "Big Hits",
-        "url": "https://radiorecord.hostingradio.ru/bighits96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-bighits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "chillhouse",
         "name": "Chill House",
-        "url": "https://radiorecord.hostingradio.ru/chillhouse96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-chillhouse/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "record00",
         "name": "Рекорд 00-х",
-        "url": "https://radiorecord.hostingradio.ru/200096.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-2000/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "melodic",
+        "name": "Melodic Techno",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-melodic/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "1980",
         "name": "Record 80-х",
-        "url": "https://radiorecord.hostingradio.ru/198096.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-1980/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "naft",
         "name": "Нафталин FM",
-        "url": "https://radiorecord.hostingradio.ru/naft96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-naft/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mf",
         "name": "Маятник Фуко",
-        "url": "https://radiorecord.hostingradio.ru/mf96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mf/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "summer-dance",
         "name": "Summer Dance",
-        "url": "https://radiorecord.hostingradio.ru/summerparty96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-summerparty/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "tm",
         "name": "Trancemission",
-        "url": "https://radiorecord.hostingradio.ru/tm96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-tm/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "russiangold",
         "name": "Russian Gold",
-        "url": "https://radiorecord.hostingradio.ru/russiangold96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-russiangold/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "beach",
+        "name": "Beach Party",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-beach/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "ps",
         "name": "Pirate Station",
-        "url": "https://radiorecord.hostingradio.ru/ps96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ps/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "mashup",
+        "name": "Mashup",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mashup/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "ibiza",
         "name": "Innocence",
-        "url": "https://radiorecord.hostingradio.ru/ibiza96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ibiza/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mdl",
         "name": "Медляк FM",
-        "url": "https://radiorecord.hostingradio.ru/mdl96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mdl/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "party-24-7",
         "name": "Party 24/7",
-        "url": "https://radiorecord.hostingradio.ru/party96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-party/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "phonk",
         "name": "Phonk",
-        "url": "https://radiorecord.hostingradio.ru/phonk96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-phonk/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "gold",
         "name": "Record Gold",
-        "url": "https://radiorecord.hostingradio.ru/gold96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-gold/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rv19",
         "name": "Руки Вверх!",
-        "url": "https://radiorecord.hostingradio.ru/rv96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rv/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "hype",
         "name": "На Хайпе",
-        "url": "https://radiorecord.hostingradio.ru/hype96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-hype/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rap",
         "name": "Rap Hits",
-        "url": "https://radiorecord.hostingradio.ru/rap96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rap/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rapclassics",
         "name": "Rap Classics",
-        "url": "https://radiorecord.hostingradio.ru/rapclassics96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rapclassics/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "trancehits",
         "name": "Trance Classics",
-        "url": "https://radiorecord.hostingradio.ru/trancehits96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-trancehits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "drumhits",
         "name": "D'n'B Classics",
-        "url": "https://radiorecord.hostingradio.ru/drumhits96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-drumhits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "armin",
         "name": "Armin van Buuren",
-        "url": "https://radiorecord.hostingradio.ru/armin96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-armin/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "summerlounge",
+        "name": "Summer Lounge",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-summerlounge/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "organic",
         "name": "Organic",
-        "url": "https://radiorecord.hostingradio.ru/organic96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-organic/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "ultra",
+        "name": "Ultra Music Festival",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ultra/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "vip",
         "name": "VIP House",
-        "url": "https://radiorecord.hostingradio.ru/vip96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-vip/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "brks",
         "name": "Breaks",
-        "url": "https://radiorecord.hostingradio.ru/brks96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-brks/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "liquidfunk",
         "name": "Liquid Funk",
-        "url": "https://radiorecord.hostingradio.ru/liquidfunk96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-liquidfunk/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "workout",
+        "name": "Workout",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-workout/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "club",
         "name": "EDM",
-        "url": "https://radiorecord.hostingradio.ru/club96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-club/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "jackin",
         "name": "Bass House",
-        "url": "https://radiorecord.hostingradio.ru/jackin96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-jackin/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "goa",
         "name": "GOA/PSY",
-        "url": "https://radiorecord.hostingradio.ru/goa96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-goa/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "2010",
         "name": "10's Dance",
-        "url": "https://radiorecord.hostingradio.ru/201096.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-2010/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "trancehouse",
         "name": "Trancehouse",
-        "url": "https://radiorecord.hostingradio.ru/trancehouse96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-trancehouse/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "yo",
         "name": "Black Rap",
-        "url": "https://radiorecord.hostingradio.ru/yo96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-yo/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "techno",
         "name": "Techno",
-        "url": "https://radiorecord.hostingradio.ru/techno96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-techno/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "trop",
         "name": "Tropical",
-        "url": "https://radiorecord.hostingradio.ru/trop96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-trop/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "lofi",
         "name": "Lo-Fi",
-        "url": "https://radiorecord.hostingradio.ru/lofi96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-lofi/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "techouse",
         "name": "Tech House",
-        "url": "https://radiorecord.hostingradio.ru/techouse96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-techouse/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "trap",
         "name": "Trap",
-        "url": "https://radiorecord.hostingradio.ru/trap96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-trap/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "technopop",
         "name": "Technopop",
-        "url": "https://radiorecord.hostingradio.ru/technopop96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-technopop/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "1970",
         "name": "70's Dance",
-        "url": "https://radiorecord.hostingradio.ru/197096.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-1970/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "dream",
+        "name": "Dream Dance",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-dream/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "neurofunk",
         "name": "Neurofunk",
-        "url": "https://radiorecord.hostingradio.ru/neurofunk96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-neurofunk/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "ambient",
         "name": "Ambient",
-        "url": "https://radiorecord.hostingradio.ru/ambient96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ambient/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "recordclassix",
+        "name": "Record Classix",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-classix/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "recordclubshow",
+        "name": "Record Club Show",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-clubshow/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "eurodance",
         "name": "Eurodance",
-        "url": "https://radiorecord.hostingradio.ru/eurodance96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-eurodance/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "lo-fi-house",
+        "name": "Lo-Fi House",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-lofihouse/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "househits",
         "name": "House Hits",
-        "url": "https://radiorecord.hostingradio.ru/househits96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-househits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "uplift",
         "name": "Uplifting",
-        "url": "https://radiorecord.hostingradio.ru/uplift96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-uplift/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "feel",
+        "name": "Feel",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-feel/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "tiesto",
         "name": "Tiesto",
-        "url": "https://radiorecord.hostingradio.ru/tiesto96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-tiesto/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "a-state-of-trance",
+        "name": "A State of Trance",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-asot/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "deti",
         "name": "Веснушка FM",
-        "url": "https://radiorecord.hostingradio.ru/deti96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-deti/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "symph",
         "name": "Симфония FM",
-        "url": "https://radiorecord.hostingradio.ru/symph96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-symph/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mini",
         "name": "Minimal/Tech",
-        "url": "https://radiorecord.hostingradio.ru/mini96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mini/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "top-100-edm",
         "name": "TOP 100 EDM",
-        "url": "https://radiorecord.hostingradio.ru/top100edm96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-top100edm/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "dream-pop",
         "name": "Dream Pop",
-        "url": "https://radiorecord.hostingradio.ru/dreampop96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-dreampop/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "houseclss",
         "name": "House Classics",
-        "url": "https://radiorecord.hostingradio.ru/houseclss96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-houseclss/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "guetta",
         "name": "David Guetta",
-        "url": "https://radiorecord.hostingradio.ru/guetta96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-guetta/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "tsvetkov",
+        "name": "DJ Цветкоff",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-tsvetkov/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "discofunk",
         "name": "Disco/Funk",
-        "url": "https://radiorecord.hostingradio.ru/discofunk96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-discofunk/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "hbass",
         "name": "Hard Bass",
-        "url": "https://radiorecord.hostingradio.ru/hbass96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-hbass/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "afro",
+        "name": "Afro House",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-afro/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "rave",
         "name": "Rave FM",
-        "url": "https://radiorecord.hostingradio.ru/rave96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-rave/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "nu-dance",
+        "name": "Nu Dance",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-nudance/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "cadillac",
         "name": "60's Dance",
-        "url": "https://radiorecord.hostingradio.ru/cadillac96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-cadillac/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "lady-waks",
+        "name": "Lady Waks",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ladywaks/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "dc",
         "name": "Dancecore",
-        "url": "https://radiorecord.hostingradio.ru/dc96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-dc/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "fut",
         "name": "Future House",
-        "url": "https://radiorecord.hostingradio.ru/fut96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-fut/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "darkside",
         "name": "Darkside",
-        "url": "https://radiorecord.hostingradio.ru/darkside96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-darkside/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "futurerave",
         "name": "Future Rave",
-        "url": "https://radiorecord.hostingradio.ru/futurerave96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-futurerave/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "reggae",
+        "name": "Reggae",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-reggae/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "elect",
         "name": "Electro",
-        "url": "https://radiorecord.hostingradio.ru/elect96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-elect/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "teo",
         "name": "Hardstyle",
-        "url": "https://radiorecord.hostingradio.ru/teo96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-teo/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "dub",
         "name": "Dubstep",
-        "url": "https://radiorecord.hostingradio.ru/dub96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-dub/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "progr",
         "name": "Progressive",
-        "url": "https://radiorecord.hostingradio.ru/progr96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-progr/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "nejtrinobaur",
+        "name": "Nejtrino & Baur",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-nejtrinobaur/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "synth",
         "name": "Synthwave",
-        "url": "https://radiorecord.hostingradio.ru/synth96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-synth/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "latina",
         "name": "Latina Dance",
-        "url": "https://radiorecord.hostingradio.ru/latina96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-latina/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "dj-gvozd",
+        "name": "DJ Gvozd",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-djgvozd/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "edmhits",
         "name": "EDM Classics",
-        "url": "https://radiorecord.hostingradio.ru/edmhits96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-edmhits/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "tecktonik",
         "name": "Tecktonik",
-        "url": "https://radiorecord.hostingradio.ru/tecktonik96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-tecktonik/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "jungle",
         "name": "Jungle",
-        "url": "https://radiorecord.hostingradio.ru/jungle96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-jungle/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "hypno",
         "name": "Hypnotic",
-        "url": "https://radiorecord.hostingradio.ru/hypno96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-hypno/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "uk-garage",
         "name": "UK Garage",
-        "url": "https://radiorecord.hostingradio.ru/ukgarage96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ukgarage/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "gast",
         "name": "Гастарбайтер FM",
-        "url": "https://radiorecord.hostingradio.ru/gast96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-gast/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mt",
         "name": "Midtempo",
-        "url": "https://radiorecord.hostingradio.ru/mt96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mt/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "fbass",
         "name": "Future Bass",
-        "url": "https://radiorecord.hostingradio.ru/fbass96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-fbass/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "martingarrix",
+        "name": "Martin Garrix",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-martingarrix/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
+      },
+      {
+        "slug": "oliverheldens",
+        "name": "Oliver Heldens",
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-oliverheldens/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "mmbt",
         "name": "Moombahton",
-        "url": "https://radiorecord.hostingradio.ru/mmbt96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-mmbt/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "2step",
         "name": "2-step",
-        "url": "https://radiorecord.hostingradio.ru/2step96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-2step/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "complextro",
         "name": "Complextro",
-        "url": "https://radiorecord.hostingradio.ru/complextro96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-complextro/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "groovetribal",
         "name": "Groove/Tribal",
-        "url": "https://radiorecord.hostingradio.ru/groovetribal96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-groovetribal/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "christmas-chill",
         "name": "Christmas Chill",
-        "url": "https://radiorecord.hostingradio.ru/christmaschill96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-christmaschill/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "christmas-radio",
         "name": "Christmas",
-        "url": "https://radiorecord.hostingradio.ru/christmas96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-christmas/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       },
       {
         "slug": "ruszima",
         "name": "Русская Зима",
-        "url": "https://radiorecord.hostingradio.ru/ruszima96.aacp",
-        "info": "AAC"
+        "url": "https://hls-01-radiorecord.hostingradio.ru/record-ruszima/playlist.m3u8",
+        "info": "AAC-LC 112k (HLS)"
       }
     ]
   },

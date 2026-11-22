@@ -93,6 +93,19 @@ fn live_page_plays(url: &str) {
 	panic!("{url}: no audio");
 }
 
+#[test]
+#[ignore = "network"]
+fn radio_record_priority_stations_play() {
+	let network = blindradio_core::sources::networks::networks()
+		.iter()
+		.find(|network| network.slug == "radio-record")
+		.unwrap();
+	for slug in ["fut", "progr", "tm"] {
+		let station = network.stations.iter().find(|s| s.slug == slug).unwrap();
+		live_page_plays(&station.url);
+	}
+}
+
 /// BBC Persian's YouTube stream, on the air around the clock.
 #[test]
 #[ignore = "network"]
