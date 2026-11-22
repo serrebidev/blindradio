@@ -6309,5 +6309,863 @@
         "info": "AAC"
       }
     ]
+  },
+  {
+    "name": "Global",
+    "slug": "global",
+    "stations": [
+      {
+        "slug": "capitalanthems",
+        "name": "Capital Anthems",
+        "url": "https://media-ice.musicradio.com/CapitalAnthemsMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalbirmingham",
+        "name": "Capital Birmingham",
+        "url": "https://media-ice.musicradio.com/CapitalBirminghamMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalbrighton",
+        "name": "Capital Brighton",
+        "url": "https://media-ice.musicradio.com/CapitalBrightonMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalchill",
+        "name": "Capital Chill",
+        "url": "https://media-ice.musicradio.com/CapitalChillMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalcoventry",
+        "name": "Capital Coventry",
+        "url": "https://media-ice.musicradio.com/CapitalCoventryMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitaldance",
+        "name": "Capital Dance",
+        "url": "https://media-ice.musicradio.com/CapitalDanceMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalderbyshire",
+        "name": "Capital Derbyshire",
+        "url": "https://media-ice.musicradio.com/CapitalDerbyshireMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitaledinburgh",
+        "name": "Capital Edinburgh",
+        "url": "https://media-ice.musicradio.com/CapitalEdinburghMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalglasgow",
+        "name": "Capital Glasgow",
+        "url": "https://media-ice.musicradio.com/CapitalGlasgowMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalburnley",
+        "name": "Capital Lancashire - Burnley",
+        "url": "https://media-ice.musicradio.com/CapitalBurnleyMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalpreston",
+        "name": "Capital Lancashire - Preston",
+        "url": "https://media-ice.musicradio.com/CapitalPrestonMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalleicestershire",
+        "name": "Capital Leicestershire",
+        "url": "https://media-ice.musicradio.com/CapitalLeicestershireMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalliverpool",
+        "name": "Capital Liverpool",
+        "url": "https://media-ice.musicradio.com/CapitalLiverpoolMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capital",
+        "name": "Capital London",
+        "url": "https://media-ice.musicradio.com/CapitalMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalmanchester",
+        "name": "Capital Manchester",
+        "url": "https://media-ice.musicradio.com/CapitalManchesterMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalteesside",
+        "name": "Capital North East (Teesside)",
+        "url": "https://media-ice.musicradio.com/CapitalTeessideMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitaltynewear",
+        "name": "Capital North East (Tyne and Wear)",
+        "url": "https://media-ice.musicradio.com/CapitalTyneWearMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalnorthoxfordshire",
+        "name": "Capital North Oxfordshire",
+        "url": "https://media-ice.musicradio.com/CapitalNorthOxfordshireMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalcymru",
+        "name": "Capital North Wales - Anglesey & Gwynedd",
+        "url": "https://media-ice.musicradio.com/CapitalCymruMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalwalescoast",
+        "name": "Capital North Wales - North Wales Coast",
+        "url": "https://media-ice.musicradio.com/CapitalWalesCoastMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalnottinghamshire",
+        "name": "Capital Nottinghamshire",
+        "url": "https://media-ice.musicradio.com/CapitalNottinghamshireMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalrugby",
+        "name": "Capital Rugby",
+        "url": "https://media-ice.musicradio.com/CapitalRugbyMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalsouthcoast",
+        "name": "Capital South Coast",
+        "url": "https://media-ice.musicradio.com/CapitalSouthCoastMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalsoutheaststaffordshire",
+        "name": "Capital South East Staffordshire",
+        "url": "https://media-ice.musicradio.com/CapitalSouthEastStaffordshireMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalsouthwales",
+        "name": "Capital South Wales",
+        "url": "https://media-ice.musicradio.com/CapitalSouthWalesMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalstratford",
+        "name": "Capital Stratford",
+        "url": "https://media-ice.musicradio.com/CapitalStratfordMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitaluk",
+        "name": "Capital UK",
+        "url": "https://media-ice.musicradio.com/CapitalUKMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalwarwick",
+        "name": "Capital Warwick",
+        "url": "https://media-ice.musicradio.com/CapitalWarwickMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalwirral",
+        "name": "Capital Wirral",
+        "url": "https://media-ice.musicradio.com/CapitalWirralMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalwrexham",
+        "name": "Capital Wrexham & Cheshire",
+        "url": "https://media-ice.musicradio.com/CapitalWrexhamMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalxtralondon",
+        "name": "Capital XTRA London",
+        "url": "https://media-ice.musicradio.com/CapitalXTRALondonMP3",
+        "info": "R&B, MP3"
+      },
+      {
+        "slug": "capitalxtrareloaded",
+        "name": "Capital XTRA Reloaded",
+        "url": "https://media-ice.musicradio.com/CapitalXTRAReloadedMP3",
+        "info": "R&B, MP3"
+      },
+      {
+        "slug": "capitalxtranational",
+        "name": "Capital XTRA UK",
+        "url": "https://media-ice.musicradio.com/CapitalXTRANationalMP3",
+        "info": "R&B, MP3"
+      },
+      {
+        "slug": "capitalyorkshireeast",
+        "name": "Capital Yorkshire (East)",
+        "url": "https://media-ice.musicradio.com/CapitalYorkshireEastMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "capitalyorkshiresouthwest",
+        "name": "Capital Yorkshire (South and West)",
+        "url": "https://media-ice.musicradio.com/CapitalYorkshireSouthWestMP3",
+        "info": "Hit Music, MP3"
+      },
+      {
+        "slug": "classicfm",
+        "name": "Classic FM",
+        "url": "https://media-ice.musicradio.com/ClassicFMMP3",
+        "info": "Classical, MP3"
+      },
+      {
+        "slug": "classicfmcalm",
+        "name": "ClassicFM Calm",
+        "url": "https://media-ice.musicradio.com/ClassicFMCalmMP3",
+        "info": "Classical, MP3"
+      },
+      {
+        "slug": "classicfmmovies",
+        "name": "ClassicFM Movies",
+        "url": "https://media-ice.musicradio.com/ClassicFMMoviesMP3",
+        "info": "Classical, MP3"
+      },
+      {
+        "slug": "gold",
+        "name": "Gold UK",
+        "url": "https://media-ice.musicradio.com/GoldMP3",
+        "info": "Oldies, MP3"
+      },
+      {
+        "slug": "heart00s",
+        "name": "Heart 00s",
+        "url": "https://media-ice.musicradio.com/Heart00sMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heart10s",
+        "name": "Heart 10s",
+        "url": "https://media-ice.musicradio.com/Heart10sMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heart70s",
+        "name": "Heart 70s",
+        "url": "https://media-ice.musicradio.com/Heart70sMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heart80s",
+        "name": "Heart 80s",
+        "url": "https://media-ice.musicradio.com/Heart80sMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heart90s",
+        "name": "Heart 90s",
+        "url": "https://media-ice.musicradio.com/Heart90sMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartbath",
+        "name": "Heart Bath",
+        "url": "https://media-ice.musicradio.com/HeartBathMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartbedfordshire",
+        "name": "Heart Beds - Bedford",
+        "url": "https://media-ice.musicradio.com/HeartBedfordshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartbedsbucksherts",
+        "name": "Heart Beds - Luton",
+        "url": "https://media-ice.musicradio.com/HeartBedsBucksHertsMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartberkshire",
+        "name": "Heart Berkshire",
+        "url": "https://media-ice.musicradio.com/HeartBerkshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartbristol",
+        "name": "Heart Bristol",
+        "url": "https://media-ice.musicradio.com/HeartBristolMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartcambridge",
+        "name": "Heart Cambridgeshire",
+        "url": "https://media-ice.musicradio.com/HeartCambridgeMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartcornwall",
+        "name": "Heart Cornwall",
+        "url": "https://media-ice.musicradio.com/HeartCornwallMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartcrawley",
+        "name": "Heart Crawley",
+        "url": "https://media-ice.musicradio.com/HeartCrawleyMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartdance",
+        "name": "Heart Dance",
+        "url": "https://media-ice.musicradio.com/HeartDanceMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartderbyshire",
+        "name": "Heart Derbyshire",
+        "url": "https://media-ice.musicradio.com/HeartDerbyshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorthdevon",
+        "name": "Heart Devon - Barnstaple",
+        "url": "https://media-ice.musicradio.com/HeartNorthDevonMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "hearteastdevon",
+        "name": "Heart Devon - Exeter",
+        "url": "https://media-ice.musicradio.com/HeartEastDevonMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartsouthhams",
+        "name": "Heart Devon - South Hams",
+        "url": "https://media-ice.musicradio.com/HeartSouthHamsMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "hearttorbay",
+        "name": "Heart Devon - Torbay",
+        "url": "https://media-ice.musicradio.com/HeartTorbayMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartdorset",
+        "name": "Heart Dorset",
+        "url": "https://media-ice.musicradio.com/HeartDorsetMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartessex",
+        "name": "Heart Essex - Chelmsford",
+        "url": "https://media-ice.musicradio.com/HeartEssexMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartcolchester",
+        "name": "Heart Essex - Colchester",
+        "url": "https://media-ice.musicradio.com/HeartColchesterMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartharlow",
+        "name": "Heart Essex - Harlow",
+        "url": "https://media-ice.musicradio.com/HeartHarlowMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartmiltonkeynes",
+        "name": "Heart Four Counties (Milton Keynes)",
+        "url": "https://media-ice.musicradio.com/HeartMiltonKeynesMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartgloucestershire",
+        "name": "Heart Gloucestershire",
+        "url": "https://media-ice.musicradio.com/HeartGloucestershireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "hearthampshire",
+        "name": "Heart Hampshire",
+        "url": "https://media-ice.musicradio.com/HeartHampshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartkent",
+        "name": "Heart Kent",
+        "url": "https://media-ice.musicradio.com/HeartKentMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartleicestershire",
+        "name": "Heart Leicestershire",
+        "url": "https://media-ice.musicradio.com/HeartLeicestershireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartlondon",
+        "name": "Heart London",
+        "url": "https://media-ice.musicradio.com/HeartLondonMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartlove",
+        "name": "Heart Love",
+        "url": "https://media-ice.musicradio.com/HeartLoveMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartmusicals",
+        "name": "Heart Musicals",
+        "url": "https://media-ice.musicradio.com/HeartMusicalsMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorfolk",
+        "name": "Heart Norfolk",
+        "url": "https://media-ice.musicradio.com/HeartNorfolkMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartteesside",
+        "name": "Heart North East (Teesside)",
+        "url": "https://media-ice.musicradio.com/HeartTeessideMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "hearttynewear",
+        "name": "Heart North East (Tyne & Wear)",
+        "url": "https://media-ice.musicradio.com/HeartTyneWearMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "hearthertsnorth",
+        "name": "Heart North Hertfordshire",
+        "url": "https://media-ice.musicradio.com/HeartHertsNorthMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorthlancscumbria",
+        "name": "Heart North Lancs & Cumbria",
+        "url": "https://media-ice.musicradio.com/HeartNorthLancsCumbriaMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorthwest",
+        "name": "Heart North West",
+        "url": "https://media-ice.musicradio.com/HeartNorthWestMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorthamptonshire",
+        "name": "Heart Northamptonshire",
+        "url": "https://media-ice.musicradio.com/HeartNorthamptonshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnottinghamshire",
+        "name": "Heart Nottinghamshire",
+        "url": "https://media-ice.musicradio.com/HeartNottinghamshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartoxfordshire",
+        "name": "Heart Oxfordshire",
+        "url": "https://media-ice.musicradio.com/HeartOxfordshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartpeterborough",
+        "name": "Heart Peterborough",
+        "url": "https://media-ice.musicradio.com/HeartPeterboroughMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartplymouth",
+        "name": "Heart Plymouth",
+        "url": "https://media-ice.musicradio.com/HeartPlymouthMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartedinburgh",
+        "name": "Heart Scotland - East",
+        "url": "https://media-ice.musicradio.com/HeartEdinburghMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartglasgow",
+        "name": "Heart Scotland - West",
+        "url": "https://media-ice.musicradio.com/HeartGlasgowMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartsomerset",
+        "name": "Heart Somerset",
+        "url": "https://media-ice.musicradio.com/HeartSomersetMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartwatford",
+        "name": "Heart South Hertfordshire",
+        "url": "https://media-ice.musicradio.com/HeartWatfordMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartsuffolk",
+        "name": "Heart Suffolk",
+        "url": "https://media-ice.musicradio.com/HeartSuffolkMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartsussex",
+        "name": "Heart Sussex",
+        "url": "https://media-ice.musicradio.com/HeartSussexMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartuk",
+        "name": "Heart UK",
+        "url": "https://media-ice.musicradio.com/HeartUKMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartnorthwales",
+        "name": "Heart Wales (North)",
+        "url": "https://media-ice.musicradio.com/HeartNorthWalesMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartsouthwales",
+        "name": "Heart Wales - South",
+        "url": "https://media-ice.musicradio.com/HeartSouthWalesMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartwestwales",
+        "name": "Heart Wales - West",
+        "url": "https://media-ice.musicradio.com/HeartWestWalesMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartwestmids",
+        "name": "Heart West Midlands",
+        "url": "https://media-ice.musicradio.com/HeartWestMidsMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartwiltshire",
+        "name": "Heart Wiltshire",
+        "url": "https://media-ice.musicradio.com/HeartWiltshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartxmas",
+        "name": "Heart Xmas",
+        "url": "https://media-ice.musicradio.com/HeartXmasMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "heartyorkshire",
+        "name": "Heart Yorkshire",
+        "url": "https://media-ice.musicradio.com/HeartYorkshireMP3",
+        "info": "Pop/Rock, MP3"
+      },
+      {
+        "slug": "lbclondon",
+        "name": "LBC London",
+        "url": "https://media-ice.musicradio.com/LBCLondonMP3",
+        "info": "Talk, MP3"
+      },
+      {
+        "slug": "lbcnewslondon",
+        "name": "LBC News",
+        "url": "https://media-ice.musicradio.com/LBCNewsLondonMP3",
+        "info": "National News, MP3"
+      },
+      {
+        "slug": "lbcnewsuk",
+        "name": "LBC News UK",
+        "url": "https://media-ice.musicradio.com/LBCNewsUKMP3",
+        "info": "National News, MP3"
+      },
+      {
+        "slug": "radiox90smanchester",
+        "name": "Radio X 90s Manchester",
+        "url": "https://media-ice.musicradio.com/RadioX90sManchesterMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radioxclassicrock",
+        "name": "Radio X Classic Rock",
+        "url": "https://media-ice.musicradio.com/RadioXClassicRockMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radioxlondon",
+        "name": "Radio X London",
+        "url": "https://media-ice.musicradio.com/RadioXLondonMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radioxmanchester",
+        "name": "Radio X Manchester",
+        "url": "https://media-ice.musicradio.com/RadioXManchesterMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radioxuk",
+        "name": "Radio X UK",
+        "url": "https://media-ice.musicradio.com/RadioXUKMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radiox00s",
+        "name": "RadioX 00s",
+        "url": "https://media-ice.musicradio.com/RadioX00sMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radiox90s",
+        "name": "RADIOx 90s",
+        "url": "https://media-ice.musicradio.com/RadioX90sMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "radioxchilled",
+        "name": "RadioX Chilled",
+        "url": "https://media-ice.musicradio.com/RadioXChilledMP3",
+        "info": "Indie/Alternative, MP3"
+      },
+      {
+        "slug": "rivieraradio",
+        "name": "Riviera Radio",
+        "url": "https://media-ice.musicradio.com/RivieraRadioMP3",
+        "info": "Pop, MP3"
+      },
+      {
+        "slug": "rivierarelax",
+        "name": "RivieraRelax",
+        "url": "https://media-ice.musicradio.com/RivieraRelaxMP3",
+        "info": "Easy Listening, MP3"
+      },
+      {
+        "slug": "smooth70s",
+        "name": "Smooth 70s",
+        "url": "https://media-ice.musicradio.com/Smooth70sMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smooth80s",
+        "name": "Smooth 80s",
+        "url": "https://media-ice.musicradio.com/Smooth80sMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothberkshire",
+        "name": "Smooth Berkshire and North Hampshire",
+        "url": "https://media-ice.musicradio.com/SmoothBerkshireMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothbristol",
+        "name": "Smooth Bristol and Bath",
+        "url": "https://media-ice.musicradio.com/SmoothBristolMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothchill",
+        "name": "Smooth Chill",
+        "url": "https://media-ice.musicradio.com/SmoothChillMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothxmas",
+        "name": "Smooth Christmas",
+        "url": "https://media-ice.musicradio.com/SmoothXmasMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothcountry",
+        "name": "Smooth Country",
+        "url": "https://media-ice.musicradio.com/SmoothCountryMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothderby",
+        "name": "Smooth Derby",
+        "url": "https://media-ice.musicradio.com/SmoothDerbyMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothdorset",
+        "name": "Smooth Dorset",
+        "url": "https://media-ice.musicradio.com/SmoothDorsetMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smootheastmids",
+        "name": "Smooth East Midlands",
+        "url": "https://media-ice.musicradio.com/SmoothEastMidsMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothessex",
+        "name": "Smooth Essex",
+        "url": "https://media-ice.musicradio.com/SmoothEssexMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothgloucester",
+        "name": "Smooth Gloucester",
+        "url": "https://media-ice.musicradio.com/SmoothGloucesterMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothhampshire",
+        "name": "Smooth Hampshire",
+        "url": "https://media-ice.musicradio.com/SmoothHampshireMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothherts",
+        "name": "Smooth Herts, Beds and Bucks",
+        "url": "https://media-ice.musicradio.com/SmoothHertsMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothkent",
+        "name": "Smooth Kent",
+        "url": "https://media-ice.musicradio.com/SmoothKentMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothlakedistrict",
+        "name": "Smooth Lake District",
+        "url": "https://media-ice.musicradio.com/SmoothLakeDistrictMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothlondon",
+        "name": "Smooth London",
+        "url": "https://media-ice.musicradio.com/SmoothLondonMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnorfolk",
+        "name": "Smooth Norfolk",
+        "url": "https://media-ice.musicradio.com/SmoothNorfolkMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnortheasts",
+        "name": "Smooth North East (Teeside)",
+        "url": "https://media-ice.musicradio.com/SmoothNorthEastSMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnortheastn",
+        "name": "Smooth North East (Tyne & Wear)",
+        "url": "https://media-ice.musicradio.com/SmoothNorthEastNMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnorthwales",
+        "name": "Smooth North Wales and Cheshire",
+        "url": "https://media-ice.musicradio.com/SmoothNorthWalesMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnorthwest",
+        "name": "Smooth North West",
+        "url": "https://media-ice.musicradio.com/SmoothNorthWestMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothnorthants",
+        "name": "Smooth Northants",
+        "url": "https://media-ice.musicradio.com/SmoothNorthantsMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothplymouth",
+        "name": "Smooth Plymouth",
+        "url": "https://media-ice.musicradio.com/SmoothPlymouthMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothrelax",
+        "name": "Smooth Relax",
+        "url": "https://media-ice.musicradio.com/SmoothRelaxMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothscotland",
+        "name": "Smooth Scotland",
+        "url": "https://media-ice.musicradio.com/SmoothScotlandMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothsoul",
+        "name": "Smooth Soul",
+        "url": "https://media-ice.musicradio.com/SmoothSoulMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothsouthwales",
+        "name": "Smooth South Wales",
+        "url": "https://media-ice.musicradio.com/SmoothSouthWalesMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothsuffolk",
+        "name": "Smooth Suffolk",
+        "url": "https://media-ice.musicradio.com/SmoothSuffolkMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothsussex",
+        "name": "Smooth Sussex",
+        "url": "https://media-ice.musicradio.com/SmoothSussexMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothuk",
+        "name": "Smooth UK",
+        "url": "https://media-ice.musicradio.com/SmoothUKMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothwestmids",
+        "name": "Smooth West Midlands",
+        "url": "https://media-ice.musicradio.com/SmoothWestMidsMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "smoothwiltshire",
+        "name": "Smooth Wiltshire",
+        "url": "https://media-ice.musicradio.com/SmoothWiltshireMP3",
+        "info": "Soul, MP3"
+      },
+      {
+        "slug": "bigtop40",
+        "name": "The Big Top 40 Show",
+        "url": "https://media-ice.musicradio.com/BigTop40MP3",
+        "info": "Hit Music, MP3"
+      }
+    ]
   }
 ]

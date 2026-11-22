@@ -290,6 +290,14 @@ async fn children_dispatch_by_prefix() {
 	sorted.sort_by_key(|a| a.to_lowercase());
 	assert_eq!(names, sorted, "networks in name order");
 	assert!(nets.contains(&folder("net/bbc", "BBC")));
+	assert!(nets.contains(&folder("net/global", "Global")));
+	assert!(
+		src.children("net/global", Sort::default())
+			.await
+			.unwrap()
+			.iter()
+			.any(|node| matches!(node, Node::Station(station) if station.id == "net:global:classicfm"))
+	);
 	assert!(matches!(
 		src.children("net/somafm", Sort::default()).await.unwrap()[0],
 		Node::Station(_)
