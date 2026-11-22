@@ -8,7 +8,7 @@ taken from this file by the release workflow.
 ## 0.3.9
 
 - Browse Global under Networks for 142 live stations, including all feeds from the former Capital network.
-- Radio Record uses the verified 112 kbps AAC-LC feeds for all 117 catalog stations. Higher-bitrate Saint Petersburg, Moscow, and Moldova broadcasts are listed by region.
+- Radio Record uses verified 320 kbps MP3 feeds for all 117 catalog stations, including Future House, Trancemission, and Progressive. The Saint Petersburg, Moscow, and Moldova broadcasts are also listed by region.
 
 ## 0.3.8
 
