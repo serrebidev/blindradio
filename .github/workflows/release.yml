@@ -186,7 +186,7 @@ jobs:
         run: cargo xtask dist-windows
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BlindRadio-windows
           path: |
@@ -283,7 +283,7 @@ jobs:
           fi
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BlindRadio-linux
           path: |
@@ -356,7 +356,7 @@ jobs:
         run: cargo xtask dist-macos
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: BlindRadio-macos
           path: |
@@ -389,7 +389,7 @@ jobs:
         with:
           ref: ${{ needs.bump.outputs.branch }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
