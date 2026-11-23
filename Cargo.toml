@@ -11,7 +11,7 @@ uiautomation = { path = "vendor/uiautomation" }
 paste = { path = "vendor/paste" }
 shipfitter = { git = "https://git.serrebiradio.com/serrebi/shipfitter", branch = "zip-9" }
 # Forgejo releases: upstream ship-shape only speaks api.github.com. Drop when upstream takes it.
-ship-shape = { git = "https://git.serrebiradio.com/serrebi/ship-shape", rev = "cff6bdb5596676723b3a0890b1b030c8edac0d28" }
+ship-shape = { git = "https://git.serrebiradio.com/serrebi/ship-shape", rev = "a02488d9df6a824675d77855bfe193703872c2ee" }
 
 [workspace.package]
 edition = "2024"

@@ -1,2 +1,3 @@
 [alias]
 xtask = "run -p xtask --"
+xtask-release = "run --locked -p xtask --no-default-features --"

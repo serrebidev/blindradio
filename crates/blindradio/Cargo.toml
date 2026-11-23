@@ -29,7 +29,7 @@ tokio = { version = "*", features = ["rt"] }
 serde_json = "*"
 live-region = { git = "https://github.com/trypsynth/live-region", version = "0.3.3" }
 flate2 = "*"
-ship-shape = "0.5.0"
+ship-shape = "0.6"
 # Translations (gettext via patois). Pinned to the 0.3 line like ship-shape:
 # its API changed across minors (0.3 dropped the t! macros).
 patois = { version = "0.3", features = ["wx"] }

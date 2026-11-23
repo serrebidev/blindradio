@@ -41,7 +41,7 @@ jobs:
     outputs:
       branch: ${{ steps.make.outputs.branch }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -108,7 +108,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.bump.outputs.branch }}
 
@@ -183,10 +183,10 @@ jobs:
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
           MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
           BLINDRADIO_UNSIGNED: "1"
-        run: cargo xtask dist-windows
+        run: cargo xtask-release dist-windows
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: BlindRadio-windows
           path: |
@@ -226,7 +226,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.bump.outputs.branch }}
 
@@ -264,9 +264,9 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --locked --release -p blindradio
-          cargo xtask dist-linux
+          cargo xtask-release dist-linux
           bash tools/linux/check-appimage.sh target/dist/BlindRadio.AppImage
-          cargo xtask sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz
+          cargo xtask-release sign target/dist/BlindRadio.AppImage target/dist/BlindRadio.tar.gz
 
       - name: Check the AppImage starts
         run: |
@@ -283,7 +283,7 @@ jobs:
           fi
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: BlindRadio-linux
           path: |
@@ -315,7 +315,7 @@ jobs:
       - name: Apple Silicon only
         run: test "$(uname -m)" = arm64
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.bump.outputs.branch }}
 
@@ -353,10 +353,10 @@ jobs:
           LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
           MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
           MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
-        run: cargo xtask dist-macos
+        run: cargo xtask-release dist-macos
 
       - name: Upload signed packages
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: BlindRadio-macos
           path: |
@@ -380,19 +380,35 @@ jobs:
 
   publish:
     name: Verify and publish
+    permissions:
+      actions: read
+      contents: read
     needs: [gate, bump, windows, linux, macos]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     steps:
       # Collect every platform's signed packages before publishing the release.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ needs.bump.outputs.branch }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          merge-multiple: true
+      - name: Download and verify GitHub build artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repository="repos/$GITHUB_REPOSITORY"
+          artifacts="$(gh api "$repository/actions/runs/$GITHUB_RUN_ID/artifacts")"
+          mkdir -p artifacts
+          for name in BlindRadio-windows BlindRadio-linux BlindRadio-macos; do
+            entry="$(jq -cer --arg name "$name" '[.artifacts[] | select(.name == $name)] | if length == 1 then .[0] else error("expected one " + $name + " artifact") end' <<<"$artifacts")"
+            id="$(jq -er '.id' <<<"$entry")"
+            digest="$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$")) | sub("^sha256:"; "")' <<<"$entry")"
+            archive="$RUNNER_TEMP/$name.zip"
+            gh api "$repository/actions/artifacts/$id/zip" >"$archive"
+            printf '%s  %s\n' "$digest" "$archive" | sha256sum --check
+            unzip -qn "$archive" -d artifacts
+          done
       - name: Every asset and signature present, then tag and publish
         env:
           VERSION: ${{ inputs.version }}
@@ -435,7 +451,9 @@ jobs:
             curl -sSf --retry 3 --retry-all-errors --retry-delay 5 -H "$h" -H 'Content-Type: application/json' -d @- "$api/releases" | jq -r .id)"
           for file in artifacts/*; do
             name="$(basename "$file")"
-            curl -sf -o /dev/null -H "$h" -F "attachment=@$file" "$api/releases/$id/assets?name=$name"
+            curl -sf -o /dev/null -H "$h" -F "attachment=@$file" \
+              --write-out "$name: %{size_upload} bytes in %{time_total}s (HTTP %{http_code})\n" \
+              "$api/releases/$id/assets?name=$name"
           done
           present="$(curl -sf -H "$h" "$api/releases/$id" | jq -r '.assets[].name')"
           echo "$present"

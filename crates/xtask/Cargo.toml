@@ -4,17 +4,21 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[features]
+default = ["update-check"]
+update-check = ["dep:ship-shape", "dep:wxdragon"]
+
 [dependencies]
 shipfitter = { version = "0.2.4", features = ["docs", "package", "windows-resources"] }
-ship-shape = "0.5.0"
+ship-shape = { version = "0.6", optional = true }
 minisign = "0.10.0"
 # Unused here: keeps wxdragon's features the same as the app's. ship-shape alone asks for
 # fewer, that build shares target/debug's CMake folder with the app's, and the features it
 # turns off stay off in the CMake cache: the app stops linking (wxd_PrintData_* unresolved).
 # The feature list mirrors the app's exactly, including default-features = false (wx-asserts
 # off — see the app manifest).
-wxdragon = { version = "*", default-features = false, features = ["wx-printing", "wx-tiff", "wx-jpeg", "wx-tango-icons", "wx-extra-image-formats", "wx-regex", "appindicator"] }
+wxdragon = { version = "*", optional = true, default-features = false, features = ["wx-printing", "wx-tiff", "wx-jpeg", "wx-tango-icons", "wx-extra-image-formats", "wx-regex", "appindicator"] }
 
 [dev-dependencies]
 # The check the updater itself makes on a download.
-minisign-verify = "0.2.5"
+minisign-verify = "0.3.0"

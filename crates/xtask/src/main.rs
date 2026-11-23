@@ -42,6 +42,7 @@ fn main() {
 		"dist-linux" => linux::dist(&root(), &dist_dir()),
 		"minisign-key" => minisign_key(&args[1..]),
 		"sign" => sign_assets(&args[1..]),
+		#[cfg(feature = "update-check")]
 		"update-check" => update_check(&args[1..]),
 		"version" => match package::crate_version(&root(), PKG) {
 			Ok(v) => {
@@ -96,6 +97,7 @@ pub(crate) fn sign_file(path: &Path) -> Result<bool, String> {
 
 /// `cargo xtask update-check [version]`: asks Forgejo what a copy running `version` would be
 /// offered, then downloads that asset and verifies it, exactly as the app does.
+#[cfg(feature = "update-check")]
 fn update_check(args: &[String]) -> Result<(), String> {
 	let current = match args.first() {
 		Some(version) => version.trim_start_matches('v').to_string(),
@@ -130,6 +132,7 @@ fn update_check(args: &[String]) -> Result<(), String> {
 }
 
 /// The updater's public key, from the file the app compiles in.
+#[cfg(feature = "update-check")]
 fn public_key() -> Result<String, String> {
 	let path = root().join("crates/blindradio/assets/minisign.pub");
 	let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;

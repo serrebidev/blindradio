@@ -20,7 +20,7 @@ jobs:
     steps:
     - name: Apple Silicon only
       run: test "$(uname -m)" = arm64
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v7.0.1
       with:
         ref: ${{ inputs.release_tag }}
     - uses: dtolnay/rust-toolchain@stable
@@ -31,7 +31,7 @@ jobs:
         LIBCLANG_PATH: /opt/homebrew/opt/llvm/lib
         MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
         MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
-      run: cargo xtask dist-macos
+      run: cargo xtask-release dist-macos
     - name: Attach to the Forgejo release
       env:
         FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}

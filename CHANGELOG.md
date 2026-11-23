@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.15
+
+- Release packaging skips an extra wxWidgets build and uses updated tooling and dependencies.
+
 ## 0.3.14
 
 - Playback failures announce the reason. When YouTube requires sign-in, stream detection and playback explain that the stream can be opened in a browser.
