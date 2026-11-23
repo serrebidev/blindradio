@@ -4,7 +4,7 @@ use m3u8_parser::m3u8::error::{ParseError, SyntaxError};
 use m3u8_parser::m3u8::playlist::Playlist as Parsed;
 pub(super) use m3u8_parser::m3u8::playlist::MediaSegment;
 pub(super) use m3u8_parser::m3u8::tags::{Key, KeyMethod};
-use m3u8_parser::m3u8::tags::Tag;
+use m3u8_parser::m3u8::tags::{MediaType, Tag};
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Playlist {
@@ -106,7 +106,7 @@ fn master(parsed: &Parsed) -> MasterPlaylist {
 				pending = Some(VariantStream {
 					uri: String::new(),
 					bandwidth: u64::from(*bandwidth),
-					codecs: codecs.clone(),
+					codecs: codecs.as_ref().map(ToString::to_string),
 					audio: audio.clone(),
 				});
 			}
@@ -117,7 +117,7 @@ fn master(parsed: &Parsed) -> MasterPlaylist {
 				default,
 				..
 			} => out.alternatives.push(AlternativeMedia {
-				is_audio: type_ == "AUDIO",
+				is_audio: *type_ == MediaType::Audio,
 				group_id: group_id.clone(),
 				uri: uri.clone(),
 				default: *default == Some(true),
