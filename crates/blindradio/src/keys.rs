@@ -130,7 +130,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 93] = [
+	pub const ALL: [KeyAction; 94] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
