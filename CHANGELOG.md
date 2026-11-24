@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.16
+
+- Help, Report an Issue on GitHub asks for a title and a description in accessible dialogs, then opens GitHub's new issue page with both filled in and your BlindRadio version and system added. Sign in on GitHub and press Create.
+
 ## 0.3.15
 
 - Release packaging skips an extra wxWidgets build and uses updated tooling and dependencies.

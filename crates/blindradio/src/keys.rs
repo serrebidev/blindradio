@@ -120,6 +120,7 @@ pub enum KeyAction {
 	Help,
 	ViewChangelog,
 	GitHubPage,
+	ReportIssue,
 	About,
 	Exit,
 	Close,
@@ -220,6 +221,7 @@ impl KeyAction {
 		K::Help,
 		K::ViewChangelog,
 		K::GitHubPage,
+		K::ReportIssue,
 		K::About,
 		K::Exit,
 		K::Close,
@@ -281,6 +283,7 @@ impl KeyAction {
 			| K::Help
 			| K::ViewChangelog
 			| K::GitHubPage
+			| K::ReportIssue
 			| K::About
 			| K::Exit
 			| K::Close => 3,
@@ -381,6 +384,7 @@ impl KeyAction {
 			K::Help => "help",
 			K::ViewChangelog => "view_changelog",
 			K::GitHubPage => "github_page",
+			K::ReportIssue => "report_issue",
 			K::About => "about",
 			K::Exit => "exit",
 			K::Close => "close",
@@ -482,6 +486,7 @@ impl KeyAction {
 			K::Help => plain(&s::user_guide()),
 			K::ViewChangelog => plain(&s::view_changelog()),
 			K::GitHubPage => plain(&s::github_page()),
+			K::ReportIssue => plain(&s::report_issue()),
 			K::About => plain(&s::about()),
 			K::Exit => plain(&s::exit()),
 			K::Close => s::kb_close_dialog().to_string(),
@@ -649,6 +654,7 @@ impl KeyAction {
 			K::Help => Action::Help,
 			K::ViewChangelog => Action::ViewChangelog,
 			K::GitHubPage => Action::GitHubPage,
+			K::ReportIssue => Action::ReportIssue,
 			K::About => Action::About,
 			K::Exit => Action::Exit,
 			K::Close => Action::Close,
@@ -794,6 +800,7 @@ pub fn menu_key(action: &Action) -> Option<KeyAction> {
 		Action::Help => K::Help,
 		Action::ViewChangelog => K::ViewChangelog,
 		Action::GitHubPage => K::GitHubPage,
+		Action::ReportIssue => K::ReportIssue,
 		Action::About => K::About,
 		Action::Exit => K::Exit,
 		_ => return None,

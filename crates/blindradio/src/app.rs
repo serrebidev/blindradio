@@ -874,6 +874,7 @@ impl App {
 			| Action::Help
 			| Action::ViewChangelog
 			| Action::GitHubPage
+			| Action::ReportIssue
 			| Action::OpenSearch
 			| Action::OpenBrowse
 			| Action::OpenFavorites

@@ -174,6 +174,7 @@ pub fn menus(settings: &Settings) -> Vec<(String, Vec<Entry>)> {
 				Item(s::user_guide(), keys(&A::Help), A::Help),
 				Item(s::view_changelog(), keys(&A::ViewChangelog), A::ViewChangelog),
 				Item(s::github_page(), keys(&A::GitHubPage), A::GitHubPage),
+				Item(s::report_issue(), keys(&A::ReportIssue), A::ReportIssue),
 				Separator,
 				Item(s::check_updates(), keys(&A::CheckForUpdates), A::CheckForUpdates),
 				Item(s::about(), keys(&A::About), A::About),

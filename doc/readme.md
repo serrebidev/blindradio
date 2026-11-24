@@ -659,7 +659,9 @@ The download is verified before it is used; a portable copy updates itself in pl
 data folder, and an installed copy runs the new installer. BlindRadio restarts by itself.
 
 Help, View Changelog opens the release history in your browser, and works offline. Help, Go to
-BlindRadio GitHub Page opens the project's page.
+BlindRadio GitHub Page opens the project's page. Help, Report an Issue on GitHub asks for a title and a
+description, then opens GitHub's new issue page with both filled in and your BlindRadio version and
+system added; sign in on GitHub and press Create.
 
 ## Tray icon
 

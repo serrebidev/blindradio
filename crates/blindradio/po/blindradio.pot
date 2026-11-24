@@ -498,6 +498,20 @@ msgstr ""
 msgid "Go to BlindRadio Git&Hub Page"
 msgstr ""
 
+msgid "Report an &Issue on GitHub…"
+msgstr ""
+
+msgid "Report an issue"
+msgstr ""
+
+msgid "Issue title: one line saying what went wrong or what you would like"
+msgstr ""
+
+msgid ""
+"Describe what you did, what happened, and what you expected.\n"
+"Your browser then opens GitHub with this filled in. Sign in and press Create."
+msgstr ""
+
 msgid "Could not open the browser"
 msgstr ""
 

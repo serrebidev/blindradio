@@ -113,6 +113,8 @@ pub enum Action {
 	ViewChangelog,
 	/// Help > Go to BlindRadio GitHub Page.
 	GitHubPage,
+	/// Help > Report an Issue on GitHub.
+	ReportIssue,
 	About,
 	/// Fetch the SerrebiRadio starter list again.
 	GetStarter,

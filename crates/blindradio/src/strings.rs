@@ -513,6 +513,20 @@ pub fn view_changelog() -> String {
 pub fn github_page() -> String {
 	patois::t("Go to BlindRadio Git&Hub Page")
 }
+pub fn report_issue() -> String {
+	patois::t("Report an &Issue on GitHub…")
+}
+pub fn report_issue_title() -> String {
+	patois::t("Report an issue")
+}
+pub fn report_issue_summary() -> String {
+	patois::t("Issue title: one line saying what went wrong or what you would like")
+}
+pub fn report_issue_details() -> String {
+	patois::t(
+		"Describe what you did, what happened, and what you expected.\nYour browser then opens GitHub with this filled in. Sign in and press Create.",
+	)
+}
 pub fn no_browser() -> String {
 	patois::t("Could not open the browser")
 }

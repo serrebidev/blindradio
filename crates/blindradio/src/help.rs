@@ -33,6 +33,57 @@ pub fn open_website() -> bool {
 	launch_default_browser(s::WEBSITE, BrowserLaunchFlags::Default)
 }
 
+/// Help > Report an issue: title and description asked here, where the screen
+/// reader knows the boxes, then GitHub's new-issue page opens with both filled
+/// in and the version line added. GitHub needs the user's own account, so the
+/// last step, Create, is theirs in the browser. False if no browser opened.
+pub fn report_issue(parent: &dyn WxWidget) -> bool {
+	let title = s::report_issue_title();
+	let Some(summary) = ask(parent, &s::report_issue_summary(), &title, TextEntryDialogStyle::Default)
+		.filter(|text| !text.is_empty())
+	else {
+		return true;
+	};
+	let multiline = TextEntryDialogStyle::Default | TextEntryDialogStyle::MultiLine;
+	let Some(details) = ask(parent, &s::report_issue_details(), &title, multiline) else {
+		return true;
+	};
+	launch_default_browser(&issue_url(&summary, &details), BrowserLaunchFlags::Default)
+}
+
+/// Trimmed text, or None on Cancel. Multiline: Enter is a new line, Tab reaches OK.
+fn ask(parent: &dyn WxWidget, message: &str, title: &str, style: TextEntryDialogStyle) -> Option<String> {
+	let dialog = TextEntryDialog::builder(parent, message, title).with_style(style).build();
+	let value = (dialog.show_modal() == ID_OK).then(|| dialog.get_value().unwrap_or_default());
+	dialog.destroy();
+	value.map(|text| text.trim().to_owned())
+}
+
+fn issue_url(summary: &str, details: &str) -> String {
+	let body = format!(
+		"{details}\n\n---\nBlindRadio {} on {} {}",
+		env!("CARGO_PKG_VERSION"),
+		std::env::consts::OS,
+		std::env::consts::ARCH,
+	);
+	format!(
+		"{}/issues/new?title={}&body={}",
+		s::WEBSITE,
+		query_encode(summary),
+		query_encode(&body)
+	)
+}
+
+/// Percent-encode a query value: everything but unreserved ASCII, as UTF-8 bytes.
+fn query_encode(text: &str) -> String {
+	text.bytes()
+		.map(|b| match b {
+			b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+			_ => format!("%{b:02X}"),
+		})
+		.collect()
+}
+
 pub fn licenses() -> &'static str {
 	LICENSES
 }
@@ -98,6 +149,16 @@ use crate::strings as s;
 
 #[cfg(test)]
 mod tests {
+	#[test]
+	fn issue_link_carries_title_body_and_version() {
+		let url = super::issue_url("Photo & video", "Line 1\nПривет");
+		assert!(url.starts_with(
+			"https://github.com/serrebidev/blindradio/issues/new?title=Photo%20%26%20video&body=Line%201%0A%D0%9F"
+		));
+		assert!(url.contains(&super::query_encode(env!("CARGO_PKG_VERSION"))));
+		assert!(!url[url.find('?').unwrap()..].contains(['\n', ' ', '#']));
+	}
+
 	#[test]
 	fn about_has_every_project_link() {
 		let urls: Vec<&str> = super::s::about_links()

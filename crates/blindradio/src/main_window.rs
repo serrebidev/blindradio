@@ -179,6 +179,12 @@ pub fn dispatch(app: &Rc<RefCell<App>>, action: Action) {
 				app.borrow_mut().say(&s::no_browser());
 			}
 		}
+		Action::ReportIssue => {
+			let frame = app.borrow().win.frame;
+			if !help::report_issue(&frame) {
+				app.borrow_mut().say(&s::no_browser());
+			}
+		}
 		Action::OpenSearch => {
 			if let Some(next) = dialogs::search::show(app) {
 				dispatch(app, next);
