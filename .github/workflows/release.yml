@@ -409,7 +409,11 @@ jobs:
             printf '%s  %s\n' "$digest" "$archive" | sha256sum --check
             unzip -qn "$archive" -d artifacts
           done
-      - name: Every asset and signature present, then tag and publish
+      - name: Install minisign
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign
+      - name: Verify every package signature, then tag and publish
         env:
           VERSION: ${{ inputs.version }}
           BRANCH: ${{ needs.bump.outputs.branch }}
@@ -420,8 +424,7 @@ jobs:
           tag="v$VERSION"
           names="BlindRadio.zip BlindRadio_setup.exe BlindRadio.AppImage BlindRadio.tar.gz BlindRadio.dmg"
           for wanted in $names; do
-            test -f "artifacts/$wanted"
-            test -f "artifacts/$wanted.minisig"
+            minisign -Vm "artifacts/$wanted" -p crates/blindradio/assets/minisign.pub
           done
           python3 - "$VERSION" <<'PY'
           import os, sys

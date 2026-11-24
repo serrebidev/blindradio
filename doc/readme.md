@@ -655,8 +655,9 @@ verify with the new key automatically.
 
 Once a day, ten seconds after it starts, BlindRadio asks Forgejo whether a newer release is
 published and offers it. Help, Check for Updates asks at once and says when there is nothing new.
-The download is verified before it is used; a portable copy updates itself in place and keeps its
-data folder, and an installed copy runs the new installer. BlindRadio restarts by itself.
+Each package signature is checked against BlindRadio's update key before release and checked
+again by the updater before use. A portable copy updates itself in place and keeps its data
+folder. An installed copy runs the new installer. BlindRadio restarts by itself.
 
 Help, View Changelog opens the release history in your browser, and works offline. Help, Go to
 BlindRadio GitHub Page opens the project's page. Help, Report an Issue on GitHub asks for a title and a
