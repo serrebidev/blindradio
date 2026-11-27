@@ -114,6 +114,7 @@ pub enum KeyAction {
 	ExportAllPlaylists,
 	ExportFavorites,
 	FeatureSettings,
+	FeatureSettingsAlt,
 	GlobalHotkeys,
 	KeyboardShortcuts,
 	CheckForUpdates,
@@ -130,7 +131,7 @@ use KeyAction as K;
 
 impl KeyAction {
 	/// Editor order: Playback tab, Stations tab, Recording tab, App tab.
-	pub const ALL: [KeyAction; 94] = [
+	pub const ALL: [KeyAction; 95] = [
 		K::PlayPause,
 		K::PlayPauseAlt,
 		K::Play,
@@ -215,6 +216,7 @@ impl KeyAction {
 		K::ExportAllPlaylists,
 		K::ExportFavorites,
 		K::FeatureSettings,
+		K::FeatureSettingsAlt,
 		K::GlobalHotkeys,
 		K::KeyboardShortcuts,
 		K::CheckForUpdates,
@@ -277,6 +279,7 @@ impl KeyAction {
 			| K::ExportAllPlaylists
 			| K::ExportFavorites
 			| K::FeatureSettings
+			| K::FeatureSettingsAlt
 			| K::GlobalHotkeys
 			| K::KeyboardShortcuts
 			| K::CheckForUpdates
@@ -378,6 +381,7 @@ impl KeyAction {
 			K::ImportFolderAsCollection => "import_folder_as_collection",
 			K::ExportToFolder => "export_to_folder",
 			K::FeatureSettings => "feature_settings",
+			K::FeatureSettingsAlt => "feature_settings_alt",
 			K::GlobalHotkeys => "global_hotkeys",
 			K::KeyboardShortcuts => "keyboard_shortcuts",
 			K::CheckForUpdates => "check_for_updates",
@@ -480,6 +484,7 @@ impl KeyAction {
 			K::ImportFolderAsCollection => plain(&s::import_folder_as_collection()),
 			K::ExportToFolder => plain(&s::export_to_folder()),
 			K::FeatureSettings => plain(&s::feature_settings()),
+			K::FeatureSettingsAlt => alt(&s::feature_settings()),
 			K::GlobalHotkeys => plain(&s::global_hotkeys()),
 			K::KeyboardShortcuts => plain(&s::keyboard_shortcuts()),
 			K::CheckForUpdates => plain(&s::check_updates()),
@@ -550,7 +555,8 @@ impl KeyAction {
 			K::PasteStation => "Ctrl+V",
 			K::Import => "Ctrl+I",
 			K::ImportAsCollection => "Ctrl+Shift+I",
-			K::FeatureSettings => "Ctrl+T",
+			K::FeatureSettings => "Ctrl+,",
+			K::FeatureSettingsAlt => "Ctrl+T",
 			K::Help => "F1",
 			K::Close => "Escape",
 			K::PlayFavorite1 => "Alt+1",
@@ -647,7 +653,7 @@ impl KeyAction {
 			K::ImportFolder => Action::ImportFolder,
 			K::ImportFolderAsCollection => Action::ImportFolderAsCollection,
 			K::ExportToFolder => Action::ExportToFolder,
-			K::FeatureSettings => Action::FeatureSettings,
+			K::FeatureSettings | K::FeatureSettingsAlt => Action::FeatureSettings,
 			K::GlobalHotkeys => Action::GlobalHotkeys,
 			K::KeyboardShortcuts => Action::KeyboardShortcuts,
 			K::CheckForUpdates => Action::CheckForUpdates,
@@ -973,6 +979,10 @@ mod tests {
 		assert_eq!(look(WXK_ESCAPE, false, false, false, true), None, "main window");
 		assert_eq!(look(key('I'), true, false, false, false), None, "import is main only");
 		assert_eq!(look(key('P'), false, false, false, true), None, "plain letters type");
+		for main in [true, false] {
+			assert_eq!(look(key(','), true, false, false, main), Some(Action::FeatureSettings));
+			assert_eq!(look(key('T'), true, false, false, main), Some(Action::FeatureSettings));
+		}
 	}
 
 	#[test]

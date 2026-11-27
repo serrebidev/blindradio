@@ -403,7 +403,7 @@ mod tests {
 			("2 Hours", "Ctrl+6"),
 			("Off", "Ctrl+0"),
 			("Equalizer…", "Ctrl+E"),
-			("Settings…", "Ctrl+T"),
+			("Settings…", "Ctrl+,"),
 			("Keyboard Shortcuts…", ""),
 			("User Guide", "F1"),
 			("View Changelog", ""),

@@ -1,4 +1,4 @@
-//! Settings (Ctrl+T), in tabs: general, playback, recording, recognition and scrobbling, sources.
+//! Settings (Ctrl+Comma), in tabs: general, playback, recording, recognition and scrobbling, sources.
 //! Every tab applies on OK.
 
 use std::cell::RefCell;
@@ -702,7 +702,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 	}
 
 	// The tab strip first, so the tabs are heard. A hidden page's control cannot take focus,
-	// which is also why Ctrl+T comes back here and not to a check box.
+	// which is also why Ctrl+Comma comes back here and not to a check box.
 	notebook.set_focus();
 	crate::dialogs::run(app, dialog, Action::FeatureSettings, notebook, &token)
 }

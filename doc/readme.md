@@ -192,7 +192,7 @@ Opus and Vorbis streams, which send song titles in their own tags, show them lik
 
 ## Buffers
 
-The Playback tab of Settings (Ctrl+T) has three buffer settings. Each is a text field you can type any number
+The Playback tab of Settings (Ctrl+Comma) has three buffer settings. Each is a text field you can type any number
 into, followed by a slider that moves with it. Lower numbers play closer to live; higher ones ride
 out a poor connection. A change applies to the next station you open, and the start buffer and
 refill limit also apply to the one playing.
@@ -559,7 +559,7 @@ After you wake Windows, BlindRadio renews the request if playback or recording i
 
 ## Settings
 
-Ctrl+T opens Settings (File menu). It has five tabs: General, Playback, Recording, Songs,
+Ctrl+Comma opens Settings (File menu), the key most programs use. Ctrl+T, its old key, still works. It has five tabs: General, Playback, Recording, Songs,
 which holds song recognition and scrobbling, and Sources. Focus starts on the tabs: Left and Right change tab, Tab moves into
 the page, and Ctrl+Tab changes tab from anywhere in the window. OK saves all five.
 
@@ -632,7 +632,7 @@ the user name and press OK.
 ## Recognizing a song when a station sends no title
 
 BlindRadio does not use Shazam. It uses AudD, and only when you turn it on: open
-Settings (Ctrl+T), go to its Songs tab, check Recognize Songs Without Metadata, set Recognition Service
+Settings (Ctrl+Comma), go to its Songs tab, check Recognize Songs Without Metadata, set Recognition Service
 to AudD, and paste an AudD token. A token is free from audd.io: sign up there and
 copy the API token from your account. Without a token nothing is recognized, and
 saving Settings with recognition on but no token says so. With a token, a short
@@ -737,6 +737,7 @@ Global Hotkeys, below, are the separate set that works from other apps.
 | Alt+1 to Alt+0 | Play favorite 1 to 10 |
 | Alt+Left, Alt+Right | Previous / next station played this session |
 | Alt+V | Volume slider |
+| Ctrl+Comma, Ctrl+T | Settings |
 | F1 | This guide |
 | Escape | Close the window |
 

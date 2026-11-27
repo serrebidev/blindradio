@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.18
+
+- Settings opens with Ctrl+Comma, the key most programs use. Ctrl+T still works.
+
 ## 0.3.17
 
 - Releases now verify every package signature against the key embedded in BlindRadio before publishing.

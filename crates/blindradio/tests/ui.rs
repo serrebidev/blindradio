@@ -1239,12 +1239,16 @@ fn settings_tabs_are_reached_by_keyboard_and_all_save() {
 		.set_value("from-the-last-tab")
 		.expect("type");
 
-	app.press("{ctrl}t");
-	assert_eq!(
-		focused().get_control_type().unwrap(),
-		ControlType::TabItem,
-		"Ctrl+T comes back to the tab strip"
-	);
+	for (keys, name) in [("{ctrl},", "Ctrl+Comma"), ("{ctrl}t", "Ctrl+T")] {
+		control("OK", ControlType::Button).set_focus().expect("focus OK");
+		std::thread::sleep(Duration::from_millis(300));
+		app.press(keys);
+		assert_eq!(
+			focused().get_control_type().unwrap(),
+			ControlType::TabItem,
+			"{name} comes back to the tab strip"
+		);
+	}
 	app.invoke(&control("OK", ControlType::Button));
 	std::thread::sleep(Duration::from_millis(500));
 	assert_eq!(
