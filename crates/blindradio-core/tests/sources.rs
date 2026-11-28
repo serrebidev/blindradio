@@ -49,6 +49,7 @@ fn sources(mut routes: Vec<Route>) -> (TestServer, Sources) {
 		bbc: s.base.clone(),
 		kexp: s.base.clone(),
 		radio_paradise: s.base.clone(),
+		rstreams: format!("{}/Polska.m3u", s.base),
 	};
 	let src = Sources::new(client(), e);
 	(s, src)
@@ -174,6 +175,7 @@ async fn folders_turned_off_leave_browse_and_search() {
 		.find(|n| n.stations.len() > 1)
 		.unwrap();
 	let net_id = format!("net/{}", net.slug);
+	let lang_id = format!("net/{}", net.language.as_deref().unwrap_or("en"));
 	let query = SearchQuery {
 		name: net.stations[0].name.clone(),
 		..Default::default()
@@ -191,13 +193,35 @@ async fn folders_turned_off_leave_browse_and_search() {
 	assert!(!listed(&src.children("dir", sort).await.unwrap(), "tunein"));
 	assert!(listed(&src.children("dir", sort).await.unwrap(), "rb"));
 	assert!(src.children("tunein", sort).await.unwrap().is_empty());
-	assert!(!listed(&src.children("net", sort).await.unwrap(), &net_id));
+	assert!(!listed(&src.children(&lang_id, sort).await.unwrap(), &net_id));
 	assert!(src.children(&net_id, sort).await.unwrap().is_empty());
 	assert!(!found(&src.search(&query).await), "the network leaves search");
 
 	src.set_disabled(Default::default());
-	assert!(listed(&src.children("net", sort).await.unwrap(), &net_id));
+	assert!(listed(&src.children(&lang_id, sort).await.unwrap(), &net_id));
 	assert!(!src.children(&net_id, sort).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn the_polish_playlist_browses_under_polish_and_searches() {
+	let m3u = "#EXTM3U\n#EXTINF:-1 group-title=\"Akademickie\",Afera\nhttp://pl.test/afera.mp3\n\
+		#EXTINF:-1 group-title=\"Wyznaniowe\",Radio Maryja\nhttp://pl.test/maryja.mp3\n";
+	let (_s, src) = sources(vec![Route::Static {
+		path: "/Polska.m3u".into(),
+		content_type: "audio/mpegurl".into(),
+		body: m3u.as_bytes().to_vec(),
+	}]);
+	let sort = Sort::default();
+	let polish = src.children("net/pl", sort).await.unwrap();
+	assert!(polish.contains(&folder("rstreams", "Polska (rstreams.ovh)")), "{polish:?}");
+	assert_eq!(
+		src.children("rstreams", sort).await.unwrap(),
+		vec![folder("rstreams/Akademickie", "Akademickie"), folder("rstreams/Wyznaniowe", "Wyznaniowe")]
+	);
+	let found = src.search(&q("maryja")).await;
+	assert!(found.iter().any(|s| s.url == "http://pl.test/maryja.mp3"), "{found:?}");
+	src.set_disabled([String::from("rstreams")].into());
+	assert!(!src.search(&q("maryja")).await.iter().any(|s| s.url.contains("pl.test")));
 }
 
 #[test]
@@ -284,7 +308,14 @@ async fn children_dispatch_by_prefix() {
 			details: Default::default(),
 		})]
 	);
-	let nets = src.children("net", Sort::default()).await.unwrap();
+	assert_eq!(
+		src.children("net", Sort::default()).await.unwrap(),
+		vec![folder("net/en", "English"), folder("net/pl", "Polish"), folder("net/ru", "Russian")]
+	);
+	let russian = src.children("net/ru", Sort::default()).await.unwrap();
+	assert!(russian.contains(&folder("net/radio-record", "Radio Record")));
+	let nets = src.children("net/en", Sort::default()).await.unwrap();
+	assert!(!nets.contains(&folder("net/radio-record", "Radio Record")));
 	let names: Vec<&str> = nets.iter().map(|n| n.name()).collect();
 	let mut sorted = names.clone();
 	sorted.sort_by_key(|a| a.to_lowercase());

@@ -574,7 +574,7 @@ pub fn show(app: &Rc<RefCell<App>>) -> Option<Action> {
 		&panel,
 		&sizer,
 		[nets_label.as_str(), nets_all_on.as_str(), nets_all_off.as_str()],
-		networks::children("net"),
+		networks::folders(),
 		&current.disabled_sources,
 	);
 	panel.set_sizer(sizer, true);

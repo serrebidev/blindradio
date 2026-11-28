@@ -143,12 +143,17 @@ offers one folder per genre, with its sub-genres inside. Online Radio Box offers
 one folder per region of the world, with that region's countries inside. Radio
 Browser offers By Genre, By Country, By Language, By State and Top Stations. A listed station may be offline or unavailable in your region.
 
-Networks carries English-language broadcasters and internet networks, among them BBC, NPR,
-CBC, ABC Australia, RTÉ, RNZ, KCRW, WNYC, 181.fm, .977, Big R Radio, 1.FM, Capital, Heart,
-Smooth, LBC, Virgin Radio UK, Triple M, NZME, SABC, K-LOVE, Pacifica, Nightride FM, Power Hitz,
-WHFF, Radio Paradise, NTS, WFMU, and Radio Record — a non-English network carried as an exception because it is a single dance network of 92 channels. Services for blind listeners: ACB Media, Mushroom FM,
-Vision Australia Radio, The Global Voice, Radio Udaan, Treehouse Radio, Dodge Radio,
-2020 The Beacon, AMI Audio, RNIB Connect Radio, NFBRN, WRBH and Double Tap Live. To ask for a non-English network, open an issue on GitHub.
+Networks is sorted by language: English, Polish and Russian. English holds the English-language
+broadcasters and internet networks, among them BBC, NPR, CBC, ABC Australia, RTÉ, RNZ, KCRW, WNYC,
+181.fm, .977, Big R Radio, 1.FM, Global, Heart, Smooth, LBC, Virgin Radio UK, Triple M, NZME, SABC,
+K-LOVE, Pacifica, Nightride FM, Power Hitz, WHFF, Radio Paradise, NTS and WFMU, and the services for
+blind listeners: ACB Media, Mushroom FM, Vision Australia Radio, The Global Voice, Radio Udaan,
+Treehouse Radio, Dodge Radio, 2020 The Beacon, AMI Audio, RNIB Connect Radio, NFBRN, WRBH and
+Double Tap Live. Russian holds Radio Record. Polish holds Polska (rstreams.ovh), the licensed Polish
+stations on air, grouped as their author groups them: Akademickie, Lokalne, Ogólnopolskie,
+Radio publiczne, Lokalne stacje radia publicznego and Wyznaniowe. Its list is one file its author
+updates every month or two; BlindRadio downloads it the first time you open it or search, and keeps
+it for six hours. Search finds its stations by name. To ask for another network, open an issue on GitHub.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for

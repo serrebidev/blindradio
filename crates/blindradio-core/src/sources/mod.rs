@@ -50,6 +50,7 @@ pub mod orb;
 mod played;
 pub mod radio_browser;
 pub mod radionet;
+pub mod rstreams;
 pub mod shoutcast;
 pub mod tunein;
 
@@ -319,6 +320,8 @@ pub struct Endpoints {
 	pub bbc: String,
 	pub kexp: String,
 	pub radio_paradise: String,
+	/// Polska, one M3U file.
+	pub rstreams: String,
 }
 
 impl Default for Endpoints {
@@ -344,6 +347,7 @@ impl Default for Endpoints {
 			bbc: "https://rms.api.bbc.co.uk".into(),
 			kexp: "https://api.kexp.org".into(),
 			radio_paradise: "https://api.radioparadise.com".into(),
+			rstreams: "https://rstreams.ovh/Polska.m3u".into(),
 		}
 	}
 }
@@ -372,6 +376,7 @@ pub struct Sources {
 	played: played::Played,
 	directory: directory::Directory,
 	moondust: moondust::Moondust,
+	rstreams: rstreams::Rstreams,
 	recommended: directory::Directory,
 	somafm_base: String,
 	disabled: RwLock<BTreeSet<String>>,
@@ -478,6 +483,7 @@ impl Sources {
 			live365: live365::Live365::new(endpoints.live365),
 			directory: directory::Directory::new(endpoints.directory),
 			moondust: moondust::Moondust::new(endpoints.moondust),
+			rstreams: rstreams::Rstreams::new(endpoints.rstreams),
 			recommended: directory::Directory::recommended(endpoints.recommended),
 			somafm_base: endpoints.somafm,
 			disabled: RwLock::default(),
@@ -560,6 +566,7 @@ impl Sources {
 			"brdir" => self.directory.children(&self.client, id).await,
 			"recommended" => self.recommended.children(&self.client, id).await,
 			"moondust" => self.moondust.children(&self.client, id).await,
+			rstreams::ROOT => self.rstreams.children(&self.client, id).await,
 			"net" => Ok(self.enabled(networks::children(id))),
 			_ => Ok(vec![]),
 		}
@@ -650,7 +657,7 @@ impl Sources {
 				.unwrap_or_default()
 		}
 		let name_given = !q.name.trim().is_empty();
-		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb, moondust) = tokio::join!(
+		let (rb, tunein, iheart, icecast, shoutcast, internet_radio, iprd, radionet, live365, orb, moondust, rstreams) = tokio::join!(
 			async {
 				if self.on("rb") {
 					bounded(self.rb.search(&self.client, q)).await
@@ -728,6 +735,13 @@ impl Sources {
 					vec![]
 				}
 			},
+			async {
+				if name_given && self.on(rstreams::ROOT) && self.on("net/pl") {
+					bounded(self.rstreams.search(&self.client, &q.name)).await
+				} else {
+					vec![]
+				}
+			},
 		);
 		let mut seen = HashSet::new();
 		rb.into_iter()
@@ -741,6 +755,7 @@ impl Sources {
 			.chain(live365)
 			.chain(orb)
 			.chain(moondust)
+			.chain(rstreams)
 			.chain(networks::search(q).into_iter().filter(|s| {
 				s.id.split(':')
 					.nth(1)

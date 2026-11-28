@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.20
+
+- Networks in Browse is sorted by language: English, Polish and Russian. English holds every English-language network, Russian holds Radio Record.
+- New under Polish: Polska (rstreams.ovh), the licensed Polish radio stations on air, in the groups their author made: Akademickie, Lokalne, Ogólnopolskie, Radio publiczne, Lokalne stacje radia publicznego and Wyznaniowe. Search finds them by name. The list is downloaded the first time you open it or search, and kept for six hours. It can be turned off on the Sources tab of Settings, like any network.
+
 ## 0.3.19
 
 - Detect Audio Stream on Page follows a station site's Listen Live links and pop-up players, one step from the page you typed. Ideas from [StreamSift](https://github.com/OnjLouis/StreamSift).

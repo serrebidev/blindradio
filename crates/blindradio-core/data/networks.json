@@ -4125,6 +4125,7 @@
   {
     "name": "Radio Record",
     "slug": "radio-record",
+    "language": "ru",
     "stations": [
       {
         "slug": "record",

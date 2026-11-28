@@ -293,7 +293,7 @@ fn new_networks_are_complete() {
 
 #[test]
 fn named_single_station_services_are_listed() {
-	let roots = children("net");
+	let roots = blindradio_core::sources::networks::folders();
 	for slug in [
 		"kexp",
 		"wfuv",
@@ -320,10 +320,10 @@ fn named_single_station_services_are_listed() {
 
 #[test]
 fn networks_children_and_ids() {
-	let roots = children("net");
+	let roots = blindradio_core::sources::networks::folders();
 	// Single-station networks are not listed unless flagged as named services.
 	assert_eq!(
-		roots.len(),
+		roots.iter().filter(|n| matches!(n, Node::Folder { id, .. } if id.starts_with("net/"))).count(),
 		networks()
 			.iter()
 			.filter(|n| n.stations.len() > 1 || n.listed)
