@@ -242,6 +242,11 @@ frames and its scripts, including stream paths such as `/live.mp3` and `./live.m
 If the page declares a base URL, BlindRadio uses it to resolve relative links.
 It can also find MPEG-TS links and resolve Football360 live pages through their player feed.
 The feed must be available from your connection.
+It follows a station site's Listen Live links and pop-up players one step, and reads the players
+many North American stations use: Triton (`player.listenlive.co`) lists each open stream of the
+station, and SecureNet Cirrus gives its lasting stream address, not one that expires.
+A typed address with no `http://` in front, such as `radio.example:8000`, is tried over http when
+the secure connection fails.
 The dialog shows and announces progress, the result count, or an error.
 It checks candidate addresses and lists the ones that work; the
 first one plays, as in Search. Enter plays, and the Applications key offers the usual station menu,

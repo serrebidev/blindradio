@@ -5,6 +5,13 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.19
+
+- Detect Audio Stream on Page follows a station site's Listen Live links and pop-up players, one step from the page you typed. Ideas from [StreamSift](https://github.com/OnjLouis/StreamSift).
+- Detect Audio Stream on Page reads Triton players (`player.listenlive.co`), used by many North American stations, and lists each of the station's open streams with its format.
+- Detect Audio Stream on Page reads SecureNet Cirrus players and finds their lasting stream address, named after the station, instead of one that expires.
+- A page address typed with no `http://`, such as a stream server's `radio.example:8000`, is tried over http when the secure connection fails.
+
 ## 0.3.18
 
 - Settings opens with Ctrl+Comma, the key most programs use. Ctrl+T still works.

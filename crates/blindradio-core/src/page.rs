@@ -18,10 +18,15 @@ use crate::net::{Opened, http_err, open};
 use crate::station::{Details, Source, Station, known};
 use crate::{CoreError, Result};
 
-/// Frames and scripts read for one page, the page included.
-const MAX_FETCHES: usize = 12;
+/// Frames, players and scripts read for one page, the page included.
+const MAX_FETCHES: usize = 16;
 const MAX_FRAMES: usize = 4;
+/// Listen pages the typed page links to, read one level deep.
+const MAX_PLAYERS: usize = 3;
 const MAX_SCRIPTS: usize = 7;
+/// Mounts taken from one Triton station's list.
+const MAX_TRITON_MOUNTS: usize = 8;
+const TRITON: &str = "https://playerservices.streamtheworld.com/api/";
 /// A page is read this far: player addresses sit in the source, not in megabytes of data.
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const FETCH_DEADLINE: Duration = Duration::from_secs(10);
@@ -41,15 +46,18 @@ const PAGE_EXTENSIONS: [&str; 19] = [
 	"html", "htm", "js", "mjs", "css", "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "woff",
 	"woff2", "ttf", "json", "xml", "pdf", "txt",
 ];
+/// Words a link to a page with the site's player tends to hold, in its address or text.
+const PLAYER_WORDS: [&str; 6] = ["listen", "player", "stream", "webcast", "on-air", "tune in"];
 /// Words a stream's path tends to hold when no file extension says what it is.
 const STREAM_PATH_WORDS: [&str; 5] = ["stream", "icecast", "shoutcast", "listen", "/live"];
 /// The same for its host. Not `radio` or `live`: every link on a radio station's site has those.
 const STREAM_HOST_WORDS: [&str; 3] = ["stream", "icecast", "shoutcast"];
 
-/// How sure the address is, best first. An audio element named it, its extension says audio,
-/// or it only holds a telling word.
+/// How sure the address is, best first. The stream host's own player data named it, an audio
+/// element named it, its extension says audio, or it only holds a telling word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Rank {
+	Provider,
 	Element,
 	Extension,
 	Word,
@@ -67,7 +75,10 @@ struct Candidate {
 struct Scan {
 	title: Option<String>,
 	candidates: Vec<Candidate>,
+	/// Followed wherever found: frames, and stream hosts' player pages and station lists.
 	frames: Vec<Url>,
+	/// Listen pages; followed from the typed page only, or the search would crawl the site.
+	players: Vec<Url>,
 	scripts: Vec<Url>,
 }
 
@@ -183,6 +194,16 @@ fn addresses(text: &str, base: &Url) -> Vec<Url> {
 /// What one page or script names.
 fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 	let mut found = Scan::default();
+	if !is_html {
+		// Triton's list names nothing else worth opening, only its schema address.
+		let streams = triton_streams(body, base);
+		if !streams.is_empty() {
+			found.candidates = streams.into_iter()
+				.map(|url| Candidate { url, rank: Rank::Provider, label: None })
+				.collect();
+			return found;
+		}
+	}
 	let mut add = |url: Url, rank: Rank, label: Option<String>| {
 		found.candidates.push(Candidate { url, rank, label });
 	};
@@ -245,13 +266,206 @@ fn scan(body: &str, base: &Url, is_html: bool) -> Scan {
 			.filter(|u| u.host_str() == base.host_str())
 			.take(MAX_SCRIPTS)
 			.collect();
+		for element in html.select(&selector("a[href]")) {
+			let Some(url) = element.attr("href").and_then(join) else {
+				continue;
+			};
+			if is_provider_page(&url) {
+				found.frames.push(url);
+			} else if rank_of(&url).is_none_or(|r| r == Rank::Word) && same_site(&url, base) {
+				let text = element.text().collect::<String>().to_lowercase();
+				if is_player_link(&url, &text) {
+					found.players.push(url);
+				}
+			}
+		}
+		if let Some(stream) = securenet_stream(body, base) {
+			add(stream, Rank::Provider, found.title.clone());
+		}
+		found.frames.extend(triton_mounts_named(body, base));
 	}
+	for url in popups(body, document_base.as_ref().unwrap_or(base)) {
+		if is_provider_page(&url) {
+			found.frames.push(url);
+		} else if same_site(&url, base) && is_player_link(&url, "") {
+			found.players.push(url);
+		}
+	}
+	let mut seen = HashSet::new();
+	found.players.retain(|u| u != base && seen.insert(u.clone()));
+	found.players.truncate(MAX_PLAYERS);
 	for url in addresses(body, document_base.as_ref().unwrap_or(base)) {
 		if let Some(rank) = rank_of(&url) {
 			add(url, rank, None);
 		}
 	}
 	found
+}
+
+/// One site: the same host, or one is the other's subdomain (`www.` and `listen.` of one name).
+fn same_site(url: &Url, base: &Url) -> bool {
+	let (Some(a), Some(b)) = (url.host_str(), base.host_str()) else {
+		return false;
+	};
+	let bare = |h: &str| h.strip_prefix("www.").unwrap_or(h).to_ascii_lowercase();
+	let (a, b) = (bare(a), bare(b));
+	a == b || a.ends_with(&format!(".{b}")) || b.ends_with(&format!(".{a}"))
+}
+
+fn is_player_link(url: &Url, text: &str) -> bool {
+	let path = url.path().to_ascii_lowercase();
+	let last = path.rsplit('/').next().unwrap_or_default();
+	if last.rsplit_once('.').is_some_and(|(_, e)| PAGE_EXTENSIONS.contains(&e) && e != "html" && e != "htm") {
+		return false;
+	}
+	let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
+	PLAYER_WORDS.iter().any(|w| path.contains(w) || text.contains(w) || host.starts_with(&format!("{w}.")))
+}
+
+/// `window.open('/player.html')`: a Listen button's pop-up player.
+fn popups(text: &str, base: &Url) -> Vec<Url> {
+	text.match_indices("window.open(")
+		.filter_map(|(at, call)| {
+			let tail = text[at + call.len()..].trim_start();
+			let quote = tail.chars().next().filter(|q| matches!(q, '"' | '\''))?;
+			let value = &tail[1..tail[1..].find(quote)? + 1];
+			base.join(value.trim()).ok().filter(is_web)
+		})
+		.collect()
+}
+
+/// A stream host's own name for a station or mount: letters, digits, `_` and `-`.
+fn is_provider_id(id: &str) -> bool {
+	(1..=40).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+fn host_is(url: &Url, host: &str) -> bool {
+	url.host_str()
+		.is_some_and(|h| h.eq_ignore_ascii_case(host) || h.to_ascii_lowercase().ends_with(&format!(".{host}")))
+}
+
+/// SecureNet Cirrus players (`…securenetsystems.net/cirruscontent/CALL`) and Triton's
+/// (`player.listenlive.co/12345`): their data names the stream, not their links.
+fn is_provider_page(url: &Url) -> bool {
+	securenet_call(url).is_some() || is_listenlive(url)
+}
+
+fn securenet_call(url: &Url) -> Option<&str> {
+	if url.scheme() != "https" || url.port().is_some() || !host_is(url, "securenetsystems.net") {
+		return None;
+	}
+	let mut parts = url.path().trim_matches('/').split('/');
+	let (Some("cirruscontent" | "v5"), Some(call), None) = (parts.next(), parts.next(), parts.next()) else {
+		return None;
+	};
+	is_provider_id(call).then_some(call)
+}
+
+fn is_listenlive(url: &Url) -> bool {
+	let id = url.path().trim_matches('/');
+	url.scheme() == "https"
+		&& url.port().is_none()
+		&& url.host_str() == Some("player.listenlive.co")
+		&& (1..=12).contains(&id.len())
+		&& id.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// The lasting address a SecureNet player keeps in `streamSrcDB`. Its other addresses carry a
+/// play session that expires.
+fn securenet_stream(body: &str, page: &Url) -> Option<Url> {
+	let call = securenet_call(page)?;
+	let at = body.find("streamSrcDB")?;
+	let tail = body[at + "streamSrcDB".len()..].trim_start().strip_prefix('=')?.trim_start();
+	let quote = tail.chars().next().filter(|q| matches!(q, '"' | '\''))?;
+	let url = Url::parse(&tail[1..tail[1..].find(quote)? + 1]).ok()?;
+	(url.scheme() == "https"
+		&& url.port().is_none()
+		&& url.query().is_none()
+		&& host_is(&url, "securenetsystems.net")
+		&& url.path().trim_matches('/').eq_ignore_ascii_case(call))
+	.then_some(url)
+}
+
+/// A Triton player page names its mounts in its config; Triton's list for each says which play.
+fn triton_mounts_named(body: &str, page: &Url) -> Vec<Url> {
+	if !is_listenlive(page) {
+		return Vec::new();
+	}
+	let mut out: Vec<Url> = Vec::new();
+	for (at, key) in body.match_indices(r#""mount":""#) {
+		let tail = &body[at + key.len()..];
+		if let Some(mount) = tail.split('"').next().filter(|m| is_provider_id(m))
+			&& let Ok(url) = Url::parse(&format!("{TRITON}livestream?version=1.9&mount={mount}"))
+			&& !out.contains(&url)
+		{
+			out.push(url);
+		}
+	}
+	out.truncate(MAX_FRAMES);
+	out
+}
+
+#[derive(serde::Deserialize)]
+struct TritonConfig {
+	mountpoints: TritonMounts,
+}
+
+#[derive(serde::Deserialize)]
+struct TritonMounts {
+	#[serde(default)]
+	mountpoint: Vec<TritonMount>,
+}
+
+#[derive(serde::Deserialize)]
+struct TritonMount {
+	mount: String,
+	status: TritonStatus,
+	#[serde(rename = "media-format")]
+	format: TritonFormat,
+	#[serde(default)]
+	authentication: String,
+}
+
+#[derive(serde::Deserialize)]
+struct TritonStatus {
+	#[serde(rename = "status-code")]
+	code: String,
+}
+
+#[derive(serde::Deserialize)]
+struct TritonFormat {
+	#[serde(default)]
+	audio: Vec<TritonAudio>,
+}
+
+#[derive(serde::Deserialize)]
+struct TritonAudio {
+	#[serde(rename = "@codec")]
+	codec: String,
+}
+
+/// Triton's station list: each open mount, through Triton's redirector rather than the edge
+/// server it picked today. Monitor mounts are for the station's staff.
+fn triton_streams(body: &str, page: &Url) -> Vec<Url> {
+	if !page.as_str().starts_with(&format!("{TRITON}livestream?")) {
+		return Vec::new();
+	}
+	let Ok(config) = quick_xml::de::from_str::<TritonConfig>(body) else {
+		return Vec::new();
+	};
+	config.mountpoints.mountpoint.iter()
+		.filter(|m| m.status.code.trim() == "200" && m.authentication.trim() == "0")
+		.filter(|m| is_provider_id(m.mount.trim()) && !m.mount.to_ascii_uppercase().contains("MONITOR"))
+		.filter_map(|m| {
+			let extension = match m.format.audio.first()?.codec.to_ascii_lowercase().as_str() {
+				"mp3" => "mp3",
+				"aaclc" | "heaacv1" | "heaacv2" => "aac",
+				_ => return None,
+			};
+			Url::parse(&format!("{TRITON}livestream-redirect/{}.{extension}", m.mount.trim())).ok()
+		})
+		.take(MAX_TRITON_MOUNTS)
+		.collect()
 }
 
 /// The body when it is text a page or script is made of.
@@ -281,7 +495,7 @@ async fn fetch_text(client: &reqwest::Client, url: &Url, parent: Option<&Url>) -
 		.unwrap_or_default()
 		.to_ascii_lowercase();
 	let is_html = kind.contains("html");
-	if !(kind.is_empty() || is_html || kind.starts_with("text/") || kind.contains("script") || kind.contains("json")) {
+	if !(kind.is_empty() || is_html || kind.starts_with("text/") || kind.contains("script") || kind.contains("json") || kind.contains("xml")) {
 		return Ok(None);
 	}
 	let base = response.url().clone();
@@ -353,8 +567,12 @@ async fn check(client: &reqwest::Client, url: &Url, sure: bool) -> Option<Sound>
 }
 
 fn station_of(found: &Candidate, sound: Sound, title: Option<&str>, page: &Url) -> Station {
-	let name = sound
-		.name
+	// A stream host's own player names its station better than the server's generic icy-name.
+	let provider = (found.rank == Rank::Provider)
+		.then(|| found.label.clone().or_else(|| title.map(str::to_owned)))
+		.flatten();
+	let name = provider
+		.or(sound.name)
 		.or_else(|| found.label.clone())
 		.or_else(|| title.map(str::to_owned))
 		.or_else(|| page.host_str().map(str::to_owned))
@@ -429,6 +647,7 @@ async fn guarded<T: Send + 'static>(
 }
 
 async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
+	let typed_bare = !page.contains("://");
 	let page = page_url(page)?;
 	if crate::live::is_page(page.as_str()) {
 		let live = crate::live::lookup(client, page.as_str()).await?;
@@ -472,6 +691,12 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 		}
 		let text = match fetch_text(client, &url, parent.as_ref()).await {
 			Ok(text) => text,
+			// A typed `host:8000` with no scheme is often a stream server that speaks only http.
+			Err(e) if first && typed_bare => {
+				let mut http = url.clone();
+				let _ = http.set_scheme("http");
+				fetch_text(client, &http, None).await.map_err(|_| e)?
+			}
 			Err(e) if first => return Err(e),
 			Err(_) => continue,
 		};
@@ -483,8 +708,10 @@ async fn search(client: &reqwest::Client, page: &str) -> Result<Vec<Station>> {
 			title = scanned.title;
 		}
 		found.extend(scanned.candidates);
-		// Frames first: a player's frame is more telling than the site's scripts.
-		for frame in scanned.frames.into_iter().rev() {
+		// Frames first: a player's frame is more telling than the site's scripts. Listen pages
+		// next, ahead of scripts too.
+		let players = if first { scanned.players } else { Vec::new() };
+		for frame in scanned.frames.into_iter().chain(players).rev() {
 			queue.push_front((frame, Some(base.clone())));
 		}
 		queue.extend(scanned.scripts.into_iter().map(|s| (s, Some(base.clone()))));
@@ -613,6 +840,86 @@ mod tests {
 		assert_eq!(label, Some("High quality"));
 		assert_eq!(found.frames, [Url::parse("https://embed.example/player").unwrap()]);
 		assert_eq!(found.scripts, [Url::parse("https://radio.example/app.js").unwrap()]);
+	}
+
+	#[test]
+	fn listen_links_and_popups_lead_to_player_pages() {
+		let base = Url::parse("https://www.radio.example/").unwrap();
+		let html = r#"<a href="/listen-live">Listen Live</a>
+			<a href="https://listen.radio.example/">On air</a>
+			<a href="/news">News</a>
+			<a href="https://other.example/player">Their player</a>
+			<a href="/hi.pls">Listen in high quality</a>
+			<a href="https://player.listenlive.co/49771">Listen</a>
+			<a href="https://streamdb9web.securenetsystems.net/cirruscontent/TESTFM">Listen</a>
+			<a href="https://streamdb9web.securenetsystems.net.evil.example/cirruscontent/TESTFM">Listen</a>
+			<button onclick="window.open('/popup/player.html', 'p')">Play</button>"#;
+		let found = scan(html, &base, true);
+		let players: Vec<_> = found.players.iter().map(Url::as_str).collect();
+		assert_eq!(
+			players,
+			["https://www.radio.example/listen-live", "https://listen.radio.example/", "https://www.radio.example/popup/player.html"]
+		);
+		let frames: Vec<_> = found.frames.iter().map(Url::as_str).collect();
+		assert_eq!(
+			frames,
+			["https://player.listenlive.co/49771", "https://streamdb9web.securenetsystems.net/cirruscontent/TESTFM"]
+		);
+	}
+
+	#[test]
+	fn a_securenet_player_names_its_lasting_stream() {
+		let page = Url::parse("https://streamdb3web.securenetsystems.net/cirruscontent/KCCR").unwrap();
+		let html = r#"<title>1240 KCCR</title><script>
+			var streamSRC = "https://ice7.securenetsystems.net/KCCR?playSessionID=46F9";
+			var streamSrcDB = 'https://ice7.securenetsystems.net/KCCR';
+			</script>"#;
+		let found = scan(html, &page, true);
+		let stream = found.candidates.iter().find(|c| c.rank == Rank::Provider).unwrap();
+		assert_eq!(stream.url.as_str(), "https://ice7.securenetsystems.net/KCCR");
+		assert_eq!(stream.label.as_deref(), Some("1240 KCCR"));
+		assert!(!urls(&found).iter().any(|(u, _)| u.contains("playSessionID")), "session addresses expire");
+		let elsewhere = Url::parse("https://radio.example/").unwrap();
+		assert!(scan(html, &elsewhere, true).candidates.iter().all(|c| c.rank != Rank::Provider));
+	}
+
+	#[test]
+	fn a_triton_player_leads_to_its_open_mounts() {
+		let page = Url::parse("https://player.listenlive.co/49771").unwrap();
+		let html = r#"<script>var c = {"stream":{"mount":"KLPXH2FM","streamid":"14991"},"x":{"mount":"KLPXH2FM"},"y":{"mount":"bad mount"}};</script>"#;
+		let found = scan(html, &page, true);
+		let frames: Vec<_> = found.frames.iter().map(Url::as_str).collect();
+		assert_eq!(frames, [format!("{TRITON}livestream?version=1.9&mount=KLPXH2FM")]);
+
+		let list = Url::parse(&format!("{TRITON}livestream?version=1.9&mount=KLPXH2FM")).unwrap();
+		let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+			<live_stream_config version="1.9" xmlns="http://provisioning.streamtheworld.com/player/livestream-1.9">
+			<mountpoints>
+			<mountpoint><status><status-code>200</status-code></status><mount>CHMPFM</mount>
+				<media-format container="flv"><audio index="0" codec="mp3" bitrate="96000"/></media-format>
+				<authentication>0</authentication></mountpoint>
+			<mountpoint><status><status-code>200</status-code></status><mount>CHMPFMAAC</mount>
+				<media-format container="flv"><audio index="0" codec="heaacv2"/></media-format>
+				<authentication>0</authentication></mountpoint>
+			<mountpoint><status><status-code>200</status-code></status><mount>CHMPFMAAC_MONITOR</mount>
+				<media-format container="flv"><audio index="0" codec="heaacv2"/></media-format>
+				<authentication>0</authentication></mountpoint>
+			<mountpoint><status><status-code>200</status-code></status><mount>CHMPFMPAID</mount>
+				<media-format container="flv"><audio index="0" codec="mp3"/></media-format>
+				<authentication>1</authentication></mountpoint>
+			<mountpoint><status><status-code>404</status-code></status><mount>CHMPFMOFF</mount>
+				<media-format container="flv"><audio index="0" codec="mp3"/></media-format>
+				<authentication>0</authentication></mountpoint>
+			</mountpoints></live_stream_config>"#;
+		assert_eq!(
+			urls(&scan(xml, &list, false)),
+			[
+				(format!("{TRITON}livestream-redirect/CHMPFM.mp3"), Rank::Provider),
+				(format!("{TRITON}livestream-redirect/CHMPFMAAC.aac"), Rank::Provider),
+			]
+		);
+		let elsewhere = Url::parse("https://radio.example/list.xml").unwrap();
+		assert!(scan(xml, &elsewhere, false).candidates.iter().all(|c| c.rank != Rank::Provider));
 	}
 
 	#[test]

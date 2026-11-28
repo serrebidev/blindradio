@@ -266,6 +266,23 @@ async fn detects_the_streams_of_real_pages() {
 
 #[tokio::test]
 #[ignore = "network"]
+async fn detects_triton_and_securenet_players() {
+	let client = blindradio_core::net::client();
+	for (page, host) in [
+		("https://player.listenlive.co/34701", "playerservices.streamtheworld.com"),
+		("https://streamdb9web.securenetsystems.net/cirruscontent/KCCR", "ice7.securenetsystems.net"),
+	] {
+		let found = blindradio_core::page::detect(&client, page).await.unwrap();
+		for st in &found {
+			println!("{} | {:?} | {}", st.name, st.info, st.url);
+		}
+		assert!(found.iter().any(|st| st.url.contains(host)), "{page}");
+		assert!(!found.iter().any(|st| st.url.contains("playSessionID")), "{page}");
+	}
+}
+
+#[tokio::test]
+#[ignore = "network"]
 async fn detects_the_parsa_tv_player_frame() {
 	let page = "https://www.parsatv.com/name=Shabakeh-3#irib";
 	let found = blindradio_core::page::detect(&blindradio_core::net::client(), page).await.unwrap();
