@@ -95,6 +95,15 @@ impl App {
 			return;
 		};
 		let shifted = is_shifted(behind);
+		// F5, F6 and the other jumps move the playhead; the song it lands on was not a song
+		// change, so it is not announced (it read as the station's name on stations whose
+		// title is their name). The jump count changes only when the mixer moved it.
+		let jumps = self
+			.tuner
+			.shift()
+			.map_or(0, |(_, status)| status.seeks.load(std::sync::atomic::Ordering::Acquire));
+		let jumped = jumps != self.shift_jumps;
+		self.shift_jumps = jumps;
 		let song = if shifted {
 			let song = self.heard_song_at(behind);
 			// Shifted listening hears song changes too: as playback
@@ -102,14 +111,15 @@ impl App {
 			// announces it, the way a live change is announced. Live
 			// listening is the tuner's own Announce event, so this
 			// only speaks while shifted.
-			if shift_song_changed(&self.shift_song, &song) {
+			if shift_song_changed(&self.shift_song, &song, jumped) {
 				let text = song.clone().unwrap_or_default();
 				self.say_kind(Kind::Title, &text);
 			}
 			self.shift_song = song.clone();
 			song
 		} else {
-			self.shift_song = None;
+			// Leaving live by pause keeps the song heard at live: no announcement of it again.
+			self.shift_song = self.song.clone();
 			self.song.clone()
 		};
 		// A split recording follows the audio it is writing, and in the

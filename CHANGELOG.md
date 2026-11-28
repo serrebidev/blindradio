@@ -5,6 +5,10 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.22
+
+- F5 (start of buffer), F6 (back) and the other time-shift jumps no longer speak the title where playback lands. On stations whose title is their own name, this read as the station's name a moment after each key, whatever Announce Actions said. Song changes heard while playing on through the buffer are still announced, as are Previous and Next Song. Pausing on a song and resuming no longer repeats its title either.
+
 ## 0.3.21
 
 - The SerrebiRadio list follows itself: at start and every six hours BlindRadio asks whether the list changed, downloads it only when it has, and adds its new stations to the SerrebiRadio collection, saying how many. Nothing is removed, and a deleted SerrebiRadio collection stays deleted.

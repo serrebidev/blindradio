@@ -109,9 +109,11 @@ pub fn play_pause<T>(playing: bool, remembered: Option<T>, selected: Option<T>) 
 }
 
 /// Whether the song at the time-shift position just changed to a new
-/// one worth announcing: a song (not the same one, not a gap) took over.
-fn shift_song_changed(prev: &Option<String>, next: &Option<String>) -> bool {
-	next.is_some() && prev != next
+/// one worth announcing: a song (not the same one, not a gap) took over
+/// while playing on. A jump (seek, start of buffer, segment) lands on a
+/// song silently: the listener moved, the station did not change song.
+fn shift_song_changed(prev: &Option<String>, next: &Option<String>, jumped: bool) -> bool {
+	!jumped && next.is_some() && prev != next
 }
 
 /// One second of slack: below it the mixer sounds the live edge, above
@@ -419,6 +421,8 @@ pub struct App {
 	/// The song at the time-shift position, last tick: a change is a
 	/// song change the listener hears, announced like a live one.
 	shift_song: Option<String>,
+	/// The time-shift jump count (`ShiftStatus::seeks`) last tick: a change is a jump.
+	shift_jumps: u64,
 	/// When the playing station started sounding; drives the status line.
 	playing_since: Option<Instant>,
 	/// The station whose audio started, and when, until its play has been counted.
@@ -549,6 +553,7 @@ impl App {
 			hotkeys,
 			song: None,
 			shift_song: None,
+			shift_jumps: 0,
 			playing_since: None,
 			play_heard: None,
 			status_base: RefCell::new(String::new()),
@@ -1704,11 +1709,13 @@ mod tests {
 	fn shift_song_changes_announce_once_per_song() {
 		let a = Some("Song A".to_string());
 		let b = Some("Song B".to_string());
-		assert!(shift_song_changed(&None, &a), "first song in the buffer");
-		assert!(!shift_song_changed(&a, &a), "same song keeps playing");
-		assert!(shift_song_changed(&a, &b), "next song takes over");
-		assert!(!shift_song_changed(&a, &None), "a gap announces nothing");
-		assert!(!shift_song_changed(&None, &None), "still no song");
+		assert!(shift_song_changed(&None, &a, false), "first song in the buffer");
+		assert!(!shift_song_changed(&a, &a, false), "same song keeps playing");
+		assert!(shift_song_changed(&a, &b, false), "next song takes over");
+		assert!(!shift_song_changed(&a, &None, false), "a gap announces nothing");
+		assert!(!shift_song_changed(&None, &None, false), "still no song");
+		assert!(!shift_song_changed(&a, &b, true), "F5 or F6 lands on a song without saying it");
+		assert!(!shift_song_changed(&None, &a, true), "a jump back from live says no title");
 	}
 
 	#[test]

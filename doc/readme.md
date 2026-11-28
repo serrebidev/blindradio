@@ -698,7 +698,8 @@ When you are listening back in the time-shift buffer, the title names the song p
 at the buffer's position, not the live one; go live and it names the live song again.
 Song changes are announced in the buffer too, under the same Announce Song Titles
 setting as live ones: as playback moves forward through the buffer and the next song
-starts, it is spoken.
+starts, it is spoken. Moving yourself, with F6, F5 or any other jump in the buffer, is not a
+song change: the song you land on is not spoken, and neither is pausing on a song.
 
 The global hot keys work from any app. With NVDA or JAWS running, announcements are spoken
 by that screen reader itself, so they reach you wherever you are working, not only in the
