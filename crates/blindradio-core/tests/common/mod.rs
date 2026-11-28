@@ -214,6 +214,19 @@ async fn handle(
 			body,
 			..
 		} => {
+			// An `ETag:` among the headers answers a matching If-None-Match with 304.
+			let header = |text: &str, name: &str| {
+				text.lines()
+					.filter_map(|l| l.split_once(':'))
+					.find(|(k, _)| k.trim().eq_ignore_ascii_case(name))
+					.map(|(_, v)| v.trim().to_owned())
+			};
+			let etag = header(&String::from_utf8_lossy(headers), "etag");
+			if etag.is_some() && etag == header(&line, "if-none-match") {
+				return sock
+					.write_all(b"HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+					.await;
+			}
 			let mut head = format!(
 				"HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n",
 				body.len()

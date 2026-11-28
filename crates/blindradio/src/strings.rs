@@ -65,6 +65,10 @@ pub fn not_saved() -> String {
 pub fn starter_not_loaded() -> String {
 	patois::t("Starter stations not loaded")
 }
+/// The SerrebiRadio list changed on the server: `SerrebiRadio: 3 new stations`.
+pub fn starter_updated(n: usize) -> String {
+	patois::t("SerrebiRadio: {n} new stations").replace("{n}", &n.to_string())
+}
 pub fn about_description() -> String {
 	patois::t("Screen-reader-first internet radio.")
 }

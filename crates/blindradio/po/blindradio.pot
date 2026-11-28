@@ -75,6 +75,9 @@ msgstr ""
 msgid "Starter stations not loaded"
 msgstr ""
 
+msgid "SerrebiRadio: {n} new stations"
+msgstr ""
+
 msgid "Screen-reader-first internet radio."
 msgstr ""
 

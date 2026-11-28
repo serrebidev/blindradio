@@ -501,6 +501,11 @@ impl Sources {
 
 	/// Turns folders off by browse id, such as `tunein` or `net/bbc`. Off means gone from Browse
 	/// and Search. Saved stations keep playing.
+	/// Where downloaded directory files are kept between runs, such as Polska's playlist.
+	pub fn set_cache_dir(&self, dir: std::path::PathBuf) {
+		self.rstreams.set_dir(dir);
+	}
+
 	pub fn set_disabled(&self, ids: BTreeSet<String>) {
 		if let Ok(mut disabled) = self.disabled.write() {
 			*disabled = ids;

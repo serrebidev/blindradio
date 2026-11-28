@@ -369,6 +369,8 @@ pub struct Settings {
 	pub main_list: Option<String>,
 	/// When the daily update check last ran, in seconds since the Unix epoch.
 	pub last_update_check: Option<u64>,
+	/// ETag of the SerrebiRadio list last imported: it is downloaded again only once it changes.
+	pub starter_etag: Option<String>,
 	/// The daily update check runs automatically; off leaves only the
 	/// manual Check for Updates in the Help menu.
 	pub check_updates: bool,
@@ -420,6 +422,7 @@ impl Default for Settings {
 			last_station: None,
 			main_list: None,
 			last_update_check: None,
+			starter_etag: None,
 			check_updates: true,
 			language: None,
 			report_plays: true,

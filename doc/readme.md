@@ -152,8 +152,8 @@ Treehouse Radio, Dodge Radio, 2020 The Beacon, AMI Audio, RNIB Connect Radio, NF
 Double Tap Live. Russian holds Radio Record. Polish holds Polska (rstreams.ovh), the licensed Polish
 stations on air, grouped as their author groups them: Akademickie, Lokalne, Ogólnopolskie,
 Radio publiczne, Lokalne stacje radia publicznego and Wyznaniowe. Its list is one file its author
-updates every month or two; BlindRadio downloads it the first time you open it or search, and keeps
-it for six hours. Search finds its stations by name. To ask for another network, open an issue on GitHub.
+updates every month or two. BlindRadio keeps a copy and downloads the file again only when it
+has changed. Search finds its stations by name. To ask for another network, open an issue on GitHub.
 
 The `Sort` choice at the top orders station lists: the API default, name, votes, clicks,
 click trend, bitrate, codec, country, state, language, tags and more, with `Reverse` for
@@ -270,6 +270,11 @@ For an older SerrebiRadio import, choose **Get SerrebiRadio Stations** to recove
 the current file order. For another older playlist, reimport its source file
 into the same collection. Existing entries keep their folders and the import
 updates their order in flat view.
+
+BlindRadio follows the SerrebiRadio list by itself: at start and every six hours it asks
+whether the list changed, and downloads it only when it has. New stations arrive in the
+SerrebiRadio collection, and BlindRadio says how many. Nothing is removed. A deleted
+SerrebiRadio collection stays deleted; Get SerrebiRadio Stations brings it back.
 
 ## Exporting
 

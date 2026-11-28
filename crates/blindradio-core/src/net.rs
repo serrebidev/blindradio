@@ -592,6 +592,36 @@ pub async fn get_bytes(client: &reqwest::Client, url: &str) -> Result<bytes::Byt
 	response.bytes().await.map_err(http_err)
 }
 
+/// `url` only when it changed since the copy whose ETag is `tag`: None on 304 Not Modified.
+/// The body comes with the server's new ETag. A server without ETags sends the whole file.
+pub async fn get_if_changed(
+	client: &reqwest::Client,
+	url: &str,
+	tag: Option<&str>,
+) -> Result<Option<(bytes::Bytes, Option<String>)>> {
+	let mut get = client
+		.get(url)
+		.header("User-Agent", user_agent_for(url))
+		.timeout(Duration::from_secs(8));
+	if let Some(tag) = tag {
+		get = get.header(reqwest::header::IF_NONE_MATCH, tag);
+	}
+	let response = get.send().await.map_err(http_err)?;
+	let status = response.status().as_u16();
+	if status == 304 {
+		return Ok(None);
+	}
+	if status >= 400 {
+		return Err(CoreError::Http(format!("HTTP {status}")));
+	}
+	let etag = response
+		.headers()
+		.get(reqwest::header::ETAG)
+		.and_then(|v| v.to_str().ok())
+		.map(str::to_owned);
+	Ok(Some((response.bytes().await.map_err(http_err)?, etag)))
+}
+
 /// Fetches `url` and parses the body as JSON, all within 8 s.
 pub async fn get_json<T: serde::de::DeserializeOwned>(
 	client: &reqwest::Client,

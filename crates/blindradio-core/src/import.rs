@@ -323,6 +323,14 @@ pub async fn fetch_starter(client: &reqwest::Client) -> Result<String> {
 	fetch_playlist(client, STARTER_PLAYLIST_URL).await
 }
 
+/// The SerrebiRadio list only when it changed since the copy whose ETag is `tag`: None when
+/// it did not. The body comes with its new ETag, to keep for the next check.
+pub async fn fetch_starter_if_changed(client: &reqwest::Client, tag: Option<&str>) -> Result<Option<(String, Option<String>)>> {
+	Ok(net::get_if_changed(client, STARTER_PLAYLIST_URL, tag)
+		.await?
+		.map(|(body, tag)| (decode(body.to_vec()), tag)))
+}
+
 /// A playlist body, decoded like a file; 8 s in all.
 pub async fn fetch_playlist(client: &reqwest::Client, url: &str) -> Result<String> {
 	Ok(decode(net::get_bytes(client, url).await?.to_vec()))

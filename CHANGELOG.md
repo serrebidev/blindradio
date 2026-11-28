@@ -5,6 +5,11 @@ were part of the same fix stream, they are combined with a version range such
 as `0.2.2-0.2.3`. Each release's section below is its release note,
 taken from this file by the release workflow.
 
+## 0.3.21
+
+- The SerrebiRadio list follows itself: at start and every six hours BlindRadio asks whether the list changed, downloads it only when it has, and adds its new stations to the SerrebiRadio collection, saying how many. Nothing is removed, and a deleted SerrebiRadio collection stays deleted.
+- Polska (rstreams.ovh) keeps its copy between runs and downloads the file again only when it has changed. Without a connection, the kept copy still browses and searches.
+
 ## 0.3.20
 
 - Networks in Browse is sorted by language: English, Polish and Russian. English holds every English-language network, Russian holds Radio Record.

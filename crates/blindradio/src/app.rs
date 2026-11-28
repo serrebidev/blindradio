@@ -52,6 +52,8 @@ const LINE_REST: Duration = Duration::from_millis(300);
 const SETTINGS_REST: Duration = Duration::from_secs(1);
 /// The daily check waits until the window and the first station are settled.
 const UPDATE_DELAY: Duration = Duration::from_secs(10);
+/// The SerrebiRadio list is asked about this often; it downloads only when it changed.
+const STARTER_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 /// Audio this long makes a play: moving along the dial hears a station without choosing it.
 const PLAY_COUNTS: Duration = Duration::from_secs(10);
 
@@ -443,6 +445,8 @@ pub struct App {
 	last_device_poll: Instant,
 	/// When the daily update check is due this run.
 	update_due: Option<Instant>,
+	/// When to ask whether the SerrebiRadio list changed.
+	starter_due: Instant,
 	/// Scheduled recordings already started: (entry id, occurrence).
 	sched_fired: std::collections::HashSet<(String, u64)>,
 	/// The scheduled recording on air now: (entry id, occurrence).
@@ -503,6 +507,7 @@ impl App {
 			sources: {
 				let sources = Sources::new(engine.ctx.client.clone(), Endpoints::default());
 				sources.set_disabled(settings.disabled_sources.clone());
+				sources.set_cache_dir(data.clone());
 				Arc::new(sources)
 			},
 			filters: None,
@@ -559,6 +564,7 @@ impl App {
 			events,
 			last_device_poll: Instant::now(),
 			update_due: None,
+			starter_due: Instant::now() + UPDATE_DELAY,
 			sched_fired: std::collections::HashSet::new(),
 			sched_active: None,
 			last_sched_poll: Instant::now(),
@@ -1011,6 +1017,10 @@ impl App {
 				self.tuner.play(&st, Instant::now());
 			}
 		}
+		if now >= self.starter_due {
+			self.starter_due = now + STARTER_EVERY;
+			self.refresh_starter();
+		}
 		if let Some(due) = self.update_due
 			&& now >= due
 		{
@@ -1347,9 +1357,12 @@ impl App {
 		let client = self.engine.ctx.client.clone();
 		self.bridge.spawn(
 			WindowToken::new(),
-			async move { import::fetch_starter(&client).await },
+			async move { import::fetch_starter_if_changed(&client, None).await },
 			move |app: &mut App, body| match body {
-				Ok(body) => {
+				Ok(got) => {
+					let (body, tag) = got.unwrap_or_default();
+					app.settings.starter_etag = tag;
+					app.save_settings_soon();
 					let report = import::import_starter(&mut app.library, &body);
 					app.save_library();
 					app.refresh_dial();
@@ -1364,6 +1377,33 @@ impl App {
 					eprintln!("starter: {e}");
 					app.say(&s::starter_not_loaded());
 				}
+			},
+		);
+	}
+
+	/// Downloads the SerrebiRadio list only when it changed since the last import, and adds
+	/// its new stations. Says something only when stations arrived. A list deleted stays gone.
+	fn refresh_starter(&mut self) {
+		if !self.library.collections.iter().any(|c| c.name.eq_ignore_ascii_case(import::STARTER_COLLECTION)) {
+			return;
+		}
+		let (client, tag) = (self.engine.ctx.client.clone(), self.settings.starter_etag.clone());
+		self.bridge.spawn(
+			WindowToken::new(),
+			async move { import::fetch_starter_if_changed(&client, tag.as_deref()).await },
+			move |app: &mut App, got| match got {
+				Ok(Some((body, tag))) => {
+					app.settings.starter_etag = tag;
+					app.save_settings_soon();
+					let report = import::import_starter(&mut app.library, &body);
+					app.save_library();
+					app.refresh_dial();
+					if report.added > 0 {
+						app.say(&s::starter_updated(report.added));
+					}
+				}
+				Ok(None) => {}
+				Err(e) => eprintln!("starter check: {e}"),
 			},
 		);
 	}

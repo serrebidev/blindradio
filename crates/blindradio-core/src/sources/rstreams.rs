@@ -1,25 +1,33 @@
 //! Polska, from rstreams.ovh: licensed Polish radio stations on air, one M3U file the
 //! author updates every month or two, grouped by kind (Akademickie, Lokalne and so on).
-//! Browse only, never searched: the author's server is small, so the file is read when
-//! someone opens it, and kept for the session.
+//! The author's server is small: the file is downloaded only when it changed (ETag), kept on
+//! disk between runs, and asked about at most every few minutes.
 
-use std::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use super::Node;
 use crate::Result;
-use crate::net::http_err;
+use crate::net::get_if_changed;
 use crate::playlist::{PlaylistEntry, parse_m3u};
 use crate::station::{Source, Station};
 
 pub const ROOT: &str = "rstreams";
 pub const NAME: &str = "Polska (rstreams.ovh)";
-/// A file updated monthly is read again after this, not on every folder opened.
-const KEEP: Duration = Duration::from_secs(6 * 60 * 60);
+/// Opening folders and searching within this reuse the copy without asking the server.
+const RECHECK: Duration = Duration::from_secs(5 * 60);
+const FILE: &str = "rstreams-polska.m3u";
+const TAG_FILE: &str = "rstreams-polska.etag";
+
+/// The copy in use: when the server was last asked, its ETag, the stations.
+type Copy = (Instant, Option<String>, Vec<PlaylistEntry>);
 
 pub struct Rstreams {
 	url: String,
-	read: Mutex<Option<(Instant, Vec<PlaylistEntry>)>>,
+	read: Mutex<Option<Copy>>,
+	/// Where the copy is kept between runs; None keeps it in memory only.
+	dir: RwLock<Option<PathBuf>>,
 }
 
 fn station(entry: &PlaylistEntry) -> Station {
@@ -59,29 +67,63 @@ fn nodes(entries: &[PlaylistEntry], id: &str) -> Vec<Node> {
 
 impl Rstreams {
 	pub fn new(url: String) -> Rstreams {
-		Rstreams { url, read: Mutex::new(None) }
+		Rstreams { url, read: Mutex::new(None), dir: RwLock::new(None) }
+	}
+
+	pub fn set_dir(&self, dir: PathBuf) {
+		if let Ok(mut d) = self.dir.write() {
+			*d = Some(dir);
+		}
+	}
+
+	fn dir(&self) -> Option<PathBuf> {
+		self.dir.read().ok().and_then(|d| d.clone())
+	}
+
+	/// The copy kept by an earlier run, if any.
+	fn saved(&self) -> Option<(Option<String>, Vec<PlaylistEntry>)> {
+		let dir = self.dir()?;
+		let body = std::fs::read_to_string(dir.join(FILE)).ok()?;
+		let tag = std::fs::read_to_string(dir.join(TAG_FILE)).ok().filter(|t| !t.is_empty());
+		Some((tag, parse_m3u(&body)))
+	}
+
+	fn save(&self, body: &str, tag: Option<&str>) {
+		if let Some(dir) = self.dir() {
+			let _ = std::fs::create_dir_all(&dir);
+			let _ = std::fs::write(dir.join(FILE), body);
+			let _ = std::fs::write(dir.join(TAG_FILE), tag.unwrap_or_default());
+		}
 	}
 
 	async fn entries(&self, client: &reqwest::Client) -> Result<Vec<PlaylistEntry>> {
-		if let Ok(read) = self.read.lock()
-			&& let Some((at, entries)) = read.as_ref()
-			&& at.elapsed() < KEEP
+		let held = self.read.lock().ok().and_then(|r| r.clone());
+		if let Some((at, _, entries)) = &held
+			&& at.elapsed() < RECHECK
 		{
 			return Ok(entries.clone());
 		}
-		let body = client
-			.get(&self.url)
-			.header("User-Agent", "Blind-Radio/1")
-			.send()
-			.await
-			.and_then(|r| r.error_for_status())
-			.map_err(http_err)?
-			.text()
-			.await
-			.map_err(http_err)?;
-		let entries = parse_m3u(&body);
+		let (tag, entries) = match held {
+			Some((_, tag, entries)) => (tag, Some(entries)),
+			None => self.saved().map_or((None, None), |(t, e)| (t, Some(e))),
+		};
+		// Only a copy we hold may be asked for by tag: without one a 304 leaves nothing.
+		let ask = entries.as_ref().and(tag.as_deref());
+		let (tag, entries) = match get_if_changed(client, &self.url, ask).await {
+			Ok(Some((body, new_tag))) => {
+				let body = String::from_utf8_lossy(&body).into_owned();
+				self.save(&body, new_tag.as_deref());
+				(new_tag, parse_m3u(&body))
+			}
+			Ok(None) => (tag, entries.unwrap_or_default()),
+			// The server is down: the copy we have still plays.
+			Err(e) => match entries {
+				Some(entries) => (tag, entries),
+				None => return Err(e),
+			},
+		};
 		if let Ok(mut read) = self.read.lock() {
-			*read = Some((Instant::now(), entries.clone()));
+			*read = Some((Instant::now(), tag, entries.clone()));
 		}
 		Ok(entries)
 	}
@@ -90,7 +132,7 @@ impl Rstreams {
 		Ok(nodes(&self.entries(client).await?, id))
 	}
 
-	/// Name search over the kept copy: one download serves every search for `KEEP`.
+	/// Name search over the kept copy, downloaded again only when it changed.
 	pub async fn search(&self, client: &reqwest::Client, name: &str) -> Result<Vec<Station>> {
 		let name = name.trim().to_lowercase();
 		Ok(self.entries(client).await?

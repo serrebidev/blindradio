@@ -202,6 +202,31 @@ async fn folders_turned_off_leave_browse_and_search() {
 	assert!(!src.children(&net_id, sort).await.unwrap().is_empty());
 }
 
+/// The Polish server is small: a kept copy is asked for by ETag, and a 304 reuses it.
+#[tokio::test]
+async fn the_polish_playlist_downloads_only_when_it_changed() {
+	let dir = std::env::temp_dir().join(format!("br-rstreams-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&dir);
+	let tagged = |body: &str| Route::Headers {
+		path: "/Polska.m3u".into(),
+		content_type: "audio/mpegurl".into(),
+		headers: b"ETag: \"v1\"".to_vec(),
+		body: body.as_bytes().to_vec(),
+	};
+	let (first_server, first) = sources(vec![tagged("#EXTM3U\n#EXTINF:-1 group-title=\"Lokalne\",Fama\nhttp://pl.test/fama\n")]);
+	first.set_cache_dir(dir.clone());
+	let sort = Sort::default();
+	assert_eq!(first.children("rstreams", sort).await.unwrap(), vec![folder("rstreams/Lokalne", "Lokalne")]);
+	first.children("rstreams/Lokalne", sort).await.unwrap();
+	assert_eq!(first_server.hits("/Polska.m3u"), 1, "opened again within minutes: no request");
+
+	// A later run: this server would send other stations, but answers 304 to the kept ETag.
+	let (_second_server, second) = sources(vec![tagged("#EXTM3U\n#EXTINF:-1 group-title=\"Inne\",X\nhttp://pl.test/x\n")]);
+	second.set_cache_dir(dir.clone());
+	assert_eq!(second.children("rstreams", sort).await.unwrap(), vec![folder("rstreams/Lokalne", "Lokalne")]);
+	let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[tokio::test]
 async fn the_polish_playlist_browses_under_polish_and_searches() {
 	let m3u = "#EXTM3U\n#EXTINF:-1 group-title=\"Akademickie\",Afera\nhttp://pl.test/afera.mp3\n\
